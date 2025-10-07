@@ -1,0 +1,137 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Detalle del Lote {{ lote.numero_lote }}{% endblock %}
+{% block page_title %}Detalle del Lote {{ lote.numero_lote }}{% endblock %}
+
+{% block page_actions %}
+<a href="{% url 'lista_lotes' %}" class="btn btn-outline-secondary">
+    <i class="fas fa-arrow-left"></i> Volver
+</a>
+<a href="{% url 'editar_lote' lote.pk %}" class="btn btn-primary">
+    <i class="fas fa-edit"></i> Editar Lote
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="card mb-4">
+    <div class="card-header bg-light">
+        <h5 class="mb-0"><i class="fas fa-box-open"></i> Información del Lote</h5>
+    </div>
+    <div class="card-body">
+        <div class="row">
+            <div class="col-md-6">
+                <p><strong>Producto:</strong> {{ lote.producto.clave_cnis }} - {{ lote.producto.descripcion }}</p>
+                <p><strong>Institución:</strong> {{ lote.institucion.clue }} - {{ lote.institucion.denominacion }}</p>
+                <p><strong>Orden de Suministro:</strong> {{ lote.orden_suministro|default:"-" }}</p>
+                <p><strong>Estado:</strong>
+                    <span class="badge bg-{% if lote.estado == 1 %}success{% elif lote.estado == 4 %}warning{% else %}danger{% endif %}">
+                        {{ lote.get_estado_display }}
+                    </span>
+                </p>
+            </div>
+            <div class="col-md-6">
+                <p><strong>Cantidad Inicial:</strong> {{ lote.cantidad_inicial|intcomma }}</p>
+                <p><strong>Cantidad Disponible:</strong>
+                    <span class="badge bg-{% if lote.cantidad_disponible > 50 %}success{% elif lote.cantidad_disponible > 10 %}warning{% else %}danger{% endif %}">
+                        {{ lote.cantidad_disponible|intcomma }}
+                    </span>
+                </p>
+                <p><strong>Precio Unitario:</strong> ${{ lote.precio_unitario|floatformat:2 }}</p>
+                <p><strong>Valor Total:</strong> ${{ lote.valor_total|floatformat:2|intcomma }}</p>
+                <p><strong>Fecha de Caducidad:</strong>
+                    {{ lote.fecha_caducidad|date:"d/m/Y"|default:"-" }}
+                    {% if lote.esta_caducado %}
+                        <span class="badge bg-danger">Caducado</span>
+                    {% elif lote.esta_proximo_a_caducar %}
+                        <span class="badge bg-warning">Próximo ({{ lote.dias_para_caducidad }} días)</span>
+                    {% endif %}
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Resumen de movimientos -->
+<div class="row mb-4">
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h4 class="text-success">{{ resumen.entradas|intcomma }}</h4>
+                <small class="text-muted">Entradas</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h4 class="text-danger">{{ resumen.salidas|intcomma }}</h4>
+                <small class="text-muted">Salidas</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h4 class="text-warning">{{ resumen.ajustes|intcomma }}</h4>
+                <small class="text-muted">Ajustes</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h4 class="text-info">{{ resumen.transferencias|intcomma }}</h4>
+                <small class="text-muted">Transferencias</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Historial de movimientos -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0"><i class="fas fa-exchange-alt"></i> Movimientos del Lote</h5>
+        <span class="badge bg-secondary">{{ total_movimientos }} registros</span>
+    </div>
+    <div class="card-body p-0">
+        {% if movimientos %}
+        <div class="table-responsive">
+            <table class="table table-striped mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Tipo</th>
+                        <th>Cantidad</th>
+                        <th>Motivo</th>
+                        <th>Documento</th>
+                        <th>Usuario</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for mov in movimientos %}
+                    <tr>
+                        <td>{{ mov.fecha_registro|date:"d/m/Y H:i" }}</td>
+                        <td>
+                            <span class="badge bg-{% if mov.tipo_movimiento == 'ENTRADA' %}success{% elif mov.tipo_movimiento == 'SALIDA' %}danger{% elif mov.tipo_movimiento == 'AJUSTE' %}warning{% else %}info{% endif %}">
+                                {{ mov.tipo_movimiento }}
+                            </span>
+                        </td>
+                        <td>{{ mov.cantidad|intcomma }}</td>
+                        <td>{{ mov.motivo|truncatechars:50 }}</td>
+                        <td>{{ mov.documento_referencia|default:"-" }}</td>
+                        <td>{{ mov.usuario.username|default:"-" }}</td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% else %}
+        <div class="text-center py-4">
+            <i class="fas fa-info-circle text-muted fa-2x mb-2"></i>
+            <p class="text-muted mb-0">No hay movimientos registrados para este lote.</p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,53 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <h2>📄 Lista de Solicitudes</h2>
+
+    <!-- Filtros (opcional) -->
+    <form method="get" class="row g-3 mb-3">
+        <div class="col-md-3">
+            <label for="fecha" class="form-label">Fecha de generación</label>
+            <input type="date" class="form-control" name="fecha" id="fecha" value="{{ request.GET.fecha }}">
+        </div>
+        <div class="col-md-3">
+            <label for="estado" class="form-label">Estado del insumo</label>
+            <select class="form-select" name="estado" id="estado">
+                <option value="">Todos</option>
+                {% for estado in estados %}
+                <option value="{{ estado.id_estado }}" {% if request.GET.estado == estado.id_estado|stringformat:"s" %}selected{% endif %}>{{ estado.descripcion }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="col-md-3 align-self-end">
+            <button type="submit" class="btn btn-secondary">Filtrar</button>
+        </div>
+    </form>
+
+    <!-- Botón de exportación -->
+    <a href="{% url 'exportar_solicitud_excel' fecha=request.GET.fecha|default:'' %}" class="btn btn-success mb-3">📥 Exportar Excel</a>
+
+    <!-- Tabla de solicitudes -->
+    <table class="table table-bordered table-striped">
+        <thead>
+            <tr>
+                <th>Fecha</th>
+                <th>CLUES</th>
+                <th>Producto</th>
+                <th>Cantidad</th>
+                <th>Estado del insumo</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for solicitud in solicitudes %}
+            <tr>
+                <td>{{ solicitud.fecha_generacion }}</td>
+                <td>{{ solicitud.clues }}</td>
+                <td>{{ solicitud.descripcion }}</td>
+                <td>{{ solicitud.inventario_disponible }}</td>
+                <td>{{ solicitud.estado_insumo.descripcion }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</div>
+{% endblock %}

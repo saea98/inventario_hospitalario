@@ -1,0 +1,209 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}{{ producto.clave_cnis }} - Productos{% endblock %}
+
+{% block page_title %}Detalle del Producto{% endblock %}
+
+{% block page_actions %}
+<a href="{% url 'editar_producto' producto.pk %}" class="btn btn-primary">
+    <i class="fas fa-edit"></i> Editar Producto
+</a>
+<a href="{% url 'lista_productos' %}" class="btn btn-outline-secondary">
+    <i class="fas fa-arrow-left"></i> Volver a Lista
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <!-- Información del Producto -->
+    <div class="col-lg-8">
+        <div class="card mb-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle"></i> Información General
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <dl class="row">
+                            <dt class="col-sm-4">Clave/CNIS:</dt>
+                            <dd class="col-sm-8"><strong>{{ producto.clave_cnis }}</strong></dd>
+                            
+                            <dt class="col-sm-4">Categoría:</dt>
+                            <dd class="col-sm-8">
+                                <span class="badge bg-secondary">{{ producto.categoria.nombre }}</span>
+                            </dd>
+                            
+                            <dt class="col-sm-4">Unidad:</dt>
+                            <dd class="col-sm-8">{{ producto.unidad_medida }}</dd>
+                            
+                            <dt class="col-sm-4">Precio Ref.:</dt>
+                            <dd class="col-sm-8">
+                                {% if producto.precio_unitario_referencia %}
+                                    ${{ producto.precio_unitario_referencia|floatformat:2|intcomma }}
+                                {% else %}
+                                    <span class="text-muted">No definido</span>
+                                {% endif %}
+                            </dd>
+                        </dl>
+                    </div>
+                    <div class="col-md-6">
+                        <dl class="row">
+                            <dt class="col-sm-4">Insumo CPM:</dt>
+                            <dd class="col-sm-8">
+                                {% if producto.es_insumo_cpm %}
+                                    <span class="badge bg-info">Sí</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">No</span>
+                                {% endif %}
+                            </dd>
+                            
+                            <dt class="col-sm-4">Estado:</dt>
+                            <dd class="col-sm-8">
+                                {% if producto.activo %}
+                                    <span class="badge bg-success">Activo</span>
+                                {% else %}
+                                    <span class="badge bg-danger">Inactivo</span>
+                                {% endif %}
+                            </dd>
+                            
+                            <dt class="col-sm-4">Creado:</dt>
+                            <dd class="col-sm-8">{{ producto.fecha_creacion|date:"d/m/Y H:i" }}</dd>
+                            
+                            <dt class="col-sm-4">Actualizado:</dt>
+                            <dd class="col-sm-8">{{ producto.fecha_actualizacion|date:"d/m/Y H:i" }}</dd>
+                        </dl>
+                    </div>
+                </div>
+                
+                <div class="row mt-3">
+                    <div class="col-12">
+                        <dt>Descripción:</dt>
+                        <dd class="mt-2">{{ producto.descripcion }}</dd>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Lotes del Producto -->
+        <div class="card">
+            <div class="card-header d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-boxes"></i> Lotes Disponibles
+                </h5>
+                <a href="{% url 'crear_lote' %}?producto={{ producto.pk }}" class="btn btn-sm btn-primary">
+                    <i class="fas fa-plus"></i> Nuevo Lote
+                </a>
+            </div>
+            <div class="card-body p-0">
+                {% if lotes %}
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Lote</th>
+                                <th>Institución</th>
+                                <th>Cantidad</th>
+                                <th>Valor</th>
+                                <th>Caducidad</th>
+                                <th>Estado</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for lote in lotes %}
+                            <tr>
+                                <td><strong>{{ lote.numero_lote }}</strong></td>
+                                <td>{{ lote.institucion.denominacion|truncatechars:30 }}</td>
+                                <td>{{ lote.cantidad_disponible|intcomma }}</td>
+                                <td>${{ lote.valor_total|floatformat:2|intcomma }}</td>
+                                <td>
+                                    {{ lote.fecha_caducidad|date:"d/m/Y" }}
+                                    {% if lote.esta_caducado %}
+                                        <span class="badge bg-danger ms-1">Caducado</span>
+                                    {% elif lote.esta_proximo_a_caducar %}
+                                        <span class="badge bg-warning ms-1">Próximo</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <span class="badge bg-{% if lote.estado == 1 %}success{% elif lote.estado == 4 %}warning{% else %}danger{% endif %}">
+                                        {{ lote.get_estado_display }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <a href="{% url 'detalle_lote' lote.pk %}" class="btn btn-sm btn-outline-primary">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-4">
+                    <i class="fas fa-boxes fa-2x text-muted mb-3"></i>
+                    <p class="text-muted">No hay lotes registrados para este producto.</p>
+                    <a href="{% url 'crear_lote' %}?producto={{ producto.pk }}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Crear Primer Lote
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <!-- Estadísticas -->
+    <div class="col-lg-4">
+        <!-- Resumen de Stock -->
+        <div class="card mb-4">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-chart-bar"></i> Resumen de Stock
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6">
+                        <h4 class="text-primary">{{ total_stock|intcomma }}</h4>
+                        <small class="text-muted">Unidades Disponibles</small>
+                    </div>
+                    <div class="col-6">
+                        <h4 class="text-success">${{ valor_total|floatformat:0|intcomma }}</h4>
+                        <small class="text-muted">Valor Total</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Distribución por Institución -->
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-building"></i> Distribución por Institución
+                </h6>
+            </div>
+            <div class="card-body">
+                {% if distribucion %}
+                    {% for dist in distribucion %}
+                    <div class="d-flex justify-content-between align-items-center mb-2">
+                        <div>
+                            <small class="fw-bold">{{ dist.institucion__denominacion|truncatechars:20 }}</small>
+                        </div>
+                        <div class="text-end">
+                            <small class="text-primary">{{ dist.cantidad|intcomma }} unidades</small><br>
+                            <small class="text-muted">${{ dist.valor|floatformat:0|intcomma }}</small>
+                        </div>
+                    </div>
+                    {% if not forloop.last %}<hr class="my-2">{% endif %}
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted text-center">No hay distribución disponible</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

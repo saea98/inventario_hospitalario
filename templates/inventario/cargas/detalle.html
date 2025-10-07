@@ -1,0 +1,318 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Detalle de Carga - Sistema de Inventario{% endblock %}
+
+{% block page_title %}Detalle de Carga: {{ carga.nombre_archivo }}{% endblock %}
+
+{% block page_actions %}
+<a href="{% url 'lista_cargas' %}" class="btn btn-outline-secondary">
+    <i class="fas fa-arrow-left"></i> Volver a Lista
+</a>
+<a href="{% url 'cargar_archivo_excel' %}" class="btn btn-primary">
+    <i class="fas fa-plus"></i> Nueva Carga
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <!-- Información general de la carga -->
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle"></i> Información de la Carga
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <dl class="row">
+                            <dt class="col-sm-5">Archivo:</dt>
+                            <dd class="col-sm-7">{{ carga.nombre_archivo }}</dd>
+                            
+                            <dt class="col-sm-5">Estado:</dt>
+                            <dd class="col-sm-7">
+                                <span class="badge bg-{% if carga.estado == 'COMPLETADA' %}success{% elif carga.estado == 'ERROR' %}danger{% elif carga.estado == 'PROCESANDO' %}warning{% else %}secondary{% endif %} fs-6">
+                                    {{ carga.get_estado_display }}
+                                </span>
+                            </dd>
+                            
+                            <dt class="col-sm-5">Tipo:</dt>
+                            <dd class="col-sm-7">
+                                <span class="badge bg-info">
+                                    {{ carga.get_tipo_archivo_display }}
+                                </span>
+                            </dd>
+                            
+                            <dt class="col-sm-5">Usuario:</dt>
+                            <dd class="col-sm-7">{{ carga.usuario.get_full_name|default:carga.usuario.username }}</dd>
+                        </dl>
+                    </div>
+                    <div class="col-md-6">
+                        <dl class="row">
+                            <dt class="col-sm-6">Fecha de Carga:</dt>
+                            <dd class="col-sm-6">{{ carga.fecha_carga|date:"d/m/Y H:i" }}</dd>
+                            
+                            {% if carga.fecha_procesamiento %}
+                            <dt class="col-sm-6">Fecha de Proceso:</dt>
+                            <dd class="col-sm-6">{{ carga.fecha_procesamiento|date:"d/m/Y H:i" }}</dd>
+                            {% endif %}
+                            
+                            <dt class="col-sm-6">Tamaño:</dt>
+                            <dd class="col-sm-6">
+                                {% if carga.archivo %}
+                                    {{ carga.archivo.size|filesizeformat }}
+                                {% else %}
+                                    No disponible
+                                {% endif %}
+                            </dd>
+                        </dl>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Estadísticas de procesamiento -->
+        {% if carga.total_registros > 0 %}
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-bar"></i> Estadísticas de Procesamiento
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-md-3">
+                        <div class="border rounded p-3">
+                            <h3 class="text-primary">{{ carga.total_registros|intcomma }}</h3>
+                            <small class="text-muted">Total de Registros</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border rounded p-3">
+                            <h3 class="text-success">{{ carga.registros_exitosos|intcomma }}</h3>
+                            <small class="text-muted">Exitosos</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border rounded p-3">
+                            <h3 class="text-danger">{{ carga.registros_con_error|intcomma }}</h3>
+                            <small class="text-muted">Con Error</small>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="border rounded p-3">
+                            <h3 class="text-info">{% widthratio carga.registros_exitosos carga.total_registros 100 %}%</h3>
+                            <small class="text-muted">Tasa de Éxito</small>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Barra de progreso -->
+                <div class="mt-4">
+                    <div class="d-flex justify-content-between mb-2">
+                        <span>Progreso de Procesamiento</span>
+                        <span>{{ carga.registros_procesados|intcomma }}/{{ carga.total_registros|intcomma }}</span>
+                    </div>
+                    <div class="progress" style="height: 10px;">
+                        <div class="progress-bar bg-success" style="width: {% widthratio carga.registros_exitosos carga.total_registros 100 %}%"></div>
+                        <div class="progress-bar bg-danger" style="width: {% widthratio carga.registros_con_error carga.total_registros 100 %}%"></div>
+                    </div>
+                    <div class="d-flex justify-content-between mt-1">
+                        <small class="text-success">{{ carga.registros_exitosos|intcomma }} exitosos</small>
+                        <small class="text-danger">{{ carga.registros_con_error|intcomma }} con errores</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Log de errores -->
+        {% if errores %}
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-exclamation-triangle text-warning"></i> 
+                    Errores Encontrados ({{ errores|length }})
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-warning">
+                    <strong>Se encontraron errores durante el procesamiento.</strong> 
+                    Revisa los detalles a continuación para corregir los datos y volver a cargar el archivo.
+                </div>
+                
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th width="10%">#</th>
+                                <th>Error</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for error in errores %}
+                            <tr>
+                                <td>{{ forloop.counter }}</td>
+                                <td>
+                                    <code class="text-danger">{{ error }}</code>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                {% if errores|length > 10 %}
+                <div class="alert alert-info mt-3">
+                    <i class="fas fa-info-circle"></i>
+                    Se muestran los primeros errores. Para ver el log completo, 
+                    <a href="#" onclick="mostrarTodosLosErrores()">haz clic aquí</a>.
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Observaciones -->
+        {% if carga.observaciones %}
+        <div class="card mt-4">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-sticky-note"></i> Observaciones
+                </h5>
+            </div>
+            <div class="card-body">
+                <p class="mb-0">{{ carga.observaciones|linebreaks }}</p>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+    
+    <div class="col-lg-4">
+        <!-- Acciones rápidas -->
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-tools"></i> Acciones
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="d-grid gap-2">
+                    {% if carga.estado == 'COMPLETADA' %}
+                    <a href="{% url 'dashboard' %}" class="btn btn-success">
+                        <i class="fas fa-chart-line"></i> Ver Dashboard
+                    </a>
+                    {% endif %}
+                    
+                    {% if carga.estado == 'ERROR' %}
+                    <a href="{% url 'cargar_archivo_excel' %}" class="btn btn-warning">
+                        <i class="fas fa-redo"></i> Reintentar Carga
+                    </a>
+                    {% endif %}
+                    
+                    <a href="{% url 'lista_cargas' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-list"></i> Ver Todas las Cargas
+                    </a>
+                    
+                    {% if carga.archivo %}
+                    <a href="{{ carga.archivo.url }}" class="btn btn-outline-info" download>
+                        <i class="fas fa-download"></i> Descargar Archivo
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+        
+        <!-- Información técnica -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-cog"></i> Información Técnica
+                </h6>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-6">ID de Carga:</dt>
+                    <dd class="col-6"><code>{{ carga.id }}</code></dd>
+                    
+                    <dt class="col-6">Duración:</dt>
+                    <dd class="col-6">
+                        {% if carga.fecha_procesamiento %}
+                            {{ carga.fecha_procesamiento|timesince:carga.fecha_carga }}
+                        {% else %}
+                            En proceso...
+                        {% endif %}
+                    </dd>
+                    
+                    <dt class="col-6">Método:</dt>
+                    <dd class="col-6">Carga masiva Excel</dd>
+                    
+                    <dt class="col-6">Versión:</dt>
+                    <dd class="col-6">1.0</dd>
+                </dl>
+            </div>
+        </div>
+        
+        <!-- Ayuda contextual -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-question-circle"></i> ¿Qué Hacer Ahora?
+                </h6>
+            </div>
+            <div class="card-body">
+                {% if carga.estado == 'COMPLETADA' %}
+                <div class="alert alert-success">
+                    <strong>¡Carga exitosa!</strong> Los datos se han importado correctamente.
+                </div>
+                <p>Puedes:</p>
+                <ul>
+                    <li>Revisar los datos en el dashboard</li>
+                    <li>Verificar instituciones y productos</li>
+                    <li>Generar reportes</li>
+                </ul>
+                {% elif carga.estado == 'ERROR' %}
+                <div class="alert alert-danger">
+                    <strong>Carga con errores.</strong> Revisa los errores y corrige el archivo.
+                </div>
+                <p>Recomendaciones:</p>
+                <ul>
+                    <li>Corrige los errores mostrados</li>
+                    <li>Verifica el formato del archivo</li>
+                    <li>Intenta cargar nuevamente</li>
+                </ul>
+                {% elif carga.estado == 'PROCESANDO' %}
+                <div class="alert alert-warning">
+                    <strong>Procesando...</strong> La carga está en progreso.
+                </div>
+                <p>Por favor espera a que termine el procesamiento.</p>
+                {% endif %}
+                
+                <div class="mt-3">
+                    <a href="{% url 'manual_usuario' %}" class="btn btn-outline-info btn-sm">
+                        <i class="fas fa-book"></i> Manual de Usuario
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+// Auto-refresh para cargas en proceso
+{% if carga.estado == 'PROCESANDO' %}
+setTimeout(function() {
+    location.reload();
+}, 30000); // Refresh cada 30 segundos
+{% endif %}
+
+function mostrarTodosLosErrores() {
+    // Implementar modal o expandir tabla para mostrar todos los errores
+    alert('Funcionalidad para mostrar todos los errores - Por implementar');
+}
+</script>
+{% endblock %}

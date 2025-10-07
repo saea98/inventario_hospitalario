@@ -1,0 +1,198 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}
+{% if form.instance.pk %}Editar{% else %}Nuevo{% endif %} Producto - Sistema de Inventario
+{% endblock %}
+
+{% block page_title %}
+{% if form.instance.pk %}
+    Editar Producto: {{ form.instance.clave_cnis }}
+{% else %}
+    Nuevo Producto
+{% endif %}
+{% endblock %}
+
+{% block page_actions %}
+<a href="{% url 'lista_productos' %}" class="btn btn-outline-secondary">
+    <i class="fas fa-arrow-left"></i> Volver a Lista
+</a>
+{% if form.instance.pk %}
+<a href="{% url 'detalle_producto' form.instance.pk %}" class="btn btn-outline-info">
+    <i class="fas fa-eye"></i> Ver Detalle
+</a>
+{% endif %}
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-{% if form.instance.pk %}edit{% else %}plus{% endif %}"></i>
+                    {% if form.instance.pk %}Editar{% else %}Crear{% endif %} Producto
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="post" novalidate>
+                    {% csrf_token %}
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            {{ form.clave_cnis|as_crispy_field }}
+                        </div>
+                        <div class="col-md-6">
+                            {{ form.categoria|as_crispy_field }}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-12">
+                            {{ form.descripcion|as_crispy_field }}
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            {{ form.unidad_medida|as_crispy_field }}
+                        </div>
+                        <div class="col-md-4">
+                            {{ form.precio_unitario_referencia|as_crispy_field }}
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <div class="form-check mt-4">
+                                    {{ form.es_insumo_cpm }}
+                                    <label class="form-check-label" for="{{ form.es_insumo_cpm.id_for_label }}">
+                                        {{ form.es_insumo_cpm.label }}
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    {% if form.instance.pk %}
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <div class="form-check">
+                                    {{ form.activo }}
+                                    <label class="form-check-label" for="{{ form.activo.id_for_label }}">
+                                        {{ form.activo.label }}
+                                    </label>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    {% endif %}
+                    
+                    <hr>
+                    
+                    <div class="d-flex justify-content-between">
+                        <div>
+                            {% if form.instance.pk %}
+                            <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#deleteModal">
+                                <i class="fas fa-trash"></i> Eliminar
+                            </button>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <a href="{% url 'lista_productos' %}" class="btn btn-secondary me-2">
+                                <i class="fas fa-times"></i> Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-save"></i> 
+                                {% if form.instance.pk %}Actualizar{% else %}Crear{% endif %} Producto
+                            </button>
+                        </div>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        {% if form.instance.pk %}
+        <!-- Información adicional para productos existentes -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-info-circle"></i> Información del Sistema
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <small class="text-muted">
+                            <strong>Fecha de creación:</strong><br>
+                            {{ form.instance.fecha_creacion|date:"d/m/Y H:i" }}
+                        </small>
+                    </div>
+                    <div class="col-md-6">
+                        <small class="text-muted">
+                            <strong>Última actualización:</strong><br>
+                            {{ form.instance.fecha_actualizacion|date:"d/m/Y H:i" }}
+                        </small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+{% if form.instance.pk %}
+<!-- Modal de confirmación de eliminación -->
+<div class="modal fade" id="deleteModal" tabindex="-1" aria-labelledby="deleteModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="deleteModalLabel">Confirmar Eliminación</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>¿Estás seguro de que deseas eliminar el producto <strong>{{ form.instance.clave_cnis }}</strong>?</p>
+                <div class="alert alert-warning">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    <strong>Advertencia:</strong> Esta acción no se puede deshacer. 
+                    Se eliminarán también todos los lotes asociados a este producto.
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form method="post" action="{% url 'eliminar_producto' form.instance.pk %}" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">
+                        <i class="fas fa-trash"></i> Eliminar Definitivamente
+                    </button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-focus en el primer campo
+    const firstInput = document.querySelector('input[type="text"]');
+    if (firstInput) {
+        firstInput.focus();
+    }
+    
+    // Validación del formulario
+    const form = document.querySelector('form');
+    form.addEventListener('submit', function(e) {
+        const claveCnis = document.getElementById('id_clave_cnis').value.trim();
+        const descripcion = document.getElementById('id_descripcion').value.trim();
+        
+        if (!claveCnis || !descripcion) {
+            e.preventDefault();
+            alert('Por favor, completa todos los campos obligatorios.');
+            return false;
+        }
+    });
+});
+</script>
+{% endblock %}

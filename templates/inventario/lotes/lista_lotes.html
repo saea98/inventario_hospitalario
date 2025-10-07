@@ -1,0 +1,346 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Inventario - Sistema de Inventario Hospitalario{% endblock %}
+
+{% block page_title %}Inventario de Lotes{% endblock %}
+
+{% block page_actions %}
+<a href="{% url 'crear_lote' %}" class="btn btn-primary">
+    <i class="fas fa-plus"></i> Nuevo Lote
+</a>
+{% endblock %}
+
+{% block content %}
+<!-- Filtros -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label for="search" class="form-label">Buscar</label>
+                <input type="text" class="form-control" id="search" name="search" 
+                       value="{{ search }}" placeholder="Lote, CNIS o producto">
+            </div>
+            <div class="col-md-3">
+                <label for="institucion" class="form-label">Institución</label>
+                <select class="form-select" id="institucion" name="institucion">
+                    <option value="">Todas las instituciones</option>
+                    {% for institucion in instituciones %}
+                    <option value="{{ institucion.id }}" {% if institucion.id|stringformat:"s" == institucion_selected %}selected{% endif %}>
+                        {{ institucion.clue }} - {{ institucion.denominacion|truncatechars:30 }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="estado" class="form-label">Estado</label>
+                <select class="form-select" id="estado" name="estado">
+                    <option value="">Todos</option>
+                    <option value="1" {% if estado_selected == "1" %}selected{% endif %}>Disponible</option>
+                    <option value="4" {% if estado_selected == "4" %}selected{% endif %}>Suspendido</option>
+                    <option value="5" {% if estado_selected == "5" %}selected{% endif %}>Deteriorado</option>
+                    <option value="6" {% if estado_selected == "6" %}selected{% endif %}>Caducado</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label for="caducidad" class="form-label">Caducidad</label>
+                <select class="form-select" id="caducidad" name="caducidad">
+                    <option value="">Todas</option>
+                    <option value="caducados" {% if caducidad_selected == "caducados" %}selected{% endif %}>Caducados</option>
+                    <option value="30" {% if caducidad_selected == "30" %}selected{% endif %}>Próximos 30 días</option>
+                    <option value="60" {% if caducidad_selected == "60" %}selected{% endif %}>Próximos 60 días</option>
+                    <option value="90" {% if caducidad_selected == "90" %}selected{% endif %}>Próximos 90 días</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <label class="form-label">&nbsp;</label>
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-outline-primary">
+                        <i class="fas fa-search"></i> Filtrar
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Alertas de caducidad -->
+{% if alertas_caducidad %}
+<div class="alert alert-warning alert-dismissible fade show" role="alert">
+    <i class="fas fa-exclamation-triangle"></i>
+    <strong>Atención:</strong> Hay {{ alertas_caducidad }} lotes que requieren atención por caducidad.
+    <a href="{% url 'alertas_caducidad' %}" class="alert-link">Ver alertas</a>
+    <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+</div>
+{% endif %}
+
+<!-- Resultados -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            <i class="fas fa-boxes"></i> 
+            Lotes ({{ page_obj.paginator.count }} total)
+        </h5>
+        <div>
+            <a href="?format=excel" class="btn btn-sm btn-success">
+                <i class="fas fa-file-excel"></i> Exportar Excel
+            </a>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        {% if page_obj %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Lote</th>
+                        <th>Producto</th>
+                        <th>Institución</th>
+                        <th>Cantidad</th>
+                        <th>Precio Unit.</th>
+                        <th>Valor Total</th>
+                        <th>Caducidad</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for lote in page_obj %}
+                    <tr class="{% if lote.esta_caducado %}table-danger{% elif lote.esta_proximo_a_caducar %}table-warning{% endif %}">
+                        <td>
+                            <strong>{{ lote.numero_lote }}</strong>
+                        </td>
+                        <td>
+                            <div>
+                                <strong>{{ lote.producto.clave_cnis }}</strong>
+                                <br>
+                                <small class="text-muted">{{ lote.producto.descripcion|truncatechars:40 }}</small>
+                            </div>
+                        </td>
+                        <td>
+                            <div>
+                                <strong>{{ lote.institucion.clue }}</strong>
+                                <br>
+                                <small class="text-muted">{{ lote.institucion.denominacion|truncatechars:25 }}</small>
+                            </div>
+                        </td>
+                        <td>
+                            <span class="badge bg-{% if lote.cantidad_disponible > 50 %}success{% elif lote.cantidad_disponible > 10 %}warning{% else %}danger{% endif %}">
+                                {{ lote.cantidad_disponible|intcomma }}
+                            </span>
+                            <br>
+                            <small class="text-muted">de {{ lote.cantidad_inicial|intcomma }}</small>
+                        </td>
+                        <td>${{ lote.precio_unitario|floatformat:2 }}</td>
+                        <td>
+                            <strong>${{ lote.valor_total|floatformat:2|intcomma }}</strong>
+                        </td>
+                        <td>
+                            {{ lote.fecha_caducidad|date:"d/m/Y"|default:"-" }}
+                            <br>
+                            {% if lote.esta_caducado %}
+                                <span class="badge bg-danger">Caducado</span>
+                            {% elif lote.esta_proximo_a_caducar %}
+                                <span class="badge bg-warning">{{ lote.dias_para_caducidad }} días</span>
+                            {% else %}
+                                <small class="text-muted">{{ lote.dias_para_caducidad }} días</small>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-{% if lote.estado == 1 %}success{% elif lote.estado == 4 %}warning{% else %}danger{% endif %}">
+                                {{ lote.get_estado_display }}
+                            </span>
+                        </td>
+                        <td>
+                            <div class="btn-group btn-group-sm" role="group">
+                                <a href="{% url 'detalle_lote' lote.pk %}" 
+                                   class="btn btn-outline-primary" title="Ver detalle">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                <a href="{% url 'editar_lote' lote.pk %}" 
+                                   class="btn btn-outline-secondary" title="Editar">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                                <button type="button" class="btn btn-outline-info" 
+                                        title="Movimiento" data-bs-toggle="modal" 
+                                        data-bs-target="#movimientoModal" 
+                                        data-lote-id="{{ lote.pk }}"
+                                        data-lote-numero="{{ lote.numero_lote }}">
+                                    <i class="fas fa-exchange-alt"></i>
+                                </button>
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Paginación -->
+        {% if page_obj.has_other_pages %}
+        <div class="card-footer">
+            <nav aria-label="Paginación de lotes">
+                <ul class="pagination justify-content-center mb-0">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1{% if search %}&search={{ search }}{% endif %}{% if institucion_selected %}&institucion={{ institucion_selected }}{% endif %}{% if estado_selected %}&estado={{ estado_selected }}{% endif %}{% if caducidad_selected %}&caducidad={{ caducidad_selected }}{% endif %}">
+                                <i class="fas fa-angle-double-left"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}{% if institucion_selected %}&institucion={{ institucion_selected }}{% endif %}{% if estado_selected %}&estado={{ estado_selected }}{% endif %}{% if caducidad_selected %}&caducidad={{ caducidad_selected }}{% endif %}">
+                                <i class="fas fa-angle-left"></i>
+                            </a>
+                        </li>
+                    {% endif %}
+                    
+                    <li class="page-item active">
+                        <span class="page-link">
+                            Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}
+                        </span>
+                    </li>
+                    
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}{% if institucion_selected %}&institucion={{ institucion_selected }}{% endif %}{% if estado_selected %}&estado={{ estado_selected }}{% endif %}{% if caducidad_selected %}&caducidad={{ caducidad_selected }}{% endif %}">
+                                <i class="fas fa-angle-right"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search %}&search={{ search }}{% endif %}{% if institucion_selected %}&institucion={{ institucion_selected }}{% endif %}{% if estado_selected %}&estado={{ estado_selected }}{% endif %}{% if caducidad_selected %}&caducidad={{ caducidad_selected }}{% endif %}">
+                                <i class="fas fa-angle-double-right"></i>
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+        
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-boxes fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">No se encontraron lotes</h5>
+            <p class="text-muted">
+                {% if search or institucion_selected or estado_selected or caducidad_selected %}
+                    Intenta ajustar los filtros de búsqueda.
+                {% else %}
+                    Comienza agregando tu primer lote de inventario.
+                {% endif %}
+            </p>
+            <a href="{% url 'crear_lote' %}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Crear Primer Lote
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Resumen de valores -->
+{% if page_obj %}
+<div class="row mt-4">
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h4 class="text-primary">${{ resumen.valor_total|floatformat:0|intcomma }}</h4>
+                <small class="text-muted">Valor Total</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h4 class="text-success">{{ resumen.cantidad_total|intcomma }}</h4>
+                <small class="text-muted">Unidades Disponibles</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h4 class="text-warning">{{ resumen.proximos_caducar }}</h4>
+                <small class="text-muted">Próximos a Caducar</small>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-3">
+        <div class="card text-center">
+            <div class="card-body">
+                <h4 class="text-danger">{{ resumen.caducados }}</h4>
+                <small class="text-muted">Caducados</small>
+            </div>
+        </div>
+    </div>
+</div>
+{% endif %}
+
+<!-- Modal para movimientos -->
+<div class="modal fade" id="movimientoModal" tabindex="-1" aria-labelledby="movimientoModalLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="movimientoModalLabel">Registrar Movimiento</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <form id="movimientoForm" method="post" action="{% url 'crear_movimiento' %}">
+                <div class="modal-body">
+                    {% csrf_token %}
+                    <input type="hidden" id="lote_id" name="lote_id">
+                    
+                    <div class="mb-3">
+                        <label class="form-label">Lote:</label>
+                        <span id="lote_numero" class="fw-bold"></span>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="tipo_movimiento" class="form-label">Tipo de Movimiento</label>
+                        <select class="form-select" id="tipo_movimiento" name="tipo_movimiento" required>
+                            <option value="">Seleccionar...</option>
+                            <option value="ENTRADA">Entrada</option>
+                            <option value="SALIDA">Salida</option>
+                            <option value="AJUSTE">Ajuste</option>
+                            <option value="TRANSFERENCIA">Transferencia</option>
+                        </select>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="cantidad" class="form-label">Cantidad</label>
+                        <input type="number" class="form-control" id="cantidad" name="cantidad" min="1" required>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="motivo" class="form-label">Motivo</label>
+                        <textarea class="form-control" id="motivo" name="motivo" rows="3" required></textarea>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="documento_referencia" class="form-label">Documento de Referencia</label>
+                        <input type="text" class="form-control" id="documento_referencia" name="documento_referencia">
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Registrar Movimiento</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Configurar modal de movimientos
+    const movimientoModal = document.getElementById('movimientoModal');
+    movimientoModal.addEventListener('show.bs.modal', function (event) {
+        const button = event.relatedTarget;
+        const loteId = button.getAttribute('data-lote-id');
+        const loteNumero = button.getAttribute('data-lote-numero');
+        
+        document.getElementById('lote_id').value = loteId;
+        document.getElementById('lote_numero').textContent = loteNumero;
+    });
+});
+</script>
+{% endblock %}

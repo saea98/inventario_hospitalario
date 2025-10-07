@@ -1,0 +1,45 @@
+<!-- inventario/templates/inventario/solicitud/detalle_solicitud.html -->
+{% extends "base.html" %}
+{% block content %}
+<h2>Detalle de Solicitudes - {{ fecha }}</h2>
+<table class="table table-bordered table-sm">
+    <thead>
+        <tr>
+            <th>CLUES</th>
+            <th>Clave/CNIS</th>
+            <th>Descripción</th>
+            <th>Precio Unitario</th>
+            <th>Valor Total</th>
+            <th>Estado Insumo</th>
+            <th>Inventario Disponible</th>
+            <th>Lote</th>
+            <th>Fecha Caducidad</th>
+            <th>Fecha Fabricación</th>
+            <th>Fecha Recepción</th>
+        </tr>
+    </thead>
+    <tbody>
+        {% for s in solicitudes %}
+        <tr>
+            <td>{{ s.clues }}</td>
+            <td>{{ s.clave_cnis }}</td>
+            <td>{{ s.descripcion }}</td>
+            <td>{{ s.precio_unitario }}</td>
+            <td>{{ s.valor_total }}</td>
+            <td>{{ s.estado_insumo.descripcion }}</td>
+            <td>{{ s.inventario_disponible }}</td>
+            <td>{{ s.lote }}</td>
+            <td>{{ s.fecha_caducidad }}</td>
+            <td>{{ s.fecha_fabricacion }}</td>
+            <td>{{ s.fecha_recepcion }}</td>
+        </tr>
+        {% empty %}
+        <tr>
+            <td colspan="11">No hay registros para esta fecha.</td>
+        </tr>
+        {% endfor %}
+    </tbody>
+</table>
+<a href="{% url 'lista_solicitudes' %}" class="btn btn-secondary">⬅ Volver a lista</a>
+<a href="{% url 'exportar_solicitud_excel' fecha=fecha %}" class="btn btn-success">Exportar Excel</a>
+{% endblock %}

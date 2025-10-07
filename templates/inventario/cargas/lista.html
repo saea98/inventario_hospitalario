@@ -1,0 +1,243 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Historial de Cargas - Sistema de Inventario{% endblock %}
+
+{% block page_title %}Historial de Cargas de Archivos{% endblock %}
+
+{% block page_actions %}
+<a href="{% url 'cargar_archivo_excel' %}" class="btn btn-primary">
+    <i class="fas fa-plus"></i> Nueva Carga
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-12">
+        <div class="card">
+            <div class="card-header">
+                <div class="row align-items-center">
+                    <div class="col">
+                        <h5 class="mb-0">
+                            <i class="fas fa-history"></i> Historial de Cargas
+                        </h5>
+                    </div>
+                    <div class="col-auto">
+                        <span class="badge bg-secondary">{{ cargas|length }} cargas</span>
+                    </div>
+                </div>
+            </div>
+            <div class="card-body">
+                {% if cargas %}
+                <div class="table-responsive">
+                    <table class="table table-hover">
+                        <thead>
+                            <tr>
+                                <th>Archivo</th>
+                                <th>Tipo</th>
+                                <th>Estado</th>
+                                <th>Fecha</th>
+                                <th>Usuario</th>
+                                <th>Registros</th>
+                                <th>Éxito</th>
+                                <th>Acciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for carga in cargas %}
+                            <tr>
+                                <td>
+                                    <div>
+                                        <strong>{{ carga.nombre_archivo|truncatechars:30 }}</strong>
+                                        {% if carga.archivo %}
+                                        <br><small class="text-muted">{{ carga.archivo.size|filesizeformat }}</small>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                                <td>
+                                    <span class="badge bg-info">
+                                        {{ carga.get_tipo_archivo_display }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <span class="badge bg-{% if carga.estado == 'COMPLETADA' %}success{% elif carga.estado == 'ERROR' %}danger{% elif carga.estado == 'PROCESANDO' %}warning{% else %}secondary{% endif %}">
+                                        {{ carga.get_estado_display }}
+                                    </span>
+                                </td>
+                                <td>
+                                    <div>
+                                        {{ carga.fecha_carga|date:"d/m/Y" }}
+                                        <br><small class="text-muted">{{ carga.fecha_carga|time:"H:i" }}</small>
+                                    </div>
+                                </td>
+                                <td>
+                                    {{ carga.usuario.get_full_name|default:carga.usuario.username|truncatechars:20 }}
+                                </td>
+                                <td>
+                                    {% if carga.total_registros > 0 %}
+                                    <div>
+                                        <strong>{{ carga.total_registros|intcomma }}</strong>
+                                        <br><small class="text-muted">total</small>
+                                    </div>
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if carga.total_registros > 0 %}
+                                    <div>
+                                        <div class="progress mb-1" style="height: 8px;">
+                                            <div class="progress-bar bg-success" 
+                                                 style="width: {% widthratio carga.registros_exitosos carga.total_registros 100 %}%"></div>
+                                        </div>
+                                        <small class="text-muted">
+                                            {% widthratio carga.registros_exitosos carga.total_registros 100 %}%
+                                            ({{ carga.registros_exitosos|intcomma }}/{{ carga.total_registros|intcomma }})
+                                        </small>
+                                    </div>
+                                    {% else %}
+                                    <span class="text-muted">-</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <div class="btn-group" role="group">
+                                        <a href="{% url 'detalle_carga' carga.pk %}" 
+                                           class="btn btn-sm btn-outline-primary" 
+                                           title="Ver detalle">
+                                            <i class="fas fa-eye"></i>
+                                        </a>
+                                        {% if carga.archivo %}
+                                        <a href="{{ carga.archivo.url }}" 
+                                           class="btn btn-sm btn-outline-secondary" 
+                                           title="Descargar archivo"
+                                           download>
+                                            <i class="fas fa-download"></i>
+                                        </a>
+                                        {% endif %}
+                                        {% if carga.estado == 'ERROR' %}
+                                        <a href="{% url 'cargar_archivo_excel' %}" 
+                                           class="btn btn-sm btn-outline-warning" 
+                                           title="Reintentar">
+                                            <i class="fas fa-redo"></i>
+                                        </a>
+                                        {% endif %}
+                                    </div>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <div class="text-center py-5">
+                    <i class="fas fa-upload fa-3x text-muted mb-3"></i>
+                    <h5 class="text-muted">No hay cargas registradas</h5>
+                    <p class="text-muted">Comienza cargando tu primer archivo Excel</p>
+                    <a href="{% url 'cargar_archivo_excel' %}" class="btn btn-primary">
+                        <i class="fas fa-plus"></i> Cargar Primer Archivo
+                    </a>
+                </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        {% if cargas %}
+        <!-- Estadísticas generales -->
+        <div class="row mt-4">
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h3 class="text-primary">{{ stats.total_cargas|default:0 }}</h3>
+                        <small class="text-muted">Total de Cargas</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h3 class="text-success">{{ stats.cargas_exitosas|default:0 }}</h3>
+                        <small class="text-muted">Exitosas</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h3 class="text-danger">{{ stats.cargas_con_error|default:0 }}</h3>
+                        <small class="text-muted">Con Errores</small>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-3">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h3 class="text-info">{{ stats.registros_totales|default:0|intcomma }}</h3>
+                        <small class="text-muted">Registros Procesados</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Información adicional -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-info-circle"></i> Información sobre las Cargas
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Estados de Carga:</h6>
+                        <ul class="list-unstyled">
+                            <li><span class="badge bg-secondary me-2">PENDIENTE</span> Archivo subido, esperando procesamiento</li>
+                            <li><span class="badge bg-warning me-2">PROCESANDO</span> Archivo siendo procesado actualmente</li>
+                            <li><span class="badge bg-success me-2">COMPLETADA</span> Procesamiento exitoso sin errores</li>
+                            <li><span class="badge bg-danger me-2">ERROR</span> Procesamiento con errores críticos</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Tipos de Archivo:</h6>
+                        <ul class="list-unstyled">
+                            <li><span class="badge bg-info me-2">CLUES</span> Archivo de instituciones de salud</li>
+                            <li><span class="badge bg-info me-2">INVENTARIO</span> Archivo de inventario hospitalario</li>
+                            <li><span class="badge bg-info me-2">OTRO</span> Otros tipos de archivo</li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <div class="alert alert-light mt-3">
+                    <h6><i class="fas fa-lightbulb"></i> Consejos:</h6>
+                    <ul class="mb-0">
+                        <li>Carga primero el archivo CLUES.xlsx para crear las instituciones</li>
+                        <li>Después carga el archivo inventario_hospital.xlsx para el inventario</li>
+                        <li>Revisa siempre el detalle de las cargas para verificar errores</li>
+                        <li>Los archivos con errores pueden ser corregidos y vueltos a cargar</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Auto-refresh para cargas en proceso
+    const cargasProcesando = document.querySelectorAll('.badge.bg-warning');
+    if (cargasProcesando.length > 0) {
+        setTimeout(function() {
+            location.reload();
+        }, 30000); // Refresh cada 30 segundos si hay cargas procesando
+    }
+    
+    // Tooltip para botones
+    const tooltipTriggerList = [].slice.call(document.querySelectorAll('[title]'));
+    const tooltipList = tooltipTriggerList.map(function (tooltipTriggerEl) {
+        return new bootstrap.Tooltip(tooltipTriggerEl);
+    });
+});
+</script>
+{% endblock %}

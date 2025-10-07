@@ -1,0 +1,190 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Eliminar Lote - Sistema de Inventario{% endblock %}
+
+{% block page_title %}Confirmar Eliminación de Lote{% endblock %}
+
+{% block page_actions %}
+<a href="{% url 'detalle_lote' lote.pk %}" class="btn btn-outline-secondary">
+    <i class="fas fa-arrow-left"></i> Cancelar
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="row justify-content-center">
+    <div class="col-lg-8">
+        <div class="card border-danger">
+            <div class="card-header bg-danger text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    Confirmar Eliminación de Lote
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-danger">
+                    <h6><strong>¡Atención!</strong></h6>
+                    <p class="mb-0">
+                        Estás a punto de eliminar permanentemente el siguiente lote de inventario. 
+                        Esta acción no se puede deshacer y afectará las estadísticas del sistema.
+                    </p>
+                </div>
+                
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Información del Lote:</h6>
+                        <ul class="list-unstyled">
+                            <li><strong>Número de Lote:</strong> {{ lote.numero_lote }}</li>
+                            <li><strong>Producto:</strong> {{ lote.producto.clave_cnis }}</li>
+                            <li><strong>Descripción:</strong> {{ lote.producto.descripcion|truncatechars:50 }}</li>
+                            <li><strong>Institución:</strong> {{ lote.institucion.denominacion|truncatechars:40 }}</li>
+                            <li><strong>CLUE:</strong> {{ lote.institucion.clue }}</li>
+                        </ul>
+                    </div>
+                    <div class="col-md-6">
+                        <h6>Datos de Inventario:</h6>
+                        <ul class="list-unstyled">
+                            <li><strong>Cantidad Inicial:</strong> {{ lote.cantidad_inicial|intcomma }}</li>
+                            <li><strong>Cantidad Disponible:</strong> {{ lote.cantidad_disponible|intcomma }}</li>
+                            <li><strong>Precio Unitario:</strong> ${{ lote.precio_unitario|floatformat:2 }}</li>
+                            <li><strong>Valor Total:</strong> ${{ lote.valor_total|floatformat:2|intcomma }}</li>
+                            <li><strong>Fecha Caducidad:</strong> {{ lote.fecha_caducidad|date:"d/m/Y" }}</li>
+                            <li><strong>Estado:</strong> 
+                                <span class="badge bg-{% if lote.estado == 1 %}success{% elif lote.estado == 4 %}warning{% else %}danger{% endif %}">
+                                    {{ lote.get_estado_display }}
+                                </span>
+                            </li>
+                        </ul>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <div class="alert alert-warning">
+                    <h6><strong>Impacto de la eliminación:</strong></h6>
+                    <ul class="mb-0">
+                        <li>Se perderá el registro de este lote en el inventario</li>
+                        <li>Las estadísticas de la institución se verán afectadas</li>
+                        <li>Se perderá la trazabilidad de este producto</li>
+                        {% if lote.cantidad_disponible > 0 %}
+                        <li><strong>Se perderán {{ lote.cantidad_disponible|intcomma }} unidades del inventario disponible</strong></li>
+                        {% endif %}
+                    </ul>
+                </div>
+                
+                <div class="d-flex justify-content-between align-items-center">
+                    <div>
+                        <small class="text-muted">
+                            <i class="fas fa-info-circle"></i>
+                            Esta acción eliminará permanentemente el lote y su historial.
+                        </small>
+                    </div>
+                    <div>
+                        <a href="{% url 'detalle_lote' lote.pk %}" class="btn btn-secondary me-2">
+                            <i class="fas fa-times"></i> Cancelar
+                        </a>
+                        <form method="post" style="display: inline;">
+                            {% csrf_token %}
+                            <button type="submit" class="btn btn-danger">
+                                <i class="fas fa-trash"></i> Eliminar Definitivamente
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-4">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-lightbulb"></i> Alternativas Recomendadas
+                </h6>
+            </div>
+            <div class="card-body">
+                <p class="mb-2"><strong>En lugar de eliminar, considera:</strong></p>
+                <ul class="mb-3">
+                    <li><strong>Cambiar Estado:</strong> Marca como "Deteriorado" o "Caducado" según corresponda</li>
+                    <li><strong>Ajuste de Inventario:</strong> Registra un movimiento de salida para reducir cantidad a 0</li>
+                    <li><strong>Editar:</strong> Corrige la información si hay errores en los datos</li>
+                    <li><strong>Transferir:</strong> Mueve el inventario a otra institución</li>
+                </ul>
+                
+                <div class="btn-group" role="group">
+                    <a href="{% url 'editar_lote' lote.pk %}" class="btn btn-outline-primary btn-sm">
+                        <i class="fas fa-edit"></i> Editar Lote
+                    </a>
+                    {% if lote.cantidad_disponible > 0 %}
+                    <button type="button" class="btn btn-outline-warning btn-sm" 
+                            onclick="registrarSalida()">
+                        <i class="fas fa-minus-circle"></i> Registrar Salida
+                    </button>
+                    {% endif %}
+                    <button type="button" class="btn btn-outline-danger btn-sm" 
+                            onclick="marcarCaducado()">
+                        <i class="fas fa-times-circle"></i> Marcar Caducado
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Confirmación adicional antes de eliminar
+    const form = document.querySelector('form');
+    form.addEventListener('submit', function(e) {
+        const confirmacion = confirm(
+            '¿Estás completamente seguro de que deseas eliminar este lote?\n\n' +
+            'Esta acción NO se puede deshacer y afectará el inventario.\n\n' +
+            'Escribe "ELIMINAR" para confirmar:'
+        );
+        
+        if (!confirmacion) {
+            e.preventDefault();
+            return;
+        }
+        
+        const confirmacionTexto = prompt(
+            'Para confirmar la eliminación, escribe exactamente: ELIMINAR'
+        );
+        
+        if (confirmacionTexto !== 'ELIMINAR') {
+            e.preventDefault();
+            alert('Eliminación cancelada. El texto no coincide.');
+        }
+    });
+});
+
+function registrarSalida() {
+    // Redirigir a la página de lotes con modal de movimiento
+    window.location.href = "{% url 'lista_lotes' %}?lote={{ lote.pk }}&action=salida";
+}
+
+function marcarCaducado() {
+    if (confirm('¿Marcar este lote como caducado?')) {
+        fetch("{% url 'marcar_lote_caducado' lote.pk %}", {
+            method: 'POST',
+            headers: {
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value,
+                'Content-Type': 'application/json',
+            },
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                alert('Lote marcado como caducado exitosamente');
+                window.location.href = "{% url 'lista_lotes' %}";
+            } else {
+                alert('Error: ' + data.error);
+            }
+        })
+        .catch(error => {
+            alert('Error al marcar como caducado');
+        });
+    }
+}
+</script>
+{% endblock %}

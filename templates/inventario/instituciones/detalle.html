@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container mt-4">
+    <h2 class="mb-3">🏥 Detalle de la Institución</h2>
+
+    <div class="card mb-4 shadow-sm">
+        <div class="card-body">
+            <h4 class="card-title">{{ institucion.nombre }}</h4>
+            <p class="card-text">
+                <strong>CLUE:</strong> {{ institucion.clue }}<br>
+                <strong>IB CLUE:</strong> {{ institucion.ib_clue }}<br>
+                <strong>Dirección:</strong> {{ institucion.direccion|default:"No registrada" }}<br>
+                <strong>Teléfono:</strong> {{ institucion.telefono|default:"No disponible" }}
+            </p>
+        </div>
+    </div>
+
+    <div class="row text-center mb-4">
+        <div class="col-md-6">
+            <div class="card border-success shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Total de Productos</h5>
+                    <p class="display-6 text-success">{{ total_productos }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card border-primary shadow-sm">
+                <div class="card-body">
+                    <h5 class="card-title">Total de Lotes</h5>
+                    <p class="display-6 text-primary">{{ total_lotes }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="text-center">
+        <a href="{% url 'lista_instituciones' %}" class="btn btn-secondary">⬅️ Regresar al listado</a>
+    </div>
+</div>
+{% endblock %}

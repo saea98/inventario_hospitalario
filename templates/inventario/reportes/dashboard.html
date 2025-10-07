@@ -1,0 +1,40 @@
+{% extends "base.html" %}
+{% block content %}
+<div class="container mt-4">
+    <h2>📊 Panel de Reportes</h2>
+    <div class="row mt-3">
+        <div class="col-md-3">
+            <div class="card text-center shadow-sm">
+                <div class="card-body">
+                    <h4>{{ total_lotes }}</h4>
+                    <p>Lotes Registrados</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center shadow-sm">
+                <div class="card-body">
+                    <h4>{{ total_movimientos }}</h4>
+                    <p>Movimientos</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center shadow-sm">
+                <div class="card-body">
+                    <h4>{{ total_alertas }}</h4>
+                    <p>Alertas de Caducidad</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center shadow-sm">
+                <div class="card-body">
+                    <h4>{{ proximos_a_caducar }}</h4>
+                    <p>Próximos a Caducar (90 días)</p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,31 @@
+<!-- inventario/templates/inventario/snippets/menu_solicitudes.html -->
+<nav class="navbar navbar-expand-lg navbar-light bg-light">
+  <div class="container-fluid">
+    <a class="navbar-brand" href="#">Inventario Hospitalario</a>
+    <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#navbarNav"
+      aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+      <span class="navbar-toggler-icon"></span>
+    </button>
+    <div class="collapse navbar-collapse" id="navbarNav">
+      <ul class="navbar-nav">
+
+        <!-- Instituciones -->
+        <li class="nav-item">
+          <a class="nav-link" href="{% url 'lista_instituciones' %}">🏥 Instituciones</a>
+        </li>
+
+        <!-- Solicitudes de inventario semanal -->
+        <li class="nav-item dropdown">
+          <a class="nav-link dropdown-toggle" href="#" id="solicitudesDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            📋 Solicitudes
+          </a>
+          <ul class="dropdown-menu" aria-labelledby="solicitudesDropdown">
+            <li><a class="dropdown-item" href="{% url 'lista_solicitudes' %}">Lista de solicitudes</a></li>
+            <li><a class="dropdown-item" href="{% url 'carga_masiva_solicitud' %}">Carga masiva de solicitudes</a></li>
+          </ul>
+        </li>
+
+      </ul>
+    </div>
+  </div>
+</nav>

@@ -1,0 +1,289 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Cargar Archivo Excel - Sistema de Inventario{% endblock %}
+
+{% block page_title %}Carga Masiva de Datos{% endblock %}
+
+{% block page_actions %}
+<a href="{% url 'lista_cargas' %}" class="btn btn-outline-secondary">
+    <i class="fas fa-list"></i> Ver Historial
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-upload"></i> Subir Archivo Excel
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="post" enctype="multipart/form-data">
+                    {% csrf_token %}
+                    
+                    <div class="alert alert-info">
+                        <h6><i class="fas fa-info-circle"></i> Tipos de archivo soportados:</h6>
+                        <ul class="mb-0">
+                            <li><strong>CLUES.xlsx:</strong> Para cargar instituciones de salud</li>
+                            <li><strong>inventario_hospital.xlsx:</strong> Para cargar inventario completo</li>
+                        </ul>
+                    </div>
+                    
+                    {{ form|crispy }}
+                    
+                    <div class="alert alert-warning">
+                        <h6><i class="fas fa-exclamation-triangle"></i> Importante:</h6>
+                        <ul class="mb-0">
+                            <li>El archivo debe estar en formato Excel (.xlsx)</li>
+                            <li>Asegúrate de que los datos estén completos y correctos</li>
+                            <li>El proceso puede tomar varios minutos para archivos grandes</li>
+                            <li>Se validarán todos los datos antes de la carga</li>
+                        </ul>
+                    </div>
+                    
+                    <hr>
+                    
+                    <div class="d-flex justify-content-between">
+                        <a href="{% url 'dashboard' %}" class="btn btn-secondary">
+                            <i class="fas fa-arrow-left"></i> Volver al Dashboard
+                        </a>
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-upload"></i> Subir y Procesar Archivo
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+        
+        <!-- Instrucciones detalladas -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-book"></i> Instrucciones de Uso
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6 class="text-primary">Archivo CLUES.xlsx</h6>
+                        <p><strong>Columnas requeridas:</strong></p>
+                        <ul>
+                            <li>CLUE (obligatorio)</li>
+                            <li>IB CLUE (opcional)</li>
+                            <li>DENOMINACION CLUE (obligatorio)</li>
+                            <li>ALCALDIA (obligatorio)</li>
+                        </ul>
+                        <p><small class="text-muted">Este archivo carga las instituciones de salud en el sistema.</small></p>
+                    </div>
+                    <div class="col-md-6">
+                        <h6 class="text-success">Archivo inventario_hospital.xlsx</h6>
+                        <p><strong>Columnas principales:</strong></p>
+                        <ul>
+                            <li>CLUES (obligatorio)</li>
+                            <li>CLAVE/CNIS (obligatorio)</li>
+                            <li>DESCRIPCIÓN (obligatorio)</li>
+                            <li>PRECIO UNITARIO</li>
+                            <li>INVENTARIO DISPONIBLE</li>
+                            <li>FECHA DE CADUCIDAD</li>
+                            <li>LOTE</li>
+                        </ul>
+                        <p><small class="text-muted">Este archivo carga el inventario completo con productos y lotes.</small></p>
+                    </div>
+                </div>
+                
+                <div class="alert alert-light mt-3">
+                    <h6>Proceso de Carga:</h6>
+                    <ol class="mb-0">
+                        <li><strong>Primero:</strong> Carga el archivo CLUES.xlsx para crear las instituciones</li>
+                        <li><strong>Segundo:</strong> Carga el archivo inventario_hospital.xlsx para el inventario</li>
+                        <li><strong>Verificación:</strong> Revisa el reporte de errores si los hay</li>
+                        <li><strong>Validación:</strong> Confirma que los datos se cargaron correctamente</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <!-- Cargas recientes -->
+        {% if cargas_recientes %}
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-history"></i> Cargas Recientes
+                </h6>
+            </div>
+            <div class="card-body p-0">
+                <div class="list-group list-group-flush">
+                    {% for carga in cargas_recientes %}
+                    <div class="list-group-item">
+                        <div class="d-flex justify-content-between align-items-start">
+                            <div>
+                                <h6 class="mb-1">{{ carga.nombre_archivo|truncatechars:25 }}</h6>
+                                <p class="mb-1">
+                                    <small class="text-muted">{{ carga.fecha_carga|date:"d/m/Y H:i" }}</small>
+                                </p>
+                                <small>
+                                    <span class="badge bg-{% if carga.estado == 'COMPLETADA' %}success{% elif carga.estado == 'ERROR' %}danger{% elif carga.estado == 'PROCESANDO' %}warning{% else %}secondary{% endif %}">
+                                        {{ carga.get_estado_display }}
+                                    </span>
+                                </small>
+                            </div>
+                            <div>
+                                <a href="{% url 'detalle_carga' carga.pk %}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            </div>
+                        </div>
+                        {% if carga.registros_procesados > 0 %}
+                        <div class="mt-2">
+                            <small class="text-muted">
+                                {{ carga.registros_exitosos }}/{{ carga.registros_procesados }} exitosos
+                            </small>
+                            <div class="progress" style="height: 4px;">
+                                <div class="progress-bar bg-success" style="width: {% widthratio carga.registros_exitosos carga.registros_procesados 100 %}%"></div>
+                            </div>
+                        </div>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+            <div class="card-footer text-center">
+                <a href="{% url 'lista_cargas' %}" class="btn btn-sm btn-outline-secondary">
+                    Ver Todas las Cargas
+                </a>
+            </div>
+        </div>
+        {% endif %}
+        
+        <!-- Estadísticas rápidas -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-chart-bar"></i> Estado del Sistema
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6">
+                        <h4 class="text-primary">{{ stats.total_instituciones|default:0 }}</h4>
+                        <small class="text-muted">Instituciones</small>
+                    </div>
+                    <div class="col-6">
+                        <h4 class="text-success">{{ stats.total_productos|default:0 }}</h4>
+                        <small class="text-muted">Productos</small>
+                    </div>
+                </div>
+                <hr>
+                <div class="row text-center">
+                    <div class="col-6">
+                        <h4 class="text-info">{{ stats.total_lotes|default:0 }}</h4>
+                        <small class="text-muted">Lotes</small>
+                    </div>
+                    <div class="col-6">
+                        <h4 class="text-warning">{{ stats.cargas_exitosas|default:0 }}</h4>
+                        <small class="text-muted">Cargas Exitosas</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+        
+        <!-- Ayuda rápida -->
+        <div class="card mt-4">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-question-circle"></i> ¿Necesitas Ayuda?
+                </h6>
+            </div>
+            <div class="card-body">
+                <p class="mb-3">Si tienes problemas con la carga de archivos:</p>
+                <div class="d-grid gap-2">
+                    <a href="{% url 'manual_usuario' %}" class="btn btn-outline-info btn-sm">
+                        <i class="fas fa-book"></i> Manual de Usuario
+                    </a>
+                    <a href="{% url 'ayuda_sistema' %}" class="btn btn-outline-secondary btn-sm">
+                        <i class="fas fa-life-ring"></i> Centro de Ayuda
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const form = document.querySelector('form');
+    const submitBtn = form.querySelector('button[type="submit"]');
+    const fileInput = form.querySelector('input[type="file"]');
+    
+    // Validar archivo antes de enviar
+    form.addEventListener('submit', function(e) {
+        const file = fileInput.files[0];
+        
+        if (!file) {
+            e.preventDefault();
+            alert('Por favor, selecciona un archivo para cargar.');
+            return;
+        }
+        
+        // Validar extensión
+        const allowedExtensions = ['.xlsx', '.xls'];
+        const fileExtension = file.name.toLowerCase().substring(file.name.lastIndexOf('.'));
+        
+        if (!allowedExtensions.includes(fileExtension)) {
+            e.preventDefault();
+            alert('Solo se permiten archivos Excel (.xlsx, .xls)');
+            return;
+        }
+        
+        // Validar tamaño (máximo 10MB)
+        const maxSize = 10 * 1024 * 1024; // 10MB
+        if (file.size > maxSize) {
+            e.preventDefault();
+            alert('El archivo es demasiado grande. Máximo permitido: 10MB');
+            return;
+        }
+        
+        // Mostrar indicador de carga
+        submitBtn.disabled = true;
+        submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
+        
+        // Mostrar mensaje de espera
+        const alertDiv = document.createElement('div');
+        alertDiv.className = 'alert alert-info mt-3';
+        alertDiv.innerHTML = '<i class="fas fa-clock"></i> <strong>Procesando archivo...</strong> Esto puede tomar varios minutos. Por favor, no cierres esta página.';
+        form.appendChild(alertDiv);
+    });
+    
+    // Mostrar información del archivo seleccionado
+    fileInput.addEventListener('change', function() {
+        const file = this.files[0];
+        if (file) {
+            const fileInfo = document.getElementById('file-info');
+            if (fileInfo) {
+                fileInfo.remove();
+            }
+            
+            const infoDiv = document.createElement('div');
+            infoDiv.id = 'file-info';
+            infoDiv.className = 'alert alert-light mt-2';
+            infoDiv.innerHTML = `
+                <small>
+                    <strong>Archivo seleccionado:</strong> ${file.name}<br>
+                    <strong>Tamaño:</strong> ${(file.size / 1024 / 1024).toFixed(2)} MB<br>
+                    <strong>Tipo:</strong> ${file.type || 'Desconocido'}
+                </small>
+            `;
+            
+            this.parentNode.appendChild(infoDiv);
+        }
+    });
+});
+</script>
+{% endblock %}

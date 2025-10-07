@@ -1,0 +1,14 @@
+<!-- inventario/templates/inventario/solicitud/solicitud_confirm_delete.html -->
+<h3>⚠️ Confirmación de borrado</h3>
+
+{% if fecha %}
+<p>¿Deseas eliminar todas las solicitudes generadas el <strong>{{ fecha }}</strong>?</p>
+{% else %}
+<p>¿Deseas eliminar <strong>todas las solicitudes</strong>?</p>
+{% endif %}
+
+<form method="post">
+    {% csrf_token %}
+    <button type="submit" class="btn btn-danger">Sí, eliminar</button>
+    <a href="{% url 'lista_solicitud_inventario' %}" class="btn btn-secondary">Cancelar</a>
+</form>
