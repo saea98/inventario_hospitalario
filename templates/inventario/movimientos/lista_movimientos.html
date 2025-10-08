@@ -1,0 +1,232 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Movimientos - Sistema de Inventario Hospitalario{% endblock %}
+{% block page_title %}Movimientos de Inventario{% endblock %}
+
+{% block page_actions %}
+<a href="{% url 'crear_movimiento' %}" class="btn btn-primary me-2">
+    <i class="fas fa-plus-circle"></i> Nuevo Movimiento
+</a>
+<a href="{% url 'reporte_movimientos_excel' %}" class="btn btn-success">
+    <i class="fas fa-file-excel"></i> Exportar Excel
+</a>
+{% endblock %}
+
+{% block content %}
+<!-- Filtros -->
+<div class="card mb-4 shadow-sm">
+    <div class="card-body">
+        <form method="get" class="row g-3 align-items-end">
+            <div class="col-md-4">
+                <label for="search" class="form-label">Buscar</label>
+                <input type="text" class="form-control" id="search" name="search" 
+                       value="{{ search }}" placeholder="Lote, CNIS, motivo o institución">
+            </div>
+            <div class="col-md-3">
+                <label for="fecha_desde" class="form-label">Fecha Desde</label>
+                <input type="date" class="form-control" id="fecha_desde" name="fecha_desde" 
+                       value="{{ fecha_desde }}">
+            </div>
+            <div class="col-md-3">
+                <label for="fecha_hasta" class="form-label">Fecha Hasta</label>
+                <input type="date" class="form-control" id="fecha_hasta" name="fecha_hasta" 
+                       value="{{ fecha_hasta }}">
+            </div>
+            <div class="col-md-2">
+                <div class="d-grid">
+                    <button type="submit" class="btn btn-outline-primary">
+                        <i class="fas fa-search"></i> Filtrar
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Resultados -->
+<div class="card shadow-sm">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            <i class="fas fa-exchange-alt"></i> Movimientos ({{ page_obj.paginator.count }} total)
+        </h5>
+    </div>
+    <div class="card-body p-0">
+        {% if page_obj %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Tipo</th>
+                        <th>Producto</th>
+                        <th>Lote</th>
+                        <th>Institución</th>
+                        <th>Cantidad</th>
+                        <th>Anterior</th>
+                        <th>Nueva</th>
+                        <th>Usuario</th>
+                        <th>Motivo</th>
+                        <th class="text-center">Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for movimiento in page_obj %}
+                    <tr class="{% if movimiento.anulado %}table-danger{% endif %}">
+                        <td>
+                            {{ movimiento.fecha_movimiento|date:"d/m/Y" }}<br>
+                            <small class="text-muted">{{ movimiento.fecha_movimiento|time:"H:i" }}</small>
+                        </td>
+                        <td>
+                            <span class="badge bg-{% if movimiento.tipo_movimiento == 'ENTRADA' %}success{% elif movimiento.tipo_movimiento == 'SALIDA' %}warning{% elif 'AJUSTE' in movimiento.tipo_movimiento %}info{% else %}secondary{% endif %}">
+                                {{ movimiento.get_tipo_movimiento_display }}
+                            </span>
+                        </td>
+                        <td>
+                            <strong>{{ movimiento.lote.producto.clave_cnis }}</strong><br>
+                            <small class="text-muted">{{ movimiento.lote.producto.descripcion|truncatechars:30 }}</small>
+                        </td>
+                        <td>
+                            <a href="{% url 'detalle_lote' movimiento.lote.pk %}" class="text-decoration-none">
+                                {{ movimiento.lote.numero_lote }}
+                            </a>
+                        </td>
+                        <td>
+                            <strong>{{ movimiento.lote.institucion.clue }}</strong><br>
+                            <small class="text-muted">{{ movimiento.lote.institucion.denominacion|truncatechars:20 }}</small>
+                        </td>
+                        <td>
+                            <span class="badge bg-{% if movimiento.tipo_movimiento == 'ENTRADA' %}success{% elif movimiento.tipo_movimiento == 'SALIDA' %}warning{% else %}info{% endif %}">
+                                {% if movimiento.tipo_movimiento == 'ENTRADA' %}+{% elif movimiento.tipo_movimiento == 'SALIDA' %}-{% endif %}{{ movimiento.cantidad|intcomma }}
+                            </span>
+                        </td>
+                        <td>{{ movimiento.cantidad_anterior|intcomma }}</td>
+                        <td><strong>{{ movimiento.cantidad_nueva|intcomma }}</strong></td>
+                        <td>{{ movimiento.usuario.get_full_name|default:movimiento.usuario.username }}</td>
+                        <td>
+                            <span title="{{ movimiento.motivo }}">{{ movimiento.motivo|truncatechars:30 }}</span>
+                            {% if movimiento.documento_referencia %}
+                                <br><small class="text-muted">Doc: {{ movimiento.documento_referencia }}</small>
+                            {% endif %}
+                        </td>
+                        <td class="text-center">
+                            <div class="btn-group">
+                                <!-- Botón Ver detalle -->
+                                <button type="button" class="btn btn-sm btn-outline-primary ver-detalle" 
+                                        data-id="{{ movimiento.id }}" title="Ver detalle">
+                                    <i class="fas fa-eye"></i>
+                                </button>
+
+                                {% if not movimiento.anulado %}
+                                    <a href="{% url 'editar_movimiento' movimiento.id %}" 
+                                       class="btn btn-sm btn-outline-warning" title="Editar">
+                                        <i class="fas fa-edit"></i>
+                                    </a>
+                                    <a href="{% url 'anular_movimiento' movimiento.id %}" 
+                                       class="btn btn-sm btn-outline-danger" title="Anular"
+                                       onclick="return confirm('¿Seguro que deseas anular este movimiento?');">
+                                        <i class="fas fa-ban"></i>
+                                    </a>
+                                {% else %}
+                                    <span class="badge bg-secondary">Anulado</span>
+                                {% endif %}
+                            </div>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Paginación -->
+        {% if page_obj.has_other_pages %}
+        <div class="card-footer">
+            <nav aria-label="Paginación de movimientos">
+                <ul class="pagination justify-content-center mb-0">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1{% if search %}&search={{ search }}{% endif %}"><i class="fas fa-angle-double-left"></i></a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if search %}&search={{ search }}{% endif %}"><i class="fas fa-angle-left"></i></a>
+                        </li>
+                    {% endif %}
+                    <li class="page-item active">
+                        <span class="page-link">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+                    </li>
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if search %}&search={{ search }}{% endif %}"><i class="fas fa-angle-right"></i></a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if search %}&search={{ search }}{% endif %}"><i class="fas fa-angle-double-right"></i></a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-exchange-alt fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">No se encontraron movimientos</h5>
+            <p class="text-muted">
+                {% if search %}
+                    Intenta ajustar los filtros de búsqueda.
+                {% else %}
+                    Los movimientos aparecerán aquí cuando se registren.
+                {% endif %}
+            </p>
+        </div>
+        {% endif %}
+    </div>
+</div>
+
+<!-- Modal Detalle Movimiento -->
+<div class="modal fade" id="modalDetalleMovimiento" tabindex="-1" aria-labelledby="modalDetalleMovimientoLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-scrollable">
+    <div class="modal-content">
+      <div class="modal-header">
+        <h5 class="modal-title" id="modalDetalleMovimientoLabel">Detalle del Movimiento</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <div class="text-center py-5">
+          <i class="fas fa-spinner fa-spin fa-2x"></i>
+          <p>Cargando información...</p>
+        </div>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cerrar</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% endblock %}
+
+{% block extra_js %}
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const modal = new bootstrap.Modal(document.getElementById('modalDetalleMovimiento'));
+    const modalBody = document.querySelector('#modalDetalleMovimiento .modal-body');
+
+    document.querySelectorAll('.ver-detalle').forEach(button => {
+        button.addEventListener('click', function() {
+            const movimientoId = this.dataset.id;
+            modalBody.innerHTML = `
+                <div class="text-center py-5">
+                    <i class="fas fa-spinner fa-spin fa-2x"></i>
+                    <p>Cargando información...</p>
+                </div>`;
+            modal.show();
+
+            fetch(`/movimientos/${movimientoId}/detalle/`)
+                .then(response => response.text())
+                .then(html => modalBody.innerHTML = html)
+                .catch(err => modalBody.innerHTML = `<div class="alert alert-danger">Error al cargar la información.</div>`);
+        });
+    });
+});
+</script>
+{% endblock %}

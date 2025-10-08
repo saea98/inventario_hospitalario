@@ -15,15 +15,18 @@
 <!-- Filtros -->
 <div class="card mb-4">
     <div class="card-body">
-        <form method="get" class="row g-3">
+        <form method="get" class="row g-3 mb-4">
+            <!-- 🔍 Campo de búsqueda -->
             <div class="col-md-3">
                 <label for="search" class="form-label">Buscar</label>
                 <input type="text" class="form-control" id="search" name="search" 
-                       value="{{ search }}" placeholder="Lote, CNIS o producto">
+                    value="{{ search }}" placeholder="Lote, CNIS o producto">
             </div>
+
+            <!-- 🏥 Filtro por institución -->
             <div class="col-md-3">
                 <label for="institucion" class="form-label">Institución</label>
-                <select class="form-select" id="institucion" name="institucion">
+                <select class="form-select select2" id="institucion" name="institucion">
                     <option value="">Todas las instituciones</option>
                     {% for institucion in instituciones %}
                     <option value="{{ institucion.id }}" {% if institucion.id|stringformat:"s" == institucion_selected %}selected{% endif %}>
@@ -32,9 +35,11 @@
                     {% endfor %}
                 </select>
             </div>
+
+            <!-- ⚙️ Estado del lote -->
             <div class="col-md-2">
-                <label for="estado" class="form-label">Estado</label>
-                <select class="form-select" id="estado" name="estado">
+                <label for="estado" class="form-label">Estado del Lote</label>
+                <select class="form-select select2" id="estado" name="estado">
                     <option value="">Todos</option>
                     <option value="1" {% if estado_selected == "1" %}selected{% endif %}>Disponible</option>
                     <option value="4" {% if estado_selected == "4" %}selected{% endif %}>Suspendido</option>
@@ -42,25 +47,27 @@
                     <option value="6" {% if estado_selected == "6" %}selected{% endif %}>Caducado</option>
                 </select>
             </div>
+
+            <!-- ⏳ Filtro por caducidad -->
             <div class="col-md-2">
                 <label for="caducidad" class="form-label">Caducidad</label>
-                <select class="form-select" id="caducidad" name="caducidad">
+                <select class="form-select select2" id="caducidad" name="caducidad">
                     <option value="">Todas</option>
+                    <option value="30" {% if caducidad_selected == "30" %}selected{% endif %}>Menos de 30 días</option>
+                    <option value="60" {% if caducidad_selected == "60" %}selected{% endif %}>Menos de 60 días</option>
+                    <option value="90" {% if caducidad_selected == "90" %}selected{% endif %}>Menos de 90 días</option>
                     <option value="caducados" {% if caducidad_selected == "caducados" %}selected{% endif %}>Caducados</option>
-                    <option value="30" {% if caducidad_selected == "30" %}selected{% endif %}>Próximos 30 días</option>
-                    <option value="60" {% if caducidad_selected == "60" %}selected{% endif %}>Próximos 60 días</option>
-                    <option value="90" {% if caducidad_selected == "90" %}selected{% endif %}>Próximos 90 días</option>
                 </select>
             </div>
-            <div class="col-md-2">
-                <label class="form-label">&nbsp;</label>
-                <div class="d-grid">
-                    <button type="submit" class="btn btn-outline-primary">
-                        <i class="fas fa-search"></i> Filtrar
-                    </button>
-                </div>
+
+            <!-- 🔘 Botón de filtrado -->
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-outline-primary w-100">
+                    <i class="fas fa-search"></i> Filtrar
+                </button>
             </div>
         </form>
+
     </div>
 </div>
 
@@ -82,7 +89,8 @@
             Lotes ({{ page_obj.paginator.count }} total)
         </h5>
         <div>
-            <a href="?format=excel" class="btn btn-sm btn-success">
+            <a href="{% url 'reporte_lotes_excel' %}?search={{ search }}&institucion={{ institucion_selected }}&estado={{ estado_selected }}&caducidad={{ caducidad_selected }}" 
+            class="btn btn-sm btn-success">
                 <i class="fas fa-file-excel"></i> Exportar Excel
             </a>
         </div>
@@ -294,7 +302,7 @@
                     
                     <div class="mb-3">
                         <label for="tipo_movimiento" class="form-label">Tipo de Movimiento</label>
-                        <select class="form-select" id="tipo_movimiento" name="tipo_movimiento" required>
+                        <select class="form-select select2" id="tipo_movimiento" name="tipo_movimiento" required>
                             <option value="">Seleccionar...</option>
                             <option value="ENTRADA">Entrada</option>
                             <option value="SALIDA">Salida</option>
@@ -340,6 +348,22 @@ document.addEventListener('DOMContentLoaded', function() {
         
         document.getElementById('lote_id').value = loteId;
         document.getElementById('lote_numero').textContent = loteNumero;
+    });
+});
+$(document).ready(function() {
+    console.log("Inicializando Select2...");
+
+    ['#institucion', '#estado', '#caducidad'].forEach(function(id) {
+        if ($(id).length) {
+            $(id).select2({
+                placeholder: 'Selecciona una opción',
+                allowClear: true,
+                width: '100%'
+            });
+            console.log("Select2 aplicado a:", id);
+        } else {
+            console.warn("No se encontró el elemento:", id);
+        }
     });
 });
 </script>

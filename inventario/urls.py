@@ -31,6 +31,10 @@ urlpatterns = [
     # Movimientos
     path('movimientos/', views.lista_movimientos, name='lista_movimientos'),
     path('movimientos/crear/', views.crear_movimiento, name='crear_movimiento'),
+    path('movimientos/<int:pk>/detalle/', views.detalle_movimiento, name='detalle_movimiento'),
+    path('movimientos/<int:pk>/anular/', views.anular_movimiento, name='anular_movimiento'),
+    path('movimientos/<int:pk>/editar/', views.editar_movimiento, name='editar_movimiento'),
+    path('lotes/reporte-excel/', views.reporte_lotes_excel, name='reporte_lotes_excel'),
 
     # Cargas
     path('cargas/', views.lista_cargas, name='lista_cargas'),

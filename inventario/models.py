@@ -405,13 +405,37 @@ class MovimientoInventario(models.Model):
     fecha_movimiento = models.DateTimeField(auto_now_add=True)
     usuario = models.ForeignKey(User, on_delete=models.CASCADE)
 
+    # 🔽 NUEVOS CAMPOS PARA ANULACIÓN 🔽
+    anulado = models.BooleanField(default=False)
+    fecha_anulacion = models.DateTimeField(blank=True, null=True)
+    usuario_anulacion = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='movimientos_anulados'
+    )
+
     class Meta:
         verbose_name = "Movimiento de Inventario"
         verbose_name_plural = "Movimientos de Inventario"
         ordering = ['-fecha_movimiento']
 
+    # ✅ Validación antes de guardar
+    def save(self, *args, **kwargs):
+        if self.cantidad_nueva < 0:
+            raise ValueError("La cantidad resultante no puede ser negativa.")
+        super().save(*args, **kwargs)
+
     def __str__(self):
         return f"{self.tipo_movimiento} - {self.lote} - {self.cantidad}"
+
+    # ✅ Propiedad de conveniencia
+    @property
+    def estado(self):
+        return "Anulado" if self.anulado else "Vigente"
+
+
 
 
 class AlertaCaducidad(models.Model):

@@ -195,4 +195,17 @@ document.addEventListener('DOMContentLoaded', function() {
     });
 });
 </script>
+<script>
+  $(document).ready(function () {
+    console.log("🟢 Activando Select2 en formulario de Lote...");
+
+    // Aplica Select2 a todos los <select> dentro del formulario
+    $('form select').select2({
+      theme: 'bootstrap-5',
+      width: '100%',
+      placeholder: 'Seleccione una opción',
+      allowClear: true
+    });
+  });
+</script>
 {% endblock %}

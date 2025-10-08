@@ -1,0 +1,45 @@
+<!-- inventario/movimientos/detalle_movimiento_modal.html -->
+{% load humanize %}
+<div class="container-fluid">
+    <dl class="row">
+        <dt class="col-sm-4">Fecha</dt>
+        <dd class="col-sm-8">{{ movimiento.fecha_movimiento|date:"d/m/Y H:i" }}</dd>
+
+        <dt class="col-sm-4">Tipo de movimiento</dt>
+        <dd class="col-sm-8">{{ movimiento.get_tipo_movimiento_display }}</dd>
+
+        <dt class="col-sm-4">Producto</dt>
+        <dd class="col-sm-8">{{ movimiento.lote.producto.clave_cnis }} - {{ movimiento.lote.producto.descripcion }}</dd>
+
+        <dt class="col-sm-4">Lote</dt>
+        <dd class="col-sm-8">{{ movimiento.lote.numero_lote }}</dd>
+
+        <dt class="col-sm-4">Institución</dt>
+        <dd class="col-sm-8">{{ movimiento.lote.institucion.clue }} - {{ movimiento.lote.institucion.denominacion }}</dd>
+
+        <dt class="col-sm-4">Cantidad anterior</dt>
+        <dd class="col-sm-8">{{ movimiento.cantidad_anterior|intcomma }}</dd>
+
+        <dt class="col-sm-4">Cantidad</dt>
+        <dd class="col-sm-8">{{ movimiento.cantidad|intcomma }}</dd>
+
+        <dt class="col-sm-4">Cantidad nueva</dt>
+        <dd class="col-sm-8">{{ movimiento.cantidad_nueva|intcomma }}</dd>
+
+        <dt class="col-sm-4">Usuario</dt>
+        <dd class="col-sm-8">{{ movimiento.usuario.get_full_name|default:movimiento.usuario.username }}</dd>
+
+        <dt class="col-sm-4">Motivo</dt>
+        <dd class="col-sm-8">{{ movimiento.motivo }}</dd>
+
+        {% if movimiento.documento_referencia %}
+        <dt class="col-sm-4">Documento</dt>
+        <dd class="col-sm-8">{{ movimiento.documento_referencia }}</dd>
+        {% endif %}
+
+        {% if movimiento.anulado %}
+        <dt class="col-sm-4">Estado</dt>
+        <dd class="col-sm-8"><span class="badge bg-danger">Anulado</span></dd>
+        {% endif %}
+    </dl>
+</div>

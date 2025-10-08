@@ -43,6 +43,8 @@ from .models import Institucion
 from .forms import CargaMasivaInstitucionForm
 from .models import SolicitudInventario, EstadoInsumo
 from inventario import models
+from openpyxl.utils import get_column_letter
+
 
 
 # ==========================================
@@ -293,10 +295,8 @@ def eliminar_producto(request, pk):
 def lista_lotes(request):
     """Lista de lotes con filtros y resumen de caducidad"""
     form = FiltroInventarioForm(request.GET or None)
-    
     hoy = date.today()
 
-    # 🔹 Evitamos conflicto con las propiedades del modelo
     lotes = (
         Lote.objects
         .select_related('producto', 'institucion', 'orden_suministro')
@@ -318,13 +318,12 @@ def lista_lotes(request):
         )
     )
 
+    # 🔹 Aplicar filtros
     if form.is_valid():
         institucion = form.cleaned_data.get('institucion')
         producto = form.cleaned_data.get('producto')
         categoria = form.cleaned_data.get('categoria')
         estado = form.cleaned_data.get('estado')
-        f_ini = form.cleaned_data.get('fecha_caducidad_desde')
-        f_fin = form.cleaned_data.get('fecha_caducidad_hasta')
 
         if institucion:
             lotes = lotes.filter(institucion=institucion)
@@ -334,12 +333,26 @@ def lista_lotes(request):
             lotes = lotes.filter(producto__categoria=categoria)
         if estado:
             lotes = lotes.filter(estado=estado)
-        if f_ini:
-            lotes = lotes.filter(fecha_caducidad__gte=f_ini)
-        if f_fin:
-            lotes = lotes.filter(fecha_caducidad__lte=f_fin)
 
-    # 🔹 Resumen usando las anotaciones
+    # 🔹 Filtro caducidad
+    caducidad = request.GET.get('caducidad', '')
+    if caducidad:
+        if caducidad == 'caducados':
+            lotes = lotes.filter(fecha_caducidad__lt=hoy)
+        elif caducidad in ['30', '60', '90']:
+            dias = int(caducidad)
+            lotes = lotes.filter(fecha_caducidad__gte=hoy, fecha_caducidad__lte=hoy + timedelta(days=dias))
+
+    # 🔹 Filtro de búsqueda libre (lote, CNIS o producto)
+    search = request.GET.get('search', '').strip()
+    if search:
+        lotes = lotes.filter(
+            Q(numero_lote__icontains=search) |
+            Q(producto__clave_cnis__icontains=search) |
+            Q(producto__descripcion__icontains=search)
+        )
+
+    # 🔹 Resumen
     resumen = {
         'valor_total': lotes.aggregate(total=Sum('valor_total'))['total'] or 0,
         'cantidad_total': lotes.aggregate(total=Sum('cantidad_disponible'))['total'] or 0,
@@ -361,7 +374,8 @@ def lista_lotes(request):
         'resumen': resumen,
         'institucion_selected': request.GET.get('institucion', ''),
         'estado_selected': request.GET.get('estado', ''),
-        'caducidad_selected': request.GET.get('caducidad', ''),
+        'caducidad_selected': caducidad,
+        'search': search,
         'page_obj': page_obj,
         'alertas_caducidad': alertas_caducidad,
     }
@@ -454,8 +468,100 @@ def eliminar_lote(request, pk):
 
 @login_required
 def lista_movimientos(request):
-    movimientos = MovimientoInventario.objects.select_related('lote', 'usuario').order_by('-fecha_movimiento')
-    return render(request, 'inventario/movimientos/lista_movimientos.html', {'movimientos': movimientos})
+    search = request.GET.get('search', '')
+    fecha_desde = request.GET.get('fecha_desde', '')
+
+    movimientos = (
+        MovimientoInventario.objects
+        .select_related('lote__producto', 'lote__institucion', 'usuario')
+        .order_by('-fecha_movimiento')
+    )
+
+    # 🔍 Filtros de búsqueda
+    if search:
+        movimientos = movimientos.filter(
+            Q(lote__numero_lote__icontains=search) |
+            Q(lote__producto__clave_cnis__icontains=search) |
+            Q(motivo__icontains=search)
+        )
+
+    if fecha_desde:
+        movimientos = movimientos.filter(fecha_movimiento__gte=fecha_desde)
+
+    # 📄 Paginación
+    paginator = Paginator(movimientos, 25)  # 25 por página
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+
+    context = {
+        'page_obj': page_obj,
+        'search': search,
+        'fecha_desde': fecha_desde,
+    }
+    return render(request, 'inventario/movimientos/lista_movimientos.html', context)
+
+
+@login_required
+def editar_movimiento(request, pk):
+    movimiento = get_object_or_404(MovimientoInventario, pk=pk)
+
+    if request.method == 'POST':
+        form = MovimientoInventarioForm(request.POST, instance=movimiento)
+        if form.is_valid():
+            form.save()
+            messages.success(request, "Movimiento actualizado correctamente.")
+            return redirect('lista_movimientos')
+    else:
+        form = MovimientoInventarioForm(instance=movimiento)
+
+    return render(request, 'inventario/movimientos/form_movimiento.html', {'form': form, 'editar': True})
+
+@login_required
+def detalle_movimiento(request, pk):
+    """
+    Muestra el detalle de un movimiento de inventario.
+    """
+    movimiento = get_object_or_404(MovimientoInventario.objects.select_related('lote', 'usuario', 'lote__producto', 'lote__institucion'), pk=pk)
+
+    return render(
+        request,
+        'inventario/movimientos/detalle_movimiento.html',
+        {'movimiento': movimiento}
+    )
+
+
+@login_required
+def anular_movimiento(request, pk):
+    """Anula un movimiento de inventario y revierte el stock asociado"""
+    movimiento = get_object_or_404(MovimientoInventario, pk=pk)
+
+    # Evitar doble anulación
+    if movimiento.anulado:
+        messages.warning(request, "Este movimiento ya fue anulado anteriormente.")
+        return redirect('lista_movimientos')
+
+    lote = movimiento.lote
+
+    # Revertir la cantidad según el tipo de movimiento
+    if movimiento.tipo_movimiento in ['SALIDA', 'AJUSTE_NEGATIVO', 'TRANSFERENCIA_SALIDA']:
+        lote.cantidad_disponible += movimiento.cantidad
+    elif movimiento.tipo_movimiento in ['ENTRADA', 'AJUSTE_POSITIVO', 'TRANSFERENCIA_ENTRADA']:
+        lote.cantidad_disponible -= movimiento.cantidad
+
+    # Evitar valores negativos tras reversión
+    if lote.cantidad_disponible < 0:
+        messages.error(request, "No se puede anular: la reversión dejaría el stock negativo.")
+        return redirect('lista_movimientos')
+
+    # Guardar cambios
+    lote.save()
+    movimiento.anulado = True
+    movimiento.fecha_anulacion = timezone.now()
+    movimiento.usuario_anulacion = request.user
+    movimiento.save()
+
+    messages.success(request, f"Movimiento {movimiento.id} anulado correctamente y stock revertido.")
+    return redirect('lista_movimientos')
 
 
 @login_required
@@ -465,20 +571,32 @@ def crear_movimiento(request):
         if form.is_valid():
             movimiento = form.save(commit=False)
             lote = movimiento.lote
+            producto = lote.producto  # 👈 Relación con el producto
             cantidad_anterior = lote.cantidad_disponible
 
+            # --- Calcular nueva cantidad del lote ---
             if movimiento.tipo_movimiento in ['SALIDA', 'AJUSTE_NEGATIVO', 'TRANSFERENCIA_SALIDA']:
                 movimiento.cantidad_nueva = cantidad_anterior - movimiento.cantidad
             else:
                 movimiento.cantidad_nueva = cantidad_anterior + movimiento.cantidad
 
+            # --- Validación: no permitir cantidades negativas ---
             if movimiento.cantidad_nueva < 0:
                 messages.error(request, "La cantidad resultante no puede ser negativa.")
                 return redirect('crear_movimiento')
 
+            # --- Guardar cambios en el lote ---
             lote.cantidad_disponible = movimiento.cantidad_nueva
             lote.save()
 
+            # --- Actualizar cantidad global del producto ---
+            # Se suma la cantidad disponible de todos los lotes del producto
+            producto.existencia_total = sum(
+                l.cantidad_disponible for l in producto.lote_set.all()
+            )
+            producto.save()
+
+            # --- Guardar datos del movimiento ---
             movimiento.cantidad_anterior = cantidad_anterior
             movimiento.usuario = request.user
             movimiento.save()
@@ -565,6 +683,75 @@ def detalle_carga(request, pk):
     carga = get_object_or_404(CargaInventario, pk=pk)
     return render(request, 'inventario/cargas/detalle_carga.html', {'carga': carga})
 
+
+@login_required
+def reporte_lotes_excel(request):
+    """Exporta los lotes filtrados a Excel con layout personalizado"""
+
+    hoy = date.today()
+    lotes = Lote.objects.select_related('producto', 'institucion', 'orden_suministro')
+
+    # 🔹 Obtener filtros desde GET (igual que en lista_lotes)
+    search = request.GET.get('search', '').strip()
+    institucion = request.GET.get('institucion')
+    estado = request.GET.get('estado')
+    caducidad = request.GET.get('caducidad')
+
+    if search:
+        lotes = lotes.filter(
+            Q(numero_lote__icontains=search) |
+            Q(producto__clave_cnis__icontains=search) |
+            Q(producto__descripcion__icontains=search)
+        )
+    if institucion:
+        lotes = lotes.filter(institucion_id=institucion)
+    if estado:
+        lotes = lotes.filter(estado=estado)
+    if caducidad:
+        if caducidad == 'caducados':
+            lotes = lotes.filter(fecha_caducidad__lt=hoy)
+        elif caducidad in ['30', '60', '90']:
+            dias = int(caducidad)
+            lotes = lotes.filter(fecha_caducidad__gte=hoy, fecha_caducidad__lte=hoy + timedelta(days=dias))
+
+    # 🔹 Crear workbook Excel
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = "Inventario Lotes"
+
+    headers = [
+        "ENTIDAD", "CLUES", "ORDEN DE SUMINISTRO", "RFC", "CLAVE",
+        "ESTADO DEL INSUMO", "INVENTARIO DISPONIBLE", "LOTE",
+        "F_CAD", "F_FAB", "F_REC"
+    ]
+    ws.append(headers)
+
+    for lote in lotes:
+        row = [
+            getattr(lote.institucion, 'entidad', ''),  # ENTIDAD
+            lote.institucion.clue,                     # CLUES
+            getattr(lote.orden_suministro, 'numero_orden', ''),  # ORDEN DE SUMINISTRO
+            getattr(lote.producto, 'rfc', ''),        # RFC
+            lote.producto.clave_cnis,                  # CLAVE
+            lote.get_estado_display(),                 # ESTADO DEL INSUMO
+            lote.cantidad_disponible,                  # INVENTARIO DISPONIBLE
+            lote.numero_lote,                          # LOTE
+            lote.fecha_caducidad.strftime("%d/%m/%Y") if lote.fecha_caducidad else "",  # F_CAD
+            lote.fecha_fabricacion.strftime("%d/%m/%Y") if lote.fecha_fabricacion else "", # F_FAB
+            lote.fecha_recepcion.strftime("%d/%m/%Y") if lote.fecha_recepcion else ""      # F_REC
+        ]
+        ws.append(row)
+
+    # Ajustar ancho de columnas
+    for i, column_cells in enumerate(ws.columns, start=1):
+        length = max(len(str(cell.value)) for cell in column_cells)
+        ws.column_dimensions[get_column_letter(i)].width = length + 2
+
+    # Devolver respuesta
+    response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
+    response['Content-Disposition'] = 'attachment; filename=lotes_inventario.xlsx'
+    wb.save(response)
+    return response
 
 # ============================================================
 # Reportes (Excel)

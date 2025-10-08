@@ -1,0 +1,30 @@
+version: "3.9"
+
+services:
+  web:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: inventario_dev
+    restart: always
+    ports:
+      - "${PORT:-8700}:8000"
+    env_file:
+      - .env
+    # Volumen dinámico: mapea el directorio actual sin depender de rutas absolutas
+    volumes:
+      - .:/app
+    # No dependemos de Redis ni otros servicios en desarrollo (pero puedes dejarlo)
+    networks:
+      - inventario_net
+
+  redis:
+    image: redis:7
+    container_name: inventario_redis
+    restart: always
+    networks:
+      - inventario_net
+
+networks:
+  inventario_net:
+    driver: bridge

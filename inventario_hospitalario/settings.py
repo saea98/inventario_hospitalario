@@ -87,13 +87,14 @@ WSGI_APPLICATION = 'inventario_hospitalario.wsgi.application'
 DATABASES = {
     'default': {
         'ENGINE': 'django.db.backends.postgresql',
-        'NAME': 'inventario_bd',
-        'USER': 'postgres',
-        'PASSWORD': 'chaparritos31',
-        'HOST': '192.168.64.1',
-        'PORT': '5433',
+        'NAME': os.getenv('POSTGRES_DB', 'inventario_bd'),
+        'USER': os.getenv('POSTGRES_USER', 'postgres'),
+        'PASSWORD': os.getenv('POSTGRES_PASSWORD', 'chaparritos31'),
+        'HOST': os.getenv('POSTGRES_HOST', '192.168.64.1'),
+        'PORT': os.getenv('POSTGRES_PORT', '5433'),
     }
 }
+
 
 AUTH_USER_MODEL = 'inventario.User'
 # Password validation
