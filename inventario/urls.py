@@ -68,5 +68,8 @@ urlpatterns = [
     path('borrar-solicitud/<str:fecha>/', views.borrar_solicitud, name='borrar_solicitud_fecha'),
     path('borrar-solicitud/', views.borrar_solicitud, name='borrar_solicitud_todas'),
     path('solicitudes/exportar/<str:fecha>/', views.exportar_solicitud_excel, name='exportar_solicitud_excel'),
+    path("reporte_personalizado/", views.reporte_personalizado, name="reporte_personalizado"),
+
+
 
 ]

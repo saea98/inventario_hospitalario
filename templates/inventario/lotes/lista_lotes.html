@@ -93,6 +93,9 @@
             class="btn btn-sm btn-success">
                 <i class="fas fa-file-excel"></i> Exportar Excel
             </a>
+            <button class="btn btn-outline-success" data-bs-toggle="modal" data-bs-target="#modalReporte">
+                <i class="fas fa-file-excel"></i> Generar reporte personalizado
+            </button>
         </div>
     </div>
     <div class="card-body p-0">
@@ -334,6 +337,47 @@
         </div>
     </div>
 </div>
+
+<!-- Modal Reporte Personalizado -->
+<div class="modal fade" id="modalReporte" tabindex="-1" aria-labelledby="modalReporteLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-light">
+        <h5 class="modal-title" id="modalReporteLabel">📊 Generar reporte personalizado</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <form id="formReportePersonalizado" method="POST" action="{% url 'reporte_personalizado' %}">
+          {% csrf_token %}
+          <div class="alert alert-info small">
+            Selecciona los campos y <strong>arrastra</strong> para definir su orden en el Excel.
+          </div>
+
+          <ul id="lista-campos" class="list-group mb-3">
+            {% for columna in columnas_disponibles %}
+            <li class="list-group-item d-flex justify-content-between align-items-center draggable-item">
+              <div>
+                <input type="checkbox" name="columnas" value="{{ columna.value }}" id="col_{{ forloop.counter }}" checked>
+                <label for="col_{{ forloop.counter }}">{{ columna.label }}</label>
+              </div>
+              <span class="handle text-secondary" style="cursor: grab;">☰</span>
+            </li>
+            {% endfor %}
+          </ul>
+
+          <input type="hidden" name="orden_columnas" id="orden_columnas">
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-success" id="btn-generar-excel">
+          <i class="fas fa-file-excel"></i> Generar Excel
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+
 {% endblock %}
 
 {% block extra_js %}
@@ -367,4 +411,65 @@ $(document).ready(function() {
     });
 });
 </script>
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const lista = document.getElementById("lista-campos");
+  const ordenInput = document.getElementById("orden_columnas");
+  const form = document.getElementById("formReportePersonalizado");
+  const btnGenerar = document.getElementById("btn-generar-excel");
+
+  if (!lista) return;
+
+  // Inicializar SortableJS (arrastrar por el ícono ☰)
+  new Sortable(lista, {
+    animation: 150,
+    handle: ".handle",
+    onEnd: actualizarOrden
+  });
+
+  // Función para actualizar el orden de columnas seleccionadas
+  function actualizarOrden() {
+    const items = lista.querySelectorAll("input[type='checkbox']");
+    const orden = [];
+    items.forEach(item => {
+      if (item.checked) orden.push(item.value);
+    });
+    ordenInput.value = orden.join(",");
+  }
+
+  // Actualiza orden al marcar/desmarcar
+  lista.addEventListener("change", actualizarOrden);
+  actualizarOrden();
+
+  // Botón de generar Excel
+  btnGenerar.addEventListener("click", function() {
+    actualizarOrden();
+
+    const formData = new FormData(form);
+
+    fetch(form.getAttribute("action"), {
+      method: "POST",
+      body: formData,
+      headers: { "X-CSRFToken": "{{ csrf_token }}" },
+    })
+    .then(response => {
+      if (!response.ok) throw new Error("Error generando el reporte");
+      return response.blob();
+    })
+    .then(blob => {
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "reporte_personalizado.xlsx";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      bootstrap.Modal.getInstance(document.getElementById("modalReporte")).hide();
+    })
+    .catch(err => alert(err));
+  });
+});
+</script>
+
 {% endblock %}

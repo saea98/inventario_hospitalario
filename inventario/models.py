@@ -326,6 +326,10 @@ class Lote(models.Model):
         return f"Lote {self.numero_lote} - {self.producto.clave_cnis}"
 
     @property
+    def nombre_institucion(self):
+        return self.institucion.denominacion if self.institucion else ""
+
+    @property
     def dias_para_caducidad(self):
         if self.fecha_caducidad:
             delta = self.fecha_caducidad - date.today()

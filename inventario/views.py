@@ -25,7 +25,7 @@ from django.db.models import Case, When, Value, BooleanField
 from .models import (
     Institucion, Producto, Proveedor, Lote, OrdenSuministro,
     CategoriaProducto, Alcaldia, TipoInstitucion, FuenteFinanciamiento,
-    MovimientoInventario, AlertaCaducidad, CargaInventario, SolicitudInventario, EstadoInsumo
+    MovimientoInventario, AlertaCaducidad, CargaInventario, SolicitudInventario, EstadoInsumo, User
 )
 
 # Formularios
@@ -44,7 +44,7 @@ from .forms import CargaMasivaInstitucionForm
 from .models import SolicitudInventario, EstadoInsumo
 from inventario import models
 from openpyxl.utils import get_column_letter
-
+from datetime import date, datetime
 
 
 # ==========================================
@@ -204,6 +204,106 @@ def editar_institucion(request, pk):
         return redirect('detalle_institucion', pk=pk)
     return render(request, 'inventario/instituciones/form.html', {'form': form, 'titulo': 'Editar Institución'})
 
+
+
+@login_required
+def reporte_personalizado(request):
+    if request.method == "POST":
+        try:
+            # 1️⃣ Recuperar campos seleccionados y ordenados
+            campos = request.POST.getlist("columnas")  # checkboxes seleccionados
+            orden_columnas = request.POST.get("orden_columnas", "")
+            print("🔍 Campos seleccionados:", campos)
+            print("🔍 Orden columnas:", orden_columnas)
+
+            # Si hay un orden personalizado, lo respetamos
+            if orden_columnas:
+                orden = [c for c in orden_columnas.split(",") if c in campos]
+                if orden:
+                    campos = orden
+
+            if not campos:
+                return JsonResponse({"error": "No se seleccionaron columnas válidas"}, status=400)
+
+            # 2️⃣ Consultar los datos (solo esos campos)
+            datos = (
+                Lote.objects.select_related("producto", "institucion", "creado_por")
+                .values(*campos)
+            )
+
+            datos_lista = list(datos)
+            if not datos_lista:
+                print("⚠️ No hay datos para exportar")
+                return JsonResponse({"error": "No hay datos para exportar"}, status=404)
+
+            print("🔍 Primer registro:", datos_lista[0])
+
+            # 🧩 Diccionario de estados legibles
+            ESTADOS = {
+                0: "Inactivo",
+                1: "Activo",
+                2: "Bloqueado",
+                3: "Caducado",
+            }
+
+            # 3️⃣ Procesar campos legibles
+            for registro in datos_lista:
+                # Producto
+                if "producto_id" in registro:
+                    producto = Producto.objects.filter(id=registro["producto_id"]).first()
+                    registro["producto"] = (
+                        f"{producto.descripcion} ({producto.clave_cnis})" if producto else ""
+                    )
+                    registro.pop("producto_id", None)
+
+                # Institución
+                if "institucion_id" in registro:
+                    inst = Institucion.objects.filter(id=registro["institucion_id"]).first()
+                    registro["institucion"] = (
+                        f"{inst.clue} - {inst.denominacion}" if inst else ""
+                    )
+                    registro.pop("institucion_id", None)
+
+                # Usuario creador
+                if "creado_por_id" in registro:
+                    user = User.objects.filter(id=registro["creado_por_id"]).first()
+                    registro["creado_por"] = user.username if user else ""
+                    registro.pop("creado_por_id", None)
+
+                # Estado legible
+                if "estado" in registro:
+                    registro["estado"] = ESTADOS.get(registro["estado"], f"Desconocido ({registro['estado']})")
+
+                # Fechas y decimales legibles
+                for k, v in registro.items():
+                    if isinstance(v, Decimal):
+                        registro[k] = float(v)
+                    elif isinstance(v, (date, datetime)):
+                        registro[k] = v.strftime("%Y-%m-%d")
+                    elif v is None:
+                        registro[k] = ""
+
+            # 4️⃣ Exportar a Excel respetando el orden de columnas
+            df = pd.DataFrame(datos_lista)
+
+            # Si hay orden definido, reordenamos las columnas
+            columnas_finales = [col for col in campos if col in df.columns]
+            df = df[columnas_finales]
+
+            # Generar Excel
+            response = HttpResponse(
+                content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+            response["Content-Disposition"] = 'attachment; filename="reporte_personalizado.xlsx"'
+            df.to_excel(response, index=False)
+
+            return response
+
+        except Exception as e:
+            print("❌ Error en reporte_personalizado:", str(e))
+            return JsonResponse({"error": f"Error generando el reporte: {str(e)}"}, status=500)
+
+    
 
 # ==========================================
 # 3. PRODUCTOS
@@ -366,6 +466,19 @@ def lista_lotes(request):
 
     instituciones = Institucion.objects.filter(activo=True).order_by('clue')
     alertas_caducidad = resumen['proximos_caducar'] + resumen['caducados']
+    
+    columnas_disponibles = [
+        {"value": "producto__descripcion", "label": "Producto"},
+        {"value": "producto__clave_cnis", "label": "CNIS"},
+        {"value": "numero_lote", "label": "Número de Lote"},
+        {"value": "institucion__denominacion", "label": "Institución"},
+        {"value": "cantidad_disponible", "label": "Cantidad Disponible"},
+        {"value": "fecha_caducidad", "label": "Fecha de Caducidad"},
+        {"value": "fecha_fabricacion", "label": "Fecha de Fabricación"},
+        {"value": "fecha_recepcion", "label": "Fecha de Recepción"},
+        {"value": "valor_total", "label": "Valor Total"},
+        {"value": "estado", "label": "Estado"},
+    ]
 
     context = {
         'form': form,
@@ -378,6 +491,7 @@ def lista_lotes(request):
         'search': search,
         'page_obj': page_obj,
         'alertas_caducidad': alertas_caducidad,
+        "columnas_disponibles": columnas_disponibles,
     }
     return render(request, 'inventario/lotes/lista_lotes.html', context)
 
