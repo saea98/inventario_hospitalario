@@ -65,11 +65,13 @@ urlpatterns = [
     path('solicitudes/', views.lista_solicitudes_semanales, name='lista_solicitudes'),
     path('solicitudes/detalle/<str:fecha>/', views.detalle_solicitud, name='detalle_solicitud'),
     path('carga-masiva-solicitud/', views.carga_masiva_solicitud, name='carga_masiva_solicitud'),
+    path('complemento-carga-masiva-solicitud/', views.complemento_carga_masiva, name='complemento_carga_masiva'),
     path('borrar-solicitud/<str:fecha>/', views.borrar_solicitud, name='borrar_solicitud_fecha'),
     path('borrar-solicitud/', views.borrar_solicitud, name='borrar_solicitud_todas'),
     path('solicitudes/exportar/<str:fecha>/', views.exportar_solicitud_excel, name='exportar_solicitud_excel'),
     path("reporte_personalizado/", views.reporte_personalizado, name="reporte_personalizado"),
 
+    path('ajax/ubicaciones/', views.ajax_ubicaciones_por_almacen, name='ajax_ubicaciones_por_almacen'),
 
 
 ]

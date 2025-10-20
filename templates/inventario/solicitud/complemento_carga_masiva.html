@@ -1,0 +1,98 @@
+{% extends "base.html" %}
+{% load static %}
+{% block content %}
+<div class="container mt-4 mb-5">
+    <h2 class="text-center mb-4">
+        📦 Complemento de Carga Masiva de Productos
+    </h2>
+
+    <!-- Mensajes de éxito / error -->
+    {% if messages %}
+        <div class="mt-3">
+            {% for message in messages %}
+                <div class="alert {% if message.tags == 'success' %}alert-success{% elif message.tags == 'warning' %}alert-warning{% else %}alert-danger{% endif %} alert-dismissible fade show" role="alert">
+                    {{ message }}
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
+                </div>
+            {% endfor %}
+        </div>
+    {% endif %}
+
+    <!-- Card principal -->
+    <div class="card shadow-sm border-0 rounded-3">
+        <div class="card-body">
+            <form method="POST" enctype="multipart/form-data" class="mb-4">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label for="archivo_csv" class="form-label fw-bold">Selecciona el archivo CSV limpio:</label>
+                    <input type="file" name="archivo_csv" id="archivo_csv" class="form-control" accept=".csv" required>
+                    <div class="form-text">
+                        Asegúrate de que el archivo esté limpio y tenga las columnas requeridas:
+                        <code>CLAVE, DESCRIPCIÓN, UNIDAD DE MEDIDA, CANT</code>
+                        y opcionalmente:
+                        <code>PROVEEDOR, RFC, PARTIDA, CLAVE (SAICA), DESCRIPCIÓN (SAICA), UNIDAD DE MEDIDA (SAICA)</code>
+                    </div>
+                </div>
+
+                <div class="d-flex justify-content-center mt-3">
+                    <button type="submit" class="btn btn-primary px-4">
+                        <i class="bi bi-upload"></i> Procesar Archivo
+                    </button>
+                </div>
+            </form>
+
+            <hr>
+
+            <!-- Resumen de resultados -->
+            {% if errores %}
+                <div class="mt-4">
+                    <h5 class="text-danger mb-3">
+                        ⚠️ Errores encontrados ({{ errores|length }})
+                    </h5>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered align-middle">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Detalle del Error</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for error in errores %}
+                                    <tr>
+                                        <td>{{ forloop.counter }}</td>
+                                        <td>{{ error }}</td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Info adicional -->
+    <div class="alert alert-info mt-4" role="alert">
+        <strong>ℹ️ Nota:</strong> Este proceso complementa la información existente en la base de datos,
+        actualizando los productos y agregando nuevos sin eliminar registros anteriores.
+    </div>
+</div>
+
+<!-- Estilos opcionales -->
+<style>
+    .card {
+        border-radius: 1rem;
+        box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+    }
+    h2 {
+        font-weight: 600;
+        color: #2c3e50;
+    }
+    code {
+        background-color: #f1f1f1;
+        padding: 2px 5px;
+        border-radius: 4px;
+    }
+</style>
+{% endblock %}

@@ -50,5 +50,35 @@
       allowClear: true
     });
   });
+
+  $(document).ready(function () {
+    // Activar Select2
+    $('form select').select2({
+        theme: 'bootstrap-5',
+        width: '100%',
+        placeholder: 'Seleccione una opción',
+        allowClear: true
+    });
+
+    // Al cambiar el almacén, recargar ubicaciones
+    $('#id_almacen').change(function () {
+        var almacenId = $(this).val();
+        $.ajax({
+            url: "{% url 'ajax_ubicaciones_por_almacen' %}",
+            data: {
+                'almacen': almacenId
+            },
+            success: function (data) {
+                var ubicacionSelect = $('#id_ubicacion');
+                ubicacionSelect.empty();
+                ubicacionSelect.append('<option value="">---------</option>');
+                data.forEach(function (ubicacion) {
+                    ubicacionSelect.append('<option value="' + ubicacion.id + '">' + ubicacion.codigo + ' - ' + ubicacion.descripcion + '</option>');
+                });
+                ubicacionSelect.trigger('change'); // Actualiza Select2
+            }
+        });
+    });
+});
 </script>
 {% endblock %}

@@ -8,6 +8,7 @@ from datetime import date
 from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth.models import AbstractUser
+from django.conf import settings
 
 
 
@@ -47,7 +48,7 @@ class TipoInstitucion(models.Model):
     ]
 
     tipo = models.CharField(max_length=50, choices=TIPOS_CHOICES, unique=True)
-    descripcion = models.TextField(blank=True, null=True)
+    descripcion = models.TextField(max_length=255,blank=True, null=True)
 
     class Meta:
         verbose_name = "Tipo de Institución"
@@ -87,6 +88,50 @@ class Institucion(models.Model):
 
     def __str__(self):
         return f"{self.clue} - {self.denominacion}"
+
+
+class Almacen(models.Model):
+    institucion = models.ForeignKey(
+        'Institucion',
+        on_delete=models.CASCADE,
+        verbose_name="Institución (CLUE)"
+    )
+    nombre = models.CharField(max_length=150)
+    codigo = models.CharField(max_length=50, unique=True)
+    direccion = models.TextField(blank=True, null=True)
+    activo = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = "Almacén"
+        verbose_name_plural = "Almacenes"
+        ordering = ['nombre']
+
+    def __str__(self):
+        return f"{self.nombre} ({self.institucion.clue})"
+
+
+
+
+class UbicacionAlmacen(models.Model):
+    """Ubicaciones físicas dentro de un almacén (Rack, Pasillo, Nivel, etc.)"""
+    almacen = models.ForeignKey('Almacen', on_delete=models.CASCADE, related_name='ubicaciones')
+    codigo = models.CharField(max_length=50, verbose_name="Código de ubicación")
+    descripcion = models.CharField(max_length=150, verbose_name="Descripción de la ubicación", blank=True, null=True)
+    nivel = models.CharField(max_length=50, blank=True, null=True)
+    pasillo = models.CharField(max_length=50, blank=True, null=True)
+    rack = models.CharField(max_length=50, blank=True, null=True)
+    seccion = models.CharField(max_length=50, blank=True, null=True)
+    activo = models.BooleanField(default=True)
+
+    class Meta:
+        verbose_name = "Ubicación de Almacén"
+        verbose_name_plural = "Ubicaciones de Almacén"
+        unique_together = ['almacen', 'codigo']
+        ordering = ['almacen', 'codigo']
+
+    def __str__(self):
+        return f"{self.codigo} - {self.almacen.nombre}"
+
 
 
 
@@ -160,8 +205,23 @@ def carga_masiva_instituciones(request):
 class CategoriaProducto(models.Model):
     """Categorías de productos médicos"""
     nombre = models.CharField(max_length=100, unique=True)
-    descripcion = models.TextField(blank=True, null=True)
+    descripcion = models.TextField(max_length=255, blank=True, null=True)
     codigo = models.CharField(max_length=20, unique=True, blank=True, null=True)
+    tipo = models.CharField(
+        max_length=50,
+        blank=True,
+        null=True,
+        help_text="Tipo de categoría, por ejemplo: Medicamento, Insumo, Equipo Médico"
+    )
+    origen_datos = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        help_text="Fuente original de la categoría (CNIS, SAICA, etc.)"
+    )
+    activo = models.BooleanField(default=True)
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
 
     class Meta:
         verbose_name = "Categoría de Producto"
@@ -172,13 +232,15 @@ class CategoriaProducto(models.Model):
         return self.nombre
 
 
+
 class Producto(models.Model):
     """Modelo para productos/medicamentos/insumos médicos"""
-    clave_cnis = models.CharField(max_length=50, unique=True, verbose_name="Clave/CNIS")
+    clave_cnis = models.CharField(max_length=150, unique=True, verbose_name="Clave/CNIS")
     descripcion = models.TextField(verbose_name="Descripción")
-    categoria = models.ForeignKey(CategoriaProducto, on_delete=models.CASCADE)
-    unidad_medida = models.CharField(max_length=20, default="PIEZA")
+    categoria = models.ForeignKey('CategoriaProducto', on_delete=models.CASCADE)
+    unidad_medida = models.CharField(max_length=120, default="PIEZA")
     es_insumo_cpm = models.BooleanField(default=False, verbose_name="Insumo en CPM")
+    
     precio_unitario_referencia = models.DecimalField(
         max_digits=10,
         decimal_places=2,
@@ -187,6 +249,27 @@ class Producto(models.Model):
         null=True,
         verbose_name="Precio Unitario de Referencia"
     )
+    
+    clave_saica = models.CharField(max_length=150, blank=True, null=True, verbose_name="Clave SAICA")
+    descripcion_saica = models.TextField(blank=True, null=True, verbose_name="Descripción SAICA")
+    unidad_medida_saica = models.CharField(max_length=150, blank=True, null=True)
+    
+    proveedor = models.CharField(max_length=255, blank=True, null=True)
+    rfc_proveedor = models.CharField(max_length=13, blank=True, null=True)
+    partida_presupuestal = models.CharField(max_length=150, blank=True, null=True)
+    
+    marca = models.CharField(max_length=255, null=True, blank=True)
+    fabricante = models.CharField(max_length=255, null=True, blank=True)
+    
+    cantidad_disponible = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        default=0,
+        verbose_name="Cantidad Disponible"
+    )
+    
     activo = models.BooleanField(default=True)
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     fecha_actualizacion = models.DateTimeField(auto_now=True)
@@ -198,6 +281,7 @@ class Producto(models.Model):
 
     def __str__(self):
         return f"{self.clave_cnis} - {self.descripcion[:50]}..."
+
 
 
 class Proveedor(models.Model):
@@ -224,7 +308,7 @@ class Proveedor(models.Model):
 class FuenteFinanciamiento(models.Model):
     """Fuentes de financiamiento"""
     nombre = models.CharField(max_length=100, unique=True)
-    descripcion = models.TextField(blank=True, null=True)
+    descripcion = models.TextField(max_length=255, blank=True, null=True)
     codigo = models.CharField(max_length=20, unique=True, blank=True, null=True)
 
     class Meta:
@@ -268,9 +352,11 @@ class Lote(models.Model):
     ]
 
     numero_lote = models.CharField(max_length=50)
-    producto = models.ForeignKey(Producto, on_delete=models.CASCADE)
-    institucion = models.ForeignKey(Institucion, on_delete=models.CASCADE)
-    orden_suministro = models.ForeignKey(OrdenSuministro, on_delete=models.SET_NULL, null=True, blank=True)
+    producto = models.ForeignKey('Producto', on_delete=models.CASCADE)
+    institucion = models.ForeignKey('Institucion', on_delete=models.CASCADE)
+    almacen = models.ForeignKey('Almacen', on_delete=models.SET_NULL, null=True, blank=True)
+    ubicacion = models.ForeignKey('UbicacionAlmacen', on_delete=models.SET_NULL, null=True, blank=True)
+    orden_suministro = models.ForeignKey('OrdenSuministro', on_delete=models.SET_NULL, null=True, blank=True)
     observaciones = models.TextField(blank=True, null=True)
 
     # Información del lote
@@ -288,7 +374,7 @@ class Lote(models.Model):
     )
 
     # Fechas importantes
-    fecha_fabricacion = models.DateField()
+    fecha_fabricacion = models.DateField(null=True, blank=True)
     fecha_caducidad = models.DateField(null=True, blank=True)
     fecha_recepcion = models.DateField()
 
@@ -303,6 +389,32 @@ class Lote(models.Model):
         null=True,
         related_name='cambios_estado_lote'
     )
+
+    # === NUEVOS CAMPOS PARA INTEGRACIÓN SAICA / COMPLEMENTO DE DATOS ===
+    cns = models.CharField(max_length=50, blank=True, null=True, verbose_name="CNS")
+    proveedor = models.CharField(max_length=150, blank=True, null=True, verbose_name="Proveedor")
+    rfc_proveedor = models.CharField(max_length=50, blank=True, null=True, verbose_name="RFC Proveedor")
+    partida = models.CharField(max_length=50, blank=True, null=True, verbose_name="Partida")
+    clave_saica = models.CharField(max_length=150, blank=True, null=True, verbose_name="Clave SAICA")
+    descripcion_saica = models.TextField(blank=True, null=True, verbose_name="Descripción SAICA")
+    unidad_saica = models.CharField(max_length=150, blank=True, null=True, verbose_name="Unidad de Medida (SAICA)")
+    fuente_datos = models.CharField(max_length=100, blank=True, null=True, verbose_name="Fuente de Datos")
+    
+    # 🔹 Campos adicionales del CSV 🔹
+    contrato = models.CharField(max_length=100, blank=True, null=True)
+    folio = models.CharField(max_length=50, blank=True, null=True)
+    subtotal = models.DecimalField(max_digits=15, decimal_places=2, blank=True, null=True)
+    iva = models.DecimalField(max_digits=15, decimal_places=2, blank=True, null=True)
+    importe_total = models.DecimalField(max_digits=15, decimal_places=2, blank=True, null=True)
+    licitacion = models.CharField(max_length=150, blank=True, null=True)
+    pedido = models.CharField(max_length=100, blank=True, null=True)
+    remision = models.CharField(max_length=50, blank=True, null=True)
+    responsable = models.CharField(max_length=100, blank=True, null=True)
+    reviso = models.CharField(max_length=100, blank=True, null=True)
+    tipo_entrega = models.CharField(max_length=100, blank=True, null=True)
+    tipo_red = models.CharField(max_length=100, blank=True, null=True)
+    epa = models.CharField(max_length=50, blank=True, null=True)
+    fecha_fabricacion_csv = models.DateField(blank=True, null=True, verbose_name="Fecha de Fabricación CSV")
 
     # Metadatos
     uuid = models.UUIDField(default=uuid.uuid4, editable=False, unique=True)
@@ -351,30 +463,7 @@ class Lote(models.Model):
             self.valor_total = self.cantidad_inicial * self.precio_unitario
         super().save(*args, **kwargs)
 
-    def registrar_movimiento(self, tipo, cantidad, usuario, motivo="", institucion_destino=None, doc_ref=None):
-        """Encapsula la lógica para actualizar stock y crear movimiento"""
-        anterior = self.cantidad_disponible
-        if tipo in ["ENTRADA", "AJUSTE_POSITIVO", "TRANSFERENCIA_ENTRADA"]:
-            nueva = anterior + cantidad
-        else:
-            nueva = anterior - cantidad
 
-        # Actualizar stock
-        self.cantidad_disponible = nueva
-        self.save()
-
-        # Registrar movimiento
-        return MovimientoInventario.objects.create(
-            lote=self,
-            tipo_movimiento=tipo,
-            cantidad=cantidad,
-            cantidad_anterior=anterior,
-            cantidad_nueva=nueva,
-            usuario=usuario,
-            motivo=motivo,
-            institucion_destino=institucion_destino,
-            documento_referencia=doc_ref,
-        )
 
 
 class MovimientoInventario(models.Model):
@@ -405,7 +494,20 @@ class MovimientoInventario(models.Model):
         null=True,
         related_name='movimientos_destino'
     )
-
+    contrato = models.CharField(max_length=255, null=True, blank=True)
+    remision = models.CharField(max_length=255, null=True, blank=True)
+    pedido = models.CharField(max_length=255, null=True, blank=True)
+    folio = models.CharField(max_length=255, null=True, blank=True)
+    tipo_entrega = models.CharField(max_length=255, null=True, blank=True)
+    licitacion = models.CharField(max_length=255, null=True, blank=True)
+    tipo_red = models.CharField(max_length=255, null=True, blank=True)
+    responsable = models.CharField(max_length=255, null=True, blank=True)
+    reviso = models.CharField(max_length=255, null=True, blank=True)
+    subtotal = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
+    iva = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
+    importe_total = models.DecimalField(max_digits=15, decimal_places=2, null=True, blank=True)
+    
+    estado = models.IntegerField(default=1)
     fecha_movimiento = models.DateTimeField(auto_now_add=True)
     usuario = models.ForeignKey(User, on_delete=models.CASCADE)
 
@@ -510,7 +612,7 @@ class EstadoInsumo(models.Model):
     ]
 
     id_estado = models.PositiveSmallIntegerField(choices=ESTADOS, primary_key=True)
-    descripcion = models.CharField(max_length=50, editable=False)
+    descripcion = models.CharField(max_length=150, editable=False)
 
     def save(self, *args, **kwargs):
         # Mantener la descripción sincronizada con el choice
@@ -532,13 +634,13 @@ class SolicitudInventario(models.Model):
     partida_presupuestal = models.CharField(max_length=50, blank=True, null=True)
     concatenar = models.CharField(max_length=100, blank=True, null=True)
     clave_cnis = models.CharField(max_length=50)
-    descripcion = models.TextField()
+    descripcion = models.TextField(max_length=255)
     precio_unitario = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     valor_total = models.DecimalField(max_digits=12, decimal_places=2, default=0)
     insumo_en_cpm = models.CharField(max_length=50, blank=True, null=True)
     estado_insumo = models.ForeignKey('EstadoInsumo', on_delete=models.PROTECT)
     inventario_disponible = models.IntegerField(default=0)
-    unidad_medida = models.CharField(max_length=20, blank=True, null=True)
+    unidad_medida = models.CharField(max_length=120, blank=True, null=True)
     lote = models.CharField(max_length=50, blank=True, null=True)
     fecha_caducidad = models.DateField(blank=True, null=True)
     fecha_fabricacion = models.DateField(blank=True, null=True)

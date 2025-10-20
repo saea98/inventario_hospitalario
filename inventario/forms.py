@@ -7,7 +7,7 @@ from crispy_forms.bootstrap import Field
 from .models import (
     Institucion, Producto, Proveedor, Lote, OrdenSuministro,
     CategoriaProducto, Alcaldia, TipoInstitucion, FuenteFinanciamiento,
-    MovimientoInventario, CargaInventario, TipoInstitucion
+    MovimientoInventario, CargaInventario, TipoInstitucion, UbicacionAlmacen
 )
 #from .models import Institucion, Alcaldia, TipoInstitucion
 
@@ -52,20 +52,43 @@ class InstitucionForm(forms.ModelForm):
         )
 
 
+# forms.py
 class ProductoForm(forms.ModelForm):
     class Meta:
         model = Producto
-        fields = ['clave_cnis', 'descripcion', 'categoria', 'unidad_medida', 
-                 'es_insumo_cpm', 'precio_unitario_referencia', 'activo']
+        fields = [
+            'clave_cnis',
+            'descripcion',
+            'categoria',
+            'unidad_medida',
+            'es_insumo_cpm',
+            'precio_unitario_referencia',
+            'clave_saica',
+            'descripcion_saica',
+            'unidad_medida_saica',
+            'proveedor',
+            'rfc_proveedor',
+            'partida_presupuestal',
+            'marca',
+            'fabricante',
+            'cantidad_disponible',
+            'activo'
+        ]
         widgets = {
             'descripcion': forms.Textarea(attrs={'rows': 3}),
+            'descripcion_saica': forms.Textarea(attrs={'rows': 2}),
             'clave_cnis': forms.TextInput(attrs={'placeholder': 'Ej: 010.000.0022.00'}),
+            'clave_saica': forms.TextInput(attrs={'placeholder': 'Ej: 1234-SAICA'}),
             'precio_unitario_referencia': forms.NumberInput(attrs={'step': '0.01', 'min': '0'}),
+            'cantidad_disponible': forms.NumberInput(attrs={'step': '0.01', 'min': '0'}),
+            'unidad_medida': forms.TextInput(attrs={'placeholder': 'Ej: PIEZA'}),
+            'unidad_medida_saica': forms.TextInput(attrs={'placeholder': 'Ej: CAJA, LITRO, etc.'}),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.helper = FormHelper()
+        self.helper.form_tag = False
         self.helper.layout = Layout(
             Row(
                 Column('clave_cnis', css_class='form-group col-md-6 mb-0'),
@@ -86,8 +109,32 @@ class ProductoForm(forms.ModelForm):
                 ),
                 css_class='form-row'
             ),
+            HTML("<hr><h5>Datos complementarios</h5>"),
+            Row(
+                Column('clave_saica', css_class='form-group col-md-6 mb-0'),
+                Column('descripcion_saica', css_class='form-group col-md-6 mb-0'),
+                css_class='form-row'
+            ),
+            Row(
+                Column('unidad_medida_saica', css_class='form-group col-md-4 mb-0'),
+                Column('proveedor', css_class='form-group col-md-4 mb-0'),
+                Column('rfc_proveedor', css_class='form-group col-md-4 mb-0'),
+                css_class='form-row'
+            ),
+            Row(
+                Column('partida_presupuestal', css_class='form-group col-md-4 mb-0'),
+                Column('marca', css_class='form-group col-md-4 mb-0'),
+                Column('fabricante', css_class='form-group col-md-4 mb-0'),
+                css_class='form-row'
+            ),
+            Row(
+                Column('cantidad_disponible', css_class='form-group col-md-6 mb-0'),
+                css_class='form-row'
+            ),
             Submit('submit', 'Guardar Producto', css_class='btn btn-primary')
         )
+
+
 
 
 class ProveedorForm(forms.ModelForm):
@@ -127,48 +174,111 @@ class ProveedorForm(forms.ModelForm):
 class LoteForm(forms.ModelForm):
     class Meta:
         model = Lote
-        fields = ['numero_lote', 'producto', 'institucion', 'orden_suministro',
-                 'cantidad_inicial', 'cantidad_disponible', 'precio_unitario',
-                 'fecha_fabricacion', 'fecha_caducidad', 'fecha_recepcion', 'estado', 'observaciones']
+        exclude = ['uuid', 'fecha_creacion', 'fecha_actualizacion', 'creado_por',
+                   'fecha_cambio_estado', 'usuario_cambio_estado', 'valor_total']
         widgets = {
             'fecha_fabricacion': forms.DateInput(attrs={'type': 'date'}),
             'fecha_caducidad': forms.DateInput(attrs={'type': 'date'}),
             'fecha_recepcion': forms.DateInput(attrs={'type': 'date'}),
+            'fecha_fabricacion_csv': forms.DateInput(attrs={'type': 'date'}),
             'precio_unitario': forms.NumberInput(attrs={'step': '0.01', 'min': '0'}),
             'cantidad_inicial': forms.NumberInput(attrs={'min': '1'}),
             'cantidad_disponible': forms.NumberInput(attrs={'min': '0'}),
             'observaciones': forms.Textarea(attrs={'rows': 3}),
+            'motivo_cambio_estado': forms.Textarea(attrs={'rows': 2}),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        # Filtrado dinámico de ubicaciones según el almacén
+        if 'almacen' in self.data:
+            try:
+                almacen_id = int(self.data.get('almacen'))
+                self.fields['ubicacion'].queryset = UbicacionAlmacen.objects.filter(
+                    almacen_id=almacen_id,
+                    activo=True
+                ).order_by('codigo')
+            except (ValueError, TypeError):
+                self.fields['ubicacion'].queryset = UbicacionAlmacen.objects.none()
+        elif self.instance.pk and self.instance.almacen:
+            self.fields['ubicacion'].queryset = UbicacionAlmacen.objects.filter(
+                almacen=self.instance.almacen,
+                activo=True
+            ).order_by('codigo')
+        else:
+            self.fields['ubicacion'].queryset = UbicacionAlmacen.objects.none()
+
         self.helper = FormHelper()
         self.helper.layout = Layout(
+            HTML("<h5 class='mt-3 text-primary'>Información General</h5>"),
             Row(
-                Column('numero_lote', css_class='form-group col-md-6 mb-0'),
-                Column('producto', css_class='form-group col-md-6 mb-0'),
-                css_class='form-row'
+                Column('numero_lote', css_class='col-md-3'),
+                Column('producto', css_class='col-md-3'),
+                Column('institucion', css_class='col-md-3'),
+                Column('almacen', css_class='col-md-3')  # Agregamos el almacén
             ),
             Row(
-                Column('institucion', css_class='form-group col-md-6 mb-0'),
-                Column('orden_suministro', css_class='form-group col-md-6 mb-0'),
-                css_class='form-row'
+                Column('ubicacion', css_class='col-md-4'),  # Campo ubicación dinámico
+                Column('orden_suministro', css_class='col-md-4'),
+                Column('estado', css_class='col-md-4')
+            ),
+            'motivo_cambio_estado',
+            'observaciones',
+
+            HTML("<h5 class='mt-4 text-primary'>Cantidades y Fechas</h5>"),
+            Row(
+                Column('cantidad_inicial', css_class='col-md-3'),
+                Column('cantidad_disponible', css_class='col-md-3'),
+                Column('precio_unitario', css_class='col-md-3'),
+                Column('fecha_recepcion', css_class='col-md-3')
             ),
             Row(
-                Column('cantidad_inicial', css_class='form-group col-md-4 mb-0'),
-                Column('cantidad_disponible', css_class='form-group col-md-4 mb-0'),
-                Column('precio_unitario', css_class='form-group col-md-4 mb-0'),
-                css_class='form-row'
+                Column('fecha_fabricacion', css_class='col-md-4'),
+                Column('fecha_caducidad', css_class='col-md-4'),
+                Column('fecha_fabricacion_csv', css_class='col-md-4')
+            ),
+
+            HTML("<h5 class='mt-4 text-primary'>Datos SAICA</h5>"),
+            Row(
+                Column('cns', css_class='col-md-4'),
+                Column('proveedor', css_class='col-md-4'),
+                Column('rfc_proveedor', css_class='col-md-4')
             ),
             Row(
-                Column('fecha_fabricacion', css_class='form-group col-md-4 mb-0'),
-                Column('fecha_caducidad', css_class='form-group col-md-4 mb-0'),
-                Column('fecha_recepcion', css_class='form-group col-md-4 mb-0'),
-                css_class='form-row'
+                Column('partida', css_class='col-md-4'),
+                Column('clave_saica', css_class='col-md-4'),
+                Column('descripcion_saica', css_class='col-md-4')
             ),
-            'estado',
-            'observaciones',  # <-- agregado
-            Submit('submit', 'Guardar Lote', css_class='btn btn-primary')
+            Row(
+                Column('unidad_saica', css_class='col-md-4'),
+                Column('fuente_datos', css_class='col-md-4')
+            ),
+
+            HTML("<h5 class='mt-4 text-primary'>Información del Pedido</h5>"),
+            Row(
+                Column('contrato', css_class='col-md-3'),
+                Column('folio', css_class='col-md-3'),
+                Column('pedido', css_class='col-md-3'),
+                Column('remision', css_class='col-md-3')
+            ),
+            Row(
+                Column('licitacion', css_class='col-md-4'),
+                Column('responsable', css_class='col-md-4'),
+                Column('reviso', css_class='col-md-4')
+            ),
+            Row(
+                Column('tipo_entrega', css_class='col-md-4'),
+                Column('tipo_red', css_class='col-md-4'),
+                Column('epa', css_class='col-md-4')
+            ),
+            Row(
+                Column('subtotal', css_class='col-md-4'),
+                Column('iva', css_class='col-md-4'),
+                Column('importe_total', css_class='col-md-4')
+            ),
+
+            Submit('submit', 'Guardar cambios', css_class='btn btn-primary mt-3')
         )
 
     def clean(self):
@@ -178,19 +288,14 @@ class LoteForm(forms.ModelForm):
         fecha_fabricacion = cleaned_data.get('fecha_fabricacion')
         fecha_caducidad = cleaned_data.get('fecha_caducidad')
 
-        if cantidad_inicial and cantidad_disponible:
-            if cantidad_disponible > cantidad_inicial:
-                raise forms.ValidationError(
-                    'La cantidad disponible no puede ser mayor a la cantidad inicial.'
-                )
+        if cantidad_inicial and cantidad_disponible and cantidad_disponible > cantidad_inicial:
+            raise forms.ValidationError("La cantidad disponible no puede ser mayor que la cantidad inicial.")
 
-        if fecha_fabricacion and fecha_caducidad:
-            if fecha_fabricacion >= fecha_caducidad:
-                raise forms.ValidationError(
-                    'La fecha de fabricación debe ser anterior a la fecha de caducidad.'
-                )
+        if fecha_fabricacion and fecha_caducidad and fecha_fabricacion >= fecha_caducidad:
+            raise forms.ValidationError("La fecha de fabricación debe ser anterior a la de caducidad.")
 
         return cleaned_data
+
 
 
 class MovimientoInventarioForm(forms.ModelForm):

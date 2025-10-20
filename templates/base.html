@@ -161,11 +161,11 @@
                     <!-- Solicitudes -->
                     <li class="nav-item mt-3">
                         <a class="nav-link {% if 'solicitudes' in request.resolver_match.url_name %}active{% endif %}" 
-                           data-bs-toggle="collapse" href="#submenuSolicitudes" role="button" aria-expanded="false" aria-controls="submenuSolicitudes">
+                        data-bs-toggle="collapse" href="#submenuSolicitudes" role="button" aria-expanded="false" aria-controls="submenuSolicitudes">
                             <i class="fas fa-clipboard-list"></i>
                             Solicitudes
                         </a>
-                        <div class="collapse" id="submenuSolicitudes">
+                        <div class="collapse {% if 'solicitud' in request.resolver_match.url_name %}show{% endif %}" id="submenuSolicitudes">
                             <ul class="nav flex-column ms-3">
                                 <li class="nav-item">
                                     <a class="nav-link {% if request.resolver_match.url_name == 'lista_solicitudes' %}active{% endif %}" href="{% url 'lista_solicitudes' %}">
@@ -175,6 +175,11 @@
                                 <li class="nav-item">
                                     <a class="nav-link {% if request.resolver_match.url_name == 'carga_masiva_solicitud' %}active{% endif %}" href="{% url 'carga_masiva_solicitud' %}">
                                         📥 Carga masiva
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link {% if request.resolver_match.url_name == 'complemento_carga_masiva_solicitud' %}active{% endif %}" href="{% url 'complemento_carga_masiva' %}">
+                                        🔄 Complemento de carga masiva
                                     </a>
                                 </li>
                             </ul>

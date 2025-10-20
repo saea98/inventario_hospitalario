@@ -45,6 +45,7 @@ from .models import SolicitudInventario, EstadoInsumo
 from inventario import models
 from openpyxl.utils import get_column_letter
 from datetime import date, datetime
+from django.core.exceptions import FieldDoesNotExist
 
 
 # ==========================================
@@ -468,16 +469,39 @@ def lista_lotes(request):
     alertas_caducidad = resumen['proximos_caducar'] + resumen['caducados']
     
     columnas_disponibles = [
-        {"value": "producto__descripcion", "label": "Producto"},
-        {"value": "producto__clave_cnis", "label": "CNIS"},
         {"value": "numero_lote", "label": "Número de Lote"},
-        {"value": "institucion__denominacion", "label": "Institución"},
+        {"value": "producto", "label": "Producto"},
+        {"value": "institucion", "label": "Institución"},
+        {"value": "cantidad_inicial", "label": "Cantidad Inicial"},
         {"value": "cantidad_disponible", "label": "Cantidad Disponible"},
-        {"value": "fecha_caducidad", "label": "Fecha de Caducidad"},
-        {"value": "fecha_fabricacion", "label": "Fecha de Fabricación"},
-        {"value": "fecha_recepcion", "label": "Fecha de Recepción"},
+        {"value": "precio_unitario", "label": "Precio Unitario"},
         {"value": "valor_total", "label": "Valor Total"},
+        {"value": "fecha_fabricacion", "label": "Fecha de Fabricación"},
+        {"value": "fecha_caducidad", "label": "Fecha de Caducidad"},
+        {"value": "fecha_recepcion", "label": "Fecha de Recepción"},
         {"value": "estado", "label": "Estado"},
+        {"value": "observaciones", "label": "Observaciones"},
+        # --- Nuevos campos ---
+        {"value": "rfc_proveedor", "label": "RFC Proveedor"},
+        {"value": "proveedor", "label": "Proveedor"},
+        {"value": "partida", "label": "Partida"},
+        {"value": "clave_saica", "label": "Clave SAICA"},
+        {"value": "descripcion_saica", "label": "Descripción SAICA"},
+        {"value": "unidad_saica", "label": "Unidad SAICA"},
+        {"value": "fuente_datos", "label": "Fuente de Datos"},
+        {"value": "contrato", "label": "Contrato"},
+        {"value": "folio", "label": "Folio"},
+        {"value": "subtotal", "label": "Subtotal"},
+        {"value": "iva", "label": "IVA"},
+        {"value": "importe_total", "label": "Importe Total"},
+        {"value": "licitacion", "label": "Licitación / Procedimiento"},
+        {"value": "pedido", "label": "Pedido"},
+        {"value": "remision", "label": "Remisión"},
+        {"value": "responsable", "label": "Responsable"},
+        {"value": "reviso", "label": "Revisó"},
+        {"value": "tipo_entrega", "label": "Tipo de Entrega"},
+        {"value": "tipo_red", "label": "Tipo de Red"},
+        {"value": "epa", "label": "EPA"},
     ]
 
     context = {
@@ -558,12 +582,20 @@ def editar_lote(request, pk):
     if request.method == 'POST':
         form = LoteForm(request.POST, instance=lote)
         if form.is_valid():
-            form.save()
-            messages.success(request, "Lote actualizado correctamente.")
+            lote = form.save(commit=False)
+            lote.usuario_cambio_estado = request.user
+            lote.fecha_cambio_estado = timezone.now()
+            lote.save()
+            messages.success(request, "✅ Lote actualizado correctamente.")
             return redirect('detalle_lote', pk=lote.pk)
     else:
         form = LoteForm(instance=lote)
-    return render(request, 'inventario/lotes/form_lote.html', {'form': form, 'accion': 'Editar'})
+
+    return render(request, 'inventario/lotes/form_lote.html', {
+        'form': form,
+        'accion': 'Editar',
+    })
+
 
 
 @login_required
@@ -1316,6 +1348,216 @@ def carga_masiva_solicitud(request):
 
 
 
+@login_required
+def complemento_carga_masiva(request):
+    import pandas as pd
+    from datetime import datetime
+    from decimal import Decimal
+    from django.db import transaction
+    from django.contrib import messages
+    from django.shortcuts import redirect, render
+    from .models import Producto, CategoriaProducto, Lote, Institucion, Proveedor
+    from django.db.models import Q
+
+    fecha_actual = datetime.now().date()
+    errores = []
+    registros_creados = 0
+    registros_actualizados = 0
+
+    if request.method == 'POST' and request.FILES.get('archivo_csv'):
+        archivo_csv = request.FILES['archivo_csv']
+
+        try:
+            df = pd.read_csv(archivo_csv)
+            df.columns = [col.strip().replace('\n', ' ').replace('\r', '').upper() for col in df.columns]
+        except Exception as e:
+            messages.error(request, f"❌ Error al leer el archivo CSV: {str(e)}")
+            return redirect('complemento_carga_masiva')
+
+        columnas_minimas = ['DESCRIPCIÓN', 'UNIDAD DE MEDIDA']
+        clave_col = 'CLAVE' if 'CLAVE' in df.columns else 'CLAVE (SAICA)' if 'CLAVE (SAICA)' in df.columns else None
+
+        if not clave_col:
+            messages.error(request, "❌ Falta la columna obligatoria de clave: 'CLAVE' o 'CLAVE (SAICA)'")
+            return redirect('complemento_carga_masiva')
+
+        for col in columnas_minimas:
+            if col not in df.columns:
+                messages.error(request, f"❌ Falta la columna obligatoria: '{col}'")
+                return redirect('complemento_carga_masiva')
+
+        categoria_default = CategoriaProducto.objects.filter(id=1).first()
+        if not categoria_default:
+            messages.error(request, "❌ No existe la categoría por defecto (id=1).")
+            return redirect('complemento_carga_masiva')
+
+        institucion_default = Institucion.objects.first()
+        if not institucion_default:
+            messages.error(request, "❌ No existe institución por defecto.")
+            return redirect('complemento_carga_masiva')
+
+        usuario = request.user
+
+        # === Procesamiento de filas ===
+        for index, row in df.iterrows():
+            try:
+                clave = str(row.get(clave_col, '')).strip()
+                descripcion = str(row.get('DESCRIPCIÓN', '')).strip()
+                unidad_medida = str(row.get('UNIDAD DE MEDIDA', 'PIEZA')).strip()
+                cantidad = Decimal(str(row.get('CANT', row.get('CANTIDAD RECIBIDA', 0)) or 0))
+
+                # Datos complementarios
+                proveedor_nombre = str(row.get('PROVEEDOR', '')).strip()
+                rfc = str(row.get('RFC', '')).strip().upper()
+                partida = str(row.get('PARTIDA', '')).strip()
+                clave_saica = str(row.get('CLAVE (SAICA)', '')).strip()
+                descripcion_saica = str(row.get('DESCRIPCIÓN (SAICA)', '')).strip()
+                unidad_saica = str(row.get('UNIDAD DE MEDIDA (SAICA)', '')).strip()
+                marca = str(row.get('MARCA', '')).strip()
+                fabricante = str(row.get('FABRICANTE', '')).strip()
+                cns = str(row.get('CNS', '')).strip() or None
+                fuente_datos = str(row.get('FUENTE DE DATOS', '')).strip() or None
+
+                # Campos logísticos y de costos
+                contrato = str(row.get('CONTRATO', '')).strip()
+                remision = str(row.get('REMISION', '')).strip()
+                pedido = str(row.get('PEDIDO', '')).strip()
+                lote_num = str(row.get('LOTE', '')).strip()
+                caducidad = row.get('CADUCIDAD', None)
+                folio = str(row.get('FOLIO', '')).strip()
+                observaciones = str(row.get('OBSERVACIONES', '')).strip()
+                costo_unitario = Decimal(str(row.get('COSTO UNITARIO PESOS', 0) or 0))
+                subtotal = Decimal(str(row.get('SUBTOTAL', 0) or 0))
+                iva = Decimal(str(row.get('IVA', row.get('IVA.1', 0)) or 0))
+                importe_total = Decimal(str(row.get('IMPORTE TOTAL', 0) or 0))
+                tipo_entrega = str(row.get('TIPO DE ENTREGA', '')).strip()
+                licitacion = str(row.get('LICITACION/PROCEDIMIENTO', '')).strip()
+                tipo_red = str(row.get('TIPO DE RED', '')).strip()
+                responsable = str(row.get('RESPONSABLE', '')).strip()
+                reviso = str(row.get('REVISO', '')).strip()
+
+                # Validación mínima
+                if not clave or not descripcion:
+                    errores.append(f"Fila {index + 2}: Falta CLAVE o DESCRIPCIÓN.")
+                    continue
+
+                with transaction.atomic():
+                    # === Proveedor ===
+                    proveedor_obj = None
+                    if rfc:
+                        proveedor_obj, _ = Proveedor.objects.update_or_create(
+                            rfc=rfc,
+                            defaults={
+                                'razon_social': proveedor_nombre or "Proveedor sin nombre",
+                                'activo': True,
+                                'fecha_actualizacion': datetime.now()
+                            }
+                        )
+
+                    # === Producto ===
+                    producto, creado = Producto.objects.update_or_create(
+                        clave_cnis=clave,
+                        defaults={
+                            'descripcion': descripcion,
+                            'unidad_medida': unidad_medida,
+                            'categoria': categoria_default,
+                            'activo': True,
+                            'clave_saica': clave_saica or None,
+                            'descripcion_saica': descripcion_saica or None,
+                            'unidad_medida_saica': unidad_saica or None,
+                            'proveedor': proveedor_obj.razon_social if proveedor_obj else proveedor_nombre or None,
+                            'rfc_proveedor': proveedor_obj.rfc if proveedor_obj else rfc or None,
+                            'partida_presupuestal': partida or None,
+                            'marca': marca or None,
+                            'fabricante': fabricante or None,
+                            'fecha_actualizacion': datetime.now(),
+                        }
+                    )
+
+                    if creado:
+                        registros_creados += 1
+                    else:
+                        registros_actualizados += 1
+
+                    # === Lote ===
+                    if cantidad > 0:
+                        numero_lote = lote_num or f"L-{clave}-{fecha_actual.strftime('%Y%m%d')}"
+                        fecha_fabricacion_lote = fecha_actual
+                        if row.get('FECHA_FABRICACION'):
+                            try:
+                                fecha_fabricacion_lote = pd.to_datetime(row['FECHA_FABRICACION']).date()
+                            except:
+                                pass
+
+                        Lote.objects.update_or_create(
+                            producto=producto,
+                            institucion=institucion_default,
+                            numero_lote=numero_lote,
+                            defaults={
+                                'cantidad_inicial': cantidad,
+                                'cantidad_disponible': cantidad,
+                                'precio_unitario': costo_unitario,
+                                'valor_total': importe_total or (cantidad * costo_unitario),
+                                'fecha_fabricacion': fecha_fabricacion_lote,
+                                'fecha_recepcion': fecha_actual,
+                                'observaciones': observaciones or None,
+                                'contrato': contrato or None,
+                                'remision': remision or None,
+                                'pedido': pedido or None,
+                                'folio': folio or None,
+                                'tipo_entrega': tipo_entrega or None,
+                                'licitacion': licitacion or None,
+                                'tipo_red': tipo_red or None,
+                                'responsable': responsable or None,
+                                'reviso': reviso or None,
+                                'subtotal': subtotal or None,
+                                'iva': iva or None,
+                                'importe_total': importe_total or None,
+                                'creado_por': usuario,
+                                'cns': cns,
+                                'fuente_datos': fuente_datos,
+                                'estado': 1,
+                                # Campos SAICA y proveedor
+                                'proveedor': proveedor_obj.razon_social if proveedor_obj else proveedor_nombre or None,
+                                'rfc_proveedor': proveedor_obj.rfc if proveedor_obj else rfc or None,
+                                'partida': partida or None,
+                                'clave_saica': clave_saica or None,
+                                'descripcion_saica': descripcion_saica or None,
+                                'unidad_saica': unidad_saica or None,
+                            }
+                        )
+
+            except Exception as e:
+                import traceback
+                errores.append(f"Fila {index + 2}: {str(e)}\nValores: {row.to_dict()}\n{traceback.format_exc()}")
+
+        # --- Mensajes finales ---
+        for err in errores:
+            messages.warning(request, err)
+
+        messages.success(
+            request,
+            f"✅ Complemento de carga completado: {registros_creados} creados, {registros_actualizados} actualizados."
+        )
+        return redirect('complemento_carga_masiva')
+
+    # GET
+    contexto = {
+        'fecha_actual': fecha_actual,
+        'errores': errores,
+    }
+    return render(request, 'inventario/solicitud/complemento_carga_masiva.html', contexto)
+
+
+def ajax_ubicaciones_por_almacen(request):
+    almacen_id = request.GET.get('almacen')
+    ubicaciones = []
+    if almacen_id:
+        ubicaciones = list(UbicacionAlmacen.objects.filter(
+            almacen_id=almacen_id,
+            activo=True
+        ).values('id', 'codigo', 'descripcion'))
+    return JsonResponse(ubicaciones, safe=False)
 
 
 @login_required
