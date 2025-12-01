@@ -648,3 +648,5 @@ class SolicitudInventario(models.Model):
 
     def __str__(self):
         return f"{self.fecha_generacion} - {self.clues} - {self.clave_cnis}"
+
+

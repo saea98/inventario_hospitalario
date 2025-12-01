@@ -72,6 +72,6 @@ urlpatterns = [
     path("reporte_personalizado/", views.reporte_personalizado, name="reporte_personalizado"),
 
     path('ajax/ubicaciones/', views.ajax_ubicaciones_por_almacen, name='ajax_ubicaciones_por_almacen'),
-
+    path('carga-lotes-excel/', views.carga_lotes_desde_excel_view, name='carga_lotes_excel'),
 
 ]

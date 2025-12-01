@@ -1,0 +1,118 @@
+<!-- inventario/templates/inventario/carga_lotes_excel.html -->
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Carga de Lotes desde Excel{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header pb-0">
+                    <h4>📥 Carga de Lotes desde Excel</h4>
+                    <p class="text-sm mb-0">
+                        Cargue un archivo Excel con la información de lotes y ubicaciones
+                    </p>
+                </div>
+                <div class="card-body">
+                    <!-- Mensajes -->
+                    {% if messages %}
+                    <div class="mb-4">
+                        {% for message in messages %}
+                        <div class="alert alert-{{ message.tags }} alert-dismissible fade show" role="alert">
+                            {{ message }}
+                            <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                        </div>
+                        {% endfor %}
+                    </div>
+                    {% endif %}
+
+                    <!-- Formulario -->
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="{{ form.institucion.id_for_label }}" class="form-label">
+                                        {{ form.institucion.label }}
+                                    </label>
+                                    {{ form.institucion }}
+                                    {% if form.institucion.help_text %}
+                                    <small class="form-text text-muted">{{ form.institucion.help_text }}</small>
+                                    {% endif %}
+                                    {% if form.institucion.errors %}
+                                    <div class="text-danger">
+                                        {{ form.institucion.errors }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                            
+                            <div class="col-md-6">
+                                <div class="form-group">
+                                    <label for="{{ form.archivo.id_for_label }}" class="form-label">
+                                        {{ form.archivo.label }}
+                                    </label>
+                                    {{ form.archivo }}
+                                    {% if form.archivo.help_text %}
+                                    <small class="form-text text-muted">{{ form.archivo.help_text }}</small>
+                                    {% endif %}
+                                    {% if form.archivo.errors %}
+                                    <div class="text-danger">
+                                        {{ form.archivo.errors }}
+                                    </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Información del formato esperado -->
+                        <div class="mt-4">
+                            <h6>📋 Formato esperado del archivo Excel:</h6>
+                            <div class="table-responsive">
+                                <table class="table table-bordered table-sm">
+                                    <thead>
+                                        <tr>
+                                            <th>LOTE</th>
+                                            <th>UBICACIÓN</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        <tr>
+                                            <td>H001A305B</td>
+                                            <td>J5C.01.01</td>
+                                        </tr>
+                                        <tr>
+                                            <td>2010161</td>
+                                            <td>B.06.02</td>
+                                        </tr>
+                                        <tr>
+                                            <td>4026704</td>
+                                            <td>A.09.02</td>
+                                        </tr>
+                                    </tbody>
+                                </table>
+                            </div>
+                            <small class="text-muted">
+                                ⚠️ Las ubicaciones deben existir previamente en el sistema
+                            </small>
+                        </div>
+
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-primary">
+                                <i class="fas fa-upload me-2"></i>Iniciar Carga
+                            </button>
+                            <!-- CORREGIDO: Usar una URL existente -->
+                            <a href="{% url 'dashboard' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left me-2"></i>Volver al Dashboard
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

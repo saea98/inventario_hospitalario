@@ -177,10 +177,22 @@ class LoteForm(forms.ModelForm):
         exclude = ['uuid', 'fecha_creacion', 'fecha_actualizacion', 'creado_por',
                    'fecha_cambio_estado', 'usuario_cambio_estado', 'valor_total']
         widgets = {
-            'fecha_fabricacion': forms.DateInput(attrs={'type': 'date'}),
-            'fecha_caducidad': forms.DateInput(attrs={'type': 'date'}),
-            'fecha_recepcion': forms.DateInput(attrs={'type': 'date'}),
-            'fecha_fabricacion_csv': forms.DateInput(attrs={'type': 'date'}),
+            'fecha_fabricacion': forms.DateInput(
+                attrs={'type': 'date'},
+                format='%Y-%m-%d'
+            ),
+            'fecha_caducidad': forms.DateInput(
+                attrs={'type': 'date'}, 
+                format='%Y-%m-%d'
+            ),
+            'fecha_recepcion': forms.DateInput(
+                attrs={'type': 'date'},
+                format='%Y-%m-%d'
+            ),
+            'fecha_fabricacion_csv': forms.DateInput(
+                attrs={'type': 'date'},
+                format='%Y-%m-%d'
+            ),
             'precio_unitario': forms.NumberInput(attrs={'step': '0.01', 'min': '0'}),
             'cantidad_inicial': forms.NumberInput(attrs={'min': '1'}),
             'cantidad_disponible': forms.NumberInput(attrs={'min': '0'}),
@@ -190,6 +202,19 @@ class LoteForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        # Establecer formatos de entrada para campos de fecha
+        date_fields = ['fecha_fabricacion', 'fecha_caducidad', 'fecha_recepcion', 'fecha_fabricacion_csv']
+        for field_name in date_fields:
+            self.fields[field_name].input_formats = ['%Y-%m-%d']  # Formato YYYY-MM-DD
+            
+            # Si hay una instancia con fechas, formatearlas correctamente para el widget
+            if self.instance and getattr(self.instance, field_name):
+                try:
+                    self.initial[field_name] = getattr(self.instance, field_name).strftime('%Y-%m-%d')
+                except (AttributeError, ValueError):
+                    # Si hay algún error, mantener el valor actual
+                    pass
 
         # Filtrado dinámico de ubicaciones según el almacén
         if 'almacen' in self.data:
@@ -216,10 +241,10 @@ class LoteForm(forms.ModelForm):
                 Column('numero_lote', css_class='col-md-3'),
                 Column('producto', css_class='col-md-3'),
                 Column('institucion', css_class='col-md-3'),
-                Column('almacen', css_class='col-md-3')  # Agregamos el almacén
+                Column('almacen', css_class='col-md-3')
             ),
             Row(
-                Column('ubicacion', css_class='col-md-4'),  # Campo ubicación dinámico
+                Column('ubicacion', css_class='col-md-4'),
                 Column('orden_suministro', css_class='col-md-4'),
                 Column('estado', css_class='col-md-4')
             ),
@@ -438,3 +463,16 @@ from django import forms
 
 class CargaMasivaInstitucionForm(forms.Form):
     archivo = forms.FileField(label="Archivo Excel (CLUES.xlsx)")
+
+
+class CargaLotesForm(forms.Form):
+    archivo = forms.FileField(
+        label="Archivo Excel",
+        help_text="Archivo Excel con columnas LOTE y UBICACIÓN",
+        widget=forms.FileInput(attrs={'accept': '.xlsx,.xls'})
+    )
+    institucion = forms.ModelChoiceField(
+        queryset=Institucion.objects.filter(activo=True),
+        label="Institución",
+        help_text="Seleccione la institución para los lotes"
+    )

@@ -90,7 +90,7 @@ DATABASES = {
         'NAME': os.getenv('POSTGRES_DB', 'inventario_bd'),
         'USER': os.getenv('POSTGRES_USER', 'postgres'),
         'PASSWORD': os.getenv('POSTGRES_PASSWORD', 'chaparritos31'),
-        'HOST': os.getenv('POSTGRES_HOST', '192.168.64.1'),
+        'HOST': os.getenv('POSTGRES_HOST', '192.168.116.195'),
         'PORT': os.getenv('POSTGRES_PORT', '5433'),
     }
 }
@@ -149,6 +149,15 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 # Crispy Forms
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
 CRISPY_TEMPLATE_PACK = "bootstrap5"
+
+# En settings.py
+DATE_INPUT_FORMATS = [
+    '%Y-%m-%d',  # '2006-10-25'
+    '%d/%m/%Y',  # '25/10/2006' (como fallback)
+    '%d/%m/%y',  # '25/10/06'
+]
+
+USE_L10N = False  # Desactiva la localización para forzar formato consistente
 
 # Login URLs
 LOGIN_URL = '/login/'

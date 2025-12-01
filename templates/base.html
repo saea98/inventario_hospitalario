@@ -12,7 +12,6 @@
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 
-
     <style>
         .sidebar {
             min-height: 100vh;
@@ -85,6 +84,15 @@
         .table-hover tbody tr:hover {
             background-color: rgba(102, 126, 234, 0.1);
         }
+        
+        /* Estilos para submenús */
+        .submenu-item {
+            padding-left: 2rem !important;
+            font-size: 0.9rem;
+        }
+        .submenu-item:hover {
+            background-color: rgba(255,255,255,0.05) !important;
+        }
     </style>
 
     {% block extra_head %}
@@ -120,11 +128,6 @@
                             Instituciones
                         </a>
                     </li>
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'carga_masiva_instituciones' %}">
-                            📦 Carga Masiva de Instituciones
-                        </a>
-                    </li>
 
                     <!-- Productos -->
                     <li class="nav-item">
@@ -134,18 +137,34 @@
                         </a>
                     </li>
 
-                    <!-- Lotes -->
+                    <!-- Lotes (con submenú) -->
                     <li class="nav-item">
-                        <a class="nav-link {% if 'lotes' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'lista_lotes' %}">
-                            <i class="fas fa-pills"></i>
+                        <a class="nav-link {% if 'lotes' in request.resolver_match.url_name or request.resolver_match.url_name == 'carga_lotes_excel' %}active{% endif %}" 
+                        data-bs-toggle="collapse" href="#submenuLotes" role="button" aria-expanded="{% if 'lotes' in request.resolver_match.url_name or request.resolver_match.url_name == 'carga_lotes_excel' %}true{% else %}false{% endif %}" 
+                        aria-controls="submenuLotes">
+                            <i class="fas fa-boxes"></i>
                             Lotes
                         </a>
+                        <div class="collapse {% if 'lotes' in request.resolver_match.url_name or request.resolver_match.url_name == 'carga_lotes_excel' %}show{% endif %}" id="submenuLotes">
+                            <ul class="nav flex-column">
+                                <li class="nav-item">
+                                    <a class="nav-link submenu-item {% if request.resolver_match.url_name == 'lista_lotes' %}active{% endif %}" href="{% url 'lista_lotes' %}">
+                                        <i class="fas fa-list me-2"></i>Lista de Lotes
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link submenu-item {% if request.resolver_match.url_name == 'carga_lotes_excel' %}active{% endif %}" href="{% url 'carga_lotes_excel' %}">
+                                        <i class="fas fa-file-excel me-2"></i>Carga desde Excel
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
                     </li>
 
                     <!-- Inventario -->
                     <li class="nav-item">
                         <a class="nav-link {% if 'inventario' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'lista_movimientos' %}">
-                            <i class="fas fa-boxes"></i>
+                            <i class="fas fa-warehouse"></i>
                             Inventario
                         </a>
                     </li>
@@ -158,38 +177,70 @@
                         </a>
                     </li>
 
-                    <!-- Solicitudes -->
-                    <li class="nav-item mt-3">
+                    <!-- Solicitudes (con submenú) -->
+                    <li class="nav-item">
                         <a class="nav-link {% if 'solicitudes' in request.resolver_match.url_name %}active{% endif %}" 
-                        data-bs-toggle="collapse" href="#submenuSolicitudes" role="button" aria-expanded="false" aria-controls="submenuSolicitudes">
+                        data-bs-toggle="collapse" href="#submenuSolicitudes" role="button" aria-expanded="{% if 'solicitud' in request.resolver_match.url_name %}true{% else %}false{% endif %}" 
+                        aria-controls="submenuSolicitudes">
                             <i class="fas fa-clipboard-list"></i>
                             Solicitudes
                         </a>
                         <div class="collapse {% if 'solicitud' in request.resolver_match.url_name %}show{% endif %}" id="submenuSolicitudes">
-                            <ul class="nav flex-column ms-3">
+                            <ul class="nav flex-column">
                                 <li class="nav-item">
-                                    <a class="nav-link {% if request.resolver_match.url_name == 'lista_solicitudes' %}active{% endif %}" href="{% url 'lista_solicitudes' %}">
-                                        📋 Lista de solicitudes
+                                    <a class="nav-link submenu-item {% if request.resolver_match.url_name == 'lista_solicitudes' %}active{% endif %}" href="{% url 'lista_solicitudes' %}">
+                                        <i class="fas fa-list me-2"></i>Lista de solicitudes
                                     </a>
                                 </li>
                                 <li class="nav-item">
-                                    <a class="nav-link {% if request.resolver_match.url_name == 'carga_masiva_solicitud' %}active{% endif %}" href="{% url 'carga_masiva_solicitud' %}">
-                                        📥 Carga masiva
+                                    <a class="nav-link submenu-item {% if request.resolver_match.url_name == 'carga_masiva_solicitud' %}active{% endif %}" href="{% url 'carga_masiva_solicitud' %}">
+                                        <i class="fas fa-upload me-2"></i>Carga masiva
                                     </a>
                                 </li>
                                 <li class="nav-item">
-                                    <a class="nav-link {% if request.resolver_match.url_name == 'complemento_carga_masiva_solicitud' %}active{% endif %}" href="{% url 'complemento_carga_masiva' %}">
-                                        🔄 Complemento de carga masiva
+                                    <a class="nav-link submenu-item {% if request.resolver_match.url_name == 'complemento_carga_masiva_solicitud' %}active{% endif %}" href="{% url 'complemento_carga_masiva' %}">
+                                        <i class="fas fa-sync-alt me-2"></i>Complemento de carga
                                     </a>
                                 </li>
                             </ul>
                         </div>
                     </li>
 
-                    <!-- Administración -->
+                    <!-- Cargas Masivas (nueva sección con submenú) -->
+                    <li class="nav-item mt-3">
+                        <a class="nav-link {% if 'carga' in request.resolver_match.url_name %}active{% endif %}" 
+                        data-bs-toggle="collapse" href="#submenuCargas" role="button" aria-expanded="{% if 'carga' in request.resolver_match.url_name %}true{% else %}false{% endif %}" 
+                        aria-controls="submenuCargas">
+                            <i class="fas fa-file-excel"></i>
+                            Cargas Masivas
+                        </a>
+                        <div class="collapse {% if 'carga' in request.resolver_match.url_name %}show{% endif %}" id="submenuCargas">
+                            <ul class="nav flex-column">
+                                <li class="nav-item">
+                                    <a class="nav-link submenu-item {% if request.resolver_match.url_name == 'carga_masiva_instituciones' %}active{% endif %}" href="{% url 'carga_masiva_instituciones' %}">
+                                        <i class="fas fa-hospital me-2"></i>Instituciones
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link submenu-item {% if request.resolver_match.url_name == 'carga_lotes_excel' %}active{% endif %}" href="{% url 'carga_lotes_excel' %}">
+                                        <i class="fas fa-boxes me-2"></i>Lotes
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link submenu-item {% if request.resolver_match.url_name == 'carga_masiva_solicitud' %}active{% endif %}" href="{% url 'carga_masiva_solicitud' %}">
+                                        <i class="fas fa-clipboard-list me-2"></i>Solicitudes
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </li>
+
+                    <!-- Separador -->
                     <li class="nav-item mt-3">
                         <hr class="text-white">
                     </li>
+
+                    <!-- Administración -->
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'admin:index' %}">
                             <i class="fas fa-cog"></i>
@@ -209,6 +260,10 @@
                 <div class="mt-4 text-center">
                     <small class="text-white-50">
                         Usuario: {{ user.get_full_name|default:user.username }}
+                    </small>
+                    <br>
+                    <small class="text-white-50">
+                        CLUE: {{ user.clue|default:"No asignado" }}
                     </small>
                 </div>
             </div>
@@ -259,6 +314,14 @@ $(document).ready(function() {
             console.log("Select2 aplicado a:", id);
         } else {
             console.warn("No se encontró el elemento:", id);
+        }
+    });
+
+    // Mantener submenús abiertos cuando un item está activo
+    $('.nav-link.active').each(function() {
+        var target = $(this).attr('href');
+        if (target && target.startsWith('#submenu')) {
+            $(target).addClass('show');
         }
     });
 });

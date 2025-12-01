@@ -2,9 +2,7 @@
 {% load crispy_forms_tags %}
 {% load custom_filters %}
 
-{% block title %}
-{% if form.instance.pk %}Editar{% else %}Nuevo{% endif %} Lote - Sistema de Inventario
-{% endblock %}
+{% block title %}Editar Lote - Sistema de Inventario{% endblock %}
 
 {% block content %}
 <div class="row justify-content-center">
@@ -12,22 +10,58 @@
         <div class="card">
             <div class="card-header">
                 <h5 class="mb-0">
-                    <i class="fas fa-{% if form.instance.pk %}edit{% else %}plus{% endif %}"></i>
-                    {% if form.instance.pk %}Editar{% else %}Crear{% endif %} Lote
+                    <i class="fas fa-edit"></i> Editar Lote
                 </h5>
             </div>
             <div class="card-body">
-                <form method="post" novalidate>
+                <!-- DEBUG INFO -->
+            <!---
+                <div class="alert alert-info">
+                    <h6>🔍 Información de Debug:</h6>
+                    <p>Almacén en instancia: {{ form.instance.almacen }}</p>
+                    <p>Ubicación en instancia: {{ form.instance.ubicacion }}</p>
+                    <p>Campos en formulario: 
+                        {% for field in form %}
+                            {{ field.name }}{% if not forloop.last %}, {% endif %}
+                        {% endfor %}
+                    </p>
+                </div>
+            -->
+                <form method="post" novalidate id="lote-form">
                     {% csrf_token %}
-                    {{ form|crispy }}  {# Renderiza todos los campos del FormHelper #}
+                    
+                    <!-- Renderizar campos manualmente para debug -->
+                    <div class="mb-3">
+                        <label for="id_almacen" class="form-label">Almacén *</label>
+                        {{ form.almacen }}
+                        {% if form.almacen.errors %}
+                            <div class="text-danger">{{ form.almacen.errors }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="id_ubicacion" class="form-label">Ubicación</label>
+                        {{ form.ubicacion }}
+                        {% if form.ubicacion.errors %}
+                            <div class="text-danger">{{ form.ubicacion.errors }}</div>
+                        {% endif %}
+                    </div>
+                    
+                    <!-- Resto de campos con crispy -->
+                    {% for field in form %}
+                        {% if field.name != 'almacen' and field.name != 'ubicacion' %}
+                            <div class="form-group">
+                                {{ field|as_crispy_field }}
+                            </div>
+                        {% endif %}
+                    {% endfor %}
                     
                     <div class="d-flex justify-content-between mt-3">
                         <a href="{% url 'lista_lotes' %}" class="btn btn-secondary me-2">
                             <i class="fas fa-times"></i> Cancelar
                         </a>
                         <button type="submit" class="btn btn-primary">
-                            <i class="fas fa-save"></i> 
-                            {% if form.instance.pk %}Actualizar{% else %}Crear{% endif %} Lote
+                            <i class="fas fa-save"></i> Actualizar Lote
                         </button>
                     </div>
                 </form>
@@ -35,49 +69,118 @@
         </div>
     </div>
 </div>
-
 {% endblock %}
+
 {% block extra_js %}
 <script>
-  $(document).ready(function () {
-    console.log("🟢 Activando Select2 en formulario de Lote...");
+$(document).ready(function () {
+    console.log("=== INICIO DEBUG FORMULARIO LOTE ===");
+    
+    // Verificar elementos
+    console.log("📍 Campo almacén encontrado:", $('#id_almacen').length);
+    console.log("📍 Campo ubicación encontrado:", $('#id_ubicacion').length);
+    console.log("📍 Valor inicial almacén:", $('#id_almacen').val());
+    console.log("📍 Valor inicial ubicación:", $('#id_ubicacion').val());
+    
+    // Verificar jQuery y Select2
+    console.log("📚 jQuery version:", $.fn.jquery);
+    console.log("📚 Select2 version:", $.fn.select2 ? $.fn.select2.version : "NO CARGADO");
+    
+    // Inicializar Select2
+    if ($.fn.select2) {
+        $('select').select2({
+            theme: 'bootstrap-5',
+            width: '100%',
+            placeholder: 'Seleccione una opción',
+            allowClear: true
+        });
+        console.log("✅ Select2 inicializado");
+    } else {
+        console.error("❌ Select2 no está cargado");
+    }
 
-    // Aplica Select2 a todos los <select> dentro del formulario
-    $('form select').select2({
-      theme: 'bootstrap-5',
-      width: '100%',
-      placeholder: 'Seleccione una opción',
-      allowClear: true
-    });
-  });
+    // Función mejorada para cargar ubicaciones
+    function cargarUbicaciones(almacenId) {
+        console.log("🔍 Cargando ubicaciones para almacén:", almacenId);
+        
+        if (!almacenId) {
+            $('#id_ubicacion').empty().append('<option value="">---------</option>');
+            $('#id_ubicacion').trigger('change');
+            console.log("⚠️ No hay almacén seleccionado");
+            return;
+        }
 
-  $(document).ready(function () {
-    // Activar Select2
-    $('form select').select2({
-        theme: 'bootstrap-5',
-        width: '100%',
-        placeholder: 'Seleccione una opción',
-        allowClear: true
-    });
-
-    // Al cambiar el almacén, recargar ubicaciones
-    $('#id_almacen').change(function () {
-        var almacenId = $(this).val();
         $.ajax({
             url: "{% url 'ajax_ubicaciones_por_almacen' %}",
-            data: {
-                'almacen': almacenId
-            },
+            data: { 'almacen': almacenId },
+            method: 'GET',
             success: function (data) {
-                var ubicacionSelect = $('#id_ubicacion');
-                ubicacionSelect.empty();
-                ubicacionSelect.append('<option value="">---------</option>');
-                data.forEach(function (ubicacion) {
-                    ubicacionSelect.append('<option value="' + ubicacion.id + '">' + ubicacion.codigo + ' - ' + ubicacion.descripcion + '</option>');
-                });
-                ubicacionSelect.trigger('change'); // Actualiza Select2
+                console.log("✅ Respuesta AJAX recibida:", data);
+                
+                var $ubicacionSelect = $('#id_ubicacion');
+                var valorActual = $ubicacionSelect.val();
+                
+                $ubicacionSelect.empty();
+                $ubicacionSelect.append('<option value="">---------</option>');
+                
+                if (data && data.length > 0) {
+                    $.each(data, function(index, ubicacion) {
+                        $ubicacionSelect.append(
+                            $('<option>', {
+                                value: ubicacion.id,
+                                text: ubicacion.codigo + (ubicacion.descripcion ? ' - ' + ubicacion.descripcion : '')
+                            })
+                        );
+                    });
+                    console.log("📍 " + data.length + " ubicaciones cargadas");
+                } else {
+                    console.warn("⚠️ No se encontraron ubicaciones para este almacén");
+                }
+                
+                // Restaurar valor anterior si existe
+                if (valorActual) {
+                    $ubicacionSelect.val(valorActual);
+                }
+                
+                $ubicacionSelect.trigger('change');
+            },
+            error: function(xhr, status, error) {
+                console.error("❌ Error en AJAX:", error);
+                console.log("📄 Respuesta:", xhr.responseText);
             }
         });
+    }
+
+    // Evento change para almacén
+    $('#id_almacen').on('change', function() {
+        console.log("🔄 Almacén cambiado a:", $(this).val());
+        cargarUbicaciones($(this).val());
+    });
+
+    // Cargar ubicaciones al iniciar si hay almacén
+    var almacenInicial = $('#id_almacen').val();
+    if (almacenInicial) {
+        console.log("🔄 Cargando ubicaciones iniciales...");
+        cargarUbicaciones(almacenInicial);
+    }
+
+    console.log("=== FIN DEBUG FORMULARIO LOTE ===");
+});
+</script>
+<script>
+// Script para asegurar formato de fechas
+$(document).ready(function() {
+    // Verificar que las fechas estén en formato YYYY-MM-DD
+    $('input[type="date"]').each(function() {
+        var currentValue = $(this).val();
+        if (currentValue) {
+            // Si la fecha está en formato DD/MM/YYYY, convertirla
+            if (currentValue.match(/^\d{2}\/\d{2}\/\d{4}$/)) {
+                var parts = currentValue.split('/');
+                var newValue = parts[2] + '-' + parts[1] + '-' + parts[0];
+                $(this).val(newValue);
+            }
+        }
     });
 });
 </script>

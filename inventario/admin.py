@@ -2,7 +2,8 @@ from django.contrib import admin
 from .models import (
     Alcaldia, TipoInstitucion, Institucion, CategoriaProducto, 
     Producto, Proveedor, FuenteFinanciamiento, OrdenSuministro,
-    Lote, MovimientoInventario, AlertaCaducidad, CargaInventario, EstadoInsumo
+    Lote, MovimientoInventario, AlertaCaducidad, CargaInventario, 
+    EstadoInsumo, Almacen, UbicacionAlmacen  # AGREGAR Almacen y UbicacionAlmacen
 )
 
 
@@ -26,6 +27,42 @@ class InstitucionAdmin(admin.ModelAdmin):
     search_fields = ['clue', 'ib_clue', 'denominacion']
     ordering = ['denominacion']
     readonly_fields = ['fecha_creacion', 'fecha_actualizacion']
+
+
+@admin.register(Almacen)
+class AlmacenAdmin(admin.ModelAdmin):
+    list_display = ['codigo', 'nombre', 'institucion', 'activo']
+    list_filter = ['activo', 'institucion']
+    search_fields = ['codigo', 'nombre', 'institucion__denominacion']
+    ordering = ['codigo']
+    
+    # Si tienes campos de fecha en el modelo Almacen, descomenta:
+    # readonly_fields = ['fecha_creacion', 'fecha_actualizacion']
+
+
+@admin.register(UbicacionAlmacen)
+class UbicacionAlmacenAdmin(admin.ModelAdmin):
+    list_display = [
+        'codigo', 'almacen', 'descripcion', 'nivel', 'pasillo', 
+        'rack', 'seccion', 'activo'
+    ]
+    list_filter = ['activo', 'almacen', 'nivel', 'pasillo']
+    search_fields = ['codigo', 'descripcion', 'almacen__nombre']
+    ordering = ['almacen', 'codigo']
+    
+    # Si tienes campos de fecha en el modelo UbicacionAlmacen, descomenta:
+    # readonly_fields = ['fecha_creacion', 'fecha_actualizacion']
+    
+    # Para mejorar la experiencia de usuario en el formulario
+    fieldsets = (
+        ('Información Principal', {
+            'fields': ('almacen', 'codigo', 'descripcion', 'activo')
+        }),
+        ('Detalles de Ubicación', {
+            'fields': ('nivel', 'pasillo', 'rack', 'seccion'),
+            'classes': ('collapse',)
+        }),
+    )
 
 
 @admin.register(CategoriaProducto)
@@ -119,6 +156,7 @@ class CargaInventarioAdmin(admin.ModelAdmin):
     search_fields = ['nombre_archivo']
     ordering = ['-fecha_carga']
     readonly_fields = ['fecha_carga', 'fecha_procesamiento']
+
 
 @admin.register(EstadoInsumo)
 class EstadoInsumoAdmin(admin.ModelAdmin):

@@ -21,6 +21,9 @@ from django.db.models import Count
 from django.db.models import Case, When, Value, BooleanField
 
 
+from .forms import CargaLotesForm
+from .carga_datos import carga_lotes_desde_excel
+
 # Modelos
 from .models import (
     Institucion, Producto, Proveedor, Lote, OrdenSuministro,
@@ -1582,9 +1585,48 @@ def borrar_solicitud(request, fecha=None):
 
 @login_required
 def lista_solicitudes_semanales(request):
-    # Agrupa por fecha_generacion
+    # Obtener todas las fechas disponibles
     fechas = SolicitudInventario.objects.values_list('fecha_generacion', flat=True).distinct().order_by('-fecha_generacion')
-    return render(request, 'inventario/solicitud/lista_solicitudes.html', {'fechas': fechas})
+    
+    # Obtener la fecha del parámetro GET o usar la más reciente
+    fecha_param = request.GET.get('fecha', '')
+    
+    if fecha_param:
+        try:
+            # Convertir parámetro a fecha
+            fecha_seleccionada = datetime.strptime(fecha_param, '%Y-%m-%d').date()
+        except (ValueError, TypeError):
+            # Si el formato es inválido, usar la fecha más reciente
+            fecha_seleccionada = fechas.first() if fechas else timezone.now().date()
+    else:
+        # Si no hay parámetro, usar la fecha más reciente
+        fecha_seleccionada = fechas.first() if fechas else timezone.now().date()
+    
+    # Filtrar solicitudes por la fecha seleccionada
+    solicitudes = SolicitudInventario.objects.filter(
+        fecha_generacion=fecha_seleccionada
+    ).select_related('estado_insumo').order_by('clues', 'clave_cnis')
+    
+    # CALCULAR LOS TOTALES EN LA VISTA (EVITAR HACERLO EN EL TEMPLATE)
+    total_solicitudes = solicitudes.count()
+    total_valor = solicitudes.aggregate(total=Sum('valor_total'))['total'] or 0
+    total_inventario = solicitudes.aggregate(total=Sum('inventario_disponible'))['total'] or 0
+    
+    # Pasar la fecha en formato string para la exportación
+    fecha_exportacion = fecha_seleccionada.isoformat()
+    
+    context = {
+        'fechas': fechas,
+        'solicitudes': solicitudes,
+        'fecha_seleccionada': fecha_seleccionada,
+        'fecha_actual': fecha_exportacion,
+        'fecha_formateada': fecha_seleccionada.strftime('%d/%m/%Y'),
+        'total_solicitudes': total_solicitudes,
+        'total_valor': total_valor,
+        'total_inventario': total_inventario,
+    }
+    
+    return render(request, 'inventario/solicitud/lista_solicitudes.html', context)
 
 
 @login_required
@@ -1595,7 +1637,16 @@ def detalle_solicitud(request, fecha):
 
 @login_required
 def exportar_solicitud_excel(request, fecha):
-    solicitudes = SolicitudInventario.objects.filter(fecha_generacion=fecha)
+    try:
+        # Convertir el string de fecha a objeto date
+        fecha_obj = datetime.strptime(fecha, '%Y-%m-%d').date()
+    except ValueError:
+        messages.error(request, "Formato de fecha inválido.")
+        return redirect('lista_solicitudes')
+    
+    # Filtrar por la fecha convertida
+    solicitudes = SolicitudInventario.objects.filter(fecha_generacion=fecha_obj)
+    
     if not solicitudes.exists():
         messages.error(request, "No hay solicitudes para exportar.")
         return redirect('lista_solicitudes')
@@ -1604,29 +1655,98 @@ def exportar_solicitud_excel(request, fecha):
     data = []
     for s in solicitudes:
         data.append({
-            'Entidad Federativa': s.entidad_federativa,
-            'CLUES': s.clues,
-            'Orden de Suministro': s.orden_suministro,
-            'RFC Proveedor': s.rfc_proveedor,
-            'Fuente de Financiamiento': s.fuente_financiamiento,
-            'Partida Presupuestal': s.partida_presupuestal,
-            'Concatenar': s.concatenar,
-            'Clave/CNIS': s.clave_cnis,
-            'Descripción': s.descripcion,
-            'Precio Unitario': s.precio_unitario,
-            'Valor Total': s.valor_total,
-            'Insumo en CPM': s.insumo_en_cpm,
-            'Estado del Insumo': s.estado_insumo.descripcion,
-            'Inventario Disponible': s.inventario_disponible,
-            'Unidad de Medida': s.unidad_medida,
-            'Lote': s.lote,
-            'Fecha Caducidad': s.fecha_caducidad,
-            'Fecha Fabricación': s.fecha_fabricacion,
-            'Fecha Recepción': s.fecha_recepcion,
+            'Entidad Federativa': s.entidad_federativa or '',
+            'CLUES': s.clues or '',
+            'Orden de Suministro': s.orden_suministro or '',
+            'RFC Proveedor': s.rfc_proveedor or '',
+            'Fuente de Financiamiento': s.fuente_financiamiento or '',
+            'Partida Presupuestal': s.partida_presupuestal or '',
+            'Concatenar': s.concatenar or '',
+            'Clave/CNIS': s.clave_cnis or '',
+            'Descripción': s.descripcion or '',
+            'Precio Unitario': float(s.precio_unitario) if s.precio_unitario else 0.0,
+            'Valor Total': float(s.valor_total) if s.valor_total else 0.0,
+            'Insumo en CPM': s.insumo_en_cpm or '',
+            'Estado del Insumo': s.estado_insumo.descripcion if s.estado_insumo else '',
+            'Inventario Disponible': s.inventario_disponible or 0,
+            'Unidad de Medida': s.unidad_medida or '',
+            'Lote': s.lote or '',
+            'Fecha Caducidad': s.fecha_caducidad.strftime('%d/%m/%Y') if s.fecha_caducidad else '',
+            'Fecha Fabricación': s.fecha_fabricacion.strftime('%d/%m/%Y') if s.fecha_fabricacion else '',
+            'Fecha Recepción': s.fecha_recepcion.strftime('%d/%m/%Y') if s.fecha_recepcion else '',
         })
+    
     df = pd.DataFrame(data)
 
+    # Crear respuesta Excel con formato mejorado
     response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
-    response['Content-Disposition'] = f'attachment; filename=solicitud_{fecha}.xlsx'
-    df.to_excel(response, index=False)
+    response['Content-Disposition'] = f'attachment; filename="solicitudes_{fecha}.xlsx"'
+    
+    # Usar ExcelWriter para mejor control del formato
+    with pd.ExcelWriter(response, engine='openpyxl') as writer:
+        df.to_excel(writer, sheet_name='Solicitudes', index=False)
+        
+        # Autoajustar el ancho de las columnas
+        worksheet = writer.sheets['Solicitudes']
+        for column in worksheet.columns:
+            max_length = 0
+            column_letter = column[0].column_letter
+            for cell in column:
+                try:
+                    if len(str(cell.value)) > max_length:
+                        max_length = len(str(cell.value))
+                except:
+                    pass
+            adjusted_width = min(max_length + 2, 50)
+            worksheet.column_dimensions[column_letter].width = adjusted_width
+    
     return response
+
+@login_required
+def carga_lotes_desde_excel_view(request):
+    """
+    Vista para cargar lotes desde archivo Excel
+    """
+    if request.method == 'POST':
+        form = CargaLotesForm(request.POST, request.FILES)
+        if form.is_valid():
+            archivo = request.FILES['archivo']
+            institucion_id = form.cleaned_data['institucion'].id
+            
+            # Guardar archivo temporalmente
+            file_path = f"/tmp/{archivo.name}"
+            with open(file_path, 'wb+') as destination:
+                for chunk in archivo.chunks():
+                    destination.write(chunk)
+            
+            # Procesar archivo
+            resultado = carga_lotes_desde_excel(
+                archivo_excel=file_path,
+                institucion_id=institucion_id,
+                usuario=request.user
+            )
+            
+            # Limpiar archivo temporal
+            if os.path.exists(file_path):
+                os.remove(file_path)
+            
+            if resultado['success']:
+                messages.success(
+                    request, 
+                    f"✅ Carga completada: {resultado['exitosos']} creados, "
+                    f"{resultado['actualizados']} actualizados, {resultado['errores']} errores"
+                )
+                if resultado['ubicaciones_no_encontradas']:
+                    messages.warning(
+                        request, 
+                        f"⚠️ {len(resultado['ubicaciones_no_encontradas'])} ubicaciones no encontradas"
+                    )
+            else:
+                messages.error(request, resultado['message'])
+            
+            return redirect('carga_lotes_excel')
+    
+    else:
+        form = CargaLotesForm()
+    
+    return render(request, 'inventario/carga_lotes_excel.html', {'form': form})
