@@ -870,6 +870,7 @@ def reporte_lotes_excel(request):
 
     headers = [
         "ENTIDAD", "CLUES", "ORDEN DE SUMINISTRO", "RFC", "CLAVE",
+        "DESCRIPCIÓN",  # Nuevo campo agregado
         "ESTADO DEL INSUMO", "INVENTARIO DISPONIBLE", "LOTE",
         "F_CAD", "F_FAB", "F_REC"
     ]
@@ -882,6 +883,7 @@ def reporte_lotes_excel(request):
             getattr(lote.orden_suministro, 'numero_orden', ''),  # ORDEN DE SUMINISTRO
             getattr(lote.producto, 'rfc', ''),        # RFC
             lote.producto.clave_cnis,                  # CLAVE
+            lote.producto.descripcion,                 # DESCRIPCIÓN - Nuevo campo
             lote.get_estado_display(),                 # ESTADO DEL INSUMO
             lote.cantidad_disponible,                  # INVENTARIO DISPONIBLE
             lote.numero_lote,                          # LOTE
@@ -894,7 +896,11 @@ def reporte_lotes_excel(request):
     # Ajustar ancho de columnas
     for i, column_cells in enumerate(ws.columns, start=1):
         length = max(len(str(cell.value)) for cell in column_cells)
-        ws.column_dimensions[get_column_letter(i)].width = length + 2
+        # Ajuste especial para la columna de descripción (posición 6)
+        if i == 6:  # Columna de DESCRIPCIÓN
+            ws.column_dimensions[get_column_letter(i)].width = min(length + 2, 50)  # Máximo 50 caracteres
+        else:
+            ws.column_dimensions[get_column_letter(i)].width = length + 2
 
     # Devolver respuesta
     response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
