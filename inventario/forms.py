@@ -4,6 +4,7 @@ from django.contrib.auth.models import User
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Submit, Row, Column, Div, HTML
 from crispy_forms.bootstrap import Field
+from django_select2.forms import Select2Widget, Select2MultipleWidget
 from .models import (
     Institucion, Producto, Proveedor, Lote, OrdenSuministro,
     CategoriaProducto, Alcaldia, TipoInstitucion, FuenteFinanciamiento,
@@ -326,15 +327,23 @@ class LoteForm(forms.ModelForm):
 class MovimientoInventarioForm(forms.ModelForm):
     class Meta:
         model = MovimientoInventario
-        fields = ['lote', 'tipo_movimiento', 'cantidad', 'motivo', 
-                 'documento_referencia', 'institucion_destino']
+        fields = ['lote', 'tipo_movimiento', 'cantidad', 'motivo',
+                  'documento_referencia', 'institucion_destino']
+
         widgets = {
             'motivo': forms.Textarea(attrs={'rows': 3}),
             'cantidad': forms.NumberInput(attrs={'min': '1'}),
+
+            # Select2 widgets
+            'lote': Select2Widget,
+            'tipo_movimiento': Select2Widget,
+            'institucion_destino': Select2Widget,
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+
+        # Crispy config
         self.helper = FormHelper()
         self.helper.layout = Layout(
             Row(

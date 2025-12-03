@@ -11,3 +11,4 @@ gunicorn==21.2.0
 djangorestframework
 python-dotenv
 django-environ
+django-select2

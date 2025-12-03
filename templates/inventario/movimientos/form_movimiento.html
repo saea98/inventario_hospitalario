@@ -29,3 +29,29 @@
     </div>
 </div>
 {% endblock %}
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    console.log("Inicializando Select2 GLOBAL...");
+
+    // Aplicar Select2 a todos los selects que Django genere
+    $('select').each(function () {
+        $(this).select2({
+            width: '100%',
+            allowClear: true,
+            dropdownParent: $('body')
+        });
+        console.log("Select2 aplicado a:", $(this).attr('id'));
+    });
+
+    // Mantener submenús abiertos cuando un item está activo
+    $('.nav-link.active').each(function() {
+        var target = $(this).attr('href');
+        if (target && target.startsWith('#submenu')) {
+            $(target).addClass('show');
+        }
+    });
+});
+</script>
+{% endblock %}
+

@@ -93,6 +93,9 @@
         .submenu-item:hover {
             background-color: rgba(255,255,255,0.05) !important;
         }
+        .select2-container .select2-dropdown {
+            z-index: 999999 !important;
+        }
     </style>
 
     {% block extra_head %}
@@ -302,19 +305,16 @@
 {% block extra_js %}
 <script>
 $(document).ready(function() {
-    console.log("Inicializando Select2...");
+    console.log("Inicializando Select2 GLOBAL...");
 
-    ['#institucion', '#estado', '#caducidad'].forEach(function(id) {
-        if ($(id).length) {
-            $(id).select2({
-                placeholder: 'Selecciona una opción',
-                allowClear: true,
-                width: '100%'
-            });
-            console.log("Select2 aplicado a:", id);
-        } else {
-            console.warn("No se encontró el elemento:", id);
-        }
+    // Aplicar Select2 a todos los selects que Django genere
+    $('select').each(function () {
+        $(this).select2({
+            width: '100%',
+            allowClear: true,
+            dropdownParent: $('body')
+        });
+        console.log("Select2 aplicado a:", $(this).attr('id'));
     });
 
     // Mantener submenús abiertos cuando un item está activo
@@ -327,5 +327,6 @@ $(document).ready(function() {
 });
 </script>
 {% endblock %}
+
 </body>
 </html>
