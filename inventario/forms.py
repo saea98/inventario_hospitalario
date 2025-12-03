@@ -4,7 +4,9 @@ from django.contrib.auth.models import User
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Submit, Row, Column, Div, HTML
 from crispy_forms.bootstrap import Field
-from django_select2.forms import Select2Widget, Select2MultipleWidget
+#from django_select2.forms import ModelSelect2Widget, Select2MultipleWidget
+from django_select2.forms import Select2Widget, ModelSelect2Widget
+
 from .models import (
     Institucion, Producto, Proveedor, Lote, OrdenSuministro,
     CategoriaProducto, Alcaldia, TipoInstitucion, FuenteFinanciamiento,
@@ -322,28 +324,65 @@ class LoteForm(forms.ModelForm):
 
         return cleaned_data
 
+class LoteChoiceField(forms.ModelChoiceField):
+    def label_from_instance(self, obj):
+        desc = obj.descripcion_saica or obj.producto.descripcion
+        return f"{obj.numero_lote} — {desc}"
+
+
+
+class LoteSelectWidget(ModelSelect2Widget):
+    model = Lote
+    search_fields = [
+        "numero_lote__icontains",
+        "descripcion_saica__icontains",
+        "producto__descripcion__icontains",
+        "institucion__denominacion__icontains",
+    ]
+
+    def label_from_instance(self, obj):
+        desc = obj.descripcion_saica or obj.producto.descripcion
+        return f"{obj.numero_lote} — {desc}"
+
+
+class InstitucionDestinoWidget(ModelSelect2Widget):
+    model = Institucion
+    search_fields = [
+        'clue__icontains',
+        'denominacion__icontains',
+        'municipio__icontains',
+    ]
+
+    def label_from_instance(self, obj):
+        return f"{obj.clue} — {obj.denominacion}"
 
 
 class MovimientoInventarioForm(forms.ModelForm):
     class Meta:
         model = MovimientoInventario
-        fields = ['lote', 'tipo_movimiento', 'cantidad', 'motivo',
-                  'documento_referencia', 'institucion_destino']
+        fields = [
+            'lote', 'tipo_movimiento', 'cantidad', 'motivo',
+            'documento_referencia', 'institucion_destino'
+        ]
 
         widgets = {
-            'motivo': forms.Textarea(attrs={'rows': 3}),
+            'lote': LoteSelectWidget(),  # 👈 INSTANCIA
+
+            'tipo_movimiento': Select2Widget(),
+
             'cantidad': forms.NumberInput(attrs={'min': '1'}),
 
-            # Select2 widgets
-            'lote': Select2Widget,
-            'tipo_movimiento': Select2Widget,
-            'institucion_destino': Select2Widget,
+            'motivo': forms.Textarea(attrs={'rows': 3}),
+
+            'institucion_destino': InstitucionDestinoWidget(),  # 👈 INSTANCIA
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # Crispy config
+        # Queryset base (aunque AJAX lo sobreescribe)
+        self.fields['lote'].queryset = Lote.objects.select_related("producto")
+
         self.helper = FormHelper()
         self.helper.layout = Layout(
             Row(
@@ -360,6 +399,8 @@ class MovimientoInventarioForm(forms.ModelForm):
             'motivo',
             Submit('submit', 'Registrar Movimiento', css_class='btn btn-primary')
         )
+
+
 
 
 class CargaInventarioForm(forms.ModelForm):

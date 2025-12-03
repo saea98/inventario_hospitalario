@@ -48,6 +48,7 @@ INSTALLED_APPS = [
     
     # Local apps
     'inventario',
+    'django_select2',
 ]
 
 MIDDLEWARE = [

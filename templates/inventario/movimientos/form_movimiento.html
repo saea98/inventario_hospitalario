@@ -17,6 +17,7 @@
     </div>
     <div class="card-body">
         <form method="post">
+            {{ form.media }}
             {% csrf_token %}
             {{ form|crispy }}
             <div class="text-end">
@@ -34,17 +35,19 @@
 $(document).ready(function() {
     console.log("Inicializando Select2 GLOBAL...");
 
-    // Aplicar Select2 a todos los selects que Django genere
+    // Aplicar Select2 SOLO a selects normales
     $('select').each(function () {
-        $(this).select2({
-            width: '100%',
-            allowClear: true,
-            dropdownParent: $('body')
-        });
-        console.log("Select2 aplicado a:", $(this).attr('id'));
+        if (!$(this).hasClass("django-select2")) {
+            $(this).select2({
+                width: "100%",
+                allowClear: true,
+                dropdownParent: $('body')
+            });
+        }
     });
 
-    // Mantener submenús abiertos cuando un item está activo
+
+    // Mantener submenús abiertos
     $('.nav-link.active').each(function() {
         var target = $(this).attr('href');
         if (target && target.startsWith('#submenu')) {
@@ -54,4 +57,5 @@ $(document).ready(function() {
 });
 </script>
 {% endblock %}
+
 

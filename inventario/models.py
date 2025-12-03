@@ -434,8 +434,8 @@ class Lote(models.Model):
         ordering = ['-fecha_recepcion', 'fecha_caducidad']
         unique_together = ['numero_lote', 'producto', 'institucion']
 
-    def __str__(self):
-        return f"Lote {self.numero_lote} - {self.producto.clave_cnis}"
+    #def __str__(self):
+        #return f"Lote {self.numero_lote} - {self.producto.clave_cnis}"
 
     @property
     def nombre_institucion(self):
@@ -462,6 +462,11 @@ class Lote(models.Model):
         if self.cantidad_inicial and self.precio_unitario:
             self.valor_total = self.cantidad_inicial * self.precio_unitario
         super().save(*args, **kwargs)
+
+    def __str__(self):
+        desc = self.descripcion_saica or self.producto.descripcion
+        return f"{self.numero_lote} — {desc}"
+
 
 
 
