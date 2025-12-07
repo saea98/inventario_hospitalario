@@ -1,0 +1,259 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ titulo }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .confirmacion-box {
+        background-color: #f8f9fa;
+        border-left: 4px solid #0d6efd;
+        padding: 15px;
+        margin-bottom: 20px;
+        border-radius: 4px;
+    }
+    
+    .confirmacion-box h6 {
+        color: #0d6efd;
+        font-weight: 600;
+        margin-bottom: 10px;
+    }
+    
+    .confirmacion-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .confirmacion-item:last-child {
+        border-bottom: none;
+    }
+    
+    .confirmacion-item .label {
+        font-weight: 500;
+        color: #666;
+    }
+    
+    .confirmacion-item .value {
+        color: #333;
+        font-weight: 600;
+    }
+    
+    .tabla-confirmacion {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+    }
+    
+    .tabla-confirmacion th {
+        background-color: #e7f3ff;
+        color: #0d6efd;
+        padding: 10px;
+        text-align: left;
+        border-bottom: 2px solid #0d6efd;
+        font-weight: 600;
+    }
+    
+    .tabla-confirmacion td {
+        padding: 10px;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .tabla-confirmacion tr:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .tabla-confirmacion .text-right {
+        text-align: right;
+    }
+    
+    .resumen-final {
+        background-color: #e7f3ff;
+        border: 2px solid #0d6efd;
+        padding: 20px;
+        margin-top: 20px;
+        border-radius: 4px;
+    }
+    
+    .resumen-final .resumen-item {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 15px;
+        font-size: 1.1rem;
+        font-weight: 600;
+    }
+    
+    .resumen-final .resumen-item:last-child {
+        margin-bottom: 0;
+        border-top: 2px solid #0d6efd;
+        padding-top: 15px;
+        color: #0d6efd;
+        font-size: 1.3rem;
+    }
+    
+    .alert-confirmacion {
+        background-color: #fff3cd;
+        border-left: 4px solid #ffc107;
+        padding: 15px;
+        margin-bottom: 20px;
+        border-radius: 4px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-lg-10 mx-auto">
+            <!-- Header -->
+            <div class="card border-primary mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-check-circle"></i> {{ titulo }}
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info" role="alert">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Paso 3 de 3:</strong> Revisa los datos antes de guardar.
+                        Una vez confirmado, no podrás modificar esta entrada.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alerta de Confirmación -->
+            <div class="alert-confirmacion">
+                <i class="fas fa-exclamation-triangle"></i>
+                <strong>Importante:</strong> Verifica que todos los datos sean correctos.
+                Una vez guardado, la entrada será registrada en el sistema.
+            </div>
+
+            <!-- Información General -->
+            <div class="confirmacion-box">
+                <h6><i class="fas fa-file-invoice"></i> Información de la Remisión</h6>
+                <div class="confirmacion-item">
+                    <span class="label">Número de Remisión:</span>
+                    <span class="value">{{ entrada_data.numero_remision }}</span>
+                </div>
+                <div class="confirmacion-item">
+                    <span class="label">Fecha de Remisión:</span>
+                    <span class="value">{{ entrada_data.fecha_remision }}</span>
+                </div>
+                <div class="confirmacion-item">
+                    <span class="label">Proveedor:</span>
+                    <span class="value">{{ entrada_data.proveedor }}</span>
+                </div>
+                <div class="confirmacion-item">
+                    <span class="label">RFC Proveedor:</span>
+                    <span class="value">{{ entrada_data.rfc_proveedor|default:"No especificado" }}</span>
+                </div>
+                <div class="confirmacion-item">
+                    <span class="label">Número de Contrato:</span>
+                    <span class="value">{{ entrada_data.numero_contrato|default:"No especificado" }}</span>
+                </div>
+                <div class="confirmacion-item">
+                    <span class="label">Número de Pedido:</span>
+                    <span class="value">{{ entrada_data.numero_pedido|default:"No especificado" }}</span>
+                </div>
+            </div>
+
+            <!-- Destino -->
+            <div class="confirmacion-box">
+                <h6><i class="fas fa-warehouse"></i> Destino</h6>
+                <div class="confirmacion-item">
+                    <span class="label">Institución:</span>
+                    <span class="value">{{ entrada_data.institucion_id }}</span>
+                </div>
+                <div class="confirmacion-item">
+                    <span class="label">Almacén:</span>
+                    <span class="value">{{ entrada_data.almacen_id }}</span>
+                </div>
+            </div>
+
+            <!-- Tabla de Items -->
+            <div class="card mt-4">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0">Items a Recibir</h6>
+                </div>
+                <div class="card-body">
+                    <table class="tabla-confirmacion">
+                        <thead>
+                            <tr>
+                                <th>Producto</th>
+                                <th>Lote</th>
+                                <th class="text-right">Cantidad</th>
+                                <th class="text-right">Precio Unit.</th>
+                                <th class="text-right">Subtotal</th>
+                                <th class="text-right">IVA</th>
+                                <th class="text-right">Total</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in entrada_items %}
+                            <tr>
+                                <td>
+                                    <strong>{{ item.producto_id }}</strong>
+                                </td>
+                                <td>{{ item.numero_lote }}</td>
+                                <td class="text-right">{{ item.cantidad_recibida }}</td>
+                                <td class="text-right">${{ item.precio_unitario|floatformat:2 }}</td>
+                                <td class="text-right">${{ item.subtotal|floatformat:2 }}</td>
+                                <td class="text-right">${{ item.iva|floatformat:2 }}</td>
+                                <td class="text-right"><strong>${{ item.importe_total|floatformat:2 }}</strong></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Resumen Final -->
+            <div class="resumen-final">
+                <div class="resumen-item">
+                    <span>Total de Items:</span>
+                    <span>{{ total_items }}</span>
+                </div>
+                <div class="resumen-item">
+                    <span>Total de Cantidad:</span>
+                    <span>{{ total_cantidad }} unidades</span>
+                </div>
+                <div class="resumen-item">
+                    <span>Importe Total:</span>
+                    <span>${{ total_importe|floatformat:2 }}</span>
+                </div>
+            </div>
+
+            <!-- Botones de Acción -->
+            <div class="mt-4 d-flex gap-2">
+                <form method="post" style="flex: 1;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-success btn-lg w-100">
+                        <i class="fas fa-save"></i> Guardar Entrada
+                    </button>
+                </form>
+                <a href="{% url 'entrada_almacen_paso2' %}" class="btn btn-secondary btn-lg">
+                    <i class="fas fa-arrow-left"></i> Volver
+                </a>
+                <a href="{% url 'lista_lotes' %}" class="btn btn-outline-secondary btn-lg">
+                    <i class="fas fa-times"></i> Cancelar
+                </a>
+            </div>
+
+            <!-- Información Adicional -->
+            <div class="card mt-4 bg-light">
+                <div class="card-body">
+                    <h6 class="card-title">
+                        <i class="fas fa-info-circle"></i> Información
+                    </h6>
+                    <ul class="small mb-0">
+                        <li>Se creará un registro de Lote para cada item</li>
+                        <li>Se registrará automáticamente como ENTRADA en movimientos</li>
+                        <li>El usuario actual será registrado como responsable</li>
+                        <li>La fecha de recepción será la de hoy</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

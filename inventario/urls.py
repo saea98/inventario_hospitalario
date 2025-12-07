@@ -1,5 +1,6 @@
 from django.urls import path, include
 from . import views
+from inventario import urls_entrada_salida
 
 
 
@@ -75,6 +76,7 @@ urlpatterns = [
 
     path('ajax/ubicaciones/', views.ajax_ubicaciones_por_almacen, name='ajax_ubicaciones_por_almacen'),
     path('carga-lotes-excel/', views.carga_lotes_desde_excel_view, name='carga_lotes_excel'),
+    path('inventario/', include(urls_entrada_salida)),
     #path("select2/", include("django_select2.urls")),
     
 ]

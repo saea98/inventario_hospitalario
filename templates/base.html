@@ -171,6 +171,41 @@
                         </div>
                     </li>
 
+                    <!-- 
+                    INSTRUCCIONES: Agregar este código al menú de base.html
+                    Ubicación: Después de la sección "Lotes" y antes de "Inventario"
+                    (Aproximadamente después de la línea 172)
+                    -->
+
+                    <!-- ENTRADA AL ALMACÉN Y PROVEEDURÍA - NUEVOS MÓDULOS -->
+                    <li class="nav-item">
+                        <a class="nav-link {% if 'entrada_almacen' in request.resolver_match.url_name or 'proveeduria' in request.resolver_match.url_name %}active{% endif %}" 
+                        data-bs-toggle="collapse" href="#submenuOperaciones" role="button">
+                            <i class="fas fa-exchange-alt"></i>
+                            Operaciones
+                        </a>
+                        <div class="collapse {% if 'entrada_almacen' in request.resolver_match.url_name or 'proveeduria' in request.resolver_match.url_name %}show{% endif %}" id="submenuOperaciones">
+                            <ul class="nav flex-column">
+                                <!-- ENTRADA AL ALMACÉN -->
+                                <li class="nav-item">
+                                    <a class="nav-link submenu-item {% if 'entrada_almacen' in request.resolver_match.url_name %}active{% endif %}" 
+                                    href="{% url 'entrada_almacen_paso1' %}">
+                                        <i class="fas fa-inbox me-2"></i>Entrada al Almacén
+                                    </a>
+                                </li>
+                                
+                                <!-- PROVEEDURÍA -->
+                                <li class="nav-item">
+                                    <a class="nav-link submenu-item {% if 'proveeduria' in request.resolver_match.url_name %}active{% endif %}" 
+                                    href="{% url 'proveeduria_paso1' %}">
+                                        <i class="fas fa-dolly me-2"></i>Proveeduría
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </li>
+
+
                     <li class="nav-item">
                         <a class="nav-link {% if 'inventario' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'lista_movimientos' %}">
                             <i class="fas fa-warehouse"></i>

@@ -1,0 +1,237 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ titulo }}{% endblock %}
+
+{% block extra_css %}
+<style>
+    .confirmacion-box {
+        background-color: #f8f9fa;
+        border-left: 4px solid #198754;
+        padding: 15px;
+        margin-bottom: 20px;
+        border-radius: 4px;
+    }
+    
+    .confirmacion-box h6 {
+        color: #198754;
+        font-weight: 600;
+        margin-bottom: 10px;
+    }
+    
+    .confirmacion-item {
+        display: flex;
+        justify-content: space-between;
+        padding: 8px 0;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .confirmacion-item:last-child {
+        border-bottom: none;
+    }
+    
+    .confirmacion-item .label {
+        font-weight: 500;
+        color: #666;
+    }
+    
+    .confirmacion-item .value {
+        color: #333;
+        font-weight: 600;
+    }
+    
+    .tabla-confirmacion {
+        width: 100%;
+        border-collapse: collapse;
+        margin-top: 15px;
+    }
+    
+    .tabla-confirmacion th {
+        background-color: #e8f5e9;
+        color: #198754;
+        padding: 10px;
+        text-align: left;
+        border-bottom: 2px solid #198754;
+        font-weight: 600;
+    }
+    
+    .tabla-confirmacion td {
+        padding: 10px;
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .tabla-confirmacion tr:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .tabla-confirmacion .text-right {
+        text-align: right;
+    }
+    
+    .resumen-final {
+        background-color: #e8f5e9;
+        border: 2px solid #198754;
+        padding: 20px;
+        margin-top: 20px;
+        border-radius: 4px;
+    }
+    
+    .resumen-final .resumen-item {
+        display: flex;
+        justify-content: space-between;
+        margin-bottom: 15px;
+        font-size: 1.1rem;
+        font-weight: 600;
+    }
+    
+    .resumen-final .resumen-item:last-child {
+        margin-bottom: 0;
+        border-top: 2px solid #198754;
+        padding-top: 15px;
+        color: #198754;
+        font-size: 1.3rem;
+    }
+    
+    .alert-confirmacion {
+        background-color: #fff3cd;
+        border-left: 4px solid #ffc107;
+        padding: 15px;
+        margin-bottom: 20px;
+        border-radius: 4px;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-lg-10 mx-auto">
+            <!-- Header -->
+            <div class="card border-success mb-4">
+                <div class="card-header bg-success text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-check-circle"></i> {{ titulo }}
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info" role="alert">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Paso 3 de 3:</strong> Revisa los datos antes de guardar.
+                        Una vez confirmado, se registrará la salida de inventario.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Alerta de Confirmación -->
+            <div class="alert-confirmacion">
+                <i class="fas fa-exclamation-triangle"></i>
+                <strong>Importante:</strong> Verifica que todos los datos sean correctos.
+                Una vez guardado, se decrementará el inventario disponible.
+            </div>
+
+            <!-- Información General -->
+            <div class="confirmacion-box">
+                <h6><i class="fas fa-file-alt"></i> Información de la Solicitud</h6>
+                <div class="confirmacion-item">
+                    <span class="label">Número de Solicitud:</span>
+                    <span class="value">{{ proveeduria_data.numero_solicitud }}</span>
+                </div>
+                <div class="confirmacion-item">
+                    <span class="label">Fecha de Solicitud:</span>
+                    <span class="value">{{ proveeduria_data.fecha_solicitud }}</span>
+                </div>
+                <div class="confirmacion-item">
+                    <span class="label">Responsable:</span>
+                    <span class="value">{{ proveeduria_data.responsable_solicitud|default:"No especificado" }}</span>
+                </div>
+            </div>
+
+            <!-- Origen y Destino -->
+            <div class="confirmacion-box">
+                <h6><i class="fas fa-exchange-alt"></i> Origen y Destino</h6>
+                <div class="confirmacion-item">
+                    <span class="label">Almacén Origen:</span>
+                    <span class="value">{{ proveeduria_data.almacen_origen_id }}</span>
+                </div>
+                <div class="confirmacion-item">
+                    <span class="label">Área/Servicio Destino:</span>
+                    <span class="value">{{ proveeduria_data.area_destino }}</span>
+                </div>
+            </div>
+
+            <!-- Tabla de Items -->
+            <div class="card mt-4">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0">Items a Sacar</h6>
+                </div>
+                <div class="card-body">
+                    <table class="tabla-confirmacion">
+                        <thead>
+                            <tr>
+                                <th>Lote</th>
+                                <th class="text-right">Cantidad a Sacar</th>
+                                <th>Motivo</th>
+                                <th>Observaciones</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in proveeduria_items %}
+                            <tr>
+                                <td>
+                                    <strong>{{ item.lote_id }}</strong>
+                                </td>
+                                <td class="text-right">{{ item.cantidad_salida }}</td>
+                                <td>{{ item.motivo_salida }}</td>
+                                <td>{{ item.observaciones|default:"-" }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Resumen Final -->
+            <div class="resumen-final">
+                <div class="resumen-item">
+                    <span>Total de Items:</span>
+                    <span>{{ total_items }}</span>
+                </div>
+                <div class="resumen-item">
+                    <span>Total de Cantidad a Sacar:</span>
+                    <span>{{ total_cantidad }} unidades</span>
+                </div>
+            </div>
+
+            <!-- Botones de Acción -->
+            <div class="mt-4 d-flex gap-2">
+                <form method="post" style="flex: 1;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-success btn-lg w-100">
+                        <i class="fas fa-save"></i> Confirmar Salida
+                    </button>
+                </form>
+                <a href="{% url 'proveeduria_paso2' %}" class="btn btn-secondary btn-lg">
+                    <i class="fas fa-arrow-left"></i> Volver
+                </a>
+                <a href="{% url 'lista_movimientos' %}" class="btn btn-outline-secondary btn-lg">
+                    <i class="fas fa-times"></i> Cancelar
+                </a>
+            </div>
+
+            <!-- Información Adicional -->
+            <div class="card mt-4 bg-light">
+                <div class="card-body">
+                    <h6 class="card-title">
+                        <i class="fas fa-info-circle"></i> Información
+                    </h6>
+                    <ul class="small mb-0">
+                        <li>Se crearán registros de MovimientoInventario para cada item (tipo SALIDA)</li>
+                        <li>La cantidad disponible en cada lote se decrementará automáticamente</li>
+                        <li>El usuario actual será registrado como responsable</li>
+                        <li>La fecha de movimiento será la de hoy</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

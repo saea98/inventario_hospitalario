@@ -1,0 +1,210 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}{{ titulo }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <!-- Header -->
+            <div class="card border-primary mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-inbox"></i> {{ titulo }}
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info" role="alert">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>Paso 1 de 3:</strong> Ingresa la información de la remisión que recibirás del proveedor.
+                        Los datos se pueden obtener del documento de remisión.
+                    </div>
+                </div>
+            </div>
+
+            <!-- Formulario -->
+            <div class="card">
+                <div class="card-body">
+                    <form method="post" class="form">
+                        {% csrf_token %}
+                        
+                        {% if form.non_field_errors %}
+                            <div class="alert alert-danger" role="alert">
+                                <strong>Errores en el formulario:</strong>
+                                <ul class="mb-0">
+                                    {% for error in form.non_field_errors %}
+                                        <li>{{ error }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        {% endif %}
+
+                        <!-- Información de la Remisión -->
+                        <h5 class="text-primary mt-3 mb-3">
+                            <i class="fas fa-file-invoice"></i> Información de la Remisión
+                        </h5>
+                        
+                        <div class="row">
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.numero_remision.id_for_label }}" class="form-label">
+                                    {{ form.numero_remision.label }}
+                                    <span class="text-danger">*</span>
+                                </label>
+                                {{ form.numero_remision }}
+                                {% if form.numero_remision.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.numero_remision.errors.0 }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.fecha_remision.id_for_label }}" class="form-label">
+                                    {{ form.fecha_remision.label }}
+                                    <span class="text-danger">*</span>
+                                </label>
+                                {{ form.fecha_remision }}
+                                {% if form.fecha_remision.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.fecha_remision.errors.0 }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-4 mb-3">
+                                <label for="{{ form.numero_pedido.id_for_label }}" class="form-label">
+                                    {{ form.numero_pedido.label }}
+                                </label>
+                                {{ form.numero_pedido }}
+                            </div>
+                        </div>
+
+                        <!-- Información del Proveedor -->
+                        <h5 class="text-primary mt-4 mb-3">
+                            <i class="fas fa-truck"></i> Información del Proveedor
+                        </h5>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.proveedor.id_for_label }}" class="form-label">
+                                    {{ form.proveedor.label }}
+                                    <span class="text-danger">*</span>
+                                </label>
+                                {{ form.proveedor }}
+                                {% if form.proveedor.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.proveedor.errors.0 }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.rfc_proveedor.id_for_label }}" class="form-label">
+                                    {{ form.rfc_proveedor.label }}
+                                </label>
+                                {{ form.rfc_proveedor }}
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-12 mb-3">
+                                <label for="{{ form.numero_contrato.id_for_label }}" class="form-label">
+                                    {{ form.numero_contrato.label }}
+                                </label>
+                                {{ form.numero_contrato }}
+                            </div>
+                        </div>
+
+                        <!-- Destino de la Entrada -->
+                        <h5 class="text-primary mt-4 mb-3">
+                            <i class="fas fa-warehouse"></i> Destino de la Entrada
+                        </h5>
+                        
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.institucion.id_for_label }}" class="form-label">
+                                    {{ form.institucion.label }}
+                                    <span class="text-danger">*</span>
+                                </label>
+                                {{ form.institucion }}
+                                {% if form.institucion.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.institucion.errors.0 }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                            
+                            <div class="col-md-6 mb-3">
+                                <label for="{{ form.almacen.id_for_label }}" class="form-label">
+                                    {{ form.almacen.label }}
+                                    <span class="text-danger">*</span>
+                                </label>
+                                {{ form.almacen }}
+                                {% if form.almacen.errors %}
+                                    <div class="invalid-feedback d-block">
+                                        {{ form.almacen.errors.0 }}
+                                    </div>
+                                {% endif %}
+                            </div>
+                        </div>
+
+                        <!-- Observaciones -->
+                        <h5 class="text-primary mt-4 mb-3">
+                            <i class="fas fa-sticky-note"></i> Observaciones
+                        </h5>
+                        
+                        <div class="mb-3">
+                            <label for="{{ form.observaciones_generales.id_for_label }}" class="form-label">
+                                {{ form.observaciones_generales.label }}
+                            </label>
+                            {{ form.observaciones_generales }}
+                        </div>
+
+                        <!-- Botones de Acción -->
+                        <div class="mt-4 d-flex gap-2">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-arrow-right"></i> Continuar al Paso 2
+                            </button>
+                            <a href="{% url 'lista_lotes' %}" class="btn btn-secondary btn-lg">
+                                <i class="fas fa-times"></i> Cancelar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Información Adicional -->
+            <div class="card mt-4 bg-light">
+                <div class="card-body">
+                    <h6 class="card-title">
+                        <i class="fas fa-lightbulb"></i> Consejos
+                    </h6>
+                    <ul class="small mb-0">
+                        <li>Asegúrate de tener el documento de remisión a mano</li>
+                        <li>Verifica que la institución y almacén sean correctos</li>
+                        <li>Puedes dejar observaciones para notas importantes</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .form-control:focus, .form-select:focus {
+        border-color: #0d6efd;
+        box-shadow: 0 0 0 0.2rem rgba(13, 110, 253, 0.25);
+    }
+    
+    .text-danger {
+        color: #dc3545;
+    }
+    
+    .invalid-feedback {
+        color: #dc3545;
+        font-size: 0.875rem;
+        margin-top: 0.25rem;
+    }
+</style>
+{% endblock %}
