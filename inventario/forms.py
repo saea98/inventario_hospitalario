@@ -602,9 +602,10 @@ class CitaProveedorForm(forms.ModelForm):
         fecha_cita = cleaned_data.get('fecha_cita')
         
         if fecha_cita:
-            from datetime import datetime
+            from django.utils import timezone
             # Validar que la cita sea en el futuro
-            if fecha_cita < datetime.now():
+            ahora = timezone.now()
+            if fecha_cita < ahora:
                 raise forms.ValidationError(
                     "La fecha y hora de la cita debe ser en el futuro."
                 )
