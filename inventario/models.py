@@ -3,7 +3,7 @@ from django.contrib.auth.models import User
 from django.core.validators import MinValueValidator
 from decimal import Decimal
 import uuid
-from datetime import date
+from datetime import date, timedelta
 
 from django.shortcuts import render, redirect
 from django.contrib import messages
@@ -121,6 +121,23 @@ class UbicacionAlmacen(models.Model):
     pasillo = models.CharField(max_length=50, blank=True, null=True)
     rack = models.CharField(max_length=50, blank=True, null=True)
     seccion = models.CharField(max_length=50, blank=True, null=True)
+    
+    # Estado de la ubicacion
+    ESTADOS_UBICACION = [
+        ('disponible', 'Disponible'),
+        ('ocupada', 'Ocupada'),
+        ('bloqueada', 'Bloqueada'),
+        ('cuarentena', 'Cuarentena'),
+        ('caducados', 'Caducados'),
+        ('devoluciones', 'Devoluciones'),
+    ]
+    estado = models.CharField(
+        max_length=20,
+        choices=ESTADOS_UBICACION,
+        default='disponible',
+        verbose_name='Estado'
+    )
+    
     activo = models.BooleanField(default=True)
 
     class Meta:
@@ -260,6 +277,15 @@ class Producto(models.Model):
     
     marca = models.CharField(max_length=255, null=True, blank=True)
     fabricante = models.CharField(max_length=255, null=True, blank=True)
+    
+    # IVA aplicable al producto (porcentaje)
+    iva = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=16,
+        verbose_name="IVA (%)",
+        help_text="Porcentaje de IVA aplicable al producto (ej: 0 para medicamentos, 16 para insumos)"
+    )
     
     cantidad_disponible = models.DecimalField(
         max_digits=10,
@@ -655,3 +681,300 @@ class SolicitudInventario(models.Model):
         return f"{self.fecha_generacion} - {self.clues} - {self.clave_cnis}"
 
 
+
+# ============================================================================
+# NUEVOS MODELOS PARA SISTEMA DE INVENTARIO MEJORADO
+# ============================================================================
+
+class TipoRed(models.Model):
+    """Catálogo de tipos de red (abierto para edición)"""
+    codigo = models.CharField(max_length=10, unique=True, verbose_name="Código")
+    nombre = models.CharField(max_length=100, verbose_name="Nombre")
+    descripcion = models.TextField(blank=True, null=True, verbose_name="Descripción")
+    activo = models.BooleanField(default=True, verbose_name="Activo")
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Tipo de Red"
+        verbose_name_plural = "Tipos de Red"
+        ordering = ['nombre']
+
+    def __str__(self):
+        return f"{self.codigo} - {self.nombre}"
+
+
+class TipoEntrega(models.Model):
+    """Catálogo de tipos de entrega (abierto para edición)"""
+    codigo = models.CharField(max_length=10, unique=True, verbose_name="Código")
+    nombre = models.CharField(max_length=100, verbose_name="Nombre")
+    descripcion = models.TextField(blank=True, null=True, verbose_name="Descripción")
+    prefijo_folio = models.CharField(max_length=5, default="", blank=True, verbose_name="Prefijo para Folio")
+    activo = models.BooleanField(default=True, verbose_name="Activo")
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Tipo de Entrega"
+        verbose_name_plural = "Tipos de Entrega"
+        ordering = ['nombre']
+
+    def __str__(self):
+        return f"{self.codigo} - {self.nombre}"
+
+
+class Folio(models.Model):
+    """Gestión de folios consecutivos por tipo de entrega"""
+    tipo_entrega = models.OneToOneField(TipoEntrega, on_delete=models.CASCADE, related_name='folio')
+    numero_consecutivo = models.IntegerField(default=0, verbose_name="Número Consecutivo")
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Folio"
+        verbose_name_plural = "Folios"
+
+    def __str__(self):
+        return f"Folio {self.tipo_entrega.codigo}: {self.numero_consecutivo}"
+
+    def generar_folio(self):
+        """Genera el próximo folio incrementando el consecutivo"""
+        self.numero_consecutivo += 1
+        self.save()
+        prefijo = self.tipo_entrega.prefijo_folio or self.tipo_entrega.codigo
+        return f"{prefijo}{str(self.numero_consecutivo).zfill(6)}"
+
+
+class CitaProveedor(models.Model):
+    """Registro de citas con proveedores para recepción de mercancía"""
+    ESTADOS_CITA = [
+        ('programada', 'Programada'),
+        ('autorizada', 'Autorizada'),
+        ('completada', 'Completada'),
+        ('cancelada', 'Cancelada'),
+    ]
+
+    proveedor = models.ForeignKey(Proveedor, on_delete=models.CASCADE, related_name='citas')
+    fecha_cita = models.DateTimeField(verbose_name="Fecha y Hora de Cita")
+    almacen = models.ForeignKey(Almacen, on_delete=models.CASCADE, verbose_name="Almacén")
+    
+    estado = models.CharField(
+        max_length=20,
+        choices=ESTADOS_CITA,
+        default='programada',
+        verbose_name="Estado"
+    )
+    
+    observaciones = models.TextField(blank=True, null=True, verbose_name="Observaciones")
+    
+    usuario_creacion = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='citas_creadas',
+        verbose_name="Usuario que Crea"
+    )
+    
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Cita de Proveedor"
+        verbose_name_plural = "Citas de Proveedores"
+        ordering = ['-fecha_cita']
+
+    def __str__(self):
+        return f"Cita {self.proveedor.razon_social} - {self.fecha_cita.strftime('%d/%m/%Y %H:%M')}"
+
+
+class OrdenTraslado(models.Model):
+    """Orden de traslado de mercancía entre almacenes"""
+    ESTADOS_TRASLADO = [
+        ('creada', 'Creada'),
+        ('logistica_asignada', 'Logística Asignada'),
+        ('en_transito', 'En Tránsito'),
+        ('recibida', 'Recibida'),
+        ('completada', 'Completada'),
+    ]
+
+    folio = models.CharField(max_length=20, unique=True, verbose_name="Folio")
+    almacen_origen = models.ForeignKey(
+        Almacen,
+        on_delete=models.CASCADE,
+        related_name='traslados_origen',
+        verbose_name="Almacén Origen"
+    )
+    almacen_destino = models.ForeignKey(
+        Almacen,
+        on_delete=models.CASCADE,
+        related_name='traslados_destino',
+        verbose_name="Almacén Destino"
+    )
+    
+    # Datos de logística
+    vehiculo_placa = models.CharField(max_length=20, blank=True, null=True, verbose_name="Placa del Vehículo")
+    chofer_nombre = models.CharField(max_length=100, blank=True, null=True, verbose_name="Nombre del Chofer")
+    chofer_cedula = models.CharField(max_length=20, blank=True, null=True, verbose_name="Cédula del Chofer")
+    ruta = models.CharField(max_length=200, blank=True, null=True, verbose_name="Ruta")
+    
+    fecha_salida = models.DateTimeField(blank=True, null=True, verbose_name="Fecha/Hora de Salida")
+    fecha_llegada_estimada = models.DateTimeField(blank=True, null=True, verbose_name="Fecha/Hora Llegada Estimada")
+    fecha_llegada_real = models.DateTimeField(blank=True, null=True, verbose_name="Fecha/Hora Llegada Real")
+    
+    estado = models.CharField(
+        max_length=30,
+        choices=ESTADOS_TRASLADO,
+        default='creada',
+        verbose_name="Estado"
+    )
+    
+    usuario_creacion = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='traslados_creados',
+        verbose_name="Usuario que Crea"
+    )
+    
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Orden de Traslado"
+        verbose_name_plural = "Órdenes de Traslado"
+        ordering = ['-fecha_creacion']
+
+    def __str__(self):
+        return f"Traslado {self.folio} - {self.almacen_origen.nombre} → {self.almacen_destino.nombre}"
+
+
+class ItemTraslado(models.Model):
+    """Items dentro de una orden de traslado"""
+    ESTADOS_ITEM = [
+        ('pendiente', 'Pendiente'),
+        ('en_transito', 'En Tránsito'),
+        ('recibido', 'Recibido'),
+    ]
+
+    orden_traslado = models.ForeignKey(
+        OrdenTraslado,
+        on_delete=models.CASCADE,
+        related_name='items',
+        verbose_name="Orden de Traslado"
+    )
+    lote = models.ForeignKey(Lote, on_delete=models.CASCADE, verbose_name="Lote")
+    cantidad = models.PositiveIntegerField(verbose_name="Cantidad a Trasladar")
+    cantidad_recibida = models.PositiveIntegerField(default=0, verbose_name="Cantidad Recibida")
+    
+    estado = models.CharField(
+        max_length=20,
+        choices=ESTADOS_ITEM,
+        default='pendiente',
+        verbose_name="Estado"
+    )
+    
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Item de Traslado"
+        verbose_name_plural = "Items de Traslado"
+
+    def __str__(self):
+        return f"{self.lote} - {self.cantidad} unidades"
+
+
+class ConteoFisico(models.Model):
+    """Sesión de conteo físico de inventario"""
+    ESTADOS_CONTEO = [
+        ('iniciado', 'Iniciado'),
+        ('en_progreso', 'En Progreso'),
+        ('completado', 'Completado'),
+        ('validado', 'Validado'),
+        ('ajustado', 'Ajustado'),
+    ]
+
+    folio = models.CharField(max_length=20, unique=True, verbose_name="Folio")
+    almacen = models.ForeignKey(Almacen, on_delete=models.CASCADE, verbose_name="Almacén")
+    
+    fecha_inicio = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de Inicio")
+    fecha_fin = models.DateTimeField(blank=True, null=True, verbose_name="Fecha de Finalización")
+    
+    estado = models.CharField(
+        max_length=20,
+        choices=ESTADOS_CONTEO,
+        default='iniciado',
+        verbose_name="Estado"
+    )
+    
+    observaciones = models.TextField(blank=True, null=True, verbose_name="Observaciones")
+    
+    usuario_creacion = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='conteos_creados',
+        verbose_name="Usuario que Crea"
+    )
+    
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        verbose_name = "Conteo Físico"
+        verbose_name_plural = "Conteos Físicos"
+        ordering = ['-fecha_inicio']
+
+    def __str__(self):
+        return f"Conteo {self.folio} - {self.almacen.nombre}"
+
+
+class ItemConteoFisico(models.Model):
+    """Items contados en una sesión de conteo físico"""
+    ESTADOS_DIFERENCIA = [
+        ('coincide', 'Coincide'),
+        ('falta', 'Falta'),
+        ('exceso', 'Exceso'),
+    ]
+
+    conteo = models.ForeignKey(
+        ConteoFisico,
+        on_delete=models.CASCADE,
+        related_name='items',
+        verbose_name="Conteo Físico"
+    )
+    lote = models.ForeignKey(Lote, on_delete=models.CASCADE, verbose_name="Lote")
+    ubicacion = models.ForeignKey(
+        UbicacionAlmacen,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        verbose_name="Ubicación"
+    )
+    
+    cantidad_teorica = models.PositiveIntegerField(verbose_name="Cantidad Teórica")
+    cantidad_fisica = models.PositiveIntegerField(verbose_name="Cantidad Física")
+    
+    estado_diferencia = models.CharField(
+        max_length=20,
+        choices=ESTADOS_DIFERENCIA,
+        verbose_name="Estado de Diferencia"
+    )
+    
+    observaciones = models.TextField(blank=True, null=True, verbose_name="Observaciones")
+    
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        verbose_name = "Item de Conteo Físico"
+        verbose_name_plural = "Items de Conteo Físico"
+
+    @property
+    def diferencia(self):
+        """Calcula la diferencia entre cantidad física y teórica"""
+        return self.cantidad_fisica - self.cantidad_teorica
+
+    def __str__(self):
+        return f"{self.lote} - Diferencia: {self.diferencia}"

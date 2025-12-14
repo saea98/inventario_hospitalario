@@ -5,7 +5,9 @@ from .models import (
     Alcaldia, TipoInstitucion, Institucion, CategoriaProducto, 
     Producto, Proveedor, FuenteFinanciamiento, OrdenSuministro,
     Lote, MovimientoInventario, AlertaCaducidad, CargaInventario, 
-    EstadoInsumo, Almacen, UbicacionAlmacen
+    EstadoInsumo, Almacen, UbicacionAlmacen,
+    TipoRed, TipoEntrega, Folio, CitaProveedor,
+    OrdenTraslado, ItemTraslado, ConteoFisico, ItemConteoFisico
 )
 
 
@@ -43,9 +45,9 @@ class AlmacenAdmin(admin.ModelAdmin):
 class UbicacionAlmacenAdmin(admin.ModelAdmin):
     list_display = [
         'codigo', 'almacen', 'descripcion', 'nivel', 'pasillo', 
-        'rack', 'seccion', 'activo'
+        'rack', 'seccion', 'estado', 'activo'
     ]
-    list_filter = ['activo', 'almacen', 'nivel', 'pasillo']
+    list_filter = ['activo', 'estado', 'almacen', 'nivel', 'pasillo']
     search_fields = ['codigo', 'descripcion', 'almacen__nombre']
     ordering = ['almacen', 'codigo']
     
@@ -69,7 +71,7 @@ class CategoriaProductoAdmin(admin.ModelAdmin):
 
 @admin.register(Producto)
 class ProductoAdmin(admin.ModelAdmin):
-    list_display = ['clave_cnis', 'descripcion', 'categoria', 'unidad_medida', 'es_insumo_cpm', 'activo']
+    list_display = ['clave_cnis', 'descripcion', 'categoria', 'unidad_medida', 'iva', 'es_insumo_cpm', 'activo']
     list_filter = ['categoria', 'unidad_medida', 'es_insumo_cpm', 'activo']
     search_fields = ['clave_cnis', 'descripcion']
     ordering = ['clave_cnis']
@@ -203,3 +205,105 @@ class SolicitudInventarioAdmin(admin.ModelAdmin):
     list_filter = ['fecha_generacion', 'clues']
     search_fields = ['clues', 'clave_cnis', 'descripcion']
     ordering = ['-fecha_generacion']
+
+# ============================================================
+# NUEVOS MODELOS PARA SISTEMA MEJORADO
+# ============================================================
+
+@admin.register(TipoRed)
+class TipoRedAdmin(admin.ModelAdmin):
+    list_display = ['codigo', 'nombre', 'descripcion', 'activo']
+    list_filter = ['activo']
+    search_fields = ['codigo', 'nombre']
+    ordering = ['nombre']
+    readonly_fields = ['fecha_creacion', 'fecha_actualizacion']
+
+
+@admin.register(TipoEntrega)
+class TipoEntregaAdmin(admin.ModelAdmin):
+    list_display = ['codigo', 'nombre', 'prefijo_folio', 'descripcion', 'activo']
+    list_filter = ['activo']
+    search_fields = ['codigo', 'nombre']
+    ordering = ['nombre']
+    readonly_fields = ['fecha_creacion', 'fecha_actualizacion']
+
+
+@admin.register(Folio)
+class FolioAdmin(admin.ModelAdmin):
+    list_display = ['tipo_entrega', 'numero_consecutivo']
+    search_fields = ['tipo_entrega__nombre']
+    readonly_fields = ['fecha_creacion', 'fecha_actualizacion']
+
+
+@admin.register(CitaProveedor)
+class CitaProveedorAdmin(admin.ModelAdmin):
+    list_display = ['proveedor', 'fecha_cita', 'almacen', 'estado', 'usuario_creacion']
+    list_filter = ['estado', 'fecha_cita', 'almacen']
+    search_fields = ['proveedor__razon_social', 'observaciones']
+    ordering = ['-fecha_cita']
+    readonly_fields = ['fecha_creacion', 'fecha_actualizacion']
+
+
+@admin.register(OrdenTraslado)
+class OrdenTrasladoAdmin(admin.ModelAdmin):
+    list_display = ['folio', 'almacen_origen', 'almacen_destino', 'estado', 'fecha_salida']
+    list_filter = ['estado', 'fecha_creacion', 'almacen_origen', 'almacen_destino']
+    search_fields = ['folio', 'vehiculo_placa', 'chofer_nombre']
+    ordering = ['-fecha_creacion']
+    readonly_fields = ['fecha_creacion', 'fecha_actualizacion']
+    
+    fieldsets = (
+        ('Informacion Principal', {
+            'fields': ('folio', 'almacen_origen', 'almacen_destino', 'estado')
+        }),
+        ('Logistica', {
+            'fields': ('vehiculo_placa', 'chofer_nombre', 'chofer_cedula', 'ruta')
+        }),
+        ('Fechas', {
+            'fields': ('fecha_salida', 'fecha_llegada_estimada', 'fecha_llegada_real')
+        }),
+        ('Auditoria', {
+            'fields': ('usuario_creacion', 'fecha_creacion', 'fecha_actualizacion'),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+class ItemTrasladoInline(admin.TabularInline):
+    model = ItemTraslado
+    extra = 1
+    fields = ['lote', 'cantidad', 'cantidad_recibida', 'estado']
+
+
+@admin.register(ConteoFisico)
+class ConteoFisicoAdmin(admin.ModelAdmin):
+    list_display = ['folio', 'almacen', 'estado', 'fecha_inicio', 'fecha_fin']
+    list_filter = ['estado', 'fecha_inicio', 'almacen']
+    search_fields = ['folio', 'almacen__nombre']
+    ordering = ['-fecha_inicio']
+    readonly_fields = ['fecha_creacion', 'fecha_actualizacion']
+    
+    fieldsets = (
+        ('Informacion Principal', {
+            'fields': ('folio', 'almacen', 'estado')
+        }),
+        ('Fechas', {
+            'fields': ('fecha_inicio', 'fecha_fin')
+        }),
+        ('Observaciones', {
+            'fields': ('observaciones',)
+        }),
+        ('Auditoria', {
+            'fields': ('usuario_creacion', 'fecha_creacion', 'fecha_actualizacion'),
+            'classes': ('collapse',)
+        }),
+    )
+
+
+@admin.register(ItemConteoFisico)
+class ItemConteoFisicoAdmin(admin.ModelAdmin):
+    list_display = ['conteo', 'lote', 'cantidad_teorica', 'cantidad_fisica', 'estado_diferencia']
+    list_filter = ['estado_diferencia', 'conteo__almacen']
+    search_fields = ['lote__numero_lote', 'conteo__folio']
+    ordering = ['-conteo__fecha_inicio']
+    readonly_fields = ['fecha_creacion']
