@@ -1077,3 +1077,252 @@ class EstadoCita(models.Model):
     
     def __str__(self):
         return f"{self.nombre} ({self.codigo})"
+
+
+
+# ============================================================================
+# MODELO DE CONFIGURACIÓN DE NOTIFICACIONES
+# ============================================================================
+
+class ConfiguracionNotificaciones(models.Model):
+    """
+    Configuración centralizada para notificaciones por Email y Telegram.
+    
+    Permite gestionar:
+    - Configuración de Email (SMTP)
+    - Configuración de Telegram (Token, Bot, Chat ID)
+    - Destinatarios de notificaciones
+    - Eventos que generan notificaciones
+    """
+    
+    # ========================================================================
+    # CONFIGURACIÓN DE EMAIL
+    # ========================================================================
+    email_habilitado = models.BooleanField(
+        default=True,
+        verbose_name="Email Habilitado",
+        help_text="Activar/desactivar notificaciones por email"
+    )
+    
+    email_remitente = models.EmailField(
+        verbose_name="Email Remitente",
+        help_text="Dirección de correo desde la cual se enviarán notificaciones",
+        blank=True,
+        null=True
+    )
+    
+    email_destinatarios = models.TextField(
+        verbose_name="Emails Destinatarios",
+        help_text="Direcciones de correo separadas por comas (ej: admin@hospital.com, jefe@hospital.com)",
+        blank=True,
+        null=True
+    )
+    
+    # ========================================================================
+    # CONFIGURACIÓN DE TELEGRAM
+    # ========================================================================
+    telegram_habilitado = models.BooleanField(
+        default=False,
+        verbose_name="Telegram Habilitado",
+        help_text="Activar/desactivar notificaciones por Telegram"
+    )
+    
+    telegram_token = models.CharField(
+        max_length=255,
+        verbose_name="Token del Bot de Telegram",
+        help_text="Token del bot obtenido de BotFather (@BotFather en Telegram)",
+        blank=True,
+        null=True
+    )
+    
+    telegram_chat_id = models.CharField(
+        max_length=255,
+        verbose_name="Chat ID de Telegram",
+        help_text="ID del chat/grupo donde se enviarán notificaciones",
+        blank=True,
+        null=True
+    )
+    
+    # ========================================================================
+    # CONFIGURACIÓN DE EVENTOS
+    # ========================================================================
+    notificar_cita_creada = models.BooleanField(
+        default=True,
+        verbose_name="Notificar Cita Creada"
+    )
+    
+    notificar_cita_autorizada = models.BooleanField(
+        default=True,
+        verbose_name="Notificar Cita Autorizada"
+    )
+    
+    notificar_cita_cancelada = models.BooleanField(
+        default=True,
+        verbose_name="Notificar Cita Cancelada"
+    )
+    
+    notificar_traslado_creado = models.BooleanField(
+        default=True,
+        verbose_name="Notificar Traslado Creado"
+    )
+    
+    notificar_traslado_completado = models.BooleanField(
+        default=True,
+        verbose_name="Notificar Traslado Completado"
+    )
+    
+    notificar_conteo_iniciado = models.BooleanField(
+        default=True,
+        verbose_name="Notificar Conteo Iniciado"
+    )
+    
+    notificar_conteo_completado = models.BooleanField(
+        default=True,
+        verbose_name="Notificar Conteo Completado"
+    )
+    
+    # ========================================================================
+    # AUDITORÍA
+    # ========================================================================
+    usuario_creacion = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='config_notificaciones_creadas',
+        verbose_name="Usuario Creación"
+    )
+    
+    fecha_creacion = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Fecha Creación"
+    )
+    
+    fecha_actualizacion = models.DateTimeField(
+        auto_now=True,
+        verbose_name="Fecha Actualización"
+    )
+    
+    class Meta:
+        verbose_name = "Configuración de Notificaciones"
+        verbose_name_plural = "Configuración de Notificaciones"
+        ordering = ['-fecha_actualizacion']
+    
+    def __str__(self):
+        return "Configuración de Notificaciones del Sistema"
+    
+    def obtener_emails_destinatarios(self):
+        """Retorna lista de emails destinatarios"""
+        if not self.email_destinatarios:
+            return []
+        return [email.strip() for email in self.email_destinatarios.split(',')]
+    
+    def validar_configuracion_telegram(self):
+        """Valida que la configuración de Telegram sea válida"""
+        if self.telegram_habilitado:
+            if not self.telegram_token or not self.telegram_chat_id:
+                return False, "Token y Chat ID de Telegram son requeridos"
+        return True, "Configuración válida"
+    
+    def validar_configuracion_email(self):
+        """Valida que la configuración de Email sea válida"""
+        if self.email_habilitado:
+            if not self.email_remitente or not self.email_destinatarios:
+                return False, "Email remitente y destinatarios son requeridos"
+        return True, "Configuración válida"
+
+
+class LogNotificaciones(models.Model):
+    """
+    Registro de todas las notificaciones enviadas.
+    
+    Permite auditar:
+    - Qué notificaciones se enviaron
+    - A quién se enviaron
+    - Cuándo se enviaron
+    - Si fueron exitosas
+    """
+    
+    TIPO_NOTIFICACION = [
+        ('email', 'Email'),
+        ('telegram', 'Telegram'),
+        ('ambos', 'Email y Telegram'),
+    ]
+    
+    ESTADO_NOTIFICACION = [
+        ('pendiente', 'Pendiente'),
+        ('enviada', 'Enviada'),
+        ('error', 'Error'),
+        ('fallida', 'Fallida'),
+    ]
+    
+    tipo = models.CharField(
+        max_length=20,
+        choices=TIPO_NOTIFICACION,
+        verbose_name="Tipo de Notificación"
+    )
+    
+    evento = models.CharField(
+        max_length=100,
+        verbose_name="Evento",
+        help_text="Evento que generó la notificación (ej: cita_creada, traslado_completado)"
+    )
+    
+    asunto = models.CharField(
+        max_length=255,
+        verbose_name="Asunto"
+    )
+    
+    mensaje = models.TextField(
+        verbose_name="Mensaje"
+    )
+    
+    destinatarios = models.TextField(
+        verbose_name="Destinatarios",
+        help_text="Destinatarios a los que se intentó enviar"
+    )
+    
+    estado = models.CharField(
+        max_length=20,
+        choices=ESTADO_NOTIFICACION,
+        default='pendiente',
+        verbose_name="Estado"
+    )
+    
+    respuesta = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name="Respuesta del Servidor",
+        help_text="Respuesta o error del servidor de notificaciones"
+    )
+    
+    fecha_envio = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Fecha de Envío"
+    )
+    
+    fecha_entrega = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name="Fecha de Entrega"
+    )
+    
+    usuario_relacionado = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='notificaciones_recibidas',
+        verbose_name="Usuario Relacionado"
+    )
+    
+    class Meta:
+        verbose_name = "Log de Notificaciones"
+        verbose_name_plural = "Logs de Notificaciones"
+        ordering = ['-fecha_envio']
+        indexes = [
+            models.Index(fields=['evento', '-fecha_envio']),
+            models.Index(fields=['estado', '-fecha_envio']),
+        ]
+    
+    def __str__(self):
+        return f"{self.evento} - {self.estado} ({self.fecha_envio.strftime('%d/%m/%Y %H:%M')})"

@@ -7,7 +7,8 @@ from .models import (
     Lote, MovimientoInventario, AlertaCaducidad, CargaInventario, 
     EstadoInsumo, Almacen, UbicacionAlmacen,
     TipoRed, TipoEntrega, Folio, CitaProveedor, EstadoCita,
-    OrdenTraslado, ItemTraslado, ConteoFisico, ItemConteoFisico
+    OrdenTraslado, ItemTraslado, ConteoFisico, ItemConteoFisico,
+    ConfiguracionNotificaciones, LogNotificaciones
 )
 
 
@@ -330,3 +331,88 @@ class EstadoCitaAdmin(admin.ModelAdmin):
             'classes': ('collapse',)
         }),
     )
+
+
+
+# ============================================================================
+# CONFIGURACIÓN DE NOTIFICACIONES
+# ============================================================================
+
+@admin.register(ConfiguracionNotificaciones)
+class ConfiguracionNotificacionesAdmin(admin.ModelAdmin):
+    list_display = [
+        'email_habilitado', 'telegram_habilitado', 
+        'email_remitente', 'fecha_actualizacion'
+    ]
+    list_filter = ['email_habilitado', 'telegram_habilitado']
+    readonly_fields = ['fecha_creacion', 'fecha_actualizacion']
+    
+    fieldsets = (
+        ('Configuración de Email', {
+            'fields': (
+                'email_habilitado', 'email_remitente', 
+                'email_destinatarios', 'notificar_cita_creada',
+                'notificar_cita_autorizada', 'notificar_cita_cancelada',
+                'notificar_traslado_creado', 'notificar_traslado_completado',
+                'notificar_conteo_iniciado', 'notificar_conteo_completado'
+            ),
+            'description': 'Configurar notificaciones por correo electrónico'
+        }),
+        ('Configuración de Telegram', {
+            'fields': (
+                'telegram_habilitado', 'telegram_token', 'telegram_chat_id'
+            ),
+            'description': 'Configurar notificaciones por Telegram'
+        }),
+        ('Auditoría', {
+            'fields': ('usuario_creacion', 'fecha_creacion', 'fecha_actualizacion'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def has_add_permission(self, request):
+        """Solo permitir una configuración"""
+        return not ConfiguracionNotificaciones.objects.exists()
+    
+    def has_delete_permission(self, request, obj=None):
+        """No permitir eliminar la configuración"""
+        return False
+
+
+@admin.register(LogNotificaciones)
+class LogNotificacionesAdmin(admin.ModelAdmin):
+    list_display = [
+        'evento', 'tipo', 'estado', 'destinatarios', 'fecha_envio'
+    ]
+    list_filter = ['tipo', 'estado', 'evento', 'fecha_envio']
+    search_fields = ['asunto', 'evento', 'destinatarios']
+    readonly_fields = [
+        'tipo', 'evento', 'asunto', 'mensaje', 'destinatarios',
+        'respuesta', 'fecha_envio', 'fecha_entrega', 'usuario_relacionado'
+    ]
+    ordering = ['-fecha_envio']
+    
+    fieldsets = (
+        ('Información de Notificación', {
+            'fields': ('tipo', 'evento', 'asunto', 'mensaje')
+        }),
+        ('Destinatarios y Estado', {
+            'fields': ('destinatarios', 'estado', 'usuario_relacionado')
+        }),
+        ('Respuesta del Servidor', {
+            'fields': ('respuesta',),
+            'classes': ('collapse',)
+        }),
+        ('Fechas', {
+            'fields': ('fecha_envio', 'fecha_entrega'),
+            'classes': ('collapse',)
+        }),
+    )
+    
+    def has_add_permission(self, request):
+        """No permitir agregar logs manualmente"""
+        return False
+    
+    def has_delete_permission(self, request, obj=None):
+        """No permitir eliminar logs"""
+        return False

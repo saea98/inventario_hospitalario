@@ -19,6 +19,7 @@ from .models import (
 from .forms import (
     CitaProveedorForm, OrdenTrasladoForm, LogisticaTrasladoForm
 )
+from .servicios_notificaciones import notificaciones
 
 
 # ============================================================================
@@ -67,6 +68,10 @@ def crear_cita(request):
             cita = form.save(commit=False)
             cita.usuario_creacion = request.user
             cita.save()
+            
+            # Enviar notificación
+            notificaciones.notificar_cita_creada(cita)
+            
             messages.success(request, f'✓ Cita creada exitosamente con {cita.proveedor.razon_social}')
             return redirect('logistica:lista_citas')
         else:
@@ -130,6 +135,9 @@ def autorizar_cita(request, pk):
         cita.usuario_autorizacion = request.user
         cita.save()
         
+        # Enviar notificación
+        notificaciones.notificar_cita_autorizada(cita)
+        
         messages.success(request, f'✓ Cita autorizada: {cita.proveedor.razon_social}')
         return redirect('logistica:detalle_cita', pk=pk)
     
@@ -148,6 +156,10 @@ def cancelar_cita(request, pk):
     if request.method == 'POST':
         cita.estado = 'cancelada'
         cita.save()
+        
+        # Enviar notificación
+        notificaciones.notificar_cita_cancelada(cita)
+        
         messages.success(request, f'✓ Cita cancelada')
         return redirect('logistica:lista_citas')
     
