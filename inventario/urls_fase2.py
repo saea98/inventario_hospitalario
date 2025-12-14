@@ -34,10 +34,10 @@ urlpatterns = [
     path('conteos/iniciar/', views_fase2.iniciar_conteo, name='iniciar_conteo'),
     path('conteos/<int:pk>/capturar/', views_fase2.capturar_conteo, name='capturar_conteo'),
     path('conteos/<int:pk>/', views_fase2.detalle_conteo, name='detalle_conteo'),
-]
     
     # ========================================================================
     # PRUEBA DE TELEGRAM
     # ========================================================================
     path('test-telegram/', views_telegram_test.test_telegram, name='test_telegram'),
     path('api/telegram/chat-id/', views_telegram_test.obtener_chat_id_desde_updates, name='api_telegram_chat_id'),
+]
