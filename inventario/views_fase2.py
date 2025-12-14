@@ -68,7 +68,7 @@ def crear_cita(request):
             cita.usuario_creacion = request.user
             cita.save()
             messages.success(request, f'✓ Cita creada exitosamente con {cita.proveedor.razon_social}')
-            return redirect('lista_citas')
+            return redirect('logistica:lista_citas')
         else:
             messages.error(request, 'Error al crear la cita. Verifica los datos.')
     else:
@@ -85,14 +85,14 @@ def editar_cita(request, pk):
     # Solo permitir editar si está en estado 'programada'
     if cita.estado != 'programada':
         messages.warning(request, f'No se puede editar una cita en estado {cita.get_estado_display()}')
-        return redirect('lista_citas')
+        return redirect('logistica:lista_citas')
     
     if request.method == 'POST':
         form = CitaProveedorForm(request.POST, instance=cita)
         if form.is_valid():
             form.save()
             messages.success(request, '✓ Cita actualizada exitosamente')
-            return redirect('lista_citas')
+            return redirect('logistica:lista_citas')
     else:
         form = CitaProveedorForm(instance=cita)
     
@@ -122,7 +122,7 @@ def autorizar_cita(request, pk):
     
     if cita.estado != 'programada':
         messages.warning(request, f'Solo se pueden autorizar citas en estado "Programada"')
-        return redirect('detalle_cita', pk=pk)
+        return redirect('logistica:detalle_cita', pk=pk)
     
     if request.method == 'POST':
         cita.estado = 'autorizada'
@@ -131,7 +131,7 @@ def autorizar_cita(request, pk):
         cita.save()
         
         messages.success(request, f'✓ Cita autorizada: {cita.proveedor.razon_social}')
-        return redirect('detalle_cita', pk=pk)
+        return redirect('logistica:detalle_cita', pk=pk)
     
     return render(request, 'inventario/citas/autorizar.html', {'cita': cita})
 
@@ -143,13 +143,13 @@ def cancelar_cita(request, pk):
     
     if cita.estado == 'cancelada':
         messages.warning(request, 'Esta cita ya está cancelada')
-        return redirect('lista_citas')
+        return redirect('logistica:lista_citas')
     
     if request.method == 'POST':
         cita.estado = 'cancelada'
         cita.save()
         messages.success(request, f'✓ Cita cancelada')
-        return redirect('lista_citas')
+        return redirect('logistica:lista_citas')
     
     return render(request, 'inventario/citas/cancelar.html', {'cita': cita})
 

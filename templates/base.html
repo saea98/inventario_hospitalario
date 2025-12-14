@@ -215,18 +215,18 @@
                         <div class="collapse {% if 'cita' in request.resolver_match.url_name or 'traslado' in request.resolver_match.url_name or 'conteo' in request.resolver_match.url_name %}show{% endif %}" id="submenuGestion">
                             <ul class="nav flex-column">
                                 <li class="nav-item">
-                                    <a class="nav-link submenu-item {% if 'cita' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'lista_citas' %}">
+                                    <a class="nav-link submenu-item {% if 'cita' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'logistica:lista_citas' %}">
                                         <i class="fas fa-calendar-check me-2"></i>Citas de Proveedores
                                     </a>
                                 </li>
                                 <li class="nav-item">
-                                    <a class="nav-link submenu-item {% if 'traslado' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'lista_traslados' %}">
+                                    <a class="nav-link submenu-item {% if 'traslado' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'logistica:lista_traslados' %}">
                                         <i class="fas fa-truck me-2"></i>Traslados
                                     </a>
                                 </li>
                                 <li class="nav-item">
-                                    <a class="nav-link submenu-item {% if 'conteo' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'lista_conteos' %}">
-                                        <i class="fas fa-clipboard-check me-2"></i>Conteo Físico
+                                    <a class="nav-link submenu-item {% if 'conteo' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'logistica:lista_conteos' %}">
+                                        <i class="fas fa-clipboard-check me-2"></i>Conteo Fisico
                                     </a>
                                 </li>
                             </ul>

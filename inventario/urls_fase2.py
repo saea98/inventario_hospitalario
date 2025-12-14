@@ -6,7 +6,7 @@ Incluye: Citas, Traslados y Conteo Físico
 from django.urls import path
 from . import views_fase2
 
-app_name = 'inventario'
+app_name = 'logistica'
 
 urlpatterns = [
     # ========================================================================

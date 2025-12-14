@@ -129,7 +129,7 @@
             <!-- Acciones -->
             <div class="d-flex gap-2 mb-4">
                 {% if puede_autorizar %}
-                    <form method="POST" action="{% url 'autorizar_cita' cita.pk %}" style="display: inline;">
+                    <form method="POST" action="{% url 'logistica:autorizar_cita' cita.pk %}" style="display: inline;">
                         {% csrf_token %}
                         <button type="submit" class="btn btn-success btn-lg">
                             <i class="fas fa-check"></i> Autorizar Cita
@@ -138,18 +138,18 @@
                 {% endif %}
 
                 {% if cita.estado == 'programada' %}
-                    <a href="{% url 'editar_cita' cita.pk %}" class="btn btn-warning btn-lg">
+                    <a href="{% url 'logistica:editar_cita' cita.pk %}" class="btn btn-warning btn-lg">
                         <i class="fas fa-edit"></i> Editar
                     </a>
                 {% endif %}
 
                 {% if cita.estado != 'cancelada' and cita.estado != 'completada' %}
-                    <a href="{% url 'cancelar_cita' cita.pk %}" class="btn btn-danger btn-lg">
+                    <a href="{% url 'logistica:cancelar_cita' cita.pk %}" class="btn btn-danger btn-lg">
                         <i class="fas fa-times"></i> Cancelar
                     </a>
                 {% endif %}
 
-                <a href="{% url 'lista_citas' %}" class="btn btn-secondary btn-lg">
+                <a href="{% url 'logistica:lista_citas' %}" class="btn btn-secondary btn-lg">
                     <i class="fas fa-arrow-left"></i> Volver
                 </a>
             </div>
