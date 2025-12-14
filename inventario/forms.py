@@ -10,7 +10,8 @@ from django_select2.forms import Select2Widget, ModelSelect2Widget
 from .models import (
     Institucion, Producto, Proveedor, Lote, OrdenSuministro,
     CategoriaProducto, Alcaldia, TipoInstitucion, FuenteFinanciamiento,
-    MovimientoInventario, CargaInventario, TipoInstitucion, UbicacionAlmacen
+    MovimientoInventario, CargaInventario, TipoInstitucion, UbicacionAlmacen,
+    CitaProveedor, OrdenTraslado, ConteoFisico, ItemConteoFisico, TipoRed, TipoEntrega
 )
 #from .models import Institucion, Alcaldia, TipoInstitucion
 
@@ -526,3 +527,248 @@ class CargaLotesForm(forms.Form):
         label="Institución",
         help_text="Seleccione la institución para los lotes"
     )
+
+
+# ============================================================================
+# NUEVOS FORMULARIOS PARA FASE 2
+# ============================================================================
+
+class CitaProveedorForm(forms.ModelForm):
+    """
+    Formulario para crear y editar citas con proveedores.
+    
+    Permite registrar:
+    - Proveedor
+    - Fecha y hora de la cita
+    - Almacén de recepción
+    - Observaciones
+    """
+    
+    class Meta:
+        model = CitaProveedor
+        fields = ['proveedor', 'fecha_cita', 'almacen', 'observaciones']
+        widgets = {
+            'proveedor': forms.Select(attrs={
+                'class': 'form-control form-control-lg',
+                'required': True,
+                'placeholder': 'Seleccione un proveedor'
+            }),
+            'fecha_cita': forms.DateTimeInput(attrs={
+                'class': 'form-control form-control-lg',
+                'type': 'datetime-local',
+                'required': True,
+                'placeholder': 'Seleccione fecha y hora'
+            }),
+            'almacen': forms.Select(attrs={
+                'class': 'form-control form-control-lg',
+                'required': True,
+                'placeholder': 'Seleccione almacén'
+            }),
+            'observaciones': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 4,
+                'placeholder': 'Observaciones adicionales sobre la cita (opcional)',
+                'maxlength': 500
+            }),
+        }
+        labels = {
+            'proveedor': '👥 Proveedor',
+            'fecha_cita': '📅 Fecha y Hora de Cita',
+            'almacen': '🏢 Almacén de Recepción',
+            'observaciones': '📝 Observaciones',
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.form_method = 'post'
+        self.helper.layout = Layout(
+            Row(
+                Column('proveedor', css_class='form-group col-md-6 mb-3'),
+                Column('almacen', css_class='form-group col-md-6 mb-3'),
+                css_class='form-row'
+            ),
+            Row(
+                Column('fecha_cita', css_class='form-group col-md-12 mb-3'),
+                css_class='form-row'
+            ),
+            'observaciones',
+            HTML('<hr class="my-4">'),
+            Submit('submit', '✓ Guardar Cita', css_class='btn btn-primary btn-lg w-100')
+        )
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        fecha_cita = cleaned_data.get('fecha_cita')
+        
+        if fecha_cita:
+            from datetime import datetime
+            # Validar que la cita sea en el futuro
+            if fecha_cita < datetime.now():
+                raise forms.ValidationError(
+                    "La fecha y hora de la cita debe ser en el futuro."
+                )
+        
+        return cleaned_data
+
+
+class OrdenTrasladoForm(forms.ModelForm):
+    """
+    Formulario para crear órdenes de traslado entre almacenes.
+    
+    Permite especificar:
+    - Almacén origen
+    - Almacén destino
+    - Ruta (descripción del recorrido)
+    
+    Validaciones:
+    - El almacén origen no puede ser igual al destino
+    """
+    
+    class Meta:
+        model = OrdenTraslado
+        fields = ['almacen_origen', 'almacen_destino', 'ruta']
+        widgets = {
+            'almacen_origen': forms.Select(attrs={
+                'class': 'form-control form-control-lg',
+                'required': True,
+                'placeholder': 'Seleccione almacén de origen'
+            }),
+            'almacen_destino': forms.Select(attrs={
+                'class': 'form-control form-control-lg',
+                'required': True,
+                'placeholder': 'Seleccione almacén de destino'
+            }),
+            'ruta': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ej: Ruta Centro - Zona Norte',
+                'maxlength': 200
+            }),
+        }
+        labels = {
+            'almacen_origen': '📤 Almacén Origen',
+            'almacen_destino': '📥 Almacén Destino',
+            'ruta': '🛣️ Ruta (Descripción)',
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.form_method = 'post'
+        self.helper.layout = Layout(
+            Row(
+                Column('almacen_origen', css_class='form-group col-md-6 mb-3'),
+                Column('almacen_destino', css_class='form-group col-md-6 mb-3'),
+                css_class='form-row'
+            ),
+            'ruta',
+            HTML('<hr class="my-4">'),
+            Submit('submit', '✓ Crear Orden de Traslado', css_class='btn btn-primary btn-lg w-100')
+        )
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        origen = cleaned_data.get('almacen_origen')
+        destino = cleaned_data.get('almacen_destino')
+        
+        if origen and destino:
+            if origen == destino:
+                raise forms.ValidationError(
+                    "El almacén de origen y destino no pueden ser iguales. "
+                    "Seleccione almacenes diferentes."
+                )
+        
+        return cleaned_data
+
+
+class LogisticaTrasladoForm(forms.ModelForm):
+    """
+    Formulario para asignar datos de logística a una orden de traslado.
+    
+    Permite registrar:
+    - Placa del vehículo
+    - Nombre del chofer
+    - Cédula del chofer
+    - Ruta
+    
+    Este formulario se utiliza después de crear la orden de traslado
+    para asignar los detalles de logística (vehículo y chofer).
+    """
+    
+    class Meta:
+        model = OrdenTraslado
+        fields = ['vehiculo_placa', 'chofer_nombre', 'chofer_cedula', 'ruta']
+        widgets = {
+            'vehiculo_placa': forms.TextInput(attrs={
+                'class': 'form-control form-control-lg',
+                'placeholder': 'Ej: ABC-1234',
+                'maxlength': 20,
+                'required': True,
+                'pattern': '[A-Z]{3}-[0-9]{4}',
+                'title': 'Formato: ABC-1234'
+            }),
+            'chofer_nombre': forms.TextInput(attrs={
+                'class': 'form-control form-control-lg',
+                'placeholder': 'Nombre completo del chofer',
+                'maxlength': 100,
+                'required': True
+            }),
+            'chofer_cedula': forms.TextInput(attrs={
+                'class': 'form-control form-control-lg',
+                'placeholder': 'Ej: 1234567890',
+                'maxlength': 20,
+                'required': True
+            }),
+            'ruta': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Descripción de la ruta',
+                'maxlength': 200
+            }),
+        }
+        labels = {
+            'vehiculo_placa': '🚚 Placa del Vehículo',
+            'chofer_nombre': '👤 Nombre del Chofer',
+            'chofer_cedula': '🆔 Cédula del Chofer',
+            'ruta': '🛣️ Ruta',
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.form_method = 'post'
+        self.helper.layout = Layout(
+            Row(
+                Column('vehiculo_placa', css_class='form-group col-md-6 mb-3'),
+                Column('chofer_cedula', css_class='form-group col-md-6 mb-3'),
+                css_class='form-row'
+            ),
+            'chofer_nombre',
+            'ruta',
+            HTML('<div class="alert alert-info mt-3">'),
+            HTML('<strong>ℹ️ Información:</strong> Los datos de logística son necesarios para rastrear el traslado.'),
+            HTML('</div>'),
+            HTML('<hr class="my-4">'),
+            Submit('submit', '✓ Asignar Logística', css_class='btn btn-success btn-lg w-100')
+        )
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        placa = cleaned_data.get('vehiculo_placa')
+        cedula = cleaned_data.get('chofer_cedula')
+        
+        # Validar formato de placa (ABC-1234)
+        if placa:
+            import re
+            if not re.match(r'^[A-Z]{3}-[0-9]{4}$', placa):
+                raise forms.ValidationError(
+                    "La placa debe tener el formato ABC-1234"
+                )
+        
+        # Validar que la cédula sea numérica
+        if cedula:
+            if not cedula.isdigit():
+                raise forms.ValidationError(
+                    "La cédula debe contener solo números"
+                )
+        
+        return cleaned_data
