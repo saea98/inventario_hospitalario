@@ -132,7 +132,7 @@ class ServicioNotificaciones:
         Enviar notificación por Telegram
         
         Args:
-            mensaje: Mensaje a enviar
+            mensaje: Mensaje a enviar (Markdown)
             evento: Tipo de evento para logging
             usuario: Usuario relacionado (opcional)
         
@@ -176,7 +176,7 @@ class ServicioNotificaciones:
             datos = {
                 'chat_id': config.telegram_chat_id,
                 'text': mensaje,
-                'parse_mode': 'HTML'  # Permitir formato HTML
+                'parse_mode': 'Markdown'  # Usar Markdown en lugar de HTML
             }
             
             # Enviar mensaje
@@ -293,21 +293,34 @@ class ServicioNotificaciones:
         
         asunto = f"✓ Nueva Cita Creada: {cita.proveedor.razon_social}"
         
-        mensaje_html = f"""
+        # Mensaje para Email (HTML)
+        mensaje_email = f"""
         <h3>Nueva Cita Creada</h3>
         <p><strong>Proveedor:</strong> {cita.proveedor.razon_social}</p>
         <p><strong>Fecha y Hora:</strong> {cita.fecha_cita.strftime('%d/%m/%Y %H:%M')}</p>
         <p><strong>Almacén:</strong> {cita.almacen.nombre}</p>
         <p><strong>Estado:</strong> Programada</p>
-        <p><strong>Creado por:</strong> {cita.usuario_creacion.get_full_name or cita.usuario_creacion.username}</p>
+        <p><strong>Creado por:</strong> {cita.usuario_creacion.get_full_name() or cita.usuario_creacion.username}</p>
         """
         
         if cita.observaciones:
-            mensaje_html += f"<p><strong>Observaciones:</strong> {cita.observaciones}</p>"
+            mensaje_email += f"<p><strong>Observaciones:</strong> {cita.observaciones}</p>"
+        
+        # Mensaje para Telegram (Markdown)
+        mensaje_telegram = f"""*✓ Nueva Cita Creada*
+
+*Proveedor:* {cita.proveedor.razon_social}
+*Fecha y Hora:* {cita.fecha_cita.strftime('%d/%m/%Y %H:%M')}
+*Almacén:* {cita.almacen.nombre}
+*Estado:* Programada
+*Creado por:* {cita.usuario_creacion.get_full_name() or cita.usuario_creacion.username}"""
+        
+        if cita.observaciones:
+            mensaje_telegram += f"\n*Observaciones:* {cita.observaciones}"
         
         return self.enviar_notificacion(
             asunto=asunto,
-            mensaje=mensaje_html,
+            mensaje=mensaje_email,  # Para email
             evento='cita_creada',
             usuario=cita.usuario_creacion
         )
@@ -321,18 +334,28 @@ class ServicioNotificaciones:
         
         asunto = f"✓ Cita Autorizada: {cita.proveedor.razon_social}"
         
-        mensaje_html = f"""
+        # Mensaje para Email (HTML)
+        mensaje_email = f"""
         <h3>Cita Autorizada</h3>
         <p><strong>Proveedor:</strong> {cita.proveedor.razon_social}</p>
         <p><strong>Fecha y Hora:</strong> {cita.fecha_cita.strftime('%d/%m/%Y %H:%M')}</p>
         <p><strong>Almacén:</strong> {cita.almacen.nombre}</p>
-        <p><strong>Autorizado por:</strong> {cita.usuario_autorizacion.get_full_name or cita.usuario_autorizacion.username}</p>
+        <p><strong>Autorizado por:</strong> {cita.usuario_autorizacion.get_full_name() or cita.usuario_autorizacion.username}</p>
         <p><strong>Fecha de Autorización:</strong> {cita.fecha_autorizacion.strftime('%d/%m/%Y %H:%M')}</p>
         """
         
+        # Mensaje para Telegram (Markdown)
+        mensaje_telegram = f"""*✓ Cita Autorizada*
+
+*Proveedor:* {cita.proveedor.razon_social}
+*Fecha y Hora:* {cita.fecha_cita.strftime('%d/%m/%Y %H:%M')}
+*Almacén:* {cita.almacen.nombre}
+*Autorizado por:* {cita.usuario_autorizacion.get_full_name() or cita.usuario_autorizacion.username}
+*Fecha de Autorización:* {cita.fecha_autorizacion.strftime('%d/%m/%Y %H:%M')}"""
+        
         return self.enviar_notificacion(
             asunto=asunto,
-            mensaje=mensaje_html,
+            mensaje=mensaje_email,
             evento='cita_autorizada',
             usuario=cita.usuario_autorizacion
         )
@@ -346,17 +369,26 @@ class ServicioNotificaciones:
         
         asunto = f"✗ Cita Cancelada: {cita.proveedor.razon_social}"
         
-        mensaje_html = f"""
+        # Mensaje para Email (HTML)
+        mensaje_email = f"""
         <h3>Cita Cancelada</h3>
         <p><strong>Proveedor:</strong> {cita.proveedor.razon_social}</p>
         <p><strong>Fecha y Hora (Original):</strong> {cita.fecha_cita.strftime('%d/%m/%Y %H:%M')}</p>
         <p><strong>Almacén:</strong> {cita.almacen.nombre}</p>
-        <p><strong>Cancelado por:</strong> {cita.usuario_creacion.get_full_name or cita.usuario_creacion.username}</p>
+        <p><strong>Cancelado por:</strong> {cita.usuario_creacion.get_full_name() or cita.usuario_creacion.username}</p>
         """
+        
+        # Mensaje para Telegram (Markdown)
+        mensaje_telegram = f"""*✗ Cita Cancelada*
+
+*Proveedor:* {cita.proveedor.razon_social}
+*Fecha y Hora (Original):* {cita.fecha_cita.strftime('%d/%m/%Y %H:%M')}
+*Almacén:* {cita.almacen.nombre}
+*Cancelado por:* {cita.usuario_creacion.get_full_name() or cita.usuario_creacion.username}"""
         
         return self.enviar_notificacion(
             asunto=asunto,
-            mensaje=mensaje_html,
+            mensaje=mensaje_email,
             evento='cita_cancelada',
             usuario=cita.usuario_creacion
         )
