@@ -1,0 +1,238 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Prueba de Configuración Telegram - Sistema de Inventario{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-md-10 offset-md-1">
+            <!-- Encabezado -->
+            <div class="mb-4">
+                <h2><i class="fab fa-telegram text-primary"></i> Prueba de Configuración Telegram</h2>
+                <p class="text-muted">Herramienta para validar y probar la configuración de Telegram</p>
+            </div>
+
+            <!-- Configuración Actual -->
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="fas fa-cog"></i> Configuración Actual</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Telegram Habilitado:</strong> 
+                                {% if config.telegram_habilitado %}
+                                    <span class="badge bg-success">Sí</span>
+                                {% else %}
+                                    <span class="badge bg-danger">No</span>
+                                {% endif %}
+                            </p>
+                            <p><strong>Token:</strong> 
+                                {% if config.telegram_token %}
+                                    <code>{{ config.telegram_token|truncatechars:20 }}...</code>
+                                {% else %}
+                                    <span class="text-danger">No configurado</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Chat ID:</strong> 
+                                {% if config.telegram_chat_id %}
+                                    <code>{{ config.telegram_chat_id }}</code>
+                                {% else %}
+                                    <span class="text-danger">No configurado</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Pasos de Configuración -->
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="fas fa-list-ol"></i> Pasos para Configurar Telegram</h6>
+                </div>
+                <div class="card-body">
+                    <ol>
+                        <li>
+                            <strong>Crear Bot en Telegram:</strong>
+                            <ul>
+                                <li>Abre Telegram y busca <code>@BotFather</code></li>
+                                <li>Envía el comando <code>/newbot</code></li>
+                                <li>Sigue las instrucciones para crear tu bot</li>
+                                <li>Copia el token (formato: <code>123456789:ABCdefGHIjklmnoPQRstuvWXYZ</code>)</li>
+                            </ul>
+                        </li>
+                        <li>
+                            <strong>Agregar Bot a un Grupo:</strong>
+                            <ul>
+                                <li>Crea un grupo en Telegram o usa uno existente</li>
+                                <li>Busca tu bot por nombre y agrégalo al grupo</li>
+                                <li>Dale permisos de administrador (opcional pero recomendado)</li>
+                            </ul>
+                        </li>
+                        <li>
+                            <strong>Obtener Chat ID:</strong>
+                            <ul>
+                                <li>Envía un mensaje cualquiera en el grupo</li>
+                                <li>Haz clic en el botón "Obtener Updates" abajo</li>
+                                <li>Copia el Chat ID que aparezca</li>
+                            </ul>
+                        </li>
+                        <li>
+                            <strong>Configurar en Sistema:</strong>
+                            <ul>
+                                <li>Ve a Django Admin → Configuración de Notificaciones</li>
+                                <li>Pega el Token y Chat ID</li>
+                                <li>Habilita Telegram</li>
+                                <li>Guarda los cambios</li>
+                            </ul>
+                        </li>
+                    </ol>
+                </div>
+            </div>
+
+            <!-- Herramientas de Prueba -->
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="fas fa-tools"></i> Herramientas de Prueba</h6>
+                </div>
+                <div class="card-body">
+                    <form method="POST" class="mb-3">
+                        {% csrf_token %}
+                        
+                        <div class="row mb-3">
+                            <div class="col-md-6">
+                                <button type="submit" name="accion" value="eliminar_webhook" class="btn btn-warning btn-lg w-100">
+                                    <i class="fas fa-trash"></i> Eliminar Webhook
+                                </button>
+                                <small class="text-muted d-block mt-2">
+                                    Si ves error "Conflict: can't use getUpdates", usa esto primero
+                                </small>
+                            </div>
+                            <div class="col-md-6">
+                                <button type="submit" name="accion" value="obtener_updates" class="btn btn-info btn-lg w-100">
+                                    <i class="fas fa-sync"></i> Obtener Updates
+                                </button>
+                                <small class="text-muted d-block mt-2">
+                                    Obtiene Chat ID de los mensajes enviados
+                                </small>
+                            </div>
+                        </div>
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <button type="submit" name="accion" value="enviar_test" class="btn btn-success btn-lg w-100">
+                                    <i class="fas fa-paper-plane"></i> Enviar Mensaje de Prueba
+                                </button>
+                                <small class="text-muted d-block mt-2">
+                                    Envía un mensaje de prueba al Chat ID configurado
+                                </small>
+                            </div>
+                            <div class="col-md-6">
+                                <a href="{% url 'admin:inventario_configuracionnotificaciones_change' %}" class="btn btn-primary btn-lg w-100">
+                                    <i class="fas fa-edit"></i> Editar Configuración
+                                </a>
+                                <small class="text-muted d-block mt-2">
+                                    Ir a Django Admin para editar
+                                </small>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Resultados -->
+            {% if resultados.errores %}
+                <div class="alert alert-danger">
+                    <h6><i class="fas fa-exclamation-circle"></i> Errores</h6>
+                    <ul class="mb-0">
+                        {% for error in resultados.errores %}
+                            <li>{{ error }}</li>
+                        {% endfor %}
+                    </ul>
+                </div>
+            {% endif %}
+
+            {% if resultados.webhook_eliminado %}
+                <div class="alert alert-success">
+                    <h6><i class="fas fa-check-circle"></i> Webhook Eliminado</h6>
+                    <p class="mb-0">El webhook ha sido eliminado exitosamente. Ahora puedes usar getUpdates.</p>
+                </div>
+            {% endif %}
+
+            {% if resultados.test_enviado %}
+                <div class="alert alert-success">
+                    <h6><i class="fas fa-check-circle"></i> Mensaje Enviado</h6>
+                    <p class="mb-0">El mensaje de prueba fue enviado exitosamente a Telegram.</p>
+                </div>
+            {% endif %}
+
+            {% if resultados.updates %}
+                <div class="card">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0"><i class="fas fa-list"></i> Updates Recibidos ({{ resultados.updates|length }})</h6>
+                    </div>
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Update ID</th>
+                                    <th>Chat ID</th>
+                                    <th>Tipo</th>
+                                    <th>Usuario/Grupo</th>
+                                    <th>Mensaje</th>
+                                    <th>Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for update in resultados.updates %}
+                                    {% if update.message %}
+                                        <tr>
+                                            <td><code>{{ update.update_id }}</code></td>
+                                            <td><code>{{ update.message.chat.id }}</code></td>
+                                            <td>{{ update.message.chat.type }}</td>
+                                            <td>
+                                                {% if update.message.chat.title %}
+                                                    {{ update.message.chat.title }}
+                                                {% else %}
+                                                    {{ update.message.chat.first_name }} {{ update.message.chat.last_name }}
+                                                {% endif %}
+                                            </td>
+                                            <td>{{ update.message.text|truncatechars:50 }}</td>
+                                            <td>
+                                                <button type="button" class="btn btn-sm btn-primary" onclick="copiarChatId('{{ update.message.chat.id }}')">
+                                                    <i class="fas fa-copy"></i> Copiar Chat ID
+                                                </button>
+                                            </td>
+                                        </tr>
+                                    {% endif %}
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="card-footer bg-light">
+                        <small class="text-muted">
+                            <strong>Instrucciones:</strong> Haz clic en "Copiar Chat ID" para copiar el ID al portapapeles. 
+                            Luego ve a Django Admin y pégalo en el campo "Chat ID de Telegram".
+                        </small>
+                    </div>
+                </div>
+            {% endif %}
+        </div>
+    </div>
+</div>
+
+<script>
+function copiarChatId(chatId) {
+    // Copiar al portapapeles
+    navigator.clipboard.writeText(chatId).then(function() {
+        alert('✓ Chat ID copiado: ' + chatId);
+    }, function(err) {
+        alert('Error al copiar: ' + err);
+    });
+}
+</script>
+{% endblock %}

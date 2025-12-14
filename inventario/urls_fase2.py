@@ -4,7 +4,7 @@ Incluye: Citas, Traslados y Conteo Físico
 """
 
 from django.urls import path
-from . import views_fase2
+from . import views_fase2, views_telegram_test
 
 app_name = 'logistica'
 
@@ -35,3 +35,9 @@ urlpatterns = [
     path('conteos/<int:pk>/capturar/', views_fase2.capturar_conteo, name='capturar_conteo'),
     path('conteos/<int:pk>/', views_fase2.detalle_conteo, name='detalle_conteo'),
 ]
+    
+    # ========================================================================
+    # PRUEBA DE TELEGRAM
+    # ========================================================================
+    path('test-telegram/', views_telegram_test.test_telegram, name='test_telegram'),
+    path('api/telegram/chat-id/', views_telegram_test.obtener_chat_id_desde_updates, name='api_telegram_chat_id'),
