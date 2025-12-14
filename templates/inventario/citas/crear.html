@@ -1,0 +1,50 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+{% load static %}
+
+{% block title %}Crear Cita - Sistema de Inventario{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <!-- Encabezado -->
+            <div class="mb-4">
+                <h2><i class="fas fa-calendar-plus text-primary"></i> Crear Nueva Cita</h2>
+                <p class="text-muted">Programa una cita con un proveedor para recepción de mercancía</p>
+            </div>
+
+            <!-- Formulario -->
+            <div class="card">
+                <div class="card-body">
+                    <form method="POST" novalidate>
+                        {% csrf_token %}
+                        
+                        {{ form|crispy }}
+                        
+                        <div class="d-flex gap-2 mt-4">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-save"></i> Guardar Cita
+                            </button>
+                            <a href="{% url 'lista_citas' %}" class="btn btn-secondary btn-lg">
+                                <i class="fas fa-times"></i> Cancelar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Información de Ayuda -->
+            <div class="alert alert-info mt-4">
+                <h6><i class="fas fa-info-circle"></i> Información Importante</h6>
+                <ul class="mb-0">
+                    <li>La cita se creará en estado <strong>Programada</strong></li>
+                    <li>Será necesario <strong>autorizar</strong> la cita antes de la recepción</li>
+                    <li>Solo se pueden editar citas en estado <strong>Programada</strong></li>
+                    <li>La fecha debe ser posterior a la fecha actual</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

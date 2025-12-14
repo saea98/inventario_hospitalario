@@ -1,0 +1,45 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+{% load static %}
+
+{% block title %}Editar Cita - Sistema de Inventario{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <!-- Encabezado -->
+            <div class="mb-4">
+                <h2><i class="fas fa-calendar-edit text-primary"></i> Editar Cita</h2>
+                <p class="text-muted">Modifica los datos de la cita con {{ cita.proveedor.razon_social }}</p>
+            </div>
+
+            <!-- Formulario -->
+            <div class="card">
+                <div class="card-body">
+                    <form method="POST" novalidate>
+                        {% csrf_token %}
+                        
+                        {{ form|crispy }}
+                        
+                        <div class="d-flex gap-2 mt-4">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-save"></i> Guardar Cambios
+                            </button>
+                            <a href="{% url 'detalle_cita' cita.pk %}" class="btn btn-secondary btn-lg">
+                                <i class="fas fa-times"></i> Cancelar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Información de Ayuda -->
+            <div class="alert alert-warning mt-4">
+                <h6><i class="fas fa-exclamation-triangle"></i> Nota Importante</h6>
+                <p class="mb-0">Solo se pueden editar citas en estado <strong>Programada</strong>. Una vez autorizada, no se puede modificar.</p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

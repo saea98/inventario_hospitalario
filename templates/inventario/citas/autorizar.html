@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Autorizar Cita - Sistema de Inventario{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-md-6 offset-md-3">
+            <!-- Encabezado -->
+            <div class="mb-4">
+                <h2><i class="fas fa-check-circle text-success"></i> Autorizar Cita</h2>
+                <p class="text-muted">Confirma la autorización de esta cita</p>
+            </div>
+
+            <!-- Información de la Cita -->
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0">Información de la Cita</h6>
+                </div>
+                <div class="card-body">
+                    <p class="mb-2">
+                        <strong>Proveedor:</strong> {{ cita.proveedor.razon_social }}
+                    </p>
+                    <p class="mb-2">
+                        <strong>Fecha y Hora:</strong> {{ cita.fecha_cita|date:"d/m/Y H:i" }}
+                    </p>
+                    <p class="mb-2">
+                        <strong>Almacén:</strong> {{ cita.almacen.nombre }}
+                    </p>
+                    <p class="mb-0">
+                        <strong>Estado Actual:</strong> 
+                        <span class="badge bg-warning">Programada</span>
+                    </p>
+                </div>
+            </div>
+
+            <!-- Confirmación -->
+            <div class="alert alert-info">
+                <h6><i class="fas fa-info-circle"></i> Confirmación</h6>
+                <p class="mb-0">Al autorizar esta cita, se registrará automáticamente:</p>
+                <ul class="mb-0 mt-2">
+                    <li>Fecha y hora de autorización</li>
+                    <li>Usuario que autoriza ({{ request.user.get_full_name|default:request.user.username }})</li>
+                    <li>El estado cambiará a "Autorizada"</li>
+                </ul>
+            </div>
+
+            <!-- Formulario de Confirmación -->
+            <form method="POST">
+                {% csrf_token %}
+                <div class="d-flex gap-2">
+                    <button type="submit" class="btn btn-success btn-lg flex-grow-1">
+                        <i class="fas fa-check"></i> Sí, Autorizar
+                    </button>
+                    <a href="{% url 'detalle_cita' cita.pk %}" class="btn btn-secondary btn-lg flex-grow-1">
+                        <i class="fas fa-times"></i> Cancelar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

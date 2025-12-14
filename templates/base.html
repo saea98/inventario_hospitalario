@@ -205,6 +205,33 @@
                         </div>
                     </li>
 
+                    <!-- CITAS, TRASLADOS Y CONTEO - NUEVOS MÓDULOS FASE 2 -->
+                    <li class="nav-item">
+                        <a class="nav-link {% if 'cita' in request.resolver_match.url_name or 'traslado' in request.resolver_match.url_name or 'conteo' in request.resolver_match.url_name %}active{% endif %}" 
+                        data-bs-toggle="collapse" href="#submenuGestion" role="button">
+                            <i class="fas fa-tasks"></i>
+                            Gestión Logística
+                        </a>
+                        <div class="collapse {% if 'cita' in request.resolver_match.url_name or 'traslado' in request.resolver_match.url_name or 'conteo' in request.resolver_match.url_name %}show{% endif %}" id="submenuGestion">
+                            <ul class="nav flex-column">
+                                <li class="nav-item">
+                                    <a class="nav-link submenu-item {% if 'cita' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'lista_citas' %}">
+                                        <i class="fas fa-calendar-check me-2"></i>Citas de Proveedores
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link submenu-item {% if 'traslado' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'lista_traslados' %}">
+                                        <i class="fas fa-truck me-2"></i>Traslados
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link submenu-item {% if 'conteo' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'lista_conteos' %}">
+                                        <i class="fas fa-clipboard-check me-2"></i>Conteo Físico
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </li>
 
                     <li class="nav-item">
                         <a class="nav-link {% if 'inventario' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'lista_movimientos' %}">
