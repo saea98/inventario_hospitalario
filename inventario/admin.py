@@ -6,7 +6,7 @@ from .models import (
     Producto, Proveedor, FuenteFinanciamiento, OrdenSuministro,
     Lote, MovimientoInventario, AlertaCaducidad, CargaInventario, 
     EstadoInsumo, Almacen, UbicacionAlmacen,
-    TipoRed, TipoEntrega, Folio, CitaProveedor,
+    TipoRed, TipoEntrega, Folio, CitaProveedor, EstadoCita,
     OrdenTraslado, ItemTraslado, ConteoFisico, ItemConteoFisico
 )
 
@@ -307,3 +307,26 @@ class ItemConteoFisicoAdmin(admin.ModelAdmin):
     search_fields = ['lote__numero_lote', 'conteo__folio']
     ordering = ['-conteo__fecha_inicio']
     readonly_fields = ['fecha_creacion']
+
+
+
+@admin.register(EstadoCita)
+class EstadoCitaAdmin(admin.ModelAdmin):
+    list_display = ['codigo', 'nombre', 'color', 'activo', 'orden']
+    list_filter = ['activo', 'color']
+    search_fields = ['codigo', 'nombre']
+    ordering = ['orden', 'nombre']
+    readonly_fields = ['fecha_creacion', 'fecha_actualizacion']
+    
+    fieldsets = (
+        ('Información Principal', {
+            'fields': ('codigo', 'nombre', 'descripcion')
+        }),
+        ('Configuración', {
+            'fields': ('color', 'activo', 'orden')
+        }),
+        ('Auditoría', {
+            'fields': ('fecha_creacion', 'fecha_actualizacion'),
+            'classes': ('collapse',)
+        }),
+    )

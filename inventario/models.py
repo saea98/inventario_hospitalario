@@ -776,6 +776,24 @@ class CitaProveedor(models.Model):
         verbose_name="Usuario que Crea"
     )
     
+    # Campos de autorización
+    fecha_autorizacion = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name="Fecha de Autorización",
+        help_text="Fecha y hora cuando se autorizó la cita"
+    )
+    
+    usuario_autorizacion = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='citas_autorizadas',
+        verbose_name="Usuario que Autoriza",
+        help_text="Usuario que autorizó la cita"
+    )
+    
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     fecha_actualizacion = models.DateTimeField(auto_now=True)
 
@@ -978,3 +996,84 @@ class ItemConteoFisico(models.Model):
 
     def __str__(self):
         return f"{self.lote} - Diferencia: {self.diferencia}"
+
+
+
+# ============================================================================
+# CATÁLOGO DE ESTADOS DE CITA
+# ============================================================================
+
+class EstadoCita(models.Model):
+    """
+    Catálogo de estados para citas de proveedores.
+    Permite que los administradores modifiquen los estados disponibles.
+    """
+    
+    TIPOS_ESTADO = [
+        ('pendiente', 'Pendiente'),
+        ('autorizada', 'Autorizada'),
+        ('rechazada', 'Rechazada'),
+        ('completada', 'Completada'),
+        ('cancelada', 'Cancelada'),
+    ]
+    
+    codigo = models.CharField(
+        max_length=50,
+        unique=True,
+        verbose_name="Código del Estado",
+        help_text="Identificador único del estado (ej: pendiente, autorizada)"
+    )
+    
+    nombre = models.CharField(
+        max_length=100,
+        verbose_name="Nombre del Estado",
+        help_text="Nombre descriptivo del estado"
+    )
+    
+    descripcion = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name="Descripción",
+        help_text="Descripción detallada del estado"
+    )
+    
+    # Color para UI (Bootstrap)
+    color = models.CharField(
+        max_length=20,
+        default='secondary',
+        verbose_name="Color Badge",
+        choices=[
+            ('primary', 'Azul'),
+            ('secondary', 'Gris'),
+            ('success', 'Verde'),
+            ('danger', 'Rojo'),
+            ('warning', 'Amarillo'),
+            ('info', 'Celeste'),
+            ('light', 'Claro'),
+            ('dark', 'Oscuro'),
+        ],
+        help_text="Color del badge en la interfaz"
+    )
+    
+    activo = models.BooleanField(
+        default=True,
+        verbose_name="Activo",
+        help_text="Si está desactivado, no aparecerá en los formularios"
+    )
+    
+    orden = models.PositiveIntegerField(
+        default=0,
+        verbose_name="Orden",
+        help_text="Orden de aparición en listas"
+    )
+    
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = "Estado de Cita"
+        verbose_name_plural = "Estados de Cita"
+        ordering = ['orden', 'nombre']
+    
+    def __str__(self):
+        return f"{self.nombre} ({self.codigo})"
