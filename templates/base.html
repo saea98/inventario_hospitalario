@@ -153,13 +153,13 @@
                         <a class="nav-link {% if 'lotes' in request.resolver_match.url_name or request.resolver_match.url_name == 'carga_lotes_excel' %}active{% endif %}" 
                            data-bs-toggle="collapse" href="#submenuLotes" role="button">
                             <i class="fas fa-boxes"></i>
-                            Lotes
+                            Existencias
                         </a>
                         <div class="collapse {% if 'lotes' in request.resolver_match.url_name or request.resolver_match.url_name == 'carga_lotes_excel' %}show{% endif %}" id="submenuLotes">
                             <ul class="nav flex-column">
                                 <li class="nav-item">
                                     <a class="nav-link submenu-item {% if request.resolver_match.url_name == 'lista_lotes' %}active{% endif %}" href="{% url 'lista_lotes' %}">
-                                        <i class="fas fa-list me-2"></i>Lista de Lotes
+                                        <i class="fas fa-list me-2"></i>Lista de Existencias
                                     </a>
                                 </li>
                                 <li class="nav-item">
@@ -198,7 +198,7 @@
                                 <li class="nav-item">
                                     <a class="nav-link submenu-item {% if 'proveeduria' in request.resolver_match.url_name %}active{% endif %}" 
                                     href="{% url 'proveeduria_paso1' %}">
-                                        <i class="fas fa-dolly me-2"></i>Proveeduría
+                                        <i class="fas fa-dolly me-2"></i>Salidas Almacen
                                     </a>
                                 </li>
                             </ul>
@@ -262,7 +262,7 @@
                                 </li>
                                 <li class="nav-item">
                                     <a class="nav-link submenu-item {% if request.resolver_match.url_name == 'carga_lotes_excel' %}active{% endif %}" href="{% url 'carga_lotes_excel' %}">
-                                        <i class="fas fa-boxes me-2"></i>Lotes
+                                        <i class="fas fa-boxes me-2"></i>Existencias
                                     </a>
                                 </li>
                                 <li class="nav-item">

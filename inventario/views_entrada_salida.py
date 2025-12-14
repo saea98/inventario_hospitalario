@@ -210,7 +210,7 @@ def proveeduria_paso1(request):
     
     return render(request, 'inventario/proveeduria/paso1.html', {
         'form': form,
-        'titulo': 'PROVEEDURÍA - Paso 1'
+        'titulo': 'Salidas de almacen - Paso 1'
     })
 
 
@@ -253,7 +253,7 @@ def proveeduria_paso2(request):
     almacen = Almacen.objects.get(id=almacen_id)
     
     return render(request, 'inventario/proveeduria/paso2.html', {
-        'titulo': 'PROVEEDURÍA - Paso 2',
+        'titulo': 'Salidas de almacen - Paso 2',
         'proveeduria_data': proveeduria_data,
         'almacen': almacen,
         'productos': list(productos_con_lotes),
@@ -324,7 +324,7 @@ def proveeduria_confirmacion(request):
     total_cantidad = sum(item['cantidad_salida'] for item in proveeduria_items)
     
     return render(request, 'inventario/proveeduria/confirmacion.html', {
-        'titulo': 'PROVEEDURÍA - Confirmación',
+        'titulo': 'Salidas de alamcen - Confirmación',
         'proveeduria_data': proveeduria_data,
         'proveeduria_items': proveeduria_items,
         'total_items': total_items,

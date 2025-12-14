@@ -1,5 +1,6 @@
 from django.urls import path
 from . import views
+from inventario.admin import inventario_admin
 
 urlpatterns = [
     # Dashboard
@@ -23,6 +24,7 @@ urlpatterns = [
     path('lotes/', views.lista_lotes, name='lista_lotes'),
     path('lotes/crear/', views.crear_lote, name='crear_lote'),
     path('lotes/<int:pk>/', views.detalle_lote, name='detalle_lote'),
+    path('admin/', inventario_admin.urls),
     # Comentamos estas líneas hasta que implementemos las vistas
     # path('lotes/<int:pk>/editar/', views.editar_lote, name='editar_lote'),
     # path('lotes/<int:pk>/eliminar/', views.eliminar_lote, name='eliminar_lote'),

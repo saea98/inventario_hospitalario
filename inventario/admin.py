@@ -1,9 +1,11 @@
 from django.contrib import admin
+#from django.contrib.auth.models import User, Group
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin, GroupAdmin as BaseGroupAdmin
 from .models import (
     Alcaldia, TipoInstitucion, Institucion, CategoriaProducto, 
     Producto, Proveedor, FuenteFinanciamiento, OrdenSuministro,
     Lote, MovimientoInventario, AlertaCaducidad, CargaInventario, 
-    EstadoInsumo, Almacen, UbicacionAlmacen  # AGREGAR Almacen y UbicacionAlmacen
+    EstadoInsumo, Almacen, UbicacionAlmacen
 )
 
 
@@ -35,9 +37,6 @@ class AlmacenAdmin(admin.ModelAdmin):
     list_filter = ['activo', 'institucion']
     search_fields = ['codigo', 'nombre', 'institucion__denominacion']
     ordering = ['codigo']
-    
-    # Si tienes campos de fecha en el modelo Almacen, descomenta:
-    # readonly_fields = ['fecha_creacion', 'fecha_actualizacion']
 
 
 @admin.register(UbicacionAlmacen)
@@ -50,10 +49,6 @@ class UbicacionAlmacenAdmin(admin.ModelAdmin):
     search_fields = ['codigo', 'descripcion', 'almacen__nombre']
     ordering = ['almacen', 'codigo']
     
-    # Si tienes campos de fecha en el modelo UbicacionAlmacen, descomenta:
-    # readonly_fields = ['fecha_creacion', 'fecha_actualizacion']
-    
-    # Para mejorar la experiencia de usuario en el formulario
     fieldsets = (
         ('Información Principal', {
             'fields': ('almacen', 'codigo', 'descripcion', 'activo')
@@ -161,3 +156,50 @@ class CargaInventarioAdmin(admin.ModelAdmin):
 @admin.register(EstadoInsumo)
 class EstadoInsumoAdmin(admin.ModelAdmin):
     list_display = ('id_estado', 'descripcion')
+
+
+# ============================================================
+# REGISTRAR USER PERSONALIZADO Y GROUP
+# ============================================================
+# NO usar importaciones de django.contrib.auth.models para User
+# En su lugar, importar el User personalizado de tu app
+from django.contrib.auth.admin import UserAdmin as BaseUserAdmin, GroupAdmin as BaseGroupAdmin
+from django.contrib.auth.models import Group
+from .models import User  # Importa TU User personalizado
+
+# Desregistrar Group si ya está registrado (evita duplicados)
+try:
+    admin.site.unregister(Group)
+except admin.sites.NotRegistered:
+    pass
+
+# Registrar TU User personalizado
+@admin.register(User)
+class CustomUserAdmin(BaseUserAdmin):
+    list_display = ['username', 'email', 'first_name', 'last_name', 'clue', 'is_active', 'is_staff']
+    list_filter = ['is_active', 'is_staff', 'is_superuser', 'groups']
+    search_fields = ['username', 'email', 'first_name', 'last_name', 'clue']
+    
+    # Agrega el campo 'clue' a los fieldsets
+    fieldsets = BaseUserAdmin.fieldsets + (
+        ('Información Adicional', {'fields': ('clue',)}),
+    )
+    add_fieldsets = BaseUserAdmin.add_fieldsets + (
+        ('Información Adicional', {'fields': ('clue',)}),
+    )
+
+# Registrar Group de Django (para permisos)
+@admin.register(Group)
+class GroupAdmin(BaseGroupAdmin):
+    pass
+
+
+# Registrar SolicitudInventario que falta en tu admin actual
+from .models import SolicitudInventario
+
+@admin.register(SolicitudInventario)
+class SolicitudInventarioAdmin(admin.ModelAdmin):
+    list_display = ['fecha_generacion', 'clues', 'clave_cnis', 'descripcion', 'inventario_disponible']
+    list_filter = ['fecha_generacion', 'clues']
+    search_fields = ['clues', 'clave_cnis', 'descripcion']
+    ordering = ['-fecha_generacion']
