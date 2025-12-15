@@ -1,0 +1,67 @@
+{% extends 'base.html' %}
+
+{% block title %}Completar Traslado{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-6 offset-md-3">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-check-double"></i> Completar Traslado
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-primary">
+                        <h5>Confirmación</h5>
+                        <p>¿Estás seguro de que deseas completar este traslado?</p>
+                        <p class="mb-0"><strong>Nota:</strong> Se actualizarán las ubicaciones de todos los lotes.</p>
+                    </div>
+
+                    <table class="table table-sm">
+                        <tr>
+                            <td><strong>Folio:</strong></td>
+                            <td>{{ orden.folio }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Origen:</strong></td>
+                            <td>{{ orden.almacen_origen.nombre }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Destino:</strong></td>
+                            <td>{{ orden.almacen_destino.nombre }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Estado Actual:</strong></td>
+                            <td><span class="badge bg-secondary">Recibida</span></td>
+                        </tr>
+                    </table>
+
+                    <form method="post" class="mt-4">
+                        {% csrf_token %}
+                        <div class="row">
+                            <div class="col-md-6">
+                                <button type="submit" class="btn btn-primary btn-lg w-100">
+                                    <i class="fas fa-check"></i> Completar
+                                </button>
+                            </div>
+                            <div class="col-md-6">
+                                <a href="{% url 'logistica:detalle_traslado' orden.pk %}" class="btn btn-secondary btn-lg w-100">
+                                    <i class="fas fa-times"></i> Cancelar
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .card {
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    }
+</style>
+{% endblock %}

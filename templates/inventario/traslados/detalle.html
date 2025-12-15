@@ -1,0 +1,202 @@
+{% extends 'base.html' %}
+
+{% block title %}Detalle de Orden de Traslado{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Encabezado -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <h2>
+                <i class="fas fa-dolly"></i> Orden: {{ orden.folio }}
+            </h2>
+        </div>
+        <div class="col-md-6 text-end">
+            {% if orden.estado == 'creada' %}
+                <span class="badge bg-primary" style="font-size: 1.1rem;">Creada</span>
+            {% elif orden.estado == 'logistica_asignada' %}
+                <span class="badge bg-warning" style="font-size: 1.1rem;">Logística Asignada</span>
+            {% elif orden.estado == 'en_transito' %}
+                <span class="badge bg-info" style="font-size: 1.1rem;">En Tránsito</span>
+            {% elif orden.estado == 'recibida' %}
+                <span class="badge bg-secondary" style="font-size: 1.1rem;">Recibida</span>
+            {% elif orden.estado == 'completada' %}
+                <span class="badge bg-success" style="font-size: 1.1rem;">Completada</span>
+            {% elif orden.estado == 'cancelada' %}
+                <span class="badge bg-danger" style="font-size: 1.1rem;">Cancelada</span>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Información Principal -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-info-circle"></i> Información General</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <tr>
+                            <td><strong>Folio:</strong></td>
+                            <td>{{ orden.folio }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Almacén Origen:</strong></td>
+                            <td>{{ orden.almacen_origen.nombre }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Almacén Destino:</strong></td>
+                            <td>{{ orden.almacen_destino.nombre }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Ruta:</strong></td>
+                            <td>{{ orden.ruta|default:"-" }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Creado por:</strong></td>
+                            <td>{{ orden.usuario_creacion.get_full_name|default:orden.usuario_creacion.username }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Fecha Creación:</strong></td>
+                            <td>{{ orden.fecha_creacion|date:"d/m/Y H:i" }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-truck"></i> Información Logística</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <tr>
+                            <td><strong>Placa Vehículo:</strong></td>
+                            <td>{{ orden.placa_vehiculo|default:"-" }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Nombre Chofer:</strong></td>
+                            <td>{{ orden.nombre_chofer|default:"-" }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Cédula Chofer:</strong></td>
+                            <td>{{ orden.cedula_chofer|default:"-" }}</td>
+                        </tr>
+                        {% if orden.fecha_inicio_transito %}
+                        <tr>
+                            <td><strong>Inicio Tránsito:</strong></td>
+                            <td>{{ orden.fecha_inicio_transito|date:"d/m/Y H:i" }}</td>
+                        </tr>
+                        {% endif %}
+                        {% if orden.fecha_recepcion %}
+                        <tr>
+                            <td><strong>Fecha Recepción:</strong></td>
+                            <td>{{ orden.fecha_recepcion|date:"d/m/Y H:i" }}</td>
+                        </tr>
+                        {% endif %}
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Items del Traslado -->
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0"><i class="fas fa-boxes"></i> Items ({{ total_items }})</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Producto</th>
+                        <th>Lote</th>
+                        <th>Cantidad</th>
+                        <th>Ubicación Origen</th>
+                        <th>Ubicación Destino</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr>
+                        <td>{{ item.lote.producto.nombre }}</td>
+                        <td>{{ item.lote.numero_lote }}</td>
+                        <td>{{ item.cantidad }}</td>
+                        <td>{{ item.ubicacion_origen.codigo_ubicacion }}</td>
+                        <td>{{ item.ubicacion_destino.codigo_ubicacion }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4">
+                            <i class="fas fa-inbox"></i> No hay items en este traslado
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Botones de Acción -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="btn-group" role="group">
+                {% if puede_asignar_logistica %}
+                <a href="{% url 'logistica:asignar_logistica_traslado' orden.pk %}" 
+                   class="btn btn-warning">
+                    <i class="fas fa-truck"></i> Asignar Logística
+                </a>
+                {% endif %}
+
+                {% if puede_iniciar_transito %}
+                <form method="post" action="{% url 'logistica:iniciar_transito_traslado' orden.pk %}" 
+                      style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-info">
+                        <i class="fas fa-play"></i> Iniciar Tránsito
+                    </button>
+                </form>
+                {% endif %}
+
+                {% if puede_confirmar_recepcion %}
+                <a href="{% url 'logistica:confirmar_recepcion_traslado' orden.pk %}" 
+                   class="btn btn-success">
+                    <i class="fas fa-check"></i> Confirmar Recepción
+                </a>
+                {% endif %}
+
+                {% if puede_completar %}
+                <a href="{% url 'logistica:completar_traslado' orden.pk %}" 
+                   class="btn btn-primary">
+                    <i class="fas fa-check-double"></i> Completar
+                </a>
+                {% endif %}
+
+                {% if orden.estado != 'completada' and orden.estado != 'cancelada' %}
+                <a href="{% url 'logistica:cancelar_traslado' orden.pk %}" 
+                   class="btn btn-danger">
+                    <i class="fas fa-ban"></i> Cancelar
+                </a>
+                {% endif %}
+
+                <a href="{% url 'logistica:lista_traslados' %}" class="btn btn-secondary">
+                    <i class="fas fa-arrow-left"></i> Volver
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .card {
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    }
+    
+    .table-hover tbody tr:hover {
+        background-color: #f5f5f5;
+    }
+</style>
+{% endblock %}

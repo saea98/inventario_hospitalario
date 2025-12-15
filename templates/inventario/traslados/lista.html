@@ -1,0 +1,186 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Órdenes de Traslado{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Encabezado -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <h2>
+                <i class="fas fa-dolly"></i> Órdenes de Traslado
+            </h2>
+        </div>
+        <div class="col-md-6 text-end">
+            <a href="{% url 'logistica:crear_traslado' %}" class="btn btn-primary btn-lg">
+                <i class="fas fa-plus"></i> Nueva Orden
+            </a>
+        </div>
+    </div>
+
+    <!-- Estadísticas -->
+    <div class="row mb-4">
+        <div class="col-md-2">
+            <div class="card bg-light border-primary">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Creadas</h5>
+                    <h3 class="text-primary">{{ estados_count.creada }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-light border-warning">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Logística</h5>
+                    <h3 class="text-warning">{{ estados_count.logistica_asignada }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-light border-info">
+                <div class="card-body text-center">
+                    <h5 class="card-title">En Tránsito</h5>
+                    <h3 class="text-info">{{ estados_count.en_transito }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-light border-secondary">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Recibidas</h5>
+                    <h3 class="text-secondary">{{ estados_count.recibida }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-2">
+            <div class="card bg-light border-success">
+                <div class="card-body text-center">
+                    <h5 class="card-title">Completadas</h5>
+                    <h3 class="text-success">{{ estados_count.completada }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-4">
+                    <label class="form-label">Búsqueda (Folio)</label>
+                    <input type="text" name="busqueda" class="form-control" 
+                           value="{{ busqueda }}" placeholder="Buscar por folio...">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Estado</label>
+                    <select name="estado" class="form-select">
+                        <option value="">Todos</option>
+                        {% for code, label in estados %}
+                            <option value="{{ code }}" {% if estado_seleccionado == code %}selected{% endif %}>
+                                {{ label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label">Almacén Origen</label>
+                    <select name="almacen_origen" class="form-select">
+                        <option value="">Todos</option>
+                        {% for almacen in almacenes %}
+                            <option value="{{ almacen.id }}" {% if almacen_seleccionado == almacen.id|stringformat:"s" %}selected{% endif %}>
+                                {{ almacen.nombre }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search"></i> Filtrar
+                    </button>
+                    <a href="{% url 'logistica:lista_traslados' %}" class="btn btn-secondary">
+                        <i class="fas fa-redo"></i> Limpiar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tabla de Órdenes -->
+    <div class="card">
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-dark">
+                    <tr>
+                        <th>Folio</th>
+                        <th>Origen</th>
+                        <th>Destino</th>
+                        <th>Estado</th>
+                        <th>Vehículo</th>
+                        <th>Chofer</th>
+                        <th>Creado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for traslado in traslados %}
+                    <tr>
+                        <td>
+                            <strong>{{ traslado.folio }}</strong>
+                        </td>
+                        <td>{{ traslado.almacen_origen.nombre }}</td>
+                        <td>{{ traslado.almacen_destino.nombre }}</td>
+                        <td>
+                            {% if traslado.estado == 'creada' %}
+                                <span class="badge bg-primary">Creada</span>
+                            {% elif traslado.estado == 'logistica_asignada' %}
+                                <span class="badge bg-warning">Logística Asignada</span>
+                            {% elif traslado.estado == 'en_transito' %}
+                                <span class="badge bg-info">En Tránsito</span>
+                            {% elif traslado.estado == 'recibida' %}
+                                <span class="badge bg-secondary">Recibida</span>
+                            {% elif traslado.estado == 'completada' %}
+                                <span class="badge bg-success">Completada</span>
+                            {% elif traslado.estado == 'cancelada' %}
+                                <span class="badge bg-danger">Cancelada</span>
+                            {% endif %}
+                        </td>
+                        <td>{{ traslado.placa_vehiculo|default:"-" }}</td>
+                        <td>{{ traslado.nombre_chofer|default:"-" }}</td>
+                        <td>{{ traslado.fecha_creacion|date:"d/m/Y H:i" }}</td>
+                        <td>
+                            <a href="{% url 'logistica:detalle_traslado' traslado.pk %}" 
+                               class="btn btn-sm btn-info" title="Ver detalles">
+                                <i class="fas fa-eye"></i>
+                            </a>
+                            {% if traslado.estado == 'creada' %}
+                                <a href="{% url 'logistica:editar_traslado' traslado.pk %}" 
+                                   class="btn btn-sm btn-warning" title="Editar">
+                                    <i class="fas fa-edit"></i>
+                                </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted py-4">
+                            <i class="fas fa-inbox"></i> No hay órdenes de traslado
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<style>
+    .card {
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    }
+    
+    .table-hover tbody tr:hover {
+        background-color: #f5f5f5;
+    }
+</style>
+{% endblock %}

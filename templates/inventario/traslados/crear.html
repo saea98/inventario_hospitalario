@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Crear Orden de Traslado{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-plus"></i> Nueva Orden de Traslado
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form method="post" class="needs-validation">
+                        {% csrf_token %}
+                        
+                        {{ form|crispy }}
+                        
+                        <div class="row mt-4">
+                            <div class="col-md-6">
+                                <button type="submit" class="btn btn-primary btn-lg w-100">
+                                    <i class="fas fa-save"></i> Crear Orden
+                                </button>
+                            </div>
+                            <div class="col-md-6">
+                                <a href="{% url 'logistica:lista_traslados' %}" class="btn btn-secondary btn-lg w-100">
+                                    <i class="fas fa-times"></i> Cancelar
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Información -->
+            <div class="alert alert-info mt-4" role="alert">
+                <h5><i class="fas fa-info-circle"></i> Información</h5>
+                <ul class="mb-0">
+                    <li>El folio se generará automáticamente</li>
+                    <li>Selecciona almacén de origen y destino diferentes</li>
+                    <li>Después podrás agregar items y asignar logística</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .card {
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    }
+</style>
+{% endblock %}

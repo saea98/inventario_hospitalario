@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Asignar Logística{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <h4 class="mb-0">
+                        <i class="fas fa-truck"></i> Asignar Logística: {{ orden.folio }}
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <form method="post" class="needs-validation">
+                        {% csrf_token %}
+                        
+                        {{ form|crispy }}
+                        
+                        <div class="row mt-4">
+                            <div class="col-md-6">
+                                <button type="submit" class="btn btn-warning btn-lg w-100">
+                                    <i class="fas fa-save"></i> Asignar
+                                </button>
+                            </div>
+                            <div class="col-md-6">
+                                <a href="{% url 'logistica:detalle_traslado' orden.pk %}" class="btn btn-secondary btn-lg w-100">
+                                    <i class="fas fa-times"></i> Cancelar
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Información de la Orden -->
+            <div class="card mt-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-info-circle"></i> Información de la Orden</h5>
+                </div>
+                <div class="card-body">
+                    <table class="table table-sm">
+                        <tr>
+                            <td><strong>Origen:</strong></td>
+                            <td>{{ orden.almacen_origen.nombre }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Destino:</strong></td>
+                            <td>{{ orden.almacen_destino.nombre }}</td>
+                        </tr>
+                        <tr>
+                            <td><strong>Ruta:</strong></td>
+                            <td>{{ orden.ruta }}</td>
+                        </tr>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .card {
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    }
+</style>
+{% endblock %}
