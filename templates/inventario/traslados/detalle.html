@@ -75,26 +75,26 @@
                     <table class="table table-sm">
                         <tr>
                             <td><strong>Placa Vehículo:</strong></td>
-                            <td>{{ orden.placa_vehiculo|default:"-" }}</td>
+                            <td>{{ orden.vehiculo_placa|default:"-" }}</td>
                         </tr>
                         <tr>
                             <td><strong>Nombre Chofer:</strong></td>
-                            <td>{{ orden.nombre_chofer|default:"-" }}</td>
+                            <td>{{ orden.chofer_nombre|default:"-" }}</td>
                         </tr>
                         <tr>
                             <td><strong>Cédula Chofer:</strong></td>
-                            <td>{{ orden.cedula_chofer|default:"-" }}</td>
+                            <td>{{ orden.chofer_cedula|default:"-" }}</td>
                         </tr>
-                        {% if orden.fecha_inicio_transito %}
+                        {% if orden.fecha_salida %}
                         <tr>
                             <td><strong>Inicio Tránsito:</strong></td>
-                            <td>{{ orden.fecha_inicio_transito|date:"d/m/Y H:i" }}</td>
+                            <td>{{ orden.fecha_salida|date:"d/m/Y H:i" }}</td>
                         </tr>
                         {% endif %}
-                        {% if orden.fecha_recepcion %}
+                        {% if orden.fecha_llegada_real %}
                         <tr>
                             <td><strong>Fecha Recepción:</strong></td>
-                            <td>{{ orden.fecha_recepcion|date:"d/m/Y H:i" }}</td>
+                            <td>{{ orden.fecha_llegada_real|date:"d/m/Y H:i" }}</td>
                         </tr>
                         {% endif %}
                     </table>
