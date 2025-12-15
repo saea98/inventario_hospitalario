@@ -87,9 +87,6 @@ def crear_traslado(request):
             
             orden.save()
             
-            # Registrar movimiento (opcional - solo si hay lotes asociados)
-            # Los movimientos se registran cuando se agregan items
-            
             messages.success(request, f'✓ Orden de traslado creada: {orden.folio}')
             return redirect('logistica:detalle_traslado', pk=orden.pk)
         else:
@@ -137,9 +134,6 @@ def editar_traslado(request, pk):
         if form.is_valid():
             orden = form.save()
             
-            # Registrar movimiento (opcional)
-            # Los movimientos se registran cuando se agregan items
-            
             messages.success(request, '✓ Orden de traslado actualizada')
             return redirect('logistica:detalle_traslado', pk=orden.pk)
     else:
@@ -167,9 +161,6 @@ def asignar_logistica_traslado(request, pk):
             orden.estado = 'logistica_asignada'
             orden.save()
             
-            # Registrar movimiento (opcional)
-            # Los movimientos se registran cuando se agregan items
-            
             # Enviar notificación
             notificaciones.notificar_traslado_logistica_asignada(orden)
             
@@ -195,11 +186,8 @@ def iniciar_transito_traslado(request, pk):
     
     if request.method == 'POST':
         orden.estado = 'en_transito'
-        orden.fecha_inicio_transito = timezone.now()
+        orden.fecha_salida = timezone.now()
         orden.save()
-        
-        # Registrar movimiento (opcional)
-        # Los movimientos se registran cuando se agregan items
         
         # Enviar notificación
         notificaciones.notificar_traslado_iniciado(orden)
@@ -221,12 +209,8 @@ def confirmar_recepcion_traslado(request, pk):
     
     if request.method == 'POST':
         orden.estado = 'recibida'
-        orden.fecha_recepcion = timezone.now()
-        orden.usuario_recepcion = request.user
+        orden.fecha_llegada_real = timezone.now()
         orden.save()
-        
-        # Registrar movimiento (opcional)
-        # Los movimientos se registran cuando se agregan items
         
         # Enviar notificación
         notificaciones.notificar_traslado_recibido(orden)
@@ -248,8 +232,6 @@ def completar_traslado(request, pk):
     
     if request.method == 'POST':
         orden.estado = 'completada'
-        orden.fecha_completacion = timezone.now()
-        orden.usuario_completacion = request.user
         orden.save()
         
         # Actualizar ubicaciones de los lotes trasladados
@@ -291,11 +273,7 @@ def cancelar_traslado(request, pk):
     if request.method == 'POST':
         razon_cancelacion = request.POST.get('razon_cancelacion', '')
         orden.estado = 'cancelada'
-        orden.razon_cancelacion = razon_cancelacion
         orden.save()
-        
-        # Registrar movimiento (opcional)
-        # Los movimientos se registran cuando se agregan items
         
         # Enviar notificación
         notificaciones.notificar_traslado_cancelado(orden)

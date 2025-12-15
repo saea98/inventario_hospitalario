@@ -409,8 +409,8 @@ class ServicioNotificaciones:
         <p><strong>Folio:</strong> {orden.folio}</p>
         <p><strong>Origen:</strong> {orden.almacen_origen.nombre}</p>
         <p><strong>Destino:</strong> {orden.almacen_destino.nombre}</p>
-        <p><strong>Vehículo:</strong> {orden.placa_vehiculo}</p>
-        <p><strong>Chofer:</strong> {orden.nombre_chofer}</p>
+        <p><strong>Vehículo:</strong> {orden.vehiculo_placa}</p>
+        <p><strong>Chofer:</strong> {orden.chofer_nombre}</p>
         <p><strong>Asignado por:</strong> {orden.usuario_creacion.get_full_name() or orden.usuario_creacion.username}</p>
         """
         
@@ -420,8 +420,8 @@ class ServicioNotificaciones:
 *Folio:* {orden.folio}
 *Origen:* {orden.almacen_origen.nombre}
 *Destino:* {orden.almacen_destino.nombre}
-*Vehículo:* {orden.placa_vehiculo}
-*Chofer:* {orden.nombre_chofer}"""
+*Vehículo:* {orden.vehiculo_placa}
+*Chofer:* {orden.chofer_nombre}"""
         
         return self.enviar_notificacion(
             asunto=asunto,
