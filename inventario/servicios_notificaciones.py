@@ -540,7 +540,6 @@ class ServicioNotificaciones:
         <p><strong>Folio:</strong> {orden.folio}</p>
         <p><strong>Origen:</strong> {orden.almacen_origen.nombre}</p>
         <p><strong>Destino:</strong> {orden.almacen_destino.nombre}</p>
-        <p><strong>Razón:</strong> {orden.razon_cancelacion}</p>
         """
         
         mensaje_telegram = f"""*✗ Traslado Cancelado*
@@ -548,7 +547,6 @@ class ServicioNotificaciones:
 *Folio:* {orden.folio}
 *Origen:* {orden.almacen_origen.nombre}
 *Destino:* {orden.almacen_destino.nombre}
-*Razón:* {orden.razon_cancelacion}"""
         
         return self.enviar_notificacion(
             asunto=asunto,
