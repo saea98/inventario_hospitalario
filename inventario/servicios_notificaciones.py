@@ -394,5 +394,61 @@ class ServicioNotificaciones:
         )
 
 
+
+    def notificar_traslado_logistica_asignada(self, orden):
+        """Notificar cuando se asigna logística a un traslado"""
+        asunto = f"Logística Asignada: {orden.folio}"
+        mensaje = f"Se ha asignado logística a la orden {orden.folio}"
+        return self.enviar_notificacion(
+            asunto=asunto,
+            mensaje=mensaje,
+            evento='traslado_logistica_asignada',
+            usuario=orden.usuario_creacion
+        )
+    
+    def notificar_traslado_iniciado(self, orden):
+        """Notificar cuando un traslado inicia"""
+        asunto = f"Traslado Iniciado: {orden.folio}"
+        mensaje = f"El traslado {orden.folio} ha iniciado"
+        return self.enviar_notificacion(
+            asunto=asunto,
+            mensaje=mensaje,
+            evento='traslado_iniciado',
+            usuario=orden.usuario_creacion
+        )
+    
+    def notificar_traslado_recibido(self, orden):
+        """Notificar cuando se recibe un traslado"""
+        asunto = f"Traslado Recibido: {orden.folio}"
+        mensaje = f"El traslado {orden.folio} ha sido recibido"
+        return self.enviar_notificacion(
+            asunto=asunto,
+            mensaje=mensaje,
+            evento='traslado_recibido',
+            usuario=orden.usuario_creacion
+        )
+    
+    def notificar_traslado_completado(self, orden):
+        """Notificar cuando un traslado se completa"""
+        asunto = f"Traslado Completado: {orden.folio}"
+        mensaje = f"El traslado {orden.folio} ha sido completado"
+        return self.enviar_notificacion(
+            asunto=asunto,
+            mensaje=mensaje,
+            evento='traslado_completado',
+            usuario=orden.usuario_creacion
+        )
+    
+    def notificar_traslado_cancelado(self, orden):
+        """Notificar cuando un traslado es cancelado"""
+        asunto = f"Traslado Cancelado: {orden.folio}"
+        mensaje = f"El traslado {orden.folio} ha sido cancelado"
+        return self.enviar_notificacion(
+            asunto=asunto,
+            mensaje=mensaje,
+            evento='traslado_cancelado',
+            usuario=orden.usuario_creacion
+        )
+
 # Instancia global del servicio
 notificaciones = ServicioNotificaciones()
