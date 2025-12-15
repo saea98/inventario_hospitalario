@@ -1,6 +1,6 @@
-# Generated migration for adding razon_cancelacion field
+# Generated migration using SQL for adding razon_cancelacion field
 
-from django.db import migrations, models
+from django.db import migrations
 
 
 class Migration(migrations.Migration):
@@ -10,9 +10,8 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
-        migrations.AddField(
-            model_name='ordentrasla do',
-            name='razon_cancelacion',
-            field=models.TextField(blank=True, null=True, verbose_name='Razón de Cancelación'),
+        migrations.RunSQL(
+            sql="ALTER TABLE inventario_ordentrasla do ADD COLUMN razon_cancelacion TEXT NULL;",
+            reverse_sql="ALTER TABLE inventario_ordentrasla do DROP COLUMN razon_cancelacion;",
         ),
     ]
