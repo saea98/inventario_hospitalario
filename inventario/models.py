@@ -847,11 +847,6 @@ class OrdenTraslado(models.Model):
         verbose_name="Estado"
     )
     
-    razon_cancelacion = models.TextField(
-        blank=True,
-        null=True,
-        verbose_name="Razón de Cancelación"
-    )
     
     usuario_creacion = models.ForeignKey(
         User,

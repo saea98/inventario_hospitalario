@@ -271,7 +271,7 @@ def cancelar_traslado(request, pk):
         return redirect('logistica:detalle_traslado', pk=pk)
     
     if request.method == 'POST':
-        razon_cancelacion = request.POST.get('razon_cancelacion', '')
+        #razon_cancelacion = request.POST.get('razon_cancelacion', '')
         orden.estado = 'cancelada'
         orden.save()
         
