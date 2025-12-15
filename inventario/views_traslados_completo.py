@@ -201,7 +201,7 @@ def asignar_logistica_traslado(request, pk):
 
 @login_required
 def iniciar_transito_traslado(request, pk):
-    """Marcar una orden como "en tránsito""""
+    """Marcar una orden como en tránsito"""
     orden = get_object_or_404(OrdenTraslado, pk=pk)
     
     if orden.estado != 'logistica_asignada':
