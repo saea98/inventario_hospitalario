@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+{% block title %}Crear Conteo Físico{% endblock %}
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <h2><i class="fas fa-plus"></i> Crear Conteo Físico</h2>
+            <hr>
+            
+            <form method="post" class="needs-validation">
+                {% csrf_token %}
+                {{ form|crispy }}
+                
+                <div class="mt-4">
+                    <button type="submit" class="btn btn-primary btn-lg">
+                        <i class="fas fa-save"></i> Crear Conteo
+                    </button>
+                    <a href="{% url 'logistica:lista_conteos' %}" class="btn btn-secondary btn-lg">
+                        <i class="fas fa-times"></i> Cancelar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -4,7 +4,7 @@ Incluye: Citas, Traslados y Conteo Físico
 """
 
 from django.urls import path
-from . import views_fase2, views_telegram_test, views_traslados_completo
+from . import views_fase2, views_telegram_test, views_traslados_completo, views_conteo_fisico
 
 app_name = 'logistica'
 
@@ -45,4 +45,15 @@ urlpatterns = [
     # ========================================================================
     path('test-telegram/', views_telegram_test.test_telegram, name='test_telegram'),
     path('api/telegram/chat-id/', views_telegram_test.obtener_chat_id_desde_updates, name='api_telegram_chat_id'),
+
+    # Conteo Físico
+    path('conteos/', views_conteo_fisico.lista_conteos, name='lista_conteos'),
+    path('conteos/crear/', views_conteo_fisico.crear_conteo, name='crear_conteo'),
+    path('conteos/<int:pk>/', views_conteo_fisico.detalle_conteo, name='detalle_conteo'),
+    path('conteos/<int:pk>/iniciar/', views_conteo_fisico.iniciar_conteo, name='iniciar_conteo'),
+    path('conteos/<int:conteo_id>/capturar/', views_conteo_fisico.capturar_item, name='capturar_item'),
+    path('conteos/<int:pk>/completar/', views_conteo_fisico.completar_conteo, name='completar_conteo'),
+    path('conteos/<int:pk>/cancelar/', views_conteo_fisico.cancelar_conteo, name='cancelar_conteo'),
+    path('conteos/item/<int:item_id>/eliminar/', views_conteo_fisico.eliminar_item_conteo, name='eliminar_item_conteo'),
+
 ]

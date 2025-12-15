@@ -450,5 +450,17 @@ class ServicioNotificaciones:
             usuario=orden.usuario_creacion
         )
 
+
+    def notificar_conteo_completado(self, conteo):
+        """Notificar cuando un conteo físico se completa"""
+        asunto = f"Conteo Físico Completado: {conteo.folio}"
+        mensaje = f"El conteo físico {conteo.folio} ha sido completado"
+        return self.enviar_notificacion(
+            asunto=asunto,
+            mensaje=mensaje,
+            evento='conteo_completado',
+            usuario=conteo.usuario_creacion
+        )
+
 # Instancia global del servicio
 notificaciones = ServicioNotificaciones()
