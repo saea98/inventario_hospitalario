@@ -309,7 +309,7 @@ def lista_conteos(request):
         'estado_seleccionado': estado,
         'almacen_seleccionado': almacen,
     }
-    return render(request, 'inventario/conteo/lista.html', context)
+    return render(request, 'inventario/conteo_fisico/lista.html', context)
 
 
 @login_required
@@ -346,7 +346,7 @@ def iniciar_conteo(request):
     
     almacenes = Almacen.objects.all()
     context = {'almacenes': almacenes}
-    return render(request, 'inventario/conteo/iniciar.html', context)
+    return render(request, 'inventario/conteo_fisico/iniciar.html', context)
 
 
 @login_required
@@ -366,7 +366,7 @@ def capturar_conteo(request, pk):
         'items': items,
         'lotes_disponibles': lotes_disponibles,
     }
-    return render(request, 'inventario/conteo/capturar.html', context)
+    return render(request, 'inventario/conteo_fisico/capturar.html', context)
 
 
 @login_required
@@ -387,4 +387,4 @@ def detalle_conteo(request, pk):
         'total_fisico': total_fisico,
         'diferencia_total': diferencia_total,
     }
-    return render(request, 'inventario/conteo/detalle.html', context)
+    return render(request, 'inventario/conteo_fisico/detalle.html', context)

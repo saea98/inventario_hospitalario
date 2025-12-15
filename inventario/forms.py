@@ -773,3 +773,26 @@ class LogisticaTrasladoForm(forms.ModelForm):
                 )
         
         return cleaned_data
+
+
+class ConteoFisicoForm(forms.ModelForm):
+    """Formulario para crear/editar sesiones de conteo físico"""
+    class Meta:
+        model = ConteoFisico
+        fields = ['almacen', 'observaciones']
+        widgets = {
+            'observaciones': forms.Textarea(attrs={'rows': 3}),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.form_method = 'post'
+        self.helper.layout = Layout(
+            Row(
+                Column('almacen', css_class='form-group col-md-6 mb-3'),
+                css_class='form-row'
+            ),
+            'observaciones',
+            Submit('submit', '✓ Crear Conteo', css_class='btn btn-primary')
+        )
