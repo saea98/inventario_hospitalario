@@ -87,13 +87,8 @@ def crear_traslado(request):
             
             orden.save()
             
-            # Registrar movimiento
-            MovimientoInventario.objects.create(
-                tipo='traslado',
-                descripcion=f'Orden de traslado creada: {orden.folio}',
-                usuario=request.user,
-                referencia_externa=orden.folio
-            )
+            # Registrar movimiento (opcional - solo si hay lotes asociados)
+            # Los movimientos se registran cuando se agregan items
             
             messages.success(request, f'✓ Orden de traslado creada: {orden.folio}')
             return redirect('logistica:detalle_traslado', pk=orden.pk)
@@ -142,13 +137,8 @@ def editar_traslado(request, pk):
         if form.is_valid():
             orden = form.save()
             
-            # Registrar movimiento
-            MovimientoInventario.objects.create(
-                tipo='traslado',
-                descripcion=f'Orden de traslado editada: {orden.folio}',
-                usuario=request.user,
-                referencia_externa=orden.folio
-            )
+            # Registrar movimiento (opcional)
+            # Los movimientos se registran cuando se agregan items
             
             messages.success(request, '✓ Orden de traslado actualizada')
             return redirect('logistica:detalle_traslado', pk=orden.pk)
@@ -177,13 +167,8 @@ def asignar_logistica_traslado(request, pk):
             orden.estado = 'logistica_asignada'
             orden.save()
             
-            # Registrar movimiento
-            MovimientoInventario.objects.create(
-                tipo='traslado',
-                descripcion=f'Logística asignada a traslado: {orden.folio} - Vehículo: {orden.placa_vehiculo}',
-                usuario=request.user,
-                referencia_externa=orden.folio
-            )
+            # Registrar movimiento (opcional)
+            # Los movimientos se registran cuando se agregan items
             
             # Enviar notificación
             notificaciones.notificar_traslado_logistica_asignada(orden)
@@ -213,13 +198,8 @@ def iniciar_transito_traslado(request, pk):
         orden.fecha_inicio_transito = timezone.now()
         orden.save()
         
-        # Registrar movimiento
-        MovimientoInventario.objects.create(
-            tipo='traslado',
-            descripcion=f'Traslado iniciado: {orden.folio}',
-            usuario=request.user,
-            referencia_externa=orden.folio
-        )
+        # Registrar movimiento (opcional)
+        # Los movimientos se registran cuando se agregan items
         
         # Enviar notificación
         notificaciones.notificar_traslado_iniciado(orden)
@@ -245,13 +225,8 @@ def confirmar_recepcion_traslado(request, pk):
         orden.usuario_recepcion = request.user
         orden.save()
         
-        # Registrar movimiento
-        MovimientoInventario.objects.create(
-            tipo='traslado',
-            descripcion=f'Traslado recibido: {orden.folio}',
-            usuario=request.user,
-            referencia_externa=orden.folio
-        )
+        # Registrar movimiento (opcional)
+        # Los movimientos se registran cuando se agregan items
         
         # Enviar notificación
         notificaciones.notificar_traslado_recibido(orden)
@@ -284,20 +259,15 @@ def completar_traslado(request, pk):
             
             # Registrar movimiento de actualización de ubicación
             MovimientoInventario.objects.create(
-                tipo='traslado',
-                descripcion=f'Ubicación actualizada por traslado: {orden.folio}',
                 lote=item.lote,
-                usuario=request.user,
-                referencia_externa=orden.folio
+                tipo_movimiento='TRANSFERENCIA_ENTRADA',
+                cantidad=item.cantidad,
+                cantidad_anterior=item.cantidad,
+                cantidad_nueva=item.cantidad,
+                motivo=f'Traslado completado: {orden.folio}',
+                folio=orden.folio,
+                usuario=request.user
             )
-        
-        # Registrar movimiento
-        MovimientoInventario.objects.create(
-            tipo='traslado',
-            descripcion=f'Traslado completado: {orden.folio}',
-            usuario=request.user,
-            referencia_externa=orden.folio
-        )
         
         # Enviar notificación
         notificaciones.notificar_traslado_completado(orden)
@@ -324,13 +294,8 @@ def cancelar_traslado(request, pk):
         orden.razon_cancelacion = razon_cancelacion
         orden.save()
         
-        # Registrar movimiento
-        MovimientoInventario.objects.create(
-            tipo='traslado',
-            descripcion=f'Traslado cancelado: {orden.folio} - Razón: {razon_cancelacion}',
-            usuario=request.user,
-            referencia_externa=orden.folio
-        )
+        # Registrar movimiento (opcional)
+        # Los movimientos se registran cuando se agregan items
         
         # Enviar notificación
         notificaciones.notificar_traslado_cancelado(orden)
