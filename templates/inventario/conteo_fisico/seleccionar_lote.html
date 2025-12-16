@@ -1,0 +1,135 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Conteo Físico - Seleccionar Lote{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-lg-8 offset-lg-2">
+            <!-- Encabezado -->
+            <div class="card border-info mb-4">
+                <div class="card-header bg-info text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-list"></i> Seleccionar Lote para Conteo
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-0">
+                        <strong>Se encontraron múltiples lotes</strong> para la CLAVE seleccionada. 
+                        Por favor, seleccione el lote específico que desea contar.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Información de búsqueda -->
+            <div class="card mb-4 bg-light">
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted">CLAVE (CNIS)</label>
+                            <h5><code>{{ clave_cnis }}</code></h5>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted">ALMACÉN</label>
+                            <h5>{{ almacen.nombre }}</h5>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Formulario de selección -->
+            <form method="post" class="needs-validation" novalidate>
+                {% csrf_token %}
+                
+                <div class="card shadow-sm">
+                    <div class="card-body p-4">
+                        <div class="mb-4">
+                            <label class="form-label fw-bold">
+                                <i class="fas fa-box"></i> Seleccione el Lote *
+                            </label>
+                            
+                            <div class="list-group">
+                                {% for lote in lotes %}
+                                    <label class="list-group-item">
+                                        <input 
+                                            class="form-check-input me-3" 
+                                            type="radio" 
+                                            name="lote_id" 
+                                            value="{{ lote.id }}"
+                                            required
+                                        >
+                                        <div class="d-flex justify-content-between align-items-start w-100">
+                                            <div>
+                                                <h6 class="mb-1">
+                                                    Lote: <strong>{{ lote.numero_lote }}</strong>
+                                                </h6>
+                                                <div class="row small text-muted">
+                                                    <div class="col-md-6">
+                                                        <i class="fas fa-cubes"></i> 
+                                                        Cantidad Sistema: <strong>{{ lote.cantidad_disponible }}</strong>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <i class="fas fa-dollar-sign"></i> 
+                                                        Precio: <strong>${{ lote.precio_unitario|floatformat:2 }}</strong>
+                                                    </div>
+                                                </div>
+                                                <div class="row small text-muted mt-2">
+                                                    <div class="col-md-6">
+                                                        <i class="fas fa-calendar"></i> 
+                                                        Caducidad: <strong>
+                                                            {% if lote.fecha_caducidad %}
+                                                                {{ lote.fecha_caducidad|date:"d/m/Y" }}
+                                                            {% else %}
+                                                                No especificada
+                                                            {% endif %}
+                                                        </strong>
+                                                    </div>
+                                                    <div class="col-md-6">
+                                                        <i class="fas fa-map-marker-alt"></i> 
+                                                        Ubicación: <strong>{{ lote.ubicacion|default:"No especificada" }}</strong>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            <div class="text-end">
+                                                <span class="badge bg-primary">
+                                                    Valor: ${{ lote.valor_total|floatformat:2 }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                    </label>
+                                {% endfor %}
+                            </div>
+                        </div>
+
+                        <!-- Botones -->
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end mt-4">
+                            <a href="{% url 'logistica:buscar_lote_conteo' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Atrás
+                            </a>
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-check"></i> Seleccionar Lote
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+
+<style>
+    .list-group-item {
+        cursor: pointer;
+        transition: all 0.3s ease;
+    }
+    
+    .list-group-item:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .list-group-item input[type="radio"]:checked ~ * {
+        font-weight: bold;
+    }
+</style>
+{% endblock %}

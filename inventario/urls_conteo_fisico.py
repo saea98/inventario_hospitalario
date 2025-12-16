@@ -16,6 +16,9 @@ urlpatterns = [
     # Búsqueda de lote por CLAVE
     path('buscar/', views_conteo_fisico_v2.buscar_lote_conteo, name='buscar_lote'),
     
+    # Seleccionar lote cuando hay múltiples
+    path('seleccionar/', views_conteo_fisico_v2.seleccionar_lote_conteo, name='seleccionar_lote'),
+    
     # Capturar conteos de un lote específico
     path('lotes/<int:lote_id>/capturar/', views_conteo_fisico_v2.capturar_conteo_lote, name='capturar_conteo'),
     
