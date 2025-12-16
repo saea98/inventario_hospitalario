@@ -1,0 +1,115 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Conteo Físico - Buscar Lote{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-lg-8 offset-lg-2">
+            <!-- Encabezado -->
+            <div class="card border-primary mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-search"></i> Búsqueda de Lote para Conteo Físico
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted mb-0">
+                        <strong>Instrucciones:</strong> Ingrese la CLAVE (CNIS) del producto y seleccione el almacén 
+                        para buscar el lote. Si el lote existe, podrá capturar los conteos. 
+                        Si no existe, tendrá la opción de crear uno nuevo.
+                    </p>
+                </div>
+            </div>
+
+            <!-- Formulario de búsqueda -->
+            <div class="card shadow-sm">
+                <div class="card-body p-4">
+                    <form method="post" class="needs-validation" novalidate>
+                        {% csrf_token %}
+
+                        <!-- CLAVE CNIS -->
+                        <div class="mb-4">
+                            <label for="{{ form.clave_cnis.id_for_label }}" class="form-label fw-bold">
+                                <i class="fas fa-barcode"></i> CLAVE (CNIS) *
+                            </label>
+                            {{ form.clave_cnis }}
+                            {% if form.clave_cnis.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.clave_cnis.errors.0 }}
+                                </div>
+                            {% endif %}
+                            <small class="form-text text-muted d-block mt-2">
+                                Ejemplo: 010.000.0104.00
+                            </small>
+                        </div>
+
+                        <!-- Almacén -->
+                        <div class="mb-4">
+                            <label for="{{ form.almacen.id_for_label }}" class="form-label fw-bold">
+                                <i class="fas fa-warehouse"></i> Almacén *
+                            </label>
+                            {{ form.almacen }}
+                            {% if form.almacen.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.almacen.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Botones -->
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{% url 'logistica:lista_lotes_conteo' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Atrás
+                            </a>
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-search"></i> Buscar Lote
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Mensaje de error si existe -->
+            {% if error %}
+                <div class="alert alert-warning alert-dismissible fade show mt-4" role="alert">
+                    <i class="fas fa-exclamation-triangle"></i> <strong>Lote no encontrado</strong>
+                    <p class="mb-0 mt-2">{{ error }}</p>
+                    <p class="mb-0 mt-2">
+                        <a href="{% url 'logistica:crear_lote_conteo' %}" class="alert-link">
+                            ¿Desea crear un nuevo lote?
+                        </a>
+                    </p>
+                    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+                </div>
+            {% endif %}
+
+            <!-- Información adicional -->
+            <div class="card mt-4 bg-light">
+                <div class="card-body">
+                    <h6 class="card-title">
+                        <i class="fas fa-info-circle"></i> ¿Qué es el Conteo Físico?
+                    </h6>
+                    <p class="card-text small mb-0">
+                        El conteo físico es el proceso de validar las existencias actuales en el almacén 
+                        contra lo que está registrado en el sistema. Se capturan tres conteos para asegurar 
+                        la precisión: el tercer conteo es el que se usa como nueva existencia.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .form-control-lg, .form-select-lg {
+        font-size: 1.1rem;
+        padding: 0.75rem 1rem;
+    }
+    
+    .card-header {
+        border-radius: 0.375rem 0.375rem 0 0;
+    }
+</style>
+{% endblock %}
