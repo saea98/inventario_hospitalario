@@ -23,7 +23,7 @@
                         </div>
                         <div class="col-md-6">
                             <label class="form-label small text-muted">FECHA Y HORA</label>
-                            <h5>{{ movimiento.fecha_creacion|date:"d/m/Y H:i" }}</h5>
+                            <h5>{{ movimiento.fecha_movimiento|date:"d/m/Y H:i" }}</h5>
                         </div>
                     </div>
 
@@ -169,11 +169,17 @@
                     <div class="row">
                         <div class="col-md-6">
                             <label class="form-label small text-muted">USUARIO</label>
-                            <p class="h6">{{ movimiento.usuario_creacion.first_name }} {{ movimiento.usuario_creacion.last_name }}</p>
+                            <p class="h6">
+                                {% if movimiento.usuario.first_name or movimiento.usuario.last_name %}
+                                    {{ movimiento.usuario.first_name }} {{ movimiento.usuario.last_name }}
+                                {% else %}
+                                    {{ movimiento.usuario.username }}
+                                {% endif %}
+                            </p>
                         </div>
                         <div class="col-md-6">
                             <label class="form-label small text-muted">FECHA DE CREACIÓN</label>
-                            <p class="h6">{{ movimiento.fecha_creacion|date:"d/m/Y H:i:s" }}</p>
+                            <p class="h6">{{ movimiento.fecha_movimiento|date:"d/m/Y H:i:s" }}</p>
                         </div>
                     </div>
                 </div>
