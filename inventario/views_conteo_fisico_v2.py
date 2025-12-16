@@ -283,7 +283,7 @@ def historial_conteos(request):
     # Obtener movimientos de conteo
     movimientos = MovimientoInventario.objects.filter(
         tipo_movimiento='AJUSTE_CONTEO'
-    ).select_related('lote', 'lote__producto', 'lote__almacen', 'usuario_creacion')
+    ).select_related('lote', 'lote__producto', 'lote__almacen', 'usuario')
     
     if institucion:
         movimientos = movimientos.filter(lote__almacen__institucion=institucion)
@@ -309,19 +309,19 @@ def historial_conteos(request):
         
         if fecha_desde:
             fecha_desde_obj = datetime.strptime(fecha_desde, '%Y-%m-%d').date()
-            movimientos = movimientos.filter(fecha_creacion__date__gte=fecha_desde_obj)
+            movimientos = movimientos.filter(fecha_movimiento__date__gte=fecha_desde_obj)
         
         if fecha_hasta:
             fecha_hasta_obj = datetime.strptime(fecha_hasta, '%Y-%m-%d').date()
-            movimientos = movimientos.filter(fecha_creacion__date__lte=fecha_hasta_obj)
+            movimientos = movimientos.filter(fecha_movimiento__date__lte=fecha_hasta_obj)
     
     # Ordenar por fecha descendente
-    movimientos = movimientos.order_by('-fecha_creacion')
+    movimientos = movimientos.order_by('-fecha_movimiento')
     
     # Estadísticas
     total_conteos = movimientos.count()
-    total_diferencias = sum(abs(m.diferencia) for m in movimientos)
-    conteos_con_diferencia = movimientos.exclude(diferencia=0).count()
+    total_diferencias = sum(abs((m.cantidad_nueva or 0) - (m.cantidad_anterior or 0)) for m in movimientos)
+    conteos_con_diferencia = sum(1 for m in movimientos if (m.cantidad_nueva or 0) != (m.cantidad_anterior or 0))
     
     contexto = {
         'movimientos': movimientos,
@@ -330,7 +330,7 @@ def historial_conteos(request):
             'total': total_conteos,
             'con_diferencia': conteos_con_diferencia,
             'total_diferencias': total_diferencias,
-        }
+        },
     }
     
     return render(request, 'inventario/conteo_fisico/historial_conteos.html', contexto)
