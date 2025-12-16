@@ -80,17 +80,23 @@ def buscar_lote_conteo(request):
                 return redirect('logistica:crear_lote_conteo')
             
             except Lote.MultipleObjectsReturned:
-                # Múltiples lotes encontrados - Mostrar lista
+                # Múltiples lotes encontrados - Usar el primero
                 lotes = Lote.objects.filter(
                     producto__clave_cnis=clave_cnis,
                     almacen=almacen
-                )
+                ).order_by('numero_lote')
                 
-                return render(request, 'inventario/conteo_fisico/lista.html', {
-                    'lotes': lotes,
-                    'clave_cnis': clave_cnis,
-                    'almacen': almacen
-                })
+                if lotes.exists():
+                    primer_lote = lotes.first()
+                    return redirect(
+                        'logistica:capturar_conteo_lote',
+                        lote_id=primer_lote.id
+                    )
+                else:
+                    error = f"No se encontró lote con CLAVE: {clave_cnis}"
+                    request.session['clave_cnis_busqueda'] = clave_cnis
+                    request.session['almacen_id_busqueda'] = almacen.id
+                    return redirect('logistica:crear_lote_conteo')
     
     return render(request, 'inventario/conteo_fisico/buscar_lote.html', {
         'form': form,
