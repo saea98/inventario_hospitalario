@@ -40,7 +40,7 @@ class BuscarLoteForm(forms.Form):
         })
     )
     
-    def __init__(self, institucion=None, *args, **kwargs):
+    def __init__(self, *args, institucion=None, **kwargs):
         super().__init__(*args, **kwargs)
         
         if institucion:
@@ -226,7 +226,7 @@ class FiltroConteosForm(forms.Form):
         })
     )
     
-    def __init__(self, institucion=None, *args, **kwargs):
+    def __init__(self, *args, institucion=None, **kwargs):
         super().__init__(*args, **kwargs)
         
         if institucion:
