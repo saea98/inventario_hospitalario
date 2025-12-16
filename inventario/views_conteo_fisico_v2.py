@@ -281,8 +281,10 @@ def historial_conteos(request):
     institucion = request.user.institucion if hasattr(request.user, 'institucion') else None
     
     # Obtener movimientos de conteo
+    # Filtrar por tipos de ajuste (AJUSTE_POSITIVO o AJUSTE_NEGATIVO)
+    from django.db.models import Q
     movimientos = MovimientoInventario.objects.filter(
-        tipo_movimiento='AJUSTE_CONTEO'
+        Q(tipo_movimiento='AJUSTE_POSITIVO') | Q(tipo_movimiento='AJUSTE_NEGATIVO')
     ).select_related('lote', 'lote__producto', 'lote__almacen', 'usuario')
     
     if institucion:
