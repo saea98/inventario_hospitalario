@@ -353,14 +353,16 @@ def detalle_movimiento_conteo(request, movimiento_id):
     producto = lote.producto
     
     # Calcular importes
+    diferencia = (movimiento.cantidad_nueva or 0) - (movimiento.cantidad_anterior or 0)
     importe_anterior = (movimiento.cantidad_anterior or 0) * (lote.precio_unitario or 0)
     importe_nueva = (movimiento.cantidad_nueva or 0) * (lote.precio_unitario or 0)
-    importe_diferencia = (movimiento.diferencia or 0) * (lote.precio_unitario or 0)
+    importe_diferencia = diferencia * (lote.precio_unitario or 0)
     
     contexto = {
         'movimiento': movimiento,
         'lote': lote,
         'producto': producto,
+        'diferencia': diferencia,
         'importe_anterior': importe_anterior,
         'importe_nueva': importe_nueva,
         'importe_diferencia': importe_diferencia,
