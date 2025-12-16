@@ -15,6 +15,14 @@ from django.conf import settings
 
 class User(AbstractUser):
     clue = models.CharField(max_length=50, null=True, blank=True)
+    almacen = models.ForeignKey(
+        'Almacen',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='usuarios',
+        verbose_name='Almacén Asignado'
+    )
 
     def __str__(self):
         return self.username

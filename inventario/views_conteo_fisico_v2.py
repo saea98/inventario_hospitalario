@@ -45,7 +45,16 @@ def buscar_lote_conteo(request):
     """
     
     institucion = request.user.institucion if hasattr(request.user, 'institucion') else None
-    form = BuscarLoteForm(institucion=institucion)
+    almacen_defecto = request.user.almacen if hasattr(request.user, 'almacen') else None
+    
+    # Si es GET, pre-cargar el almacén del usuario
+    if request.method == 'GET':
+        form = BuscarLoteForm(institucion=institucion)
+        if almacen_defecto:
+            form.fields['almacen'].initial = almacen_defecto
+    else:
+        form = BuscarLoteForm(institucion=institucion)
+    
     lote_encontrado = None
     error = None
     
@@ -80,18 +89,17 @@ def buscar_lote_conteo(request):
                 return redirect('logistica:crear_lote_conteo')
             
             except Lote.MultipleObjectsReturned:
-                # Múltiples lotes encontrados - Usar el primero
+                # Múltiples lotes encontrados - Mostrar lista para seleccionar
                 lotes = Lote.objects.filter(
                     producto__clave_cnis=clave_cnis,
                     almacen=almacen
                 ).order_by('numero_lote')
                 
                 if lotes.exists():
-                    primer_lote = lotes.first()
-                    return redirect(
-                        'logistica:capturar_conteo_lote',
-                        lote_id=primer_lote.id
-                    )
+                    # Guardar datos en sesión y redirigir a selección de lote
+                    request.session['clave_cnis_busqueda'] = clave_cnis
+                    request.session['almacen_id_busqueda'] = almacen.id
+                    return redirect('logistica:seleccionar_lote_conteo')
                 else:
                     error = f"No se encontró lote con CLAVE: {clave_cnis}"
                     request.session['clave_cnis_busqueda'] = clave_cnis
@@ -421,3 +429,61 @@ def api_obtener_lote_info(request):
             'multiples': True,
             'lotes': list(lotes)
         })
+
+
+
+@login_required
+def seleccionar_lote_conteo(request):
+    """
+    Vista para seleccionar un lote específico cuando hay múltiples lotes
+    para la misma CLAVE en el almacén.
+    
+    GET: Mostrar lista de lotes disponibles
+    POST: Seleccionar lote y redirigir a captura de conteos
+    """
+    
+    clave_cnis = request.session.get('clave_cnis_busqueda')
+    almacen_id = request.session.get('almacen_id_busqueda')
+    
+    if not clave_cnis or not almacen_id:
+        messages.error(request, 'Sesión expirada. Por favor, realice la búsqueda nuevamente.')
+        return redirect('logistica:buscar_lote_conteo')
+    
+    # Obtener todos los lotes para esta CLAVE y almacén
+    lotes = Lote.objects.filter(
+        producto__clave_cnis=clave_cnis,
+        almacen_id=almacen_id
+    ).select_related('producto', 'almacen', 'ubicacion').order_by('numero_lote')
+    
+    if not lotes.exists():
+        messages.error(request, f'No se encontraron lotes con CLAVE: {clave_cnis}')
+        return redirect('logistica:buscar_lote_conteo')
+    
+    if request.method == 'POST':
+        lote_id = request.POST.get('lote_id')
+        
+        if not lote_id:
+            messages.error(request, 'Por favor, seleccione un lote.')
+            return redirect('logistica:seleccionar_lote_conteo')
+        
+        try:
+            lote = Lote.objects.get(id=lote_id, almacen_id=almacen_id)
+            # Limpiar sesión
+            del request.session['clave_cnis_busqueda']
+            del request.session['almacen_id_busqueda']
+            
+            return redirect(
+                'logistica:capturar_conteo_lote',
+                lote_id=lote.id
+            )
+        except Lote.DoesNotExist:
+            messages.error(request, 'Lote no encontrado.')
+            return redirect('logistica:seleccionar_lote_conteo')
+    
+    contexto = {
+        'lotes': lotes,
+        'clave_cnis': clave_cnis,
+        'almacen': Almacen.objects.get(id=almacen_id),
+    }
+    
+    return render(request, 'inventario/conteo_fisico/seleccionar_lote.html', contexto)
