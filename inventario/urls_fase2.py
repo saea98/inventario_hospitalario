@@ -39,6 +39,9 @@ urlpatterns = [
     # Búsqueda de lote por CLAVE (CNIS)
     path('conteos/buscar/', views_conteo_fisico_v2.buscar_lote_conteo, name='buscar_lote_conteo'),
     
+    # Seleccionar lote cuando hay múltiples
+    path('conteos/seleccionar/', views_conteo_fisico_v2.seleccionar_lote_conteo, name='seleccionar_lote_conteo'),
+    
     # Capturar conteos de un lote específico
     path('conteos/lotes/<int:lote_id>/capturar/', views_conteo_fisico_v2.capturar_conteo_lote, name='capturar_conteo_lote'),
     
