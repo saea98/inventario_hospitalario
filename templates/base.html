@@ -222,9 +222,6 @@
                                 <li class="nav-item">
                                     <a class="nav-link submenu-item {% if 'traslado' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'logistica:lista_traslados' %}">
                                         <i class="fas fa-truck me-2"></i>Traslados
-                                <a href="{% url "logistica:lista_conteos" %}" class="dropdown-item">
-                                    <i class="fas fa-clipboard-check"></i> Conteo Físico
-                                </a>
                                     </a>
                                 </li>
                                 <li class="nav-item">
