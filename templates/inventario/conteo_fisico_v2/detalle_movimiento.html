@@ -1,0 +1,247 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Conteo Físico - Detalle del Movimiento{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <!-- Información del Movimiento -->
+        <div class="col-lg-8">
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-check-circle"></i> Conteo Completado
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- Folio y Fecha -->
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted">FOLIO</label>
+                            <h5>{{ movimiento.folio }}</h5>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted">FECHA Y HORA</label>
+                            <h5>{{ movimiento.fecha_creacion|date:"d/m/Y H:i" }}</h5>
+                        </div>
+                    </div>
+
+                    <!-- Información del Producto -->
+                    <hr>
+                    <h6 class="mb-3">
+                        <i class="fas fa-cube"></i> Información del Producto
+                    </h6>
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted">CLAVE (CNIS)</label>
+                            <p class="h6"><code>{{ producto.clave_cnis }}</code></p>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted">DESCRIPCIÓN</label>
+                            <p class="h6">{{ producto.nombre }}</p>
+                        </div>
+                    </div>
+
+                    <!-- Información del Lote -->
+                    <hr>
+                    <h6 class="mb-3">
+                        <i class="fas fa-box"></i> Información del Lote
+                    </h6>
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted">NÚMERO DE LOTE</label>
+                            <p class="h6">{{ lote.numero_lote }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted">ALMACÉN</label>
+                            <p class="h6">{{ lote.almacen.nombre }}</p>
+                        </div>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted">FECHA DE CADUCIDAD</label>
+                            <p class="h6">
+                                {% if lote.fecha_caducidad %}
+                                    {{ lote.fecha_caducidad|date:"d/m/Y" }}
+                                {% else %}
+                                    <span class="text-muted">No especificada</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted">UBICACIÓN</label>
+                            <p class="h6">
+                                {% if lote.ubicacion %}
+                                    {{ lote.ubicacion }}
+                                {% else %}
+                                    <span class="text-muted">No especificada</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Datos del Conteo -->
+                    <hr>
+                    <h6 class="mb-3">
+                        <i class="fas fa-clipboard-check"></i> Datos del Conteo
+                    </h6>
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <div class="p-3 bg-light rounded">
+                                <label class="form-label small text-muted">CANTIDAD EN SISTEMA</label>
+                                <p class="h5 text-primary fw-bold mb-0">{{ movimiento.cantidad_anterior }}</p>
+                                <small class="text-muted">Antes del conteo</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="p-3 bg-light rounded">
+                                <label class="form-label small text-muted">TERCER CONTEO (DEFINITIVO)</label>
+                                <p class="h5 text-success fw-bold mb-0">{{ movimiento.cantidad_nueva }}</p>
+                                <small class="text-muted">Nueva existencia</small>
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="p-3 rounded {% if movimiento.diferencia > 0 %}bg-success bg-opacity-10{% elif movimiento.diferencia < 0 %}bg-danger bg-opacity-10{% else %}bg-secondary bg-opacity-10{% endif %}">
+                                <label class="form-label small text-muted">DIFERENCIA</label>
+                                <p class="h5 {% if movimiento.diferencia > 0 %}text-success{% elif movimiento.diferencia < 0 %}text-danger{% else %}text-secondary{% endif %} fw-bold mb-0">
+                                    {% if movimiento.diferencia > 0 %}+{% endif %}{{ movimiento.diferencia }}
+                                </p>
+                                <small class="text-muted">
+                                    {% if movimiento.diferencia > 0 %}
+                                        Exceso
+                                    {% elif movimiento.diferencia < 0 %}
+                                        Faltante
+                                    {% else %}
+                                        Sin diferencia
+                                    {% endif %}
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Importes -->
+                    <hr>
+                    <h6 class="mb-3">
+                        <i class="fas fa-dollar-sign"></i> Importes
+                    </h6>
+                    <div class="row mb-4">
+                        <div class="col-md-4">
+                            <label class="form-label small text-muted">PRECIO UNITARIO</label>
+                            <p class="h6">${{ lote.precio_unitario|floatformat:2 }}</p>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small text-muted">IMPORTE ANTERIOR</label>
+                            <p class="h6">${{ importe_anterior|floatformat:2 }}</p>
+                        </div>
+                        <div class="col-md-4">
+                            <label class="form-label small text-muted">IMPORTE NUEVA EXISTENCIA</label>
+                            <p class="h6 text-success fw-bold">${{ importe_nueva|floatformat:2 }}</p>
+                        </div>
+                    </div>
+
+                    <div class="row mb-4">
+                        <div class="col-md-12">
+                            <label class="form-label small text-muted">IMPORTE DIFERENCIA</label>
+                            <p class="h5 {% if importe_diferencia > 0 %}text-success{% elif importe_diferencia < 0 %}text-danger{% else %}text-secondary{% endif %} fw-bold">
+                                {% if importe_diferencia > 0 %}+{% endif %}${{ importe_diferencia|floatformat:2 }}
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- Observaciones -->
+                    {% if movimiento.observaciones %}
+                        <hr>
+                        <h6 class="mb-3">
+                            <i class="fas fa-sticky-note"></i> Observaciones
+                        </h6>
+                        <div class="alert alert-info">
+                            <pre class="mb-0">{{ movimiento.observaciones }}</pre>
+                        </div>
+                    {% endif %}
+
+                    <!-- Usuario y Auditoría -->
+                    <hr>
+                    <h6 class="mb-3">
+                        <i class="fas fa-user"></i> Auditoría
+                    </h6>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted">USUARIO</label>
+                            <p class="h6">{{ movimiento.usuario_creacion.first_name }} {{ movimiento.usuario_creacion.last_name }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted">FECHA DE CREACIÓN</label>
+                            <p class="h6">{{ movimiento.fecha_creacion|date:"d/m/Y H:i:s" }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel Lateral -->
+        <div class="col-lg-4">
+            <!-- Resumen Rápido -->
+            <div class="card mb-4 border-success">
+                <div class="card-header bg-success text-white">
+                    <h6 class="mb-0">Resumen</h6>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <small class="text-muted">Estado</small>
+                        <p class="h6 mb-0">
+                            <span class="badge bg-success">Completado</span>
+                        </p>
+                    </div>
+                    <div class="mb-3">
+                        <small class="text-muted">Tipo de Movimiento</small>
+                        <p class="h6 mb-0">{{ movimiento.get_tipo_movimiento_display }}</p>
+                    </div>
+                    <div class="mb-3">
+                        <small class="text-muted">Folio</small>
+                        <p class="h6 mb-0">{{ movimiento.folio }}</p>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Acciones -->
+            <div class="card mb-4">
+                <div class="card-header">
+                    <h6 class="mb-0">Acciones</h6>
+                </div>
+                <div class="card-body">
+                    <a href="{% url 'logistica:historial_conteos' %}" class="btn btn-primary w-100 mb-2">
+                        <i class="fas fa-list"></i> Ver Historial
+                    </a>
+                    <a href="{% url 'logistica:buscar_lote_conteo' %}" class="btn btn-success w-100">
+                        <i class="fas fa-plus"></i> Nuevo Conteo
+                    </a>
+                </div>
+            </div>
+
+            <!-- Información -->
+            <div class="card bg-light">
+                <div class="card-body">
+                    <h6 class="card-title">
+                        <i class="fas fa-info-circle"></i> Información
+                    </h6>
+                    <p class="card-text small mb-0">
+                        Este conteo ha sido registrado exitosamente en el sistema. 
+                        La cantidad nueva se ha actualizado en el inventario.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Botón Atrás -->
+    <div class="row mt-4">
+        <div class="col-lg-12">
+            <a href="{% url 'logistica:historial_conteos' %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Atrás
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

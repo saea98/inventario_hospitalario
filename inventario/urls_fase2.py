@@ -3,8 +3,8 @@ URLs para FASE 2: Gestión Logística
 Incluye: Citas, Traslados y Conteo Físico
 """
 
-from django.urls import path
-from . import views_fase2, views_telegram_test, views_traslados_completo, views_conteo_fisico
+from django.urls import path, include
+from . import views_fase2, views_telegram_test, views_traslados_completo, views_conteo_fisico_v2
 
 app_name = 'logistica'
 
@@ -33,27 +33,30 @@ urlpatterns = [
     path('traslados/<int:pk>/cancelar/', views_traslados_completo.cancelar_traslado, name='cancelar_traslado'),
     
     # ========================================================================
-    # CONTEO FÍSICO
+    # CONTEO FÍSICO - Validación de Existencias (NUEVA VERSIÓN)
+    # Basado en formato IMSS-Bienestar con tres conteos
     # ========================================================================
-    path('conteos/', views_fase2.lista_conteos, name='lista_conteos'),
-    path('conteos/iniciar/', views_fase2.iniciar_conteo, name='iniciar_conteo'),
-    path('conteos/<int:pk>/capturar/', views_fase2.capturar_conteo, name='capturar_conteo'),
-    path('conteos/<int:pk>/', views_fase2.detalle_conteo, name='detalle_conteo'),
+    # Búsqueda de lote por CLAVE (CNIS)
+    path('conteos/buscar/', views_conteo_fisico_v2.buscar_lote_conteo, name='buscar_lote_conteo'),
+    
+    # Capturar conteos de un lote específico
+    path('conteos/lotes/<int:lote_id>/capturar/', views_conteo_fisico_v2.capturar_conteo_lote, name='capturar_conteo_lote'),
+    
+    # Crear nuevo lote si no existe
+    path('conteos/crear-lote/', views_conteo_fisico_v2.crear_lote_conteo, name='crear_lote_conteo'),
+    
+    # Historial de conteos realizados
+    path('conteos/historial/', views_conteo_fisico_v2.historial_conteos, name='historial_conteos'),
+    
+    # Detalle de un movimiento de conteo
+    path('conteos/movimientos/<int:movimiento_id>/', views_conteo_fisico_v2.detalle_movimiento_conteo, name='detalle_movimiento_conteo'),
+    
+    # API AJAX para obtener información del lote
+    path('api/conteos/lote-info/', views_conteo_fisico_v2.api_obtener_lote_info, name='api_lote_info'),
     
     # ========================================================================
     # PRUEBA DE TELEGRAM
     # ========================================================================
     path('test-telegram/', views_telegram_test.test_telegram, name='test_telegram'),
     path('api/telegram/chat-id/', views_telegram_test.obtener_chat_id_desde_updates, name='api_telegram_chat_id'),
-
-    # Conteo Físico
-    path('conteos/', views_conteo_fisico.lista_conteos, name='lista_conteos'),
-    path('conteos/crear/', views_conteo_fisico.crear_conteo, name='crear_conteo'),
-    path('conteos/<int:pk>/', views_conteo_fisico.detalle_conteo, name='detalle_conteo'),
-    path('conteos/<int:pk>/iniciar/', views_conteo_fisico.iniciar_conteo, name='iniciar_conteo'),
-    path('conteos/<int:conteo_id>/capturar/', views_conteo_fisico.capturar_item, name='capturar_item'),
-    path('conteos/<int:pk>/completar/', views_conteo_fisico.completar_conteo, name='completar_conteo'),
-    path('conteos/<int:pk>/cancelar/', views_conteo_fisico.cancelar_conteo, name='cancelar_conteo'),
-    path('conteos/item/<int:item_id>/eliminar/', views_conteo_fisico.eliminar_item_conteo, name='eliminar_item_conteo'),
-
 ]

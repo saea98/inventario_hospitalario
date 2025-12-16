@@ -1,0 +1,260 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Conteo Físico - Capturar Conteos{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <!-- Información del Lote -->
+        <div class="col-lg-4 mb-4">
+            <div class="card border-info shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-box"></i> Información del Lote
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- Producto -->
+                    <div class="mb-3">
+                        <label class="form-label small text-muted">CLAVE (CNIS)</label>
+                        <p class="h6 mb-0">{{ producto.clave_cnis }}</p>
+                    </div>
+
+                    <!-- Descripción -->
+                    <div class="mb-3">
+                        <label class="form-label small text-muted">DESCRIPCIÓN</label>
+                        <p class="small mb-0">{{ producto.nombre }}</p>
+                    </div>
+
+                    <!-- Número de Lote -->
+                    <div class="mb-3">
+                        <label class="form-label small text-muted">NÚMERO DE LOTE</label>
+                        <p class="h6 mb-0">{{ lote.numero_lote }}</p>
+                    </div>
+
+                    <!-- Cantidad Sistema -->
+                    <div class="mb-3 p-3 bg-light rounded">
+                        <label class="form-label small text-muted">CANTIDAD EN SISTEMA</label>
+                        <p class="h5 mb-0 text-primary fw-bold">{{ cantidad_sistema }} unidades</p>
+                    </div>
+
+                    <!-- Precio Unitario -->
+                    <div class="mb-3">
+                        <label class="form-label small text-muted">PRECIO UNITARIO</label>
+                        <p class="h6 mb-0">${{ precio_unitario|floatformat:2 }}</p>
+                    </div>
+
+                    <!-- Valor Total Sistema -->
+                    <div class="mb-3 p-3 bg-light rounded">
+                        <label class="form-label small text-muted">VALOR TOTAL (SISTEMA)</label>
+                        <p class="h6 mb-0 text-primary fw-bold">${{ valor_sistema|floatformat:2 }}</p>
+                    </div>
+
+                    <!-- Fecha de Caducidad -->
+                    <div class="mb-3">
+                        <label class="form-label small text-muted">FECHA DE CADUCIDAD</label>
+                        <p class="h6 mb-0">
+                            {% if lote.fecha_caducidad %}
+                                {{ lote.fecha_caducidad|date:"d/m/Y" }}
+                            {% else %}
+                                <span class="text-muted">No especificada</span>
+                            {% endif %}
+                        </p>
+                    </div>
+
+                    <!-- Ubicación -->
+                    <div class="mb-0">
+                        <label class="form-label small text-muted">UBICACIÓN</label>
+                        <p class="h6 mb-0">
+                            {% if lote.ubicacion %}
+                                {{ lote.ubicacion }}
+                            {% else %}
+                                <span class="text-muted">No especificada</span>
+                            {% endif %}
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Formulario de Conteos -->
+        <div class="col-lg-8">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-clipboard-check"></i> Captura de Conteos
+                    </h5>
+                </div>
+                <div class="card-body p-4">
+                    <form method="post" class="needs-validation" novalidate id="conteoForm">
+                        {% csrf_token %}
+
+                        <!-- Primer Conteo -->
+                        <div class="mb-4">
+                            <label for="{{ form.cifra_primer_conteo.id_for_label }}" class="form-label fw-bold">
+                                <i class="fas fa-check-circle"></i> Primer Conteo (Validación Inicial) *
+                            </label>
+                            {{ form.cifra_primer_conteo }}
+                            {% if form.cifra_primer_conteo.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.cifra_primer_conteo.errors.0 }}
+                                </div>
+                            {% endif %}
+                            <small class="form-text text-muted d-block mt-2">
+                                Ingrese la cantidad contada en el primer conteo
+                            </small>
+                        </div>
+
+                        <!-- Segundo Conteo -->
+                        <div class="mb-4">
+                            <label for="{{ form.cifra_segundo_conteo.id_for_label }}" class="form-label fw-bold">
+                                <i class="fas fa-check-circle"></i> Segundo Conteo (Validación de Diferencias)
+                            </label>
+                            {{ form.cifra_segundo_conteo }}
+                            {% if form.cifra_segundo_conteo.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.cifra_segundo_conteo.errors.0 }}
+                                </div>
+                            {% endif %}
+                            <small class="form-text text-muted d-block mt-2">
+                                Ingrese la cantidad del segundo conteo (opcional)
+                            </small>
+                        </div>
+
+                        <!-- Tercer Conteo (DEFINITIVO) -->
+                        <div class="mb-4">
+                            <div class="alert alert-success border-2" role="alert">
+                                <h6 class="alert-heading mb-2">
+                                    <i class="fas fa-star"></i> TERCER CONTEO (VALOR DEFINITIVO)
+                                </h6>
+                                <p class="small mb-0">
+                                    Este es el valor que se usará como nueva existencia en el sistema.
+                                </p>
+                            </div>
+                            <label for="{{ form.tercer_conteo.id_for_label }}" class="form-label fw-bold">
+                                <i class="fas fa-check-double"></i> Tercer Conteo *
+                            </label>
+                            {{ form.tercer_conteo }}
+                            {% if form.tercer_conteo.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.tercer_conteo.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <!-- Observaciones -->
+                        <div class="mb-4">
+                            <label for="{{ form.observaciones.id_for_label }}" class="form-label fw-bold">
+                                <i class="fas fa-sticky-note"></i> Observaciones
+                            </label>
+                            {{ form.observaciones }}
+                            {% if form.observaciones.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.observaciones.errors.0 }}
+                                </div>
+                            {% endif %}
+                            <small class="form-text text-muted d-block mt-2">
+                                Notas adicionales sobre el conteo (ej: producto dañado, falta de etiqueta, etc.)
+                            </small>
+                        </div>
+
+                        <!-- Resumen de Diferencia -->
+                        <div class="card bg-light mb-4" id="resumenDiferencia" style="display: none;">
+                            <div class="card-body">
+                                <h6 class="card-title">Resumen de Diferencia</h6>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <small class="text-muted">Cantidad Sistema</small>
+                                        <p class="h6">{{ cantidad_sistema }} unidades</p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <small class="text-muted">Cantidad Contada (Tercer Conteo)</small>
+                                        <p class="h6" id="cantidadContada">-</p>
+                                    </div>
+                                </div>
+                                <hr>
+                                <div class="row">
+                                    <div class="col-md-6">
+                                        <small class="text-muted">Diferencia</small>
+                                        <p class="h6" id="diferencia">-</p>
+                                    </div>
+                                    <div class="col-md-6">
+                                        <small class="text-muted">Importe Diferencia</small>
+                                        <p class="h6" id="importeDiferencia">-</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Botones -->
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{% url 'logistica:buscar_lote_conteo' %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Atrás
+                            </a>
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="fas fa-save"></i> Guardar Conteo
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const tercerConteoInput = document.getElementById('id_tercer_conteo');
+    const resumenDiv = document.getElementById('resumenDiferencia');
+    const cantidadContadaSpan = document.getElementById('cantidadContada');
+    const diferenciaSpan = document.getElementById('diferencia');
+    const importeDiferenciaSpan = document.getElementById('importeDiferencia');
+    
+    const cantidadSistema = {{ cantidad_sistema }};
+    const precioUnitario = {{ precio_unitario }};
+    
+    tercerConteoInput.addEventListener('input', function() {
+        const tercerConteo = parseInt(this.value) || 0;
+        
+        if (tercerConteo > 0) {
+            const diferencia = tercerConteo - cantidadSistema;
+            const importeDiferencia = diferencia * precioUnitario;
+            
+            cantidadContadaSpan.textContent = tercerConteo + ' unidades';
+            diferenciaSpan.textContent = (diferencia > 0 ? '+' : '') + diferencia + ' unidades';
+            importeDiferenciaSpan.textContent = '$' + importeDiferencia.toFixed(2);
+            
+            // Cambiar color según diferencia
+            if (diferencia > 0) {
+                diferenciaSpan.className = 'h6 text-success';
+                importeDiferenciaSpan.className = 'h6 text-success';
+            } else if (diferencia < 0) {
+                diferenciaSpan.className = 'h6 text-danger';
+                importeDiferenciaSpan.className = 'h6 text-danger';
+            } else {
+                diferenciaSpan.className = 'h6 text-muted';
+                importeDiferenciaSpan.className = 'h6 text-muted';
+            }
+            
+            resumenDiv.style.display = 'block';
+        } else {
+            resumenDiv.style.display = 'none';
+        }
+    });
+});
+</script>
+
+<style>
+    .form-control-lg, .form-select-lg {
+        font-size: 1.2rem;
+        padding: 0.75rem 1rem;
+        font-weight: bold;
+    }
+    
+    .alert-success {
+        background-color: #d4edda !important;
+        border-color: #28a745 !important;
+    }
+</style>
+{% endblock %}
