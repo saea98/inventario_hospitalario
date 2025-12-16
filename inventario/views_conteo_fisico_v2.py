@@ -131,19 +131,30 @@ def capturar_conteo_lote(request, lote_id):
                     diferencia = cantidad_nueva - cantidad_anterior
                     
                     # Crear MovimientoInventario
-                    movimiento = MovimientoInventario.objects.create(
-                        lote=lote,
-                        tipo_movimiento='AJUSTE_CONTEO',
-                        cantidad_anterior=cantidad_anterior,
-                        cantidad_nueva=cantidad_nueva,
-                        diferencia=diferencia,
-                        usuario_creacion=request.user,
-                        observaciones=f"""Conteo Físico:
+                    # Determinar tipo de movimiento según la diferencia
+                    if diferencia > 0:
+                        tipo_mov = 'AJUSTE_POSITIVO'
+                    elif diferencia < 0:
+                        tipo_mov = 'AJUSTE_NEGATIVO'
+                    else:
+                        tipo_mov = 'AJUSTE_POSITIVO'
+                    
+                    motivo_conteo = f"""Conteo Físico IMSS-Bienestar:
 - Primer Conteo: {cifra_primer_conteo}
 - Segundo Conteo: {cifra_segundo_conteo if cifra_segundo_conteo > 0 else 'No capturado'}
 - Tercer Conteo (Definitivo): {tercer_conteo}
 - Diferencia: {diferencia:+d}
 {f'- Observaciones: {observaciones}' if observaciones else ''}"""
+                    
+                    movimiento = MovimientoInventario.objects.create(
+                        lote=lote,
+                        tipo_movimiento=tipo_mov,
+                        cantidad=abs(diferencia),
+                        cantidad_anterior=cantidad_anterior,
+                        cantidad_nueva=cantidad_nueva,
+                        motivo=motivo_conteo,
+                        usuario=request.user,
+                        folio=f"CONTEO-{timezone.now().strftime('%Y%m%d%H%M%S')}"
                     )
                     
                     # Actualizar cantidad disponible en el lote
