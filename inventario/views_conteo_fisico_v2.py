@@ -86,7 +86,7 @@ def buscar_lote_conteo(request):
                     almacen=almacen
                 )
                 
-                return render(request, 'inventario/conteo_fisico/seleccionar_lote.html', {
+                return render(request, 'inventario/conteo_fisico/lista.html', {
                     'lotes': lotes,
                     'clave_cnis': clave_cnis,
                     'almacen': almacen
@@ -242,7 +242,7 @@ def crear_lote_conteo(request):
     else:
         form = CrearLoteManualForm()
     
-    return render(request, 'inventario/conteo_fisico/crear_lote.html', {
+    return render(request, 'inventario/conteo_fisico/crear.html', {
         'form': form,
         'clave_cnis': clave_cnis,
         'almacen': almacen,
