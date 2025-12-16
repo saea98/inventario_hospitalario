@@ -103,15 +103,15 @@
                             </div>
                         </div>
                         <div class="col-md-4">
-                            <div class="p-3 rounded {% if movimiento.diferencia > 0 %}bg-success bg-opacity-10{% elif movimiento.diferencia < 0 %}bg-danger bg-opacity-10{% else %}bg-secondary bg-opacity-10{% endif %}">
+                            <div class="p-3 rounded {% if diferencia > 0 %}bg-success bg-opacity-10{% elif diferencia < 0 %}bg-danger bg-opacity-10{% else %}bg-secondary bg-opacity-10{% endif %}">
                                 <label class="form-label small text-muted">DIFERENCIA</label>
-                                <p class="h5 {% if movimiento.diferencia > 0 %}text-success{% elif movimiento.diferencia < 0 %}text-danger{% else %}text-secondary{% endif %} fw-bold mb-0">
-                                    {% if movimiento.diferencia > 0 %}+{% endif %}{{ movimiento.diferencia }}
+                                <p class="h5 {% if diferencia > 0 %}text-success{% elif diferencia < 0 %}text-danger{% else %}text-secondary{% endif %} fw-bold mb-0">
+                                    {% if diferencia > 0 %}+{% endif %}{{ diferencia }}
                                 </p>
                                 <small class="text-muted">
-                                    {% if movimiento.diferencia > 0 %}
+                                    {% if diferencia > 0 %}
                                         Exceso
-                                    {% elif movimiento.diferencia < 0 %}
+                                    {% elif diferencia < 0 %}
                                         Faltante
                                     {% else %}
                                         Sin diferencia

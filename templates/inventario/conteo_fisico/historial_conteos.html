@@ -116,19 +116,21 @@
                                 {{ movimiento.cantidad_nueva }}
                             </td>
                             <td class="text-center">
-                                {% if movimiento.diferencia > 0 %}
-                                    <span class="badge bg-success">+{{ movimiento.diferencia }}</span>
-                                {% elif movimiento.diferencia < 0 %}
-                                    <span class="badge bg-danger">{{ movimiento.diferencia }}</span>
-                                {% else %}
-                                    <span class="badge bg-secondary">0</span>
-                                {% endif %}
+                                {% with diferencia=movimiento.cantidad_nueva|add:movimiento.cantidad_anterior|add:-1 %}
+                                    {% if movimiento.cantidad_nueva > movimiento.cantidad_anterior %}
+                                        <span class="badge bg-success">+{{ movimiento.cantidad_nueva|add:movimiento.cantidad_anterior|add:-1 }}</span>
+                                    {% elif movimiento.cantidad_nueva < movimiento.cantidad_anterior %}
+                                        <span class="badge bg-danger">{{ movimiento.cantidad_nueva|add:movimiento.cantidad_anterior|add:-1 }}</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">0</span>
+                                    {% endif %}
+                                {% endwith %}
                             </td>
                             <td>
-                                <small>{{ movimiento.usuario_creacion.first_name }} {{ movimiento.usuario_creacion.last_name }}</small>
+                                <small>{{ movimiento.usuario.first_name }} {{ movimiento.usuario.last_name }}</small>
                             </td>
                             <td>
-                                <small>{{ movimiento.fecha_creacion|date:"d/m/Y H:i" }}</small>
+                                <small>{{ movimiento.fecha_movimiento|date:"d/m/Y H:i" }}</small>
                             </td>
                             <td>
                                 <a href="{% url 'logistica:detalle_movimiento_conteo' movimiento.id %}" 
