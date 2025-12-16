@@ -130,7 +130,13 @@
                                 {% endif %}
                             </td>
                             <td>
-                                <small>{{ movimiento.usuario.first_name }} {{ movimiento.usuario.last_name }}</small>
+                                <small>
+                                    {% if movimiento.usuario.first_name or movimiento.usuario.last_name %}
+                                        {{ movimiento.usuario.first_name }} {{ movimiento.usuario.last_name }}
+                                    {% else %}
+                                        {{ movimiento.usuario.username }}
+                                    {% endif %}
+                                </small>
                             </td>
                             <td>
                                 <small>{{ movimiento.fecha_movimiento|date:"d/m/Y H:i" }}</small>
