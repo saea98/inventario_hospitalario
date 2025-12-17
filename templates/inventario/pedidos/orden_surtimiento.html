@@ -1,0 +1,141 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Orden de Surtimiento{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <div class="row mb-4">
+                <div class="col-md-8">
+                    <h1 class="display-5">📦 Orden de Surtimiento (Picking)</h1>
+                </div>
+                <div class="col-md-4 text-right">
+                    <button onclick="window.print()" class="btn btn-primary btn-lg">
+                        <i class="fas fa-print"></i> Imprimir
+                    </button>
+                </div>
+            </div>
+
+            <!-- Encabezado de la Orden -->
+            <div class="card mb-4 print-break">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">Orden de Surtimiento</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Folio Orden:</strong> {{ orden.folio }}</p>
+                            <p><strong>Folio Solicitud:</strong> {{ solicitud.folio }}</p>
+                            <p><strong>Fecha Generación:</strong> {{ orden.fecha_generacion|date:"d/m/Y H:i" }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Área Médica:</strong> {{ solicitud.institucion.denominacion }}</p>
+                            <p><strong>Almacén Origen:</strong> {{ solicitud.almacen_origen.nombre }}</p>
+                            <p><strong>Entrega Programada:</strong> {{ solicitud.fecha_entrega_programada|date:"d/m/Y" }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Items Ordenados por Ubicación -->
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">📍 Items Ordenados por Ubicación (Ruta Optimizada)</h5>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="bg-light">
+                            <tr>
+                                <th>#</th>
+                                <th>Ubicación</th>
+                                <th>CLAVE (CNIS)</th>
+                                <th>Descripción</th>
+                                <th>Lote</th>
+                                <th>Caducidad</th>
+                                <th>Cantidad</th>
+                                <th>Firma</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr>
+                                <td>{{ forloop.counter }}</td>
+                                <td>
+                                    <strong>{{ item.ubicacion.codigo }}</strong><br>
+                                    <small>{{ item.ubicacion.descripcion }}</small>
+                                </td>
+                                <td><strong>{{ item.producto.clave_cnis }}</strong></td>
+                                <td>{{ item.producto.descripcion }}</td>
+                                <td>{{ item.lote.numero_lote }}</td>
+                                <td>{{ item.lote.fecha_caducidad|date:"d/m/Y" }}</td>
+                                <td>
+                                    <span class="badge badge-primary">{{ item.cantidad }}</span>
+                                </td>
+                                <td style="border-bottom: 1px solid #ccc; height: 50px;"></td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Notas de Picking -->
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">📝 Notas Importantes</h5>
+                </div>
+                <div class="card-body">
+                    <ul>
+                        <li><strong>Ruta Optimizada:</strong> Los items están ordenados por ubicación para optimizar el picking</li>
+                        <li><strong>Algoritmo FIFO:</strong> Se asignaron automáticamente lotes próximos a caducar (>2 meses vigencia)</li>
+                        <li><strong>Verificación:</strong> Verifica que cada item corresponda a la ubicación indicada</li>
+                        <li><strong>Cantidad:</strong> Confirma que la cantidad surtida coincida con la solicitada</li>
+                        <li><strong>Firma:</strong> El personal de almacén debe firmar cada item después de surtirlo</li>
+                    </ul>
+                </div>
+            </div>
+
+            <!-- Información del Procedimiento -->
+            <div class="alert alert-info">
+                <h5>📋 Paso 3: Preparación del Pedido (Picking)</h5>
+                <p class="mb-0">
+                    Esta orden de surtimiento está optimizada por ubicación para facilitar el picking.
+                    El personal del almacén debe recoger los productos en el orden indicado y firmar cada uno.
+                    Una vez completado, se registrará la salida de existencias.
+                </p>
+            </div>
+
+            <!-- Botones de Acción -->
+            <div class="row mt-4 mb-4">
+                <div class="col-md-6">
+                    <a href="{% url 'detalle_solicitud' solicitud.id %}" class="btn btn-secondary btn-lg btn-block">
+                        <i class="fas fa-arrow-left"></i> Volver
+                    </a>
+                </div>
+                <div class="col-md-6">
+                    <button onclick="window.print()" class="btn btn-primary btn-lg btn-block">
+                        <i class="fas fa-print"></i> Imprimir Orden
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    @media print {
+        .btn, .row:last-child, .alert {
+            display: none;
+        }
+        .table {
+            page-break-inside: avoid;
+        }
+    }
+    
+    .table-hover tbody tr:hover {
+        background-color: #f5f5f5;
+    }
+</style>
+{% endblock %}

@@ -1335,3 +1335,444 @@ class LogNotificaciones(models.Model):
     
     def __str__(self):
         return f"{self.evento} - {self.estado} ({self.fecha_envio.strftime('%d/%m/%Y %H:%M')})"
+
+
+
+# ============================================================================
+# FASE 2.2.1: GESTIÓN DE PEDIDOS Y SALIDA DE MERCANCÍA
+# ============================================================================
+
+class SolicitudPedido(models.Model):
+    """
+    Solicitud de productos de áreas médicas al almacén
+    Basado en Procedimiento 2 del Manual de Almacén
+    """
+    ESTADO_CHOICES = [
+        ('PENDIENTE', 'Pendiente'),
+        ('VALIDADA', 'Validada'),
+        ('PREPARADA', 'Preparada'),
+        ('ENTREGADA', 'Entregada'),
+        ('CANCELADA', 'Cancelada'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    folio = models.CharField(
+        max_length=50,
+        unique=True,
+        editable=False,
+        verbose_name="Folio de Solicitud"
+    )
+    
+    # Relaciones
+    institucion = models.ForeignKey(
+        'Institucion',
+        on_delete=models.PROTECT,
+        related_name='solicitudes_pedidos',
+        verbose_name="Área Médica Solicitante"
+    )
+    almacen_origen = models.ForeignKey(
+        'Almacen',
+        on_delete=models.PROTECT,
+        related_name='solicitudes_salida',
+        verbose_name="Almacén de Origen"
+    )
+    usuario_solicitante = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name='solicitudes_creadas',
+        verbose_name="Usuario Solicitante"
+    )
+    usuario_validacion = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='solicitudes_validadas',
+        verbose_name="Usuario que Validó"
+    )
+    
+    # Fechas
+    fecha_solicitud = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Fecha de Solicitud"
+    )
+    fecha_entrega_programada = models.DateField(
+        verbose_name="Fecha de Entrega Programada"
+    )
+    fecha_validacion = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Fecha de Validación"
+    )
+    fecha_preparacion = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Fecha de Preparación"
+    )
+    fecha_entrega = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Fecha de Entrega"
+    )
+    
+    # Estado y control
+    estado = models.CharField(
+        max_length=20,
+        choices=ESTADO_CHOICES,
+        default='PENDIENTE',
+        verbose_name="Estado"
+    )
+    observaciones = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name="Observaciones"
+    )
+    
+    # Control de calidad
+    cantidad_items = models.PositiveIntegerField(
+        default=0,
+        verbose_name="Cantidad de Items"
+    )
+    cantidad_items_validados = models.PositiveIntegerField(
+        default=0,
+        verbose_name="Items Validados"
+    )
+    
+    class Meta:
+        verbose_name = "Solicitud de Pedido"
+        verbose_name_plural = "Solicitudes de Pedidos"
+        ordering = ['-fecha_solicitud']
+        indexes = [
+            models.Index(fields=['folio']),
+            models.Index(fields=['estado', '-fecha_solicitud']),
+            models.Index(fields=['institucion', '-fecha_solicitud']),
+        ]
+    
+    def __str__(self):
+        return f"{self.folio} - {self.institucion.nombre} ({self.estado})"
+    
+    def save(self, *args, **kwargs):
+        if not self.folio:
+            self.folio = f"SOL-{self.fecha_solicitud.strftime('%Y%m%d%H%M%S')}" if self.fecha_solicitud else f"SOL-{date.today().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
+        super().save(*args, **kwargs)
+    
+    def puede_validarse(self):
+        """Verifica si la solicitud puede validarse"""
+        return self.estado == 'PENDIENTE' and self.cantidad_items > 0
+    
+    def puede_prepararse(self):
+        """Verifica si la solicitud puede prepararse"""
+        return self.estado == 'VALIDADA' and self.cantidad_items_validados == self.cantidad_items
+
+
+class ItemSolicitudPedido(models.Model):
+    """
+    Items individuales de una solicitud de pedido
+    """
+    ESTADO_CHOICES = [
+        ('SOLICITADO', 'Solicitado'),
+        ('VALIDADO', 'Validado'),
+        ('PARCIAL', 'Parcial'),
+        ('NO_DISPONIBLE', 'No Disponible'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    solicitud = models.ForeignKey(
+        'SolicitudPedido',
+        on_delete=models.CASCADE,
+        related_name='items',
+        verbose_name="Solicitud"
+    )
+    
+    # Producto
+    producto = models.ForeignKey(
+        'Producto',
+        on_delete=models.PROTECT,
+        related_name='items_solicitud',
+        verbose_name="Producto"
+    )
+    
+    # Cantidades
+    cantidad_solicitada = models.PositiveIntegerField(
+        validators=[MinValueValidator(1)],
+        verbose_name="Cantidad Solicitada"
+    )
+    cantidad_aprobada = models.PositiveIntegerField(
+        default=0,
+        verbose_name="Cantidad Aprobada"
+    )
+    cantidad_preparada = models.PositiveIntegerField(
+        default=0,
+        verbose_name="Cantidad Preparada"
+    )
+    
+    # Lote asignado (FIFO)
+    lote_asignado = models.ForeignKey(
+        'Lote',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='items_solicitud',
+        verbose_name="Lote Asignado (FIFO)"
+    )
+    
+    # Estado
+    estado = models.CharField(
+        max_length=20,
+        choices=ESTADO_CHOICES,
+        default='SOLICITADO',
+        verbose_name="Estado"
+    )
+    
+    # Notas
+    razon_no_disponible = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name="Razón de No Disponibilidad"
+    )
+    
+    class Meta:
+        verbose_name = "Item de Solicitud"
+        verbose_name_plural = "Items de Solicitud"
+        ordering = ['solicitud', 'producto']
+    
+    def __str__(self):
+        return f"{self.solicitud.folio} - {self.producto.clave_cnis} ({self.cantidad_solicitada})"
+
+
+class OrdenSurtimiento(models.Model):
+    """
+    Orden de surtimiento (Picking) generada a partir de solicitud validada
+    Contiene la ruta optimizada por ubicación
+    """
+    ESTADO_CHOICES = [
+        ('GENERADA', 'Generada'),
+        ('IMPRESA', 'Impresa'),
+        ('EN_PICKING', 'En Picking'),
+        ('COMPLETADA', 'Completada'),
+        ('CANCELADA', 'Cancelada'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    folio = models.CharField(
+        max_length=50,
+        unique=True,
+        editable=False,
+        verbose_name="Folio de Orden"
+    )
+    
+    solicitud = models.OneToOneField(
+        'SolicitudPedido',
+        on_delete=models.CASCADE,
+        related_name='orden_surtimiento',
+        verbose_name="Solicitud de Pedido"
+    )
+    
+    # Fechas
+    fecha_generacion = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Fecha de Generación"
+    )
+    fecha_impresion = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Fecha de Impresión"
+    )
+    fecha_completacion = models.DateTimeField(
+        null=True,
+        blank=True,
+        verbose_name="Fecha de Completación"
+    )
+    
+    # Estado
+    estado = models.CharField(
+        max_length=20,
+        choices=ESTADO_CHOICES,
+        default='GENERADA',
+        verbose_name="Estado"
+    )
+    
+    # Usuario responsable
+    usuario_preparacion = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='ordenes_surtimiento',
+        verbose_name="Usuario de Preparación"
+    )
+    
+    # Notas
+    observaciones = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name="Observaciones"
+    )
+    
+    class Meta:
+        verbose_name = "Orden de Surtimiento"
+        verbose_name_plural = "Órdenes de Surtimiento"
+        ordering = ['-fecha_generacion']
+        indexes = [
+            models.Index(fields=['folio']),
+            models.Index(fields=['estado', '-fecha_generacion']),
+        ]
+    
+    def __str__(self):
+        return f"{self.folio} - {self.solicitud.folio}"
+    
+    def save(self, *args, **kwargs):
+        if not self.folio:
+            self.folio = f"ORD-{self.fecha_generacion.strftime('%Y%m%d%H%M%S')}" if self.fecha_generacion else f"ORD-{date.today().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
+        super().save(*args, **kwargs)
+
+
+class SalidaExistencias(models.Model):
+    """
+    Documento de Salida de Existencias generado cuando se completa un pedido
+    Reduce automáticamente la cantidad en inventario
+    """
+    TIPO_CHOICES = [
+        ('PEDIDO', 'Pedido a Área Médica'),
+        ('AJUSTE', 'Ajuste por Conteo'),
+        ('DEVOLUCIÓN', 'Devolución'),
+        ('DESTRUCCIÓN', 'Destrucción'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    folio = models.CharField(
+        max_length=50,
+        unique=True,
+        editable=False,
+        verbose_name="Folio de Salida"
+    )
+    
+    # Relaciones
+    solicitud = models.OneToOneField(
+        'SolicitudPedido',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='salida_existencias',
+        verbose_name="Solicitud de Pedido"
+    )
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name='salidas_existencias',
+        verbose_name="Usuario que Registra"
+    )
+    
+    # Tipo de salida
+    tipo_salida = models.CharField(
+        max_length=20,
+        choices=TIPO_CHOICES,
+        default='PEDIDO',
+        verbose_name="Tipo de Salida"
+    )
+    
+    # Fechas
+    fecha_salida = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Fecha de Salida"
+    )
+    
+    # Firma de recibido
+    firma_receptor = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name="Firma Digital del Receptor"
+    )
+    nombre_receptor = models.CharField(
+        max_length=200,
+        blank=True,
+        null=True,
+        verbose_name="Nombre del Receptor"
+    )
+    
+    # Notas
+    observaciones = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name="Observaciones"
+    )
+    
+    class Meta:
+        verbose_name = "Salida de Existencias"
+        verbose_name_plural = "Salidas de Existencias"
+        ordering = ['-fecha_salida']
+        indexes = [
+            models.Index(fields=['folio']),
+            models.Index(fields=['tipo_salida', '-fecha_salida']),
+        ]
+    
+    def __str__(self):
+        return f"{self.folio} - {self.get_tipo_salida_display()}"
+    
+    def save(self, *args, **kwargs):
+        if not self.folio:
+            self.folio = f"SAL-{self.fecha_salida.strftime('%Y%m%d%H%M%S')}" if self.fecha_salida else f"SAL-{date.today().strftime('%Y%m%d')}-{uuid.uuid4().hex[:6].upper()}"
+        super().save(*args, **kwargs)
+
+
+class ItemSalidaExistencias(models.Model):
+    """
+    Items individuales de una salida de existencias
+    Registra qué lotes y cantidades se sacaron del inventario
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    salida = models.ForeignKey(
+        'SalidaExistencias',
+        on_delete=models.CASCADE,
+        related_name='items',
+        verbose_name="Salida de Existencias"
+    )
+    
+    # Producto y lote
+    producto = models.ForeignKey(
+        'Producto',
+        on_delete=models.PROTECT,
+        related_name='items_salida',
+        verbose_name="Producto"
+    )
+    lote = models.ForeignKey(
+        'Lote',
+        on_delete=models.PROTECT,
+        related_name='items_salida',
+        verbose_name="Lote"
+    )
+    
+    # Cantidad
+    cantidad = models.PositiveIntegerField(
+        validators=[MinValueValidator(1)],
+        verbose_name="Cantidad"
+    )
+    
+    # Precio unitario al momento de la salida
+    precio_unitario = models.DecimalField(
+        max_digits=10,
+        decimal_places=2,
+        default=0,
+        verbose_name="Precio Unitario"
+    )
+    
+    # Importe
+    importe_total = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        default=0,
+        verbose_name="Importe Total"
+    )
+    
+    class Meta:
+        verbose_name = "Item de Salida"
+        verbose_name_plural = "Items de Salida"
+        ordering = ['salida', 'producto']
+    
+    def __str__(self):
+        return f"{self.salida.folio} - {self.producto.clave_cnis} ({self.cantidad})"
+    
+    def save(self, *args, **kwargs):
+        # Calcular importe total
+        self.importe_total = self.cantidad * self.precio_unitario
+        super().save(*args, **kwargs)
