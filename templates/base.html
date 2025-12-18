@@ -212,7 +212,7 @@
                             <i class="fas fa-tasks"></i>
                             Gestión Logística
                         </a>
-                        <div class="collapse {% if 'cita' in request.resolver_match.url_name or 'traslado' in request.resolver_match.url_name or 'conteo' in request.resolver_match.url_name %}show{% endif %}" id="submenuGestion">
+                        <div class="collapse {% if 'cita' in request.resolver_match.url_name or 'traslado' in request.resolver_match.url_name or 'conteo' in request.resolver_match.url_name or 'pedido' in request.resolver_match.url_name %}show{% endif %}" id="submenuGestion">
                             <ul class="nav flex-column">
                                 <li class="nav-item">
                                     <a class="nav-link submenu-item {% if 'cita' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'logistica:lista_citas' %}">
@@ -227,6 +227,11 @@
                                 <li class="nav-item">
                                     <a class="nav-link submenu-item {% if 'conteo' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'logistica:buscar_lote_conteo' %}">
                                         <i class="fas fa-clipboard-check me-2"></i>Conteo Físico
+                                    </a>
+                                </li>
+                                <li class="nav-item">
+                                    <a class="nav-link submenu-item {% if 'pedido' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'logistica:lista_pedidos' %}">
+                                        <i class="fas fa-shopping-cart me-2"></i>Gestión de Pedidos
                                     </a>
                                 </li>
 
