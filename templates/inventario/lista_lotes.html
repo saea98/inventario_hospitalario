@@ -1,4 +1,4 @@
-{% extends 'base.html' %}
+{% extends "base.html" %}
 {% load static %}
 
 {% block title %}Lista de Lotes{% endblock %}
@@ -21,15 +21,33 @@
     <!-- Filtros -->
     <div class="card mb-4">
         <div class="card-header bg-light">
-            <h5 class="mb-0">Filtros</h5>
+            <h5 class="mb-0">Filtros de Búsqueda</h5>
         </div>
         <div class="card-body">
             <form method="get" class="row g-3">
+                <!-- Búsquedas Separadas -->
                 <div class="col-md-3">
-                    <label class="form-label">Búsqueda</label>
-                    <input type="text" name="busqueda" class="form-control" 
-                           placeholder="Lote, producto..." value="{{ busqueda }}">
+                    <label class="form-label">🔍 Buscar por Lote</label>
+                    <input type="text" name="busqueda_lote" class="form-control" 
+                           placeholder="Ej: 123456" value="{{ busqueda_lote }}"
+                           title="Busca por número de lote">
                 </div>
+                
+                <div class="col-md-3">
+                    <label class="form-label">🏷️ Buscar por Clave CNIS</label>
+                    <input type="text" name="busqueda_cnis" class="form-control" 
+                           placeholder="Ej: CNIS001" value="{{ busqueda_cnis }}"
+                           title="Busca por código CNIS del producto">
+                </div>
+                
+                <div class="col-md-3">
+                    <label class="form-label">📋 Buscar por Producto</label>
+                    <input type="text" name="busqueda_producto" class="form-control" 
+                           placeholder="Ej: Paracetamol" value="{{ busqueda_producto }}"
+                           title="Busca por descripción del producto">
+                </div>
+
+                <!-- Filtros Adicionales -->
                 <div class="col-md-3">
                     <label class="form-label">Estado</label>
                     <select name="estado" class="form-select">
@@ -41,6 +59,7 @@
                         {% endfor %}
                     </select>
                 </div>
+
                 <div class="col-md-3">
                     <label class="form-label">Almacén</label>
                     <select name="almacen" class="form-select">
@@ -52,6 +71,7 @@
                         {% endfor %}
                     </select>
                 </div>
+
                 <div class="col-md-3">
                     <label class="form-label">Producto</label>
                     <select name="producto" class="form-select">
@@ -63,11 +83,13 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-12">
-                    <button type="submit" class="btn btn-primary">
+
+                <!-- Botones de Acción -->
+                <div class="col-md-3 d-flex align-items-end gap-2">
+                    <button type="submit" class="btn btn-primary flex-grow-1">
                         <i class="bi bi-search"></i> Filtrar
                     </button>
-                    <a href="{% url 'lista_lotes' %}" class="btn btn-secondary">
+                    <a href="{% url 'lista_lotes' %}" class="btn btn-outline-secondary">
                         <i class="bi bi-arrow-clockwise"></i> Limpiar
                     </a>
                 </div>
@@ -75,79 +97,140 @@
         </div>
     </div>
 
+    <!-- Información de Búsqueda Activa -->
+    {% if busqueda_lote or busqueda_cnis or busqueda_producto or filtro_estado or filtro_almacen or filtro_producto %}
+    <div class="alert alert-info mb-4">
+        <strong>Filtros Activos:</strong>
+        {% if busqueda_lote %}<span class="badge bg-info">Lote: {{ busqueda_lote }}</span>{% endif %}
+        {% if busqueda_cnis %}<span class="badge bg-info">CNIS: {{ busqueda_cnis }}</span>{% endif %}
+        {% if busqueda_producto %}<span class="badge bg-info">Producto: {{ busqueda_producto }}</span>{% endif %}
+        {% if filtro_estado %}<span class="badge bg-info">Estado: {{ filtro_estado }}</span>{% endif %}
+        {% if filtro_almacen %}<span class="badge bg-info">Almacén: {{ filtro_almacen }}</span>{% endif %}
+        {% if filtro_producto %}<span class="badge bg-info">Producto ID: {{ filtro_producto }}</span>{% endif %}
+    </div>
+    {% endif %}
+
     <!-- Tabla de Lotes -->
     <div class="card">
         <div class="card-header bg-light">
-            <h5 class="mb-0">Lotes ({{ lotes|length }})</h5>
+            <h5 class="mb-0">Resultados ({{ lotes|length }} lotes)</h5>
         </div>
-        <div class="card-body">
-            {% if lotes %}
-            <div class="table-responsive">
-                <table class="table table-hover">
-                    <thead>
-                        <tr>
-                            <th>Lote</th>
-                            <th>Producto</th>
-                            <th>Almacén</th>
-                            <th>Ubicación</th>
-                            <th>Cantidad</th>
-                            <th>Caducidad</th>
-                            <th>Estado</th>
-                            <th>Acciones</th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        {% for lote in lotes %}
-                        <tr>
-                            <td><strong>{{ lote.numero_lote }}</strong></td>
-                            <td>{{ lote.producto.descripcion }}</td>
-                            <td>{{ lote.almacen.nombre }}</td>
-                            <td>{{ lote.ubicacion.codigo }}</td>
-                            <td>
-                                <span class="badge bg-info">{{ lote.cantidad_disponible }}</span>
-                            </td>
-                            <td>
-                                {% if lote.fecha_caducidad %}
-                                    {% if lote.esta_caducado %}
-                                        <span class="badge bg-danger">{{ lote.fecha_caducidad|date:"d/m/Y" }}</span>
-                                    {% elif lote.esta_proximo_caducar %}
-                                        <span class="badge bg-warning">{{ lote.fecha_caducidad|date:"d/m/Y" }}</span>
-                                    {% else %}
-                                        <span class="badge bg-success">{{ lote.fecha_caducidad|date:"d/m/Y" }}</span>
-                                    {% endif %}
-                                {% else %}
-                                    <span class="text-muted">-</span>
-                                {% endif %}
-                            </td>
-                            <td>
-                                {% if lote.estado == 1 %}
-                                    <span class="badge bg-success">Disponible</span>
-                                {% elif lote.estado == 4 %}
-                                    <span class="badge bg-warning">Suspendido</span>
-                                {% elif lote.estado == 5 %}
-                                    <span class="badge bg-info">Deteriorado</span>
-                                {% elif lote.estado == 6 %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Lote</th>
+                        <th>Clave CNIS</th>
+                        <th>Producto</th>
+                        <th>Almacén</th>
+                        <th>Ubicación</th>
+                        <th>Cantidad</th>
+                        <th>Caducidad</th>
+                        <th>Estado</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for lote in lotes %}
+                    <tr>
+                        <td>
+                            <strong>{{ lote.numero_lote }}</strong>
+                        </td>
+                        <td>
+                            <code>{{ lote.producto.clave_cnis }}</code>
+                        </td>
+                        <td>
+                            <small>{{ lote.producto.descripcion }}</small>
+                        </td>
+                        <td>{{ lote.almacen.nombre }}</td>
+                        <td>
+                            {% if lote.ubicacion %}
+                                <span class="badge bg-secondary">{{ lote.ubicacion.codigo }}</span>
+                            {% else %}
+                                <span class="badge bg-warning">Sin asignar</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-primary">{{ lote.cantidad_disponible }}</span>
+                        </td>
+                        <td>
+                            {% with dias=lote.dias_para_caducidad %}
+                                {% if dias < 0 %}
                                     <span class="badge bg-danger">Caducado</span>
+                                {% elif dias < 30 %}
+                                    <span class="badge bg-warning text-dark">{{ dias }} días</span>
+                                {% elif dias < 60 %}
+                                    <span class="badge bg-info">{{ dias }} días</span>
+                                {% else %}
+                                    <span class="badge bg-success">{{ dias }} días</span>
                                 {% endif %}
-                            </td>
-                            <td>
-                                <a href="{% url 'detalle_lote' lote.id %}" class="btn btn-sm btn-outline-primary" title="Ver detalle">
-                                    <i class="bi bi-eye"></i>
-                                </a>
-                                <a href="{% url 'registrar_salida' %}?lote={{ lote.id }}" class="btn btn-sm btn-outline-danger" title="Registrar salida">
-                                    <i class="bi bi-arrow-right"></i>
-                                </a>
-                            </td>
-                        </tr>
-                        {% endfor %}
-                    </tbody>
-                </table>
-            </div>
-            {% else %}
-            <p class="text-muted text-center py-4">No se encontraron lotes con los filtros seleccionados</p>
-            {% endif %}
+                            {% endwith %}
+                        </td>
+                        <td>
+                            {% if lote.estado == 1 %}
+                                <span class="badge bg-success">Disponible</span>
+                            {% elif lote.estado == 4 %}
+                                <span class="badge bg-warning text-dark">Suspendido</span>
+                            {% elif lote.estado == 5 %}
+                                <span class="badge bg-danger">Deteriorado</span>
+                            {% elif lote.estado == 6 %}
+                                <span class="badge bg-secondary">Caducado</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'detalle_lote' lote.id %}" class="btn btn-sm btn-info" title="Ver detalle">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                            {% if lote.estado == 1 %}
+                            <a href="{% url 'registrar_salida' %}?lote={{ lote.id }}" class="btn btn-sm btn-warning" title="Registrar salida">
+                                <i class="bi bi-box-arrow-out"></i>
+                            </a>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="9" class="text-center text-muted py-4">
+                            <i class="bi bi-inbox"></i> No se encontraron lotes con los criterios de búsqueda
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
         </div>
     </div>
 
+    <!-- Información Adicional -->
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="alert alert-light">
+                <strong>💡 Consejos de Búsqueda:</strong>
+                <ul class="mb-0 mt-2">
+                    <li>Usa <strong>Buscar por Lote</strong> para encontrar un lote específico por su número</li>
+                    <li>Usa <strong>Buscar por Clave CNIS</strong> para encontrar todos los lotes de un código específico</li>
+                    <li>Usa <strong>Buscar por Producto</strong> para encontrar lotes por descripción del producto</li>
+                    <li>Combina múltiples filtros para refinar tu búsqueda</li>
+                    <li>Los campos de búsqueda no distinguen mayúsculas de minúsculas</li>
+                </ul>
+            </div>
+        </div>
+    </div>
 </div>
+
+<!-- Estilos personalizados -->
+<style>
+    .table-hover tbody tr:hover {
+        background-color: #f5f5f5;
+    }
+    
+    .badge {
+        font-size: 0.85rem;
+        padding: 0.4rem 0.6rem;
+    }
+    
+    .btn-sm {
+        padding: 0.25rem 0.5rem;
+        font-size: 0.875rem;
+    }
+</style>
 {% endblock %}

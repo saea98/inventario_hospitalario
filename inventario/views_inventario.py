@@ -129,7 +129,9 @@ def lista_lotes(request):
     filtro_estado = request.GET.get('estado', '')
     filtro_almacen = request.GET.get('almacen', '')
     filtro_producto = request.GET.get('producto', '')
-    busqueda = request.GET.get('busqueda', '')
+    busqueda_lote = request.GET.get('busqueda_lote', '')
+    busqueda_cnis = request.GET.get('busqueda_cnis', '')
+    busqueda_producto = request.GET.get('busqueda_producto', '')
     
     # Aplicar filtros
     if filtro_estado:
@@ -141,12 +143,15 @@ def lista_lotes(request):
     if filtro_producto:
         lotes = lotes.filter(producto_id=int(filtro_producto))
     
-    if busqueda:
-        lotes = lotes.filter(
-            Q(numero_lote__icontains=busqueda) |
-            Q(producto__descripcion__icontains=busqueda) |
-            Q(producto__clave_cnis__icontains=busqueda)
-        )
+    # Búsquedas separadas
+    if busqueda_lote:
+        lotes = lotes.filter(numero_lote__icontains=busqueda_lote)
+    
+    if busqueda_cnis:
+        lotes = lotes.filter(producto__clave_cnis__icontains=busqueda_cnis)
+    
+    if busqueda_producto:
+        lotes = lotes.filter(producto__descripcion__icontains=busqueda_producto)
     
     # Ordenar
     lotes = lotes.order_by('-fecha_recepcion')
@@ -164,7 +169,9 @@ def lista_lotes(request):
         'filtro_estado': filtro_estado,
         'filtro_almacen': filtro_almacen,
         'filtro_producto': filtro_producto,
-        'busqueda': busqueda,
+        'busqueda_lote': busqueda_lote,
+        'busqueda_cnis': busqueda_cnis,
+        'busqueda_producto': busqueda_producto,
     }
     
     return render(request, 'inventario/lista_lotes.html', context)
