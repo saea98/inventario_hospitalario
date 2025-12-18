@@ -28,7 +28,7 @@ class LlegadaProveedorForm(forms.ModelForm):
         CitaProveedor = apps.get_model('inventario', 'CitaProveedor')
         # Filtrar citas autorizadas que no tengan llegada registrada
         self.fields['cita'].queryset = CitaProveedor.objects.filter(
-            estado="AUTORIZADA"
+            estado='autorizada'
         ).exclude(
             llegada_proveedor__isnull=False
         ).select_related('proveedor')
@@ -67,8 +67,9 @@ class ItemLlegadaForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Inicializar queryset dinámicamente
-        from .models import Producto
-        self.fields['producto'].queryset = Producto.objects.all()
+        from django.apps import apps
+        Producto = apps.get_model('inventario', 'Producto')
+        self.fields['producto'].queryset = Producto.objects.all().order_by('descripcion')
     
     class Meta:
         model = ItemLlegada
