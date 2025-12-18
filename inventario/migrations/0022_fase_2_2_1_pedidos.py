@@ -28,7 +28,7 @@ class Migration(migrations.Migration):
                 ('observaciones', models.TextField(blank=True)),
                 ('almacen_origen', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='solicitudes_pedido', to='inventario.almacen')),
                 ('institucion', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='solicitudes_pedido', to='inventario.institucion')),
-                ('usuario_solicita', models.ForeignKey(on_delete=django.db.models.deletion.SET_NULL, null=True, related_name='solicitudes_pedido_creadas', to=settings.AUTH_USER_MODEL)),
+                ('usuario_solicitante', models.ForeignKey(on_delete=django.db.models.deletion.SET_NULL, null=True, related_name='solicitudes_pedido_creadas', to=settings.AUTH_USER_MODEL)),
             ],
             options={
                 'verbose_name': 'Solicitud de Pedido',
@@ -86,7 +86,7 @@ class Migration(migrations.Migration):
                 ('almacen_origen', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to='inventario.almacen')),
                 ('institucion_destino', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to='inventario.institucion')),
                 ('solicitud', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='salida_existencias', to='inventario.solicitudpedido')),
-                ('usuario_autoriza', models.ForeignKey(on_delete=django.db.models.deletion.SET_NULL, null=True, to=settings.AUTH_USER_MODEL)),
+                ('usuario_validacion', models.ForeignKey(on_delete=django.db.models.deletion.SET_NULL, null=True, to=settings.AUTH_USER_MODEL)),
             ],
             options={
                 'verbose_name': 'Salida de Existencias',
