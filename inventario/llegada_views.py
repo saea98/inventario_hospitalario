@@ -54,6 +54,11 @@ class CrearLlegadaView(LoginRequiredMixin, PermissionRequiredMixin, View):
                 llegada.folio = f"LLEG-{timestamp}"
                 llegada.save()
                 
+                # Cambiar estado de la cita a Completada
+                if llegada.cita:
+                    llegada.cita.estado = 'completada'
+                    llegada.cita.save()
+                
                 formset.instance = llegada
                 formset.save()
                 
