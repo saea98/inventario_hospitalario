@@ -210,3 +210,17 @@ class SubirDocumentoView(LoginRequiredMixin, View):
             messages.error(request, "Error al subir el documento.")
             
         return redirect("inventario:detalle_llegada", pk=llegada.pk)
+
+
+# API para obtener productos en formato JSON
+from django.http import JsonResponse
+from django.views.decorators.http import require_GET
+
+@require_GET
+def api_productos(request):
+    """API que devuelve los productos disponibles en formato JSON"""
+    from django.apps import apps
+    Producto = apps.get_model('inventario', 'Producto')
+    
+    productos = Producto.objects.all().values('id', 'descripcion', 'cns').order_by('descripcion')
+    return JsonResponse(list(productos), safe=False)
