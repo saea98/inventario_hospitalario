@@ -220,34 +220,32 @@ class UbicacionForm(forms.Form):
     almacen y ubicacion no pertenecen a ItemLlegada, sino a Lote.
     """
     
-    almacen = forms.ModelChoiceField(
-        queryset=None,
-        label="Almacén",
-        required=True,
-        widget=forms.Select(attrs={
-            "class": "form-control select2-single",
-            "data-placeholder": "-- Selecciona un almacén --"
-        })
-    )
-    
-    ubicacion = forms.ModelChoiceField(
-        queryset=None,
-        label="Ubicación",
-        required=True,
-        widget=forms.Select(attrs={
-            "class": "form-control select2-single",
-            "data-placeholder": "-- Selecciona una ubicación --"
-        })
-    )
-    
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         from django.apps import apps
         Almacen = apps.get_model('inventario', 'Almacen')
         UbicacionAlmacen = apps.get_model('inventario', 'UbicacionAlmacen')
         
-        self.fields['almacen'].queryset = Almacen.objects.all().order_by('nombre')
-        self.fields['ubicacion'].queryset = UbicacionAlmacen.objects.all().order_by('codigo')
+        # Definir los campos en __init__ para asegurar que siempre tengan querysets
+        self.fields['almacen'] = forms.ModelChoiceField(
+            queryset=Almacen.objects.all().order_by('nombre'),
+            label="Almacén",
+            required=True,
+            widget=forms.Select(attrs={
+                "class": "form-control select2-single",
+                "data-placeholder": "-- Selecciona un almacén --"
+            })
+        )
+        
+        self.fields['ubicacion'] = forms.ModelChoiceField(
+            queryset=UbicacionAlmacen.objects.all().order_by('codigo'),
+            label="Ubicación",
+            required=True,
+            widget=forms.Select(attrs={
+                "class": "form-control select2-single",
+                "data-placeholder": "-- Selecciona una ubicación --"
+            })
+        )
 
 
 # Crear un formset personalizado que combine ItemLlegada con UbicacionForm
