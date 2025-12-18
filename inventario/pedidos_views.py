@@ -7,6 +7,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.utils import timezone
+from datetime import date
 
 from .pedidos_models import SolicitudPedido, ItemSolicitud, PropuestaPedido, ItemPropuesta
 from .pedidos_forms import (
@@ -58,8 +59,9 @@ def crear_solicitud(request):
     """
     if request.method == 'POST':
         form = SolicitudPedidoForm(request.POST)
+        formset = ItemSolicitudFormSet(request.POST, instance=SolicitudPedido())
         
-        if form.is_valid():
+        if form.is_valid() and formset.is_valid():
             # Primero guardar la solicitud
             solicitud = form.save(commit=False)
             solicitud.usuario_solicitante = request.user
@@ -77,7 +79,13 @@ def crear_solicitud(request):
                 solicitud.delete()
                 messages.error(request, "Por favor, corrige los errores en los items.")
         else:
-            messages.error(request, "Por favor, corrige los errores en el formulario.")
+            # Mostrar errores del formulario
+            if form.errors:
+                for field, errors in form.errors.items():
+                    for error in errors:
+                        messages.error(request, f"{field}: {error}")
+            if formset.errors:
+                messages.error(request, "Por favor, corrige los errores en los items.")
 
     else:
         form = SolicitudPedidoForm()
