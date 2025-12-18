@@ -775,29 +775,6 @@ class LogisticaTrasladoForm(forms.ModelForm):
         return cleaned_data
 
 
-<<<<<<< HEAD
-class ConteoFisicoForm(forms.ModelForm):
-    """Formulario para crear/editar sesiones de conteo físico"""
-    class Meta:
-        model = ConteoFisico
-        fields = ['almacen', 'observaciones']
-        widgets = {
-            'observaciones': forms.Textarea(attrs={'rows': 3}),
-        }
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.helper = FormHelper()
-        self.helper.form_method = 'post'
-        self.helper.layout = Layout(
-            Row(
-                Column('almacen', css_class='form-group col-md-6 mb-3'),
-                css_class='form-row'
-            ),
-            'observaciones',
-            Submit('submit', '✓ Crear Conteo', css_class='btn btn-primary')
-        )
-=======
 
 # ============================================================================
 # FASE 2.2.1: FORMULARIOS PARA GESTIÓN DE PEDIDOS Y SALIDA
@@ -979,4 +956,3 @@ class FiltroSolicitudesForm(forms.Form):
             'placeholder': 'Buscar por folio...'
         })
     )
->>>>>>> 7195864190c6300af481c27e7bf7647063d399ca
