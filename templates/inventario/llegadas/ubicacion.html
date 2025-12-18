@@ -25,44 +25,34 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for item in llegada.items.all %}
-                                {% with idx=forloop.counter0 %}
-                                    <tr>
-                                        <td>
-                                            <strong>{{ item.producto.descripcion }}</strong>
-                                        </td>
-                                        <td>
-                                            {{ item.numero_lote }}
-                                        </td>
-                                        <td>
-                                            {{ item.cantidad_recibida }}
-                                        </td>
-                                        <td>
-                                            {% if idx < formset.forms|length %}
-                                                {% with form=formset.forms|slice:idx|first %}
-                                                    {{ form.almacen }}
-                                                    {% if form.almacen.errors %}
-                                                        <div class="alert alert-danger mt-2 small">
-                                                            {{ form.almacen.errors }}
-                                                        </div>
-                                                    {% endif %}
-                                                {% endwith %}
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            {% if idx < formset.forms|length %}
-                                                {% with form=formset.forms|slice:idx|first %}
-                                                    {{ form.ubicacion }}
-                                                    {% if form.ubicacion.errors %}
-                                                        <div class="alert alert-danger mt-2 small">
-                                                            {{ form.ubicacion.errors }}
-                                                        </div>
-                                                    {% endif %}
-                                                {% endwith %}
-                                            {% endif %}
-                                        </td>
-                                    </tr>
-                                {% endwith %}
+                            {% for form in formset.forms %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ form.instance.producto.descripcion }}</strong>
+                                    </td>
+                                    <td>
+                                        {{ form.instance.numero_lote }}
+                                    </td>
+                                    <td>
+                                        {{ form.instance.cantidad_recibida }}
+                                    </td>
+                                    <td>
+                                        {{ form.almacen }}
+                                        {% if form.almacen.errors %}
+                                            <div class="alert alert-danger mt-2 small">
+                                                {{ form.almacen.errors }}
+                                            </div>
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {{ form.ubicacion }}
+                                        {% if form.ubicacion.errors %}
+                                            <div class="alert alert-danger mt-2 small">
+                                                {{ form.ubicacion.errors }}
+                                            </div>
+                                        {% endif %}
+                                    </td>
+                                </tr>
                             {% endfor %}
                         </tbody>
                     </table>

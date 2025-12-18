@@ -212,13 +212,36 @@ class DocumentoLlegadaForm(forms.ModelForm):
         }
 
 
+# ============================================================================
+# FORMULARIOS PARA ASIGNACIÓN DE UBICACIÓN
+# ============================================================================
 
-class UbicacionForm(forms.Form):
+class UbicacionItemForm(forms.Form):
     """
-    Formulario para asignar ubicación física del lote en almacén.
-    Este es un formulario independiente (no ModelForm) porque los campos
-    almacen y ubicacion no pertenecen a ItemLlegada, sino a Lote.
+    Formulario para asignar ubicación a un item de llegada.
+    Este formulario NO es un ModelForm porque los campos almacen y ubicacion
+    no pertenecen a ItemLlegada, sino al modelo Lote que se crea después.
     """
+    
+    almacen = forms.ModelChoiceField(
+        queryset=None,
+        label="Almacén",
+        required=True,
+        empty_label="-- Selecciona un almacén --",
+        widget=forms.Select(attrs={
+            "class": "form-control select2-single",
+        })
+    )
+    
+    ubicacion = forms.ModelChoiceField(
+        queryset=None,
+        label="Ubicación",
+        required=True,
+        empty_label="-- Selecciona una ubicación --",
+        widget=forms.Select(attrs={
+            "class": "form-control select2-single",
+        })
+    )
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -226,73 +249,49 @@ class UbicacionForm(forms.Form):
         Almacen = apps.get_model('inventario', 'Almacen')
         UbicacionAlmacen = apps.get_model('inventario', 'UbicacionAlmacen')
         
-        # Definir los campos en __init__ para asegurar que siempre tengan querysets
-        self.fields['almacen'] = forms.ModelChoiceField(
-            queryset=Almacen.objects.all().order_by('nombre'),
-            label="Almacén",
-            required=True,
-            widget=forms.Select(attrs={
-                "class": "form-control select2-single",
-                "data-placeholder": "-- Selecciona un almacén --"
-            })
-        )
-        
-        self.fields['ubicacion'] = forms.ModelChoiceField(
-            queryset=UbicacionAlmacen.objects.all().order_by('codigo'),
-            label="Ubicación",
-            required=True,
-            widget=forms.Select(attrs={
-                "class": "form-control select2-single",
-                "data-placeholder": "-- Selecciona una ubicación --"
-            })
-        )
+        # Inicializar querysets
+        self.fields['almacen'].queryset = Almacen.objects.all().order_by('nombre')
+        self.fields['ubicacion'].queryset = UbicacionAlmacen.objects.all().order_by('codigo')
 
 
-# Crear un formset personalizado que combine ItemLlegada con UbicacionForm
 class UbicacionFormSet(BaseFormSet):
-    """Formset personalizado para manejar ubicaciones de items en llegada"""
+    """
+    Formset personalizado para manejar ubicaciones de items en llegada.
+    Genera dinámicamente un formulario UbicacionItemForm por cada item.
+    """
     
     def __init__(self, data=None, files=None, llegada=None, **kwargs):
         self.llegada = llegada
-        self._forms = None
+        self._forms_cache = None
         super().__init__(data=data, files=files, **kwargs)
     
     @property
     def forms(self):
         """Generar formularios dinámicamente basados en los items de la llegada"""
-        if self._forms is None:
-            self._forms = []
+        if self._forms_cache is None:
+            self._forms_cache = []
             if self.llegada:
                 items = self.llegada.items.all()
                 for idx, item in enumerate(items):
                     prefix = f"ubicacion-{idx}"
                     # Pasar self.data si existe (POST), None si es GET
-                    form_data = self.data if self.data else None
-                    form = UbicacionForm(form_data, prefix=prefix)
-                    self._forms.append(form)
-        return self._forms
+                    form = UbicacionItemForm(
+                        self.data if self.data else None,
+                        prefix=prefix
+                    )
+                    self._forms_cache.append(form)
+        return self._forms_cache
     
     def is_valid(self):
         """Validar todos los formularios"""
-        if not self.llegada:
+        if not self.llegada or not self.forms:
             return True
-        # Acceder a forms para asegurar que se generan
-        forms = self.forms
-        if not forms:
-            return True
-        return all(form.is_valid() for form in forms)
+        return all(form.is_valid() for form in self.forms)
     
-    def save(self):
-        """Guardar los datos de ubicación para cada item"""
-        if not self.llegada:
-            return
-        
-        items = list(self.llegada.items.all())
-        for i, form in enumerate(self.forms):
-            if i < len(items) and form.is_valid():
-                item = items[i]
-                almacen = form.cleaned_data.get('almacen')
-                ubicacion = form.cleaned_data.get('ubicacion')
-                # Guardar datos temporales en el item para procesarlos en la vista
-                item._almacen = almacen
-                item._ubicacion = ubicacion
+    def get_errors(self):
+        """Obtener todos los errores"""
+        errors = []
+        for form in self.forms:
+            if form.errors:
+                errors.append(form.errors)
+        return errors
