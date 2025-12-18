@@ -47,19 +47,35 @@
 </div>
 
 {% block extra_js %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Inicializar Select2 para campos existentes
+        $('.select2-single').select2({
+            width: '100%',
+            language: 'es'
+        });
+
         const container = document.getElementById('item-forms-container');
         const addButton = document.getElementById('add-item-form');
-        const totalForms = document.getElementById('id_{{ formset.prefix }}-TOTAL_FORMS');
-        let formCount = {{ formset.total_form_count }};
+        const totalForms = document.getElementById('id_items-TOTAL_FORMS');
+        let formCount = parseInt(totalForms.value);
 
         addButton.addEventListener('click', function() {
             const newForm = container.children[0].cloneNode(true);
-            const formRegex = new RegExp('{{ formset.prefix }}-(\d+)-', 'g');
+            const formRegex = new RegExp('items-(\\d+)-', 'g');
             
-            newForm.innerHTML = newForm.innerHTML.replace(formRegex, `{{ formset.prefix }}-${formCount}-`);
+            newForm.innerHTML = newForm.innerHTML.replace(formRegex, 'items-' + formCount + '-');
             container.appendChild(newForm);
+            
+            // Reinicializar Select2 para el nuevo formulario
+            newForm.querySelectorAll('.select2-single').forEach(function(element) {
+                $(element).select2({
+                    width: '100%',
+                    language: 'es'
+                });
+            });
             
             totalForms.value = ++formCount;
         });
