@@ -30,7 +30,7 @@
                         {% for llegada in llegadas %}
                         <tr>
                             <td>{{ llegada.folio }}</td>
-                            <td>{{ llegada.proveedor.nombre|default:"No disponible" }}</td>
+                            <td>{{ llegada.proveedor.razon_social|default:"No disponible" }}</td>
                             <td>{{ llegada.fecha_llegada_real|date:"d/m/Y H:i" }}</td>
                             <td><span class="badge badge-info" style="color: black;">{{ llegada.get_estado_display }}</span></td>
                             <td>
