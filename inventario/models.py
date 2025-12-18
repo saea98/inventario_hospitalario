@@ -1484,10 +1484,6 @@ class ItemSolicitudPedido(models.Model):
         default=0,
         verbose_name="Cantidad Aprobada"
     )
-    cantidad_preparada = models.PositiveIntegerField(
-        default=0,
-        verbose_name="Cantidad Preparada"
-    )
     
     # Lote asignado (FIFO)
     lote_asignado = models.ForeignKey(
