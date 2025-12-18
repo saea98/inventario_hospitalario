@@ -186,7 +186,7 @@ class UbicacionView(LoginRequiredMixin, PermissionRequiredMixin, View):
                             cantidad_disponible=item.cantidad_recibida,
                             almacen=almacen,
                             ubicacion=ubicacion,
-                            estado="DISPONIBLE",
+                            estado=1,  # 1 = Disponible
                         )
                         item.lote_creado = lote
                         item.save()
