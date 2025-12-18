@@ -169,7 +169,7 @@ def crear_devolucion(request):
                     item.save()
             
             messages.success(request, f'Devolución {devolucion.folio} creada exitosamente')
-            return redirect('detalle_devolucion', devolucion_id=devolucion.id)
+            return redirect('devoluciones:detalle_devolucion', devolucion_id=devolucion.id)
     else:
         form = DevolucionProveedorForm(institucion=institucion)
         formset = ItemDevolucionFormSet()
