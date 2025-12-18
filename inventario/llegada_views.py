@@ -56,7 +56,7 @@ class CrearLlegadaView(LoginRequiredMixin, PermissionRequiredMixin, View):
                 formset.save()
                 
                 messages.success(request, f"Llegada {llegada.folio} creada con éxito.")
-                return redirect("inventario:detalle_llegada", pk=llegada.pk)
+                return redirect("logistica:llegadas:detalle_llegada", pk=llegada.pk)
         
         return render(request, "inventario/llegadas/crear_llegada.html", {"form": form, "formset": formset})
 
@@ -91,7 +91,7 @@ class ControlCalidadView(LoginRequiredMixin, PermissionRequiredMixin, View):
                 llegada.save()
                 
                 messages.success(request, f"Control de calidad para {llegada.folio} completado.")
-                return redirect("inventario:detalle_llegada", pk=llegada.pk)
+                return redirect("logistica:llegadas:detalle_llegada", pk=llegada.pk)
         
         return render(request, "inventario/llegadas/control_calidad.html", {"llegada": llegada, "form": form})
 
@@ -122,7 +122,7 @@ class FacturacionView(LoginRequiredMixin, PermissionRequiredMixin, View):
                 formset.save()
                 
                 messages.success(request, f"Datos de facturación para {llegada.folio} guardados.")
-                return redirect("inventario:detalle_llegada", pk=llegada.pk)
+                return redirect("logistica:llegadas:detalle_llegada", pk=llegada.pk)
         
         return render(request, "inventario/llegadas/facturacion.html", {"llegada": llegada, "form": form, "formset": formset})
 
@@ -149,7 +149,7 @@ class SupervisionView(LoginRequiredMixin, PermissionRequiredMixin, View):
                 llegada.save()
                 
                 messages.success(request, f"Supervisión para {llegada.folio} completada.")
-                return redirect("inventario:detalle_llegada", pk=llegada.pk)
+                return redirect("logistica:llegadas:detalle_llegada", pk=llegada.pk)
         
         return render(request, "inventario/llegadas/supervision.html", {"llegada": llegada, "form": form})
 
@@ -189,7 +189,7 @@ class UbicacionView(LoginRequiredMixin, PermissionRequiredMixin, View):
                 llegada.save()
                 
                 messages.success(request, f"Ubicación para {llegada.folio} asignada con éxito.")
-                return redirect("inventario:detalle_llegada", pk=llegada.pk)
+                return redirect("logistica:llegadas:detalle_llegada", pk=llegada.pk)
         
         return render(request, "inventario/llegadas/ubicacion.html", {"llegada": llegada, "formset": formset})
 
@@ -209,7 +209,7 @@ class SubirDocumentoView(LoginRequiredMixin, View):
         else:
             messages.error(request, "Error al subir el documento.")
             
-        return redirect("inventario:detalle_llegada", pk=llegada.pk)
+        return redirect("logistica:llegadas:detalle_llegada", pk=llegada.pk)
 
 
 # API para obtener productos en formato JSON
