@@ -77,13 +77,14 @@ class PropuestaGenerator:
         # Buscar lotes disponibles que no estén caducados
         lotes_disponibles = Lote.objects.filter(
             producto=producto,
-            existencia_actual__gt=0,
-            fecha_caducidad__gte=date.today() + timedelta(days=60)
+            cantidad_disponible__gt=0,
+            fecha_caducidad__gte=date.today() + timedelta(days=60),
+            estado=1  # Solo lotes disponibles
         ).order_by(
             'fecha_caducidad'  # Priorizar lotes que caducan antes
         )
 
-        cantidad_total_disponible = sum(lote.existencia_actual for lote in lotes_disponibles)
+        cantidad_total_disponible = sum(lote.cantidad_disponible for lote in lotes_disponibles)
         item_propuesta.cantidad_disponible = cantidad_total_disponible
 
         # Asignar lotes
@@ -93,7 +94,7 @@ class PropuestaGenerator:
                 break
 
             cantidad_a_asignar = min(
-                lote.existencia_actual,
+                lote.cantidad_disponible,
                 cantidad_requerida - cantidad_asignada_total
             )
 
