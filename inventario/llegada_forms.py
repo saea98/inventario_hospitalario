@@ -203,3 +203,25 @@ class DocumentoLlegadaForm(forms.ModelForm):
             "archivo": forms.FileInput(attrs={"class": "form-control-file"}),
             "descripcion": forms.TextInput(attrs={"class": "form-control"}),
         }
+
+
+
+class UbicacionForm(forms.ModelForm):
+    """
+    Formulario para asignar ubicación física del lote en almacén.
+    """
+    
+    class Meta:
+        model = ItemLlegada
+        fields = []  # No hay campos específicos, solo se actualiza el lote_creado
+        widgets = {}
+
+
+UbicacionFormSet = inlineformset_factory(
+    LlegadaProveedor,
+    ItemLlegada,
+    form=UbicacionForm,
+    extra=0,
+    can_delete=False,
+    fk_name="llegada",
+)
