@@ -1420,15 +1420,6 @@ class SolicitudPedido(models.Model):
         verbose_name="Observaciones"
     )
     
-    # Control de calidad
-    cantidad_items = models.PositiveIntegerField(
-        default=0,
-        verbose_name="Cantidad de Items"
-    )
-    cantidad_items_validados = models.PositiveIntegerField(
-        default=0,
-        verbose_name="Items Validados"
-    )
     
     class Meta:
         verbose_name = "Solicitud de Pedido"
@@ -1450,11 +1441,11 @@ class SolicitudPedido(models.Model):
     
     def puede_validarse(self):
         """Verifica si la solicitud puede validarse"""
-        return self.estado == 'PENDIENTE' and self.cantidad_items > 0
+        return self.estado == 'PENDIENTE' and self.items.count() > 0
     
     def puede_prepararse(self):
         """Verifica si la solicitud puede prepararse"""
-        return self.estado == 'VALIDADA' and self.cantidad_items_validados == self.cantidad_items
+        return self.estado == 'VALIDADA' and self.items.filter(estado='VALIDADO').count() == self.items.count()
 
 
 class ItemSolicitudPedido(models.Model):
