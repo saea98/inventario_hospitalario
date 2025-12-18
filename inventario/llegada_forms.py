@@ -262,6 +262,7 @@ UbicacionFormSet = inlineformset_factory(
     ItemLlegada,
     form=UbicacionForm,
     formset=UbicacionBaseFormSet,
+    fields=[],  # No renderizar campos del modelo ItemLlegada
     extra=0,
     can_delete=False,
     fk_name="llegada",
