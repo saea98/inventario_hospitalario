@@ -24,8 +24,8 @@ class LlegadaProveedorForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Inicializar queryset dinámicamente
-        from .models import Cita
-        self.fields['cita'].queryset = Cita.objects.filter(estado="AUTORIZADA")
+        from .models import CitaProveedor
+        self.fields['cita'].queryset = CitaProveedor.objects.filter(estado="AUTORIZADA")
     
     class Meta:
         model = LlegadaProveedor
