@@ -30,7 +30,7 @@ def lista_solicitudes(request):
     Lista todas las solicitudes de pedidos con filtros
     """
     solicitudes = SolicitudPedido.objects.select_related(
-        'institucion', 'almacen_origen', 'usuario_solicita'
+        'institucion', 'almacen_origen', 'usuario_solicitante'
     ).all()
     
     # Aplicar filtros
@@ -88,7 +88,7 @@ def crear_solicitud(request):
         form = SolicitudPedidoForm(request.POST)
         if form.is_valid():
             solicitud = form.save(commit=False)
-            solicitud.usuario_solicita = request.user
+            solicitud.usuario_solicitante = request.user
             solicitud.save()
             
             messages.success(request, f'Solicitud {solicitud.folio} creada exitosamente')
@@ -108,7 +108,7 @@ def agregar_items_solicitud(request, solicitud_id):
     solicitud = get_object_or_404(SolicitudPedido, id=solicitud_id)
     
     # Solo el creador puede agregar items
-    if solicitud.usuario_solicita != request.user:
+    if solicitud.usuario_solicitante != request.user:
         messages.error(request, 'No tienes permiso para editar esta solicitud')
         return redirect('lista_solicitudes')
     
