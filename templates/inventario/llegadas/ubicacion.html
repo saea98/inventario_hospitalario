@@ -26,7 +26,7 @@
                         </thead>
                         <tbody>
                             {% for form in formset.forms %}
-                                {% with item=llegada.items.all|slice:forloop.counter0|first %}
+                                {% with item=items|slice:forloop.counter0|first %}
                                     <tr>
                                         <td>
                                             <strong>{{ item.producto.descripcion }}</strong>
