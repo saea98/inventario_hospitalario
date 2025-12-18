@@ -1,6 +1,10 @@
 {% extends "base.html" %}
 {% load crispy_forms_tags %}
 
+{% block extra_css %}
+<link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.1.0-rc.0/css/select2.min.css" rel="stylesheet" />
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid">
     <h1 class="h3 mb-2 text-gray-800">Registrar Nueva Llegada</h1>
@@ -13,7 +17,38 @@
                 <h6 class="m-0 font-weight-bold text-primary">Datos de la Llegada</h6>
             </div>
             <div class="card-body">
-                {{ form|crispy }}
+                <div class="form-group">
+                    <label for="id_cita">Cita Autorizada *</label>
+                    {{ form.cita }}
+                    {% if form.cita.errors %}
+                        <div class="alert alert-danger">{{ form.cita.errors }}</div>
+                    {% endif %}
+                </div>
+                <div class="form-group">
+                    <label for="id_remision">Remisión *</label>
+                    {{ form.remision }}
+                    {% if form.remision.errors %}
+                        <div class="alert alert-danger">{{ form.remision.errors }}</div>
+                    {% endif %}
+                </div>
+                <div class="form-group">
+                    <label for="id_numero_piezas_emitidas">Número de Piezas Emitidas *</label>
+                    {{ form.numero_piezas_emitidas }}
+                    {% if form.numero_piezas_emitidas.errors %}
+                        <div class="alert alert-danger">{{ form.numero_piezas_emitidas.errors }}</div>
+                    {% endif %}
+                </div>
+                <div class="form-group">
+                    <label for="id_numero_piezas_recibidas">Número de Piezas Recibidas *</label>
+                    {{ form.numero_piezas_recibidas }}
+                    {% if form.numero_piezas_recibidas.errors %}
+                        <div class="alert alert-danger">{{ form.numero_piezas_recibidas.errors }}</div>
+                    {% endif %}
+                </div>
+                <div class="form-group">
+                    <label for="id_observaciones_recepcion">Observaciones</label>
+                    {{ form.observaciones_recepcion }}
+                </div>
             </div>
         </div>
 
@@ -41,20 +76,28 @@
 </div>
 
 {% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.1.0-rc.0/js/select2.min.js"></script>
 <script>
 $(document).ready(function() {
-    // Función para agregar un nuevo formulario de item
+    // Inicializar Select2 para el campo de cita
+    $('#id_cita').select2({
+        dropdownParent: $('body'),
+        width: '100%'
+    });
+    
+    // Funcion para agregar un nuevo formulario de item
     $('#add-item-form').click(function() {
         var form_idx = $('#id_items-TOTAL_FORMS').val();
         $('#item-formset').append($('#empty-form').html().replace(/__prefix__/g, form_idx));
         $('#id_items-TOTAL_FORMS').val(parseInt(form_idx) + 1);
-        // Reinicializar Select2 para el nuevo campo
+        // Reinicializar Select2 para los nuevos campos
         $('.select2-single').select2({
-            dropdownParent: $('body')
+            dropdownParent: $('body'),
+            width: '100%'
         });
     });
 
-    // Template para el formulario vacío
+    // Template para el formulario vacio
     var empty_form_template = `
         <div class="item-form">
             {{ formset.empty_form|crispy }}
