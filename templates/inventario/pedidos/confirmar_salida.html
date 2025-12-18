@@ -1,0 +1,175 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Confirmar Salida de Existencias{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <h1 class="mb-4">🚚 Confirmar Salida de Existencias</h1>
+
+            <!-- Información de la Solicitud -->
+            <div class="card mb-4 border-success">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">Información de la Solicitud</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Folio Solicitud:</strong> <span class="badge badge-info">{{ solicitud.folio }}</span></p>
+                            <p><strong>Área Médica:</strong> {{ solicitud.institucion.denominacion }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Almacén Origen:</strong> {{ solicitud.almacen_origen.nombre }}</p>
+                            <p><strong>Entrega Programada:</strong> {{ solicitud.fecha_entrega_programada|date:"d/m/Y" }}</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Items a Entregar -->
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">📦 Items a Entregar</h5>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="bg-light">
+                            <tr>
+                                <th>CLAVE (CNIS)</th>
+                                <th>Descripción</th>
+                                <th>Lote</th>
+                                <th>Cantidad</th>
+                                <th>Precio Unit.</th>
+                                <th>Importe</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in items %}
+                            <tr>
+                                <td><strong>{{ item.producto.clave_cnis }}</strong></td>
+                                <td>{{ item.producto.descripcion }}</td>
+                                <td>{{ item.lote_asignado.numero_lote }}</td>
+                                <td>
+                                    <span class="badge badge-primary">{{ item.cantidad_aprobada }}</span>
+                                </td>
+                                <td>${{ item.lote_asignado.precio_unitario }}</td>
+                                <td>${{ item.cantidad_aprobada|add:item.lote_asignado.precio_unitario }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Formulario de Confirmación -->
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">✍️ Datos del Receptor</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" novalidate>
+                        {% csrf_token %}
+
+                        <div class="form-group">
+                            <label for="{{ form.nombre_receptor.id_for_label }}">
+                                <strong>Nombre del Receptor *</strong>
+                            </label>
+                            {{ form.nombre_receptor }}
+                            {% if form.nombre_receptor.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.nombre_receptor.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="form-group">
+                            <label><strong>Firma Digital *</strong></label>
+                            <div class="border rounded p-3" id="signature-pad" style="height: 200px; background: #f9f9f9;">
+                                <canvas id="signature-canvas" style="border: 1px solid #ddd; display: block; width: 100%; height: 100%;"></canvas>
+                            </div>
+                            <small class="form-text text-muted">
+                                Dibuja tu firma en el recuadro anterior
+                            </small>
+                            {{ form.firma_receptor }}
+                        </div>
+
+                        <div class="form-group">
+                            <label for="{{ form.observaciones.id_for_label }}">
+                                <strong>Observaciones</strong>
+                            </label>
+                            {{ form.observaciones }}
+                            {% if form.observaciones.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.observaciones.errors }}
+                                </div>
+                            {% endif %}
+                        </div>
+
+                        <div class="form-group mt-4">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="fas fa-check"></i> Confirmar Entrega
+                            </button>
+                            <a href="{% url 'detalle_solicitud' solicitud.id %}" class="btn btn-secondary btn-lg">
+                                <i class="fas fa-times"></i> Cancelar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Información -->
+            <div class="alert alert-info">
+                <h5>📋 Paso 4 y 5: Registro de Salida y Entrega</h5>
+                <p>
+                    El receptor debe proporcionar su nombre y firma digital para confirmar la recepción de los productos.
+                    Esta información se registrará en el documento de Salida de Existencias.
+                </p>
+                <p class="mb-0">
+                    <strong>Nota:</strong> Una vez confirmada la entrega, se reducirá automáticamente la cantidad 
+                    disponible en el inventario y se crearán los movimientos correspondientes.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Librería para firma digital -->
+<script src="https://cdn.jsdelivr.net/npm/signature_pad@4.1.5/dist/signature_pad.umd.min.js"></script>
+
+<script>
+    // Inicializar Signature Pad
+    const canvas = document.getElementById('signature-canvas');
+    const signaturePad = new SignaturePad(canvas);
+    
+    // Ajustar tamaño del canvas
+    function resizeCanvas() {
+        const ratio = Math.max(window.devicePixelRatio || 1, 1);
+        canvas.width = canvas.offsetWidth * ratio;
+        canvas.height = canvas.offsetHeight * ratio;
+        canvas.getContext("2d").scale(ratio, ratio);
+    }
+    
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    
+    // Guardar firma en el formulario
+    document.querySelector('form').addEventListener('submit', function(e) {
+        if (signaturePad.isEmpty()) {
+            alert('Por favor, dibuja tu firma');
+            e.preventDefault();
+            return false;
+        }
+        
+        // Guardar firma como base64
+        document.getElementById('id_firma_receptor').value = signaturePad.toDataURL();
+    });
+</script>
+
+<style>
+    #signature-canvas {
+        cursor: crosshair;
+    }
+</style>
+{% endblock %}
