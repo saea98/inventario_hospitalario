@@ -1,6 +1,5 @@
-
 """
-- Vistas para el módulo de Gestión de Pedidos (Fase 2.2.1)
+Vistas para el módulo de Gestión de Pedidos (Fase 2.2.1)
 """
 
 from django.shortcuts import render, redirect, get_object_or_404
@@ -58,18 +57,24 @@ def crear_solicitud(request):
     """
     if request.method == 'POST':
         form = SolicitudPedidoForm(request.POST)
-        formset = ItemSolicitudFormSet(request.POST, instance=SolicitudPedido())
         
-        if form.is_valid() and formset.is_valid():
+        if form.is_valid():
+            # Primero guardar la solicitud
             solicitud = form.save(commit=False)
             solicitud.usuario_solicitante = request.user
             solicitud.save()
             
-            formset.instance = solicitud
-            formset.save()
+            # Luego procesar el formset con la solicitud ya guardada
+            formset = ItemSolicitudFormSet(request.POST, instance=solicitud)
             
-            messages.success(request, f"Solicitud {solicitud.folio} creada con éxito.")
-            return redirect('logistica:detalle_pedido', solicitud_id=solicitud.id)
+            if formset.is_valid():
+                formset.save()
+                messages.success(request, f"Solicitud {solicitud.folio} creada con éxito.")
+                return redirect('logistica:detalle_pedido', solicitud_id=solicitud.id)
+            else:
+                # Si el formset no es válido, eliminar la solicitud y mostrar error
+                solicitud.delete()
+                messages.error(request, "Por favor, corrige los errores en los items.")
         else:
             messages.error(request, "Por favor, corrige los errores en el formulario.")
 
