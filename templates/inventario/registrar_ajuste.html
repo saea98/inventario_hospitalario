@@ -1,0 +1,206 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Registrar Ajuste{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Encabezado -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1 class="h2">⚙️ Registrar Ajuste de Inventario</h1>
+            <p class="text-muted">Ajustes positivos o negativos de cantidad</p>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="{% url 'lista_lotes' %}" class="btn btn-secondary">
+                <i class="bi bi-arrow-left"></i> Volver
+            </a>
+        </div>
+    </div>
+
+    <!-- Formulario -->
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Información del Ajuste</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Lote <span class="text-danger">*</span></label>
+                            <select name="lote_id" class="form-select" id="loteSelect" required>
+                                <option value="">Selecciona un lote</option>
+                                {% for lote in lotes %}
+                                <option value="{{ lote.id }}" 
+                                        data-cantidad="{{ lote.cantidad_disponible }}"
+                                        data-producto="{{ lote.producto.descripcion }}">
+                                    {{ lote.numero_lote }} - {{ lote.producto.descripcion }} ({{ lote.cantidad_disponible }} disponibles)
+                                </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Cantidad Actual</label>
+                                    <input type="number" class="form-control" id="cantidadActual" readonly>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Tipo de Ajuste <span class="text-danger">*</span></label>
+                                    <select name="tipo_ajuste" class="form-select" id="tipoAjuste" required>
+                                        <option value="">Selecciona tipo</option>
+                                        <option value="AJUSTE_POSITIVO">➕ Ajuste Positivo (Sumar)</option>
+                                        <option value="AJUSTE_NEGATIVO">➖ Ajuste Negativo (Restar)</option>
+                                    </select>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Cantidad a Ajustar <span class="text-danger">*</span></label>
+                                    <input type="number" name="cantidad" class="form-control" 
+                                           id="cantidadAjuste" min="1" required>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Cantidad Final</label>
+                                    <input type="number" class="form-control" id="cantidadFinal" readonly>
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Motivo del Ajuste <span class="text-danger">*</span></label>
+                            <select name="motivo" class="form-select" required>
+                                <option value="">Selecciona un motivo</option>
+                                <option value="CONTEO_FÍSICO">Conteo Físico</option>
+                                <option value="CORRECCIÓN_ERROR">Corrección de Error</option>
+                                <option value="REPOSICIÓN">Reposición</option>
+                                <option value="PÉRDIDA_ENCONTRADA">Pérdida Encontrada</option>
+                                <option value="DAÑADO">Producto Dañado</option>
+                                <option value="OTRO">Otro</option>
+                            </select>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Observaciones</label>
+                            <textarea name="observaciones" class="form-control" rows="3" 
+                                      placeholder="Detalles adicionales del ajuste..."></textarea>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{% url 'lista_lotes' %}" class="btn btn-secondary">
+                                <i class="bi bi-x-circle"></i> Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle"></i> Registrar Ajuste
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel de Información -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Información del Lote</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Producto</label>
+                        <p id="productoInfo" class="fs-6">-</p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Cantidad Actual</label>
+                        <p id="actualInfo" class="fs-6">-</p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Tipo de Ajuste</label>
+                        <p id="tipoInfo" class="fs-6">-</p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Cantidad Final</label>
+                        <p id="finalInfo" class="fs-6 fw-bold">-</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header bg-warning">
+                    <h5 class="mb-0 text-dark">⚠️ Importante</h5>
+                </div>
+                <div class="card-body">
+                    <p class="small">
+                        Los ajustes deben ser registrados con el motivo correcto para mantener la trazabilidad del inventario.
+                    </p>
+                    <p class="small">
+                        Asegúrate de que la cantidad final sea válida (no negativa para ajustes negativos).
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+document.getElementById('loteSelect').addEventListener('change', function() {
+    const option = this.options[this.selectedIndex];
+    const cantidad = option.dataset.cantidad || 0;
+    const producto = option.dataset.producto || '-';
+    
+    document.getElementById('cantidadActual').value = cantidad;
+    document.getElementById('productoInfo').textContent = producto;
+    document.getElementById('actualInfo').textContent = cantidad;
+    document.getElementById('tipoInfo').textContent = '-';
+    document.getElementById('finalInfo').textContent = '-';
+    document.getElementById('cantidadAjuste').value = '';
+});
+
+document.getElementById('tipoAjuste').addEventListener('change', function() {
+    const tipo = this.value === 'AJUSTE_POSITIVO' ? '➕ Sumar' : '➖ Restar';
+    document.getElementById('tipoInfo').textContent = tipo;
+    calcularFinal();
+});
+
+document.getElementById('cantidadAjuste').addEventListener('input', function() {
+    calcularFinal();
+});
+
+function calcularFinal() {
+    const actual = parseInt(document.getElementById('cantidadActual').value) || 0;
+    const ajuste = parseInt(document.getElementById('cantidadAjuste').value) || 0;
+    const tipo = document.getElementById('tipoAjuste').value;
+    
+    let final;
+    if (tipo === 'AJUSTE_POSITIVO') {
+        final = actual + ajuste;
+    } else if (tipo === 'AJUSTE_NEGATIVO') {
+        final = actual - ajuste;
+    } else {
+        final = actual;
+    }
+    
+    const finalInfo = document.getElementById('finalInfo');
+    finalInfo.textContent = final;
+    
+    if (final < 0) {
+        finalInfo.classList.add('text-danger');
+    } else {
+        finalInfo.classList.remove('text-danger');
+    }
+}
+</script>
+
+{% endblock %}

@@ -1,0 +1,176 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Registrar Salida{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Encabezado -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1 class="h2">📤 Registrar Salida de Inventario</h1>
+            <p class="text-muted">Registra salidas de productos del almacén</p>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="{% url 'lista_lotes' %}" class="btn btn-secondary">
+                <i class="bi bi-arrow-left"></i> Volver
+            </a>
+        </div>
+    </div>
+
+    <!-- Formulario -->
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Información de Salida</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label class="form-label">Lote <span class="text-danger">*</span></label>
+                            <select name="lote_id" class="form-select" id="loteSelect" required>
+                                <option value="">Selecciona un lote</option>
+                                {% for lote in lotes %}
+                                <option value="{{ lote.id }}" 
+                                        data-cantidad="{{ lote.cantidad_disponible }}"
+                                        data-producto="{{ lote.producto.descripcion }}">
+                                    {{ lote.numero_lote }} - {{ lote.producto.descripcion }} ({{ lote.cantidad_disponible }} disponibles)
+                                </option>
+                                {% endfor %}
+                            </select>
+                            {% if form.lote_id.errors %}
+                                <div class="alert alert-danger mt-2">{{ form.lote_id.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Cantidad Disponible</label>
+                                    <input type="number" class="form-control" id="cantidadDisponible" readonly>
+                                </div>
+                            </div>
+                            <div class="col-md-6">
+                                <div class="mb-3">
+                                    <label class="form-label">Cantidad a Salida <span class="text-danger">*</span></label>
+                                    <input type="number" name="cantidad_salida" class="form-control" 
+                                           id="cantidadSalida" min="1" required>
+                                    {% if form.cantidad_salida.errors %}
+                                        <div class="alert alert-danger mt-2">{{ form.cantidad_salida.errors }}</div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Motivo de Salida <span class="text-danger">*</span></label>
+                            <select name="motivo_salida" class="form-select" required>
+                                <option value="">Selecciona un motivo</option>
+                                <option value="DISTRIBUCIÓN">Distribución a Áreas</option>
+                                <option value="CONSUMO">Consumo</option>
+                                <option value="DEVOLUCIÓN">Devolución a Proveedor</option>
+                                <option value="PÉRDIDA">Pérdida</option>
+                                <option value="ROBO">Robo</option>
+                                <option value="OTRO">Otro</option>
+                            </select>
+                            {% if form.motivo_salida.errors %}
+                                <div class="alert alert-danger mt-2">{{ form.motivo_salida.errors }}</div>
+                            {% endif %}
+                        </div>
+
+                        <div class="mb-3">
+                            <label class="form-label">Observaciones</label>
+                            <textarea name="observaciones" class="form-control" rows="3" 
+                                      placeholder="Observaciones adicionales..."></textarea>
+                        </div>
+
+                        <div class="d-grid gap-2 d-md-flex justify-content-md-end">
+                            <a href="{% url 'lista_lotes' %}" class="btn btn-secondary">
+                                <i class="bi bi-x-circle"></i> Cancelar
+                            </a>
+                            <button type="submit" class="btn btn-primary">
+                                <i class="bi bi-check-circle"></i> Registrar Salida
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel de Información -->
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Información del Lote</h5>
+                </div>
+                <div class="card-body">
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Producto</label>
+                        <p id="productoInfo" class="fs-6">-</p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Disponible</label>
+                        <p id="disponibleInfo" class="fs-6">-</p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted">A Salida</label>
+                        <p id="salidaInfo" class="fs-6">-</p>
+                    </div>
+                    <div class="mb-3">
+                        <label class="form-label text-muted">Quedaría</label>
+                        <p id="quedariaInfo" class="fs-6">-</p>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-3">
+                <div class="card-header bg-info">
+                    <h5 class="mb-0 text-white">ℹ️ Información</h5>
+                </div>
+                <div class="card-body">
+                    <p class="small">
+                        Al registrar una salida, el sistema actualizará automáticamente la cantidad disponible del lote.
+                    </p>
+                    <p class="small">
+                        Asegúrate de seleccionar el motivo correcto para mantener un registro preciso de los movimientos.
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<script>
+document.getElementById('loteSelect').addEventListener('change', function() {
+    const option = this.options[this.selectedIndex];
+    const cantidad = option.dataset.cantidad || 0;
+    const producto = option.dataset.producto || '-';
+    
+    document.getElementById('cantidadDisponible').value = cantidad;
+    document.getElementById('productoInfo').textContent = producto;
+    document.getElementById('disponibleInfo').textContent = cantidad;
+    document.getElementById('salidaInfo').textContent = '-';
+    document.getElementById('quedariaInfo').textContent = '-';
+});
+
+document.getElementById('cantidadSalida').addEventListener('input', function() {
+    const disponible = parseInt(document.getElementById('cantidadDisponible').value) || 0;
+    const salida = parseInt(this.value) || 0;
+    const quedaria = disponible - salida;
+    
+    document.getElementById('salidaInfo').textContent = salida;
+    document.getElementById('quedariaInfo').textContent = quedaria >= 0 ? quedaria : '❌ Excede disponible';
+    
+    if (quedaria < 0) {
+        document.getElementById('quedariaInfo').classList.add('text-danger');
+    } else {
+        document.getElementById('quedariaInfo').classList.remove('text-danger');
+    }
+});
+</script>
+
+{% endblock %}

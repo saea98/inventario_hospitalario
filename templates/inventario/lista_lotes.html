@@ -1,0 +1,153 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Lista de Lotes{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Encabezado -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1 class="h2">📦 Lista de Lotes</h1>
+            <p class="text-muted">Consulta y gestión de lotes de inventario</p>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="{% url 'dashboard_inventario' %}" class="btn btn-secondary">
+                <i class="bi bi-house"></i> Volver al Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">Filtros</h5>
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Búsqueda</label>
+                    <input type="text" name="busqueda" class="form-control" 
+                           placeholder="Lote, producto..." value="{{ busqueda }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Estado</label>
+                    <select name="estado" class="form-select">
+                        <option value="">Todos los estados</option>
+                        {% for value, label in estados %}
+                        <option value="{{ value }}" {% if filtro_estado|stringformat:"s" == value|stringformat:"s" %}selected{% endif %}>
+                            {{ label }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Almacén</label>
+                    <select name="almacen" class="form-select">
+                        <option value="">Todos los almacenes</option>
+                        {% for almacen in almacenes %}
+                        <option value="{{ almacen.id }}" {% if filtro_almacen|stringformat:"s" == almacen.id|stringformat:"s" %}selected{% endif %}>
+                            {{ almacen.nombre }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Producto</label>
+                    <select name="producto" class="form-select">
+                        <option value="">Todos los productos</option>
+                        {% for producto in productos %}
+                        <option value="{{ producto.id }}" {% if filtro_producto|stringformat:"s" == producto.id|stringformat:"s" %}selected{% endif %}>
+                            {{ producto.descripcion }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-12">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-search"></i> Filtrar
+                    </button>
+                    <a href="{% url 'lista_lotes' %}" class="btn btn-secondary">
+                        <i class="bi bi-arrow-clockwise"></i> Limpiar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tabla de Lotes -->
+    <div class="card">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">Lotes ({{ lotes|length }})</h5>
+        </div>
+        <div class="card-body">
+            {% if lotes %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Lote</th>
+                            <th>Producto</th>
+                            <th>Almacén</th>
+                            <th>Ubicación</th>
+                            <th>Cantidad</th>
+                            <th>Caducidad</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for lote in lotes %}
+                        <tr>
+                            <td><strong>{{ lote.numero_lote }}</strong></td>
+                            <td>{{ lote.producto.descripcion }}</td>
+                            <td>{{ lote.almacen.nombre }}</td>
+                            <td>{{ lote.ubicacion.codigo }}</td>
+                            <td>
+                                <span class="badge bg-info">{{ lote.cantidad_disponible }}</span>
+                            </td>
+                            <td>
+                                {% if lote.fecha_caducidad %}
+                                    {% if lote.esta_caducado %}
+                                        <span class="badge bg-danger">{{ lote.fecha_caducidad|date:"d/m/Y" }}</span>
+                                    {% elif lote.esta_proximo_caducar %}
+                                        <span class="badge bg-warning">{{ lote.fecha_caducidad|date:"d/m/Y" }}</span>
+                                    {% else %}
+                                        <span class="badge bg-success">{{ lote.fecha_caducidad|date:"d/m/Y" }}</span>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if lote.estado == 1 %}
+                                    <span class="badge bg-success">Disponible</span>
+                                {% elif lote.estado == 4 %}
+                                    <span class="badge bg-warning">Suspendido</span>
+                                {% elif lote.estado == 5 %}
+                                    <span class="badge bg-info">Deteriorado</span>
+                                {% elif lote.estado == 6 %}
+                                    <span class="badge bg-danger">Caducado</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'detalle_lote' lote.id %}" class="btn btn-sm btn-outline-primary" title="Ver detalle">
+                                    <i class="bi bi-eye"></i>
+                                </a>
+                                <a href="{% url 'registrar_salida' %}?lote={{ lote.id }}" class="btn btn-sm btn-outline-danger" title="Registrar salida">
+                                    <i class="bi bi-arrow-right"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted text-center py-4">No se encontraron lotes con los filtros seleccionados</p>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+{% endblock %}
