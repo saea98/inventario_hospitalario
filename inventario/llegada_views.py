@@ -182,23 +182,32 @@ class UbicacionView(LoginRequiredMixin, PermissionRequiredMixin, View):
                         almacen = form.cleaned_data.get('almacen')
                         ubicacion = form.cleaned_data.get('ubicacion')
                         
-                        lote = Lote.objects.create(
-                            producto=item.producto,
-                            numero_lote=item.numero_lote,
-                            fecha_caducidad=item.fecha_caducidad,
-                            cantidad_inicial=item.cantidad_recibida,
-                            cantidad_disponible=item.cantidad_recibida,
-                            almacen=almacen,
-                            ubicacion=ubicacion,
-                            estado=1,  # 1 = Disponible
-                            institucion=llegada.cita.almacen.institucion,  # Obtener institución del almacén de la cita
-                            fecha_recepcion=llegada.fecha_llegada_real.date(),
-                            precio_unitario=item.precio_unitario_sin_iva or 0,
-                            valor_total=(item.precio_unitario_sin_iva or 0) * item.cantidad_recibida,
-                            remision=llegada.remision,
-                        )
-                        item.lote_creado = lote
-                        item.save()
+                        # Si el lote ya existe, actualizar; si no, crear
+                        if item.lote_creado:
+                            # Actualizar lote existente
+                            lote = item.lote_creado
+                            lote.almacen = almacen
+                            lote.ubicacion = ubicacion
+                            lote.save()
+                        else:
+                            # Crear nuevo lote
+                            lote = Lote.objects.create(
+                                producto=item.producto,
+                                numero_lote=item.numero_lote,
+                                fecha_caducidad=item.fecha_caducidad,
+                                cantidad_inicial=item.cantidad_recibida,
+                                cantidad_disponible=item.cantidad_recibida,
+                                almacen=almacen,
+                                ubicacion=ubicacion,
+                                estado=1,  # 1 = Disponible
+                                institucion=llegada.cita.almacen.institucion,  # Obtener institución del almacén de la cita
+                                fecha_recepcion=llegada.fecha_llegada_real.date(),
+                                precio_unitario=item.precio_unitario_sin_iva or 0,
+                                valor_total=(item.precio_unitario_sin_iva or 0) * item.cantidad_recibida,
+                                remision=llegada.remision,
+                            )
+                            item.lote_creado = lote
+                            item.save()
                 
                 llegada.usuario_ubicacion = request.user
                 llegada.fecha_ubicacion = timezone.now()

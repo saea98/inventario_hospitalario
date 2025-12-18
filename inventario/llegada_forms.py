@@ -274,10 +274,20 @@ class UbicacionFormSet(BaseFormSet):
                 items = self.llegada.items.all()
                 for idx, item in enumerate(items):
                     prefix = f"ubicacion-{idx}"
+                    
+                    # Preparar datos iniciales si el lote ya existe
+                    initial_data = {}
+                    if item.lote_creado:
+                        initial_data = {
+                            'almacen': item.lote_creado.almacen_id,
+                            'ubicacion': item.lote_creado.ubicacion_id,
+                        }
+                    
                     # Pasar self.data si existe (POST), None si es GET
                     form = UbicacionItemForm(
                         self.data if self.data else None,
-                        prefix=prefix
+                        prefix=prefix,
+                        initial=initial_data
                     )
                     self._forms_cache.append(form)
         return self._forms_cache
