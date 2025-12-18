@@ -1,0 +1,142 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Lista de Movimientos{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Encabezado -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1 class="h2">📊 Movimientos de Inventario</h1>
+            <p class="text-muted">Historial de todas las transacciones de inventario</p>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="{% url 'dashboard_inventario' %}" class="btn btn-secondary">
+                <i class="bi bi-house"></i> Volver al Dashboard
+            </a>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">Filtros</h5>
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Búsqueda</label>
+                    <input type="text" name="busqueda" class="form-control" 
+                           placeholder="Lote, producto..." value="{{ busqueda }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Tipo de Movimiento</label>
+                    <select name="tipo" class="form-select">
+                        <option value="">Todos los tipos</option>
+                        {% for value, label in tipos_movimiento %}
+                        <option value="{{ value }}" {% if filtro_tipo == value %}selected{% endif %}>
+                            {{ label }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Desde</label>
+                    <input type="date" name="fecha_desde" class="form-control" value="{{ filtro_fecha_desde }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Hasta</label>
+                    <input type="date" name="fecha_hasta" class="form-control" value="{{ filtro_fecha_hasta }}">
+                </div>
+                <div class="col-md-12">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="bi bi-search"></i> Filtrar
+                    </button>
+                    <a href="{% url 'lista_movimientos' %}" class="btn btn-secondary">
+                        <i class="bi bi-arrow-clockwise"></i> Limpiar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tabla de Movimientos -->
+    <div class="card">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">Movimientos ({{ movimientos|length }})</h5>
+        </div>
+        <div class="card-body">
+            {% if movimientos %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Tipo</th>
+                            <th>Lote</th>
+                            <th>Producto</th>
+                            <th>Cantidad Anterior</th>
+                            <th>Cantidad Nueva</th>
+                            <th>Cambio</th>
+                            <th>Motivo</th>
+                            <th>Usuario</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for movimiento in movimientos %}
+                        <tr>
+                            <td>{{ movimiento.fecha_creacion|date:"d/m/Y H:i" }}</td>
+                            <td>
+                                {% if movimiento.tipo_movimiento == 'ENTRADA' %}
+                                    <span class="badge bg-success">Entrada</span>
+                                {% elif movimiento.tipo_movimiento == 'SALIDA' %}
+                                    <span class="badge bg-danger">Salida</span>
+                                {% elif movimiento.tipo_movimiento == 'AJUSTE_POSITIVO' %}
+                                    <span class="badge bg-info">Ajuste +</span>
+                                {% elif movimiento.tipo_movimiento == 'AJUSTE_NEGATIVO' %}
+                                    <span class="badge bg-warning">Ajuste -</span>
+                                {% elif movimiento.tipo_movimiento == 'TRANSFERENCIA_ENTRADA' %}
+                                    <span class="badge bg-primary">Transfer. Entrada</span>
+                                {% elif movimiento.tipo_movimiento == 'TRANSFERENCIA_SALIDA' %}
+                                    <span class="badge bg-primary">Transfer. Salida</span>
+                                {% elif movimiento.tipo_movimiento == 'CADUCIDAD' %}
+                                    <span class="badge bg-danger">Caducidad</span>
+                                {% elif movimiento.tipo_movimiento == 'DETERIORO' %}
+                                    <span class="badge bg-secondary">Deterioro</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">{{ movimiento.get_tipo_movimiento_display }}</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <a href="{% url 'detalle_lote' movimiento.lote.id %}" class="text-decoration-none">
+                                    {{ movimiento.lote.numero_lote }}
+                                </a>
+                            </td>
+                            <td>{{ movimiento.lote.producto.descripcion }}</td>
+                            <td>{{ movimiento.cantidad_anterior }}</td>
+                            <td>{{ movimiento.cantidad_nueva }}</td>
+                            <td>
+                                {% if movimiento.cantidad_nueva > movimiento.cantidad_anterior %}
+                                    <span class="badge bg-success">+{{ movimiento.cantidad_nueva|add:movimiento.cantidad_anterior|add:"-" }}</span>
+                                {% elif movimiento.cantidad_nueva < movimiento.cantidad_anterior %}
+                                    <span class="badge bg-danger">-{{ movimiento.cantidad_anterior|add:movimiento.cantidad_nueva|add:"-" }}</span>
+                                {% else %}
+                                    <span class="badge bg-secondary">0</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ movimiento.motivo|truncatewords:5 }}</td>
+                            <td>{{ movimiento.usuario.username }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <p class="text-muted text-center py-4">No se encontraron movimientos con los filtros seleccionados</p>
+            {% endif %}
+        </div>
+    </div>
+
+</div>
+{% endblock %}

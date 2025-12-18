@@ -1,7 +1,7 @@
 from django.urls import path, include
 from . import views
 #from inventario.admin import inventario_admin
-from inventario import urls_entrada_salida, urls_fase2
+from inventario import urls_entrada_salida, urls_fase2, urls_inventario
 from django.contrib import admin as django_admin
 
 
@@ -79,6 +79,7 @@ urlpatterns = [
     path('carga-lotes-excel/', views.carga_lotes_desde_excel_view, name='carga_lotes_excel'),
     path('inventario/', include(urls_entrada_salida)),
     path('logistica/', include(urls_fase2)),  # URLs de FASE 2: Citas, Traslados, Conteo
+    path('gestion-inventario/', include(urls_inventario)),  # URLs de FASE 2.3: Gestión de Inventario
     path('admin/', django_admin.site.urls),
     #path("select2/", include("django_select2.urls")),
     
