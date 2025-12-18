@@ -78,7 +78,7 @@ urlpatterns = [
     path('ajax/ubicaciones/', views.ajax_ubicaciones_por_almacen, name='ajax_ubicaciones_por_almacen'),
     path('carga-lotes-excel/', views.carga_lotes_desde_excel_view, name='carga_lotes_excel'),
     path('inventario/', include(urls_entrada_salida)),
-    path('', include(urls_fase2)),  # URLs de FASE 2: Citas, Traslados, Conteo
+    path('logistica/', include(urls_fase2)),  # URLs de FASE 2: Citas, Traslados, Conteo
     path('admin/', django_admin.site.urls),
     #path("select2/", include("django_select2.urls")),
     
