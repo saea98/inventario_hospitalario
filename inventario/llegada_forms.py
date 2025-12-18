@@ -4,15 +4,7 @@ Formularios para la Fase 2.2.2: Llegada de Proveedores
 
 from django import forms
 from django.forms import inlineformset_factory
-from django.apps import apps
 from .llegada_models import LlegadaProveedor, ItemLlegada, DocumentoLlegada
-
-# Lazy imports para evitar circular imports
-def get_cita_model():
-    return apps.get_model('inventario', 'Cita')
-
-def get_producto_model():
-    return apps.get_model('inventario', 'Producto')
 
 
 class LlegadaProveedorForm(forms.ModelForm):
@@ -21,13 +13,19 @@ class LlegadaProveedorForm(forms.ModelForm):
     """
     
     cita = forms.ModelChoiceField(
-        queryset=get_cita_model().objects.filter(estado="AUTORIZADA"),
+        queryset=None,  # Se inicializa en __init__
         label="Cita Autorizada",
         widget=forms.Select(attrs={
             "class": "form-control select2-single",
             "data-placeholder": "-- Selecciona una cita --"
         })
     )
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Inicializar queryset dinámicamente
+        from .models import Cita
+        self.fields['cita'].queryset = Cita.objects.filter(estado="AUTORIZADA")
     
     class Meta:
         model = LlegadaProveedor
@@ -52,13 +50,19 @@ class ItemLlegadaForm(forms.ModelForm):
     """
     
     producto = forms.ModelChoiceField(
-        queryset=get_producto_model().objects.all(),
+        queryset=None,  # Se inicializa en __init__
         label="Producto",
         widget=forms.Select(attrs={
             "class": "form-control select2-single",
             "data-placeholder": "-- Selecciona un producto --"
         })
     )
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Inicializar queryset dinámicamente
+        from .models import Producto
+        self.fields['producto'].queryset = Producto.objects.all()
     
     class Meta:
         model = ItemLlegada
@@ -184,30 +188,6 @@ class SupervisionForm(forms.ModelForm):
             "observaciones_supervision": forms.Textarea(attrs={"class": "form-control", "rows": 3}),
             "firma_supervision": forms.HiddenInput(),
         }
-
-
-class UbicacionForm(forms.ModelForm):
-    """
-    Formulario para asignar ubicación a cada lote.
-    """
-    
-    class Meta:
-        model = Lote
-        fields = ["ubicacion", "almacen"]
-        widgets = {
-            "ubicacion": forms.Select(attrs={"class": "form-control select2-single"}),
-            "almacen": forms.Select(attrs={"class": "form-control select2-single"}),
-        }
-
-
-UbicacionFormSet = inlineformset_factory(
-    LlegadaProveedor,
-    ItemLlegada,
-    form=UbicacionForm,
-    extra=0,
-    can_delete=False,
-    fk_name="llegada",
-)
 
 
 class DocumentoLlegadaForm(forms.ModelForm):
