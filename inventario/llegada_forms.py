@@ -4,8 +4,15 @@ Formularios para la Fase 2.2.2: Llegada de Proveedores
 
 from django import forms
 from django.forms import inlineformset_factory
+from django.apps import apps
 from .llegada_models import LlegadaProveedor, ItemLlegada, DocumentoLlegada
-from .models import Cita, Producto
+
+# Lazy imports para evitar circular imports
+def get_cita_model():
+    return apps.get_model('inventario', 'Cita')
+
+def get_producto_model():
+    return apps.get_model('inventario', 'Producto')
 
 
 class LlegadaProveedorForm(forms.ModelForm):
@@ -14,7 +21,7 @@ class LlegadaProveedorForm(forms.ModelForm):
     """
     
     cita = forms.ModelChoiceField(
-        queryset=Cita.objects.filter(estado="AUTORIZADA"),
+        queryset=get_cita_model().objects.filter(estado="AUTORIZADA"),
         label="Cita Autorizada",
         widget=forms.Select(attrs={
             "class": "form-control select2-single",
@@ -45,7 +52,7 @@ class ItemLlegadaForm(forms.ModelForm):
     """
     
     producto = forms.ModelChoiceField(
-        queryset=Producto.objects.all(),
+        queryset=get_producto_model().objects.all(),
         label="Producto",
         widget=forms.Select(attrs={
             "class": "form-control select2-single",
