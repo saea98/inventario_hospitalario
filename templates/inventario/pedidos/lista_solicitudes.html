@@ -11,7 +11,7 @@
             <p class="text-muted">Gestión de pedidos de áreas médicas - Procedimiento 2 del Manual</p>
         </div>
         <div class="col-md-4 text-right">
-            <a href="{% url 'crear_solicitud' %}" class="btn btn-primary btn-lg">
+            <a href="{% url 'logistica:crear_solicitud' %}" class="btn btn-primary btn-lg">
                 <i class="fas fa-plus"></i> Nueva Solicitud
             </a>
         </div>
@@ -76,7 +76,7 @@
                     {{ form.buscar }}
                 </div>
                 <button type="submit" class="btn btn-primary">Filtrar</button>
-                <a href="{% url 'lista_solicitudes' %}" class="btn btn-secondary ml-2">Limpiar</a>
+                <a href="{% url 'logistica:lista_solicitudes' %}" class="btn btn-secondary ml-2">Limpiar</a>
             </form>
         </div>
     </div>
@@ -122,22 +122,22 @@
                             {% endif %}
                         </td>
                         <td>
-                            <a href="{% url 'detalle_solicitud' solicitud.id %}" 
+                            <a href="{% url 'logistica:detalle_solicitud' solicitud.id %}" 
                                class="btn btn-sm btn-info" title="Ver detalles">
                                 <i class="fas fa-eye"></i>
                             </a>
                             {% if solicitud.estado == 'PENDIENTE' %}
-                                <a href="{% url 'validar_solicitud' solicitud.id %}" 
+                                <a href="{% url 'logistica:validar_solicitud' solicitud.id %}" 
                                    class="btn btn-sm btn-success" title="Validar">
                                     <i class="fas fa-check"></i>
                                 </a>
                             {% elif solicitud.estado == 'VALIDADA' %}
-                                <a href="{% url 'imprimir_orden_surtimiento' solicitud.orden_surtimiento.id %}" 
+                                <a href="{% url 'logistica:imprimir_orden_surtimiento' solicitud.orden_surtimiento.id %}" 
                                    class="btn btn-sm btn-primary" title="Imprimir orden">
                                     <i class="fas fa-print"></i>
                                 </a>
                             {% elif solicitud.estado == 'PREPARADA' %}
-                                <a href="{% url 'confirmar_salida' solicitud.id %}" 
+                                <a href="{% url 'logistica:confirmar_salida' solicitud.id %}" 
                                    class="btn btn-sm btn-success" title="Confirmar entrega">
                                     <i class="fas fa-truck"></i>
                                 </a>
