@@ -1,5 +1,4 @@
 {% extends 'base.html' %}
-{% load crispy_forms_tags %}
 
 {% block content %}
 <div class="container-fluid">
@@ -10,12 +9,105 @@
         
         <div class="card shadow mb-4">
             <div class="card-header py-3">
-                <h6 class="m-0 font-weight-bold text-primary">Editar Cantidades Propuestas</h6>
+                <h6 class="m-0 font-weight-bold text-primary">Editar Lotes y Cantidades de la Propuesta</h6>
             </div>
             <div class="card-body">
-                <p>Puedes ajustar las cantidades propuestas para cada item. Asegúrate de que no excedan la cantidad disponible.</p>
+                <p>Puedes ajustar los lotes asignados y las cantidades propuestas para cada item.</p>
                 
-                {{ form|crispy }}
+                {% for item in propuesta.items.all %}
+                    <div class="mb-5 p-3 border rounded">
+                        <h5>{{ item.producto.clave_cnis }} - {{ item.producto.descripcion }}</h5>
+                        
+                        <!-- Cantidad Propuesta -->
+                        <div class="form-group">
+                            <label for="item_{{ item.id }}_cantidad_propuesta">Cantidad Propuesta</label>
+                            <input type="number" 
+                                   id="item_{{ item.id }}_cantidad_propuesta"
+                                   name="item_{{ item.id }}_cantidad_propuesta"
+                                   class="form-control"
+                                   value="{{ item.cantidad_propuesta }}"
+                                   min="0"
+                                   max="{{ item.cantidad_disponible }}">
+                            <small class="form-text text-muted">
+                                Disponible: {{ item.cantidad_disponible }} unidades
+                            </small>
+                        </div>
+
+                        <!-- Lotes Asignados -->
+                        <div class="mt-4">
+                            <h6>Lotes Asignados</h6>
+                            <table class="table table-sm table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>Lote</th>
+                                        <th>Fecha Caducidad</th>
+                                        <th>Cantidad Asignada</th>
+                                        <th>Acciones</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for lote_asignado in item.lotes_asignados.all %}
+                                        <tr>
+                                            <td>{{ lote_asignado.lote.numero_lote }}</td>
+                                            <td>{{ lote_asignado.fecha_caducidad_lote|date:"d/m/Y" }}</td>
+                                            <td>
+                                                <input type="number"
+                                                       name="lote_{{ lote_asignado.id }}_cantidad"
+                                                       class="form-control form-control-sm"
+                                                       value="{{ lote_asignado.cantidad_asignada }}"
+                                                       min="0"
+                                                       max="{{ lote_asignado.lote.cantidad_disponible }}">
+                                            </td>
+                                            <td>
+                                                <label class="custom-control custom-checkbox">
+                                                    <input type="checkbox" 
+                                                           name="lote_{{ lote_asignado.id }}_eliminar"
+                                                           class="custom-control-input">
+                                                    <span class="custom-control-label">Eliminar</span>
+                                                </label>
+                                            </td>
+                                        </tr>
+                                    {% empty %}
+                                        <tr>
+                                            <td colspan="4" class="text-center">No hay lotes asignados.</td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Agregar Nuevo Lote -->
+                        <div class="mt-4 p-3 bg-light rounded">
+                            <h6>Agregar Nuevo Lote</h6>
+                            <div class="row">
+                                <div class="col-md-8">
+                                    <label for="item_{{ item.id }}_nuevo_lote">Selecciona un lote</label>
+                                    <select id="item_{{ item.id }}_nuevo_lote"
+                                            name="item_{{ item.id }}_nuevo_lote"
+                                            class="form-control select2-single">
+                                        <option value="">-- Selecciona un lote --</option>
+                                        {% for lote in item.producto.lote_set.all %}
+                                            {% if lote.cantidad_disponible > 0 and lote.estado == 1 %}
+                                                <option value="{{ lote.id }}">
+                                                    {{ lote.numero_lote }} ({{ lote.cantidad_disponible }} disponibles, vence: {{ lote.fecha_caducidad|date:"d/m/Y" }})
+                                                </option>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                <div class="col-md-4">
+                                    <label for="item_{{ item.id }}_cantidad_nuevo_lote">Cantidad</label>
+                                    <input type="number"
+                                           id="item_{{ item.id }}_cantidad_nuevo_lote"
+                                           name="item_{{ item.id }}_cantidad_nuevo_lote"
+                                           class="form-control"
+                                           value="0"
+                                           min="0">
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                {% endfor %}
             </div>
         </div>
 
@@ -25,4 +117,18 @@
         </div>
     </form>
 </div>
+
+{% block extra_js %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        $('.select2-single').select2({
+            width: '100%',
+            language: 'es',
+            allowClear: true
+        });
+    });
+</script>
+{% endblock %}
 {% endblock %}
