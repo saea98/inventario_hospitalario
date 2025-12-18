@@ -25,7 +25,7 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for item in items %}
+                            {% for item, form in items_forms %}
                                 <tr>
                                     <td>
                                         <strong>{{ item.producto.descripcion }}</strong>
@@ -37,28 +37,20 @@
                                         {{ item.cantidad_recibida }}
                                     </td>
                                     <td>
-                                        {% with form=formset.forms|slice:forloop.counter0 %}
-                                            {% for f in form %}
-                                                {{ f.almacen }}
-                                                {% if f.almacen.errors %}
-                                                    <div class="alert alert-danger mt-2 small">
-                                                        {{ f.almacen.errors }}
-                                                    </div>
-                                                {% endif %}
-                                            {% endfor %}
-                                        {% endwith %}
+                                        {{ form.almacen }}
+                                        {% if form.almacen.errors %}
+                                            <div class="alert alert-danger mt-2 small">
+                                                {{ form.almacen.errors }}
+                                            </div>
+                                        {% endif %}
                                     </td>
                                     <td>
-                                        {% with form=formset.forms|slice:forloop.counter0 %}
-                                            {% for f in form %}
-                                                {{ f.ubicacion }}
-                                                {% if f.ubicacion.errors %}
-                                                    <div class="alert alert-danger mt-2 small">
-                                                        {{ f.ubicacion.errors }}
-                                                    </div>
-                                                {% endif %}
-                                            {% endfor %}
-                                        {% endwith %}
+                                        {{ form.ubicacion }}
+                                        {% if form.ubicacion.errors %}
+                                            <div class="alert alert-danger mt-2 small">
+                                                {{ form.ubicacion.errors }}
+                                            </div>
+                                        {% endif %}
                                     </td>
                                 </tr>
                             {% endfor %}
