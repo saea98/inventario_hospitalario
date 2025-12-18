@@ -76,7 +76,7 @@ urlpatterns = [
     # ========================================================================
     # FASE 2.2.2: LLEGADA DE PROVEEDORES
     # ========================================================================
-    path('llegadas/', include(llegada_urls)),
+    # path('llegadas/', include(llegada_urls)),  # Comentado temporalmente para migraciones
     
     # ========================================================================
     # PRUEBA DE TELEGRAM
