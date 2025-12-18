@@ -1,0 +1,52 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Autorizar Devolución{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h1 class="h2">✅ Autorizar Devolución {{ devolucion.folio }}</h1>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">Información de Autorización</h5>
+        </div>
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+
+                <div class="mb-3">
+                    <label class="form-label">Número de Autorización *</label>
+                    <input type="text" name="numero_autorizacion" class="form-control" required
+                           placeholder="Ej: AUTH-001" autofocus>
+                </div>
+
+                <div class="alert alert-info">
+                    <strong>Resumen de la Devolución:</strong>
+                    <ul class="mb-0">
+                        <li>Proveedor: {{ devolucion.proveedor.razon_social }}</li>
+                        <li>Total de Items: {{ devolucion.total_items }}</li>
+                        <li>Monto Total: ${{ devolucion.total_valor|floatformat:2 }}</li>
+                        <li>Motivo: {{ devolucion.get_motivo_general_display }}</li>
+                    </ul>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-12">
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-check-circle"></i> Autorizar Devolución
+                        </button>
+                        <a href="{% url 'detalle_devolucion' devolucion.id %}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Cancelar
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

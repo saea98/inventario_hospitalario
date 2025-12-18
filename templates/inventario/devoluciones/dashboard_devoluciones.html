@@ -1,0 +1,183 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Dashboard de Devoluciones{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Encabezado -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1 class="h2">📦 Devoluciones de Proveedores</h1>
+            <p class="text-muted">Gestión de devoluciones y notas de crédito</p>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="{% url 'crear_devolucion' %}" class="btn btn-primary">
+                <i class="bi bi-plus-circle"></i> Nueva Devolución
+            </a>
+        </div>
+    </div>
+
+    <!-- Tarjetas de Estadísticas -->
+    <div class="row mb-4">
+        <div class="col-md-2">
+            <div class="card text-center border-primary">
+                <div class="card-body">
+                    <h5 class="card-title text-muted">Total</h5>
+                    <p class="card-text display-6 text-primary">{{ total_devoluciones }}</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-2">
+            <div class="card text-center border-warning">
+                <div class="card-body">
+                    <h5 class="card-title text-muted">Pendientes</h5>
+                    <p class="card-text display-6 text-warning">{{ pendientes }}</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-2">
+            <div class="card text-center border-info">
+                <div class="card-body">
+                    <h5 class="card-title text-muted">Autorizadas</h5>
+                    <p class="card-text display-6 text-info">{{ autorizadas }}</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-2">
+            <div class="card text-center border-success">
+                <div class="card-body">
+                    <h5 class="card-title text-muted">Completadas</h5>
+                    <p class="card-text display-6 text-success">{{ completadas }}</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-2">
+            <div class="card text-center border-secondary">
+                <div class="card-body">
+                    <h5 class="card-title text-muted">Canceladas</h5>
+                    <p class="card-text display-6 text-secondary">{{ canceladas }}</p>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-2">
+            <div class="card text-center border-danger">
+                <div class="card-body">
+                    <h5 class="card-title text-muted">Monto Total</h5>
+                    <p class="card-text display-6 text-danger">${{ monto_total|floatformat:0 }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Alertas -->
+    {% if devoluciones_vencidas > 0 %}
+    <div class="alert alert-warning alert-dismissible fade show" role="alert">
+        <i class="bi bi-exclamation-triangle"></i>
+        <strong>Atención:</strong> Hay {{ devoluciones_vencidas }} devolución(es) sin entregar hace más de 30 días.
+        <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+    </div>
+    {% endif %}
+
+    <!-- Devoluciones Recientes -->
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">Devoluciones Recientes</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Folio</th>
+                        <th>Proveedor</th>
+                        <th>Motivo</th>
+                        <th>Fecha</th>
+                        <th>Estado</th>
+                        <th>Monto</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for devolucion in devoluciones_recientes %}
+                    <tr>
+                        <td><strong>{{ devolucion.folio }}</strong></td>
+                        <td>{{ devolucion.proveedor.razon_social }}</td>
+                        <td>{{ devolucion.get_motivo_general_display }}</td>
+                        <td><small>{{ devolucion.fecha_creacion|date:"d/m/Y H:i" }}</small></td>
+                        <td>
+                            {% if devolucion.estado == 'PENDIENTE' %}
+                                <span class="badge bg-warning">Pendiente</span>
+                            {% elif devolucion.estado == 'AUTORIZADA' %}
+                                <span class="badge bg-info">Autorizada</span>
+                            {% elif devolucion.estado == 'COMPLETADA' %}
+                                <span class="badge bg-success">Completada</span>
+                            {% elif devolucion.estado == 'CANCELADA' %}
+                                <span class="badge bg-secondary">Cancelada</span>
+                            {% endif %}
+                        </td>
+                        <td>${{ devolucion.total_valor|floatformat:2 }}</td>
+                        <td>
+                            <a href="{% url 'detalle_devolucion' devolucion.id %}" class="btn btn-sm btn-info">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-4">
+                            No hay devoluciones registradas
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Acciones Rápidas -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Acciones Rápidas</h5>
+                </div>
+                <div class="card-body">
+                    <a href="{% url 'crear_devolucion' %}" class="btn btn-primary btn-sm w-100 mb-2">
+                        <i class="bi bi-plus-circle"></i> Nueva Devolución
+                    </a>
+                    <a href="{% url 'lista_devoluciones' %}" class="btn btn-secondary btn-sm w-100">
+                        <i class="bi bi-list"></i> Ver Todas las Devoluciones
+                    </a>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Proveedores con Más Devoluciones</h5>
+                </div>
+                <div class="card-body">
+                    {% for proveedor in proveedores_devolucion %}
+                    <div class="mb-2">
+                        <small class="text-muted">{{ proveedor.proveedor__razon_social }}</small>
+                        <div class="progress" style="height: 20px;">
+                            <div class="progress-bar" style="width: {{ proveedor.total|add:"0"|stringformat:"d" }}%">
+                                {{ proveedor.total }} items
+                            </div>
+                        </div>
+                    </div>
+                    {% empty %}
+                    <p class="text-muted">No hay datos disponibles</p>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

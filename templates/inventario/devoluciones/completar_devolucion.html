@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Completar Devolución{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h1 class="h2">✅ Completar Devolución {{ devolucion.folio }}</h1>
+        </div>
+    </div>
+
+    <div class="card">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">Información de Entrega</h5>
+        </div>
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Fecha de Entrega Real *</label>
+                            <input type="date" name="fecha_entrega_real" class="form-control" required>
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Número de Guía</label>
+                            <input type="text" name="numero_guia" class="form-control"
+                                   placeholder="Ej: GUIA-001">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Empresa de Transporte</label>
+                            <input type="text" name="empresa_transporte" class="form-control"
+                                   placeholder="Ej: FedEx, DHL">
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Número de Nota de Crédito</label>
+                            <input type="text" name="numero_nota_credito" class="form-control"
+                                   placeholder="Ej: NC-001">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Fecha de Nota de Crédito</label>
+                            <input type="date" name="fecha_nota_credito" class="form-control">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="alert alert-info">
+                    <strong>Resumen de la Devolución:</strong>
+                    <ul class="mb-0">
+                        <li>Proveedor: {{ devolucion.proveedor.razon_social }}</li>
+                        <li>Total de Items: {{ devolucion.total_items }}</li>
+                        <li>Monto Total: ${{ devolucion.total_valor|floatformat:2 }}</li>
+                        <li>Monto de Nota de Crédito: ${{ devolucion.total_valor|floatformat:2 }}</li>
+                    </ul>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-12">
+                        <button type="submit" class="btn btn-success">
+                            <i class="bi bi-check2-all"></i> Completar Devolución
+                        </button>
+                        <a href="{% url 'detalle_devolucion' devolucion.id %}" class="btn btn-secondary">
+                            <i class="bi bi-arrow-left"></i> Cancelar
+                        </a>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}
