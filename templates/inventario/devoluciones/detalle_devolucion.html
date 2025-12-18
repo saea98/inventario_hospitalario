@@ -13,16 +13,16 @@
         </div>
         <div class="col-md-4 text-end">
             {% if devolucion.estado == 'PENDIENTE' %}
-            <a href="{% url 'autorizar_devolucion' devolucion.id %}" class="btn btn-warning">
+            <a href="{% url 'devoluciones:autorizar_devolucion' devolucion.id %}" class="btn btn-warning">
                 <i class="bi bi-check-circle"></i> Autorizar
             </a>
             {% elif devolucion.estado == 'AUTORIZADA' %}
-            <a href="{% url 'completar_devolucion' devolucion.id %}" class="btn btn-success">
+            <a href="{% url 'devoluciones:completar_devolucion' devolucion.id %}" class="btn btn-success">
                 <i class="bi bi-check2-all"></i> Completar
             </a>
             {% endif %}
             {% if devolucion.estado != 'CANCELADA' and devolucion.estado != 'COMPLETADA' %}
-            <a href="{% url 'cancelar_devolucion' devolucion.id %}" class="btn btn-danger">
+            <a href="{% url 'devoluciones:cancelar_devolucion' devolucion.id %}" class="btn btn-danger">
                 <i class="bi bi-x-circle"></i> Cancelar
             </a>
             {% endif %}
@@ -170,7 +170,7 @@
     <!-- Botones de Acción -->
     <div class="row mt-4">
         <div class="col-md-12">
-            <a href="{% url 'lista_devoluciones' %}" class="btn btn-secondary">
+            <a href="{% url 'devoluciones:lista_devoluciones' %}" class="btn btn-secondary">
                 <i class="bi bi-arrow-left"></i> Volver a la Lista
             </a>
         </div>
