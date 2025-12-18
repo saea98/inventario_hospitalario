@@ -148,7 +148,7 @@ def crear_devolucion(request):
     # Validar que el usuario tenga institución asignada
     if not institucion:
         messages.error(request, 'No tienes una institución asignada. Contacta al administrador.')
-        return redirect('lista_devoluciones')
+        return redirect('devoluciones:lista_devoluciones')
     
     if request.method == 'POST':
         form = DevolucionProveedorForm(request.POST, institucion=institucion)
@@ -197,7 +197,7 @@ def detalle_devolucion(request, devolucion_id):
     # Verificar permisos
     if hasattr(request.user, 'institucion') and devolucion.institucion != request.user.institucion:
         messages.error(request, 'No tienes permiso para ver esta devolución')
-        return redirect('lista_devoluciones')
+        return redirect('devoluciones:lista_devoluciones')
     
     context = {
         'devolucion': devolucion,
@@ -222,18 +222,18 @@ def autorizar_devolucion(request, devolucion_id):
     # Verificar permisos
     if hasattr(request.user, 'institucion') and devolucion.institucion != request.user.institucion:
         messages.error(request, 'No tienes permiso para autorizar esta devolución')
-        return redirect('lista_devoluciones')
+        return redirect('devoluciones:lista_devoluciones')
     
     if devolucion.estado != 'PENDIENTE':
         messages.error(request, 'Solo se pueden autorizar devoluciones en estado PENDIENTE')
-        return redirect('detalle_devolucion', devolucion_id=devolucion_id)
+        return redirect('devoluciones:detalle_devolucion', devolucion_id=devolucion_id)
     
     if request.method == 'POST':
         numero_autorizacion = request.POST.get('numero_autorizacion', '')
         
         if not numero_autorizacion:
             messages.error(request, 'El número de autorización es requerido')
-            return redirect('detalle_devolucion', devolucion_id=devolucion_id)
+            return redirect('devoluciones:detalle_devolucion', devolucion_id=devolucion_id)
         
         devolucion.estado = 'AUTORIZADA'
         devolucion.numero_autorizacion = numero_autorizacion
@@ -242,7 +242,7 @@ def autorizar_devolucion(request, devolucion_id):
         devolucion.save()
         
         messages.success(request, f'Devolución {devolucion.folio} autorizada exitosamente')
-        return redirect('detalle_devolucion', devolucion_id=devolucion_id)
+        return redirect('devoluciones:detalle_devolucion', devolucion_id=devolucion_id)
     
     context = {
         'devolucion': devolucion,
@@ -264,11 +264,11 @@ def completar_devolucion(request, devolucion_id):
     # Verificar permisos
     if hasattr(request.user, 'institucion') and devolucion.institucion != request.user.institucion:
         messages.error(request, 'No tienes permiso para completar esta devolución')
-        return redirect('lista_devoluciones')
+        return redirect('devoluciones:lista_devoluciones')
     
     if devolucion.estado != 'AUTORIZADA':
         messages.error(request, 'Solo se pueden completar devoluciones en estado AUTORIZADA')
-        return redirect('detalle_devolucion', devolucion_id=devolucion_id)
+        return redirect('devoluciones:detalle_devolucion', devolucion_id=devolucion_id)
     
     if request.method == 'POST':
         fecha_entrega = request.POST.get('fecha_entrega_real', '')
@@ -288,7 +288,7 @@ def completar_devolucion(request, devolucion_id):
             devolucion.save()
             
             messages.success(request, f'Devolución {devolucion.folio} completada exitosamente')
-            return redirect('detalle_devolucion', devolucion_id=devolucion_id)
+            return redirect('devoluciones:detalle_devolucion', devolucion_id=devolucion_id)
         except ValueError as e:
             messages.error(request, f'Error en los datos: {str(e)}')
     
@@ -312,25 +312,25 @@ def cancelar_devolucion(request, devolucion_id):
     # Verificar permisos
     if hasattr(request.user, 'institucion') and devolucion.institucion != request.user.institucion:
         messages.error(request, 'No tienes permiso para cancelar esta devolución')
-        return redirect('lista_devoluciones')
+        return redirect('devoluciones:lista_devoluciones')
     
     if devolucion.estado == 'CANCELADA':
         messages.error(request, 'Esta devolución ya está cancelada')
-        return redirect('detalle_devolucion', devolucion_id=devolucion_id)
+        return redirect('devoluciones:detalle_devolucion', devolucion_id=devolucion_id)
     
     if request.method == 'POST':
         motivo_cancelacion = request.POST.get('motivo_cancelacion', '')
         
         if not motivo_cancelacion:
             messages.error(request, 'El motivo de cancelación es requerido')
-            return redirect('detalle_devolucion', devolucion_id=devolucion_id)
+            return redirect('devoluciones:detalle_devolucion', devolucion_id=devolucion_id)
         
         devolucion.estado = 'CANCELADA'
         devolucion.descripcion = f"Cancelada: {motivo_cancelacion}"
         devolucion.save()
         
         messages.success(request, f'Devolución {devolucion.folio} cancelada exitosamente')
-        return redirect('detalle_devolucion', devolucion_id=devolucion_id)
+        return redirect('devoluciones:detalle_devolucion', devolucion_id=devolucion_id)
     
     context = {
         'devolucion': devolucion,
