@@ -5,8 +5,10 @@
 <div class="container-fluid">
     <h1 class="h3 mb-4 text-gray-800">{{ page_title|default:'Crear Nueva Solicitud de Pedido' }}</h1>
 
-    <form method="post">
+    <form method="post" enctype="multipart/form-data">
         {% csrf_token %}
+        
+        <!-- Datos de la Solicitud -->
         <div class="card shadow mb-4">
             <div class="card-header py-3">
                 <h6 class="m-0 font-weight-bold text-primary">Datos de la Solicitud</h6>
@@ -16,33 +18,92 @@
             </div>
         </div>
 
+        <!-- Items de la Solicitud -->
         <div class="card shadow mb-4">
             <div class="card-header py-3">
                 <h6 class="m-0 font-weight-bold text-primary">Items de la Solicitud</h6>
             </div>
             <div class="card-body">
+                <!-- Management Form (requerido por Django formset) -->
                 {{ formset.management_form }}
+                
+                <!-- Errores del formset -->
+                {% if formset.non_form_errors %}
+                    <div class="alert alert-danger" role="alert">
+                        <h4 class="alert-heading">Errores en los items:</h4>
+                        {% for error in formset.non_form_errors %}
+                            <p>{{ error }}</p>
+                        {% endfor %}
+                    </div>
+                {% endif %}
+
+                <!-- Contenedor de formularios de items -->
                 <div id="item-forms-container">
-                    {% for form in formset %}
-                        <div class="item-form mb-3">
+                    {% for item_form in formset %}
+                        <div class="item-form mb-4 p-3 border rounded" data-form-index="{{ forloop.counter0 }}">
+                            {% if item_form.non_field_errors %}
+                                <div class="alert alert-danger" role="alert">
+                                    {{ item_form.non_field_errors }}
+                                </div>
+                            {% endif %}
+
+                            <!-- Campos ocultos necesarios -->
+                            {% if item_form.id %}
+                                {{ item_form.id }}
+                            {% endif %}
+                            
                             <div class="row">
-                                <div class="col-md-8">{{ form.producto|as_crispy_field }}</div>
-                                <div class="col-md-3">{{ form.cantidad_solicitada|as_crispy_field }}</div>
-                                <div class="col-md-1 d-flex align-items-center">
-                                    {% if form.instance.pk %}
-                                        {{ form.DELETE }}
-                                    {% endif %}
+                                <div class="col-md-8">
+                                    <div class="form-group">
+                                        <label for="{{ item_form.producto.id_for_label }}">Producto (CNIS)</label>
+                                        {{ item_form.producto }}
+                                        {% if item_form.producto.errors %}
+                                            <div class="invalid-feedback d-block">
+                                                {{ item_form.producto.errors }}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="col-md-3">
+                                    <div class="form-group">
+                                        <label for="{{ item_form.cantidad_solicitada.id_for_label }}">Cantidad</label>
+                                        {{ item_form.cantidad_solicitada }}
+                                        {% if item_form.cantidad_solicitada.errors %}
+                                            <div class="invalid-feedback d-block">
+                                                {{ item_form.cantidad_solicitada.errors }}
+                                            </div>
+                                        {% endif %}
+                                    </div>
+                                </div>
+                                <div class="col-md-1 d-flex align-items-end">
+                                    <div class="form-group">
+                                        {% if item_form.instance.pk %}
+                                            <label for="{{ item_form.DELETE.id_for_label }}">Eliminar</label>
+                                            {{ item_form.DELETE }}
+                                        {% endif %}
+                                    </div>
                                 </div>
                             </div>
                         </div>
                     {% endfor %}
                 </div>
-                <button type="button" id="add-item-form" class="btn btn-secondary btn-sm">Añadir otro item</button>
+
+                <!-- Botón para agregar más items -->
+                <button type="button" id="add-item-form" class="btn btn-secondary btn-sm mt-3">
+                    <i class="fas fa-plus"></i> Añadir otro item
+                </button>
             </div>
         </div>
 
-        <button type="submit" class="btn btn-primary">Guardar Solicitud</button>
-        <a href="{% url 'logistica:lista_pedidos' %}" class="btn btn-secondary">Cancelar</a>
+        <!-- Botones de acción -->
+        <div class="mb-4">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save"></i> Guardar Solicitud
+            </button>
+            <a href="{% url 'logistica:lista_pedidos' %}" class="btn btn-secondary">
+                <i class="fas fa-times"></i> Cancelar
+            </a>
+        </div>
     </form>
 </div>
 
@@ -52,33 +113,55 @@
 <script>
     document.addEventListener('DOMContentLoaded', function() {
         // Inicializar Select2 para campos existentes
-        $('.select2-single').select2({
-            width: '100%',
-            language: 'es'
-        });
+        initializeSelect2();
 
         const container = document.getElementById('item-forms-container');
         const addButton = document.getElementById('add-item-form');
-        const totalForms = document.getElementById('id_items-TOTAL_FORMS');
-        let formCount = parseInt(totalForms.value);
-
-        addButton.addEventListener('click', function() {
-            const newForm = container.children[0].cloneNode(true);
-            const formRegex = new RegExp('items-(\\d+)-', 'g');
+        const totalFormsInput = document.getElementById('id_items-TOTAL_FORMS');
+        
+        addButton.addEventListener('click', function(e) {
+            e.preventDefault();
             
-            newForm.innerHTML = newForm.innerHTML.replace(formRegex, 'items-' + formCount + '-');
+            const formCount = parseInt(totalFormsInput.value);
+            const emptyForm = document.getElementById('id_items-__prefix__-producto');
+            
+            if (!emptyForm) {
+                console.error('No se encontró el formulario vacío');
+                return;
+            }
+            
+            // Clonar el primer formulario como referencia
+            const firstForm = container.querySelector('.item-form');
+            const newForm = firstForm.cloneNode(true);
+            
+            // Actualizar los IDs y nombres de los campos
+            const regex = new RegExp('items-(\\d+)-', 'g');
+            newForm.innerHTML = newForm.innerHTML.replace(regex, 'items-' + formCount + '-');
+            
+            // Limpiar los valores
+            newForm.querySelectorAll('input[type="text"], input[type="number"], select, textarea').forEach(function(field) {
+                if (field.type !== 'hidden') {
+                    field.value = '';
+                }
+            });
+            
+            // Agregar el nuevo formulario al contenedor
             container.appendChild(newForm);
             
             // Reinicializar Select2 para el nuevo formulario
-            newForm.querySelectorAll('.select2-single').forEach(function(element) {
-                $(element).select2({
-                    width: '100%',
-                    language: 'es'
-                });
-            });
+            initializeSelect2();
             
-            totalForms.value = ++formCount;
+            // Actualizar el contador de formularios
+            totalFormsInput.value = formCount + 1;
         });
+
+        function initializeSelect2() {
+            $('.select2-single').select2({
+                width: '100%',
+                language: 'es',
+                allowClear: true
+            });
+        }
     });
 </script>
 {% endblock %}
