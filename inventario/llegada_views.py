@@ -161,7 +161,8 @@ class UbicacionView(LoginRequiredMixin, PermissionRequiredMixin, View):
     def get(self, request, pk):
         llegada = get_object_or_404(LlegadaProveedor, pk=pk)
         formset = UbicacionFormSet(llegada=llegada)
-        return render(request, "inventario/llegadas/ubicacion.html", {"llegada": llegada, "formset": formset})
+        items = list(llegada.items.all())
+        return render(request, "inventario/llegadas/ubicacion.html", {"llegada": llegada, "formset": formset, "items": items})
     
     def post(self, request, pk):
         llegada = get_object_or_404(LlegadaProveedor, pk=pk)
@@ -199,7 +200,8 @@ class UbicacionView(LoginRequiredMixin, PermissionRequiredMixin, View):
                 messages.success(request, f"Ubicación para {llegada.folio} asignada con éxito.")
                 return redirect("logistica:llegadas:detalle_llegada", pk=llegada.pk)
         
-        return render(request, "inventario/llegadas/ubicacion.html", {"llegada": llegada, "formset": formset})
+        items = list(llegada.items.all())
+        return render(request, "inventario/llegadas/ubicacion.html", {"llegada": llegada, "formset": formset, "items": items})
 
 
 class SubirDocumentoView(LoginRequiredMixin, View):
