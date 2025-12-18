@@ -41,7 +41,7 @@
                         {% for propuesta in propuestas %}
                             <tr>
                                 <td>{{ propuesta.solicitud.folio }}</td>
-                                <td>{{ propuesta.solicitud.institucion_solicitante.nombre }}</td>
+                                <td>{{ propuesta.solicitud.institucion_solicitante.denominacion }}</td>
                                 <td>{{ propuesta.fecha_generacion|date:"d/m/Y H:i" }}</td>
                                 <td>
                                     <span class="badge badge-{{ propuesta.get_estado_display|lower|slugify }}">{{ propuesta.get_estado_display }}</span>
