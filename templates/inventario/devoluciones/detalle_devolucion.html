@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Detalle de Devolución {{ devolucion.folio }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Encabezado -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1 class="h2">📦 Devolución {{ devolucion.folio }}</h1>
+            <p class="text-muted">Detalles de la devolución a proveedor</p>
+        </div>
+        <div class="col-md-4 text-end">
+            {% if devolucion.estado == 'PENDIENTE' %}
+            <a href="{% url 'autorizar_devolucion' devolucion.id %}" class="btn btn-warning">
+                <i class="bi bi-check-circle"></i> Autorizar
+            </a>
+            {% elif devolucion.estado == 'AUTORIZADA' %}
+            <a href="{% url 'completar_devolucion' devolucion.id %}" class="btn btn-success">
+                <i class="bi bi-check2-all"></i> Completar
+            </a>
+            {% endif %}
+            {% if devolucion.estado != 'CANCELADA' and devolucion.estado != 'COMPLETADA' %}
+            <a href="{% url 'cancelar_devolucion' devolucion.id %}" class="btn btn-danger">
+                <i class="bi bi-x-circle"></i> Cancelar
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Estado -->
+    <div class="alert alert-info mb-4">
+        <strong>Estado:</strong>
+        {% if devolucion.estado == 'PENDIENTE' %}
+            <span class="badge bg-warning">Pendiente</span>
+        {% elif devolucion.estado == 'AUTORIZADA' %}
+            <span class="badge bg-info">Autorizada</span>
+        {% elif devolucion.estado == 'COMPLETADA' %}
+            <span class="badge bg-success">Completada</span>
+        {% elif devolucion.estado == 'CANCELADA' %}
+            <span class="badge bg-secondary">Cancelada</span>
+        {% endif %}
+    </div>
+
+    <!-- Información General -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Información General</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Folio:</strong> {{ devolucion.folio }}</p>
+                    <p><strong>Proveedor:</strong> {{ devolucion.proveedor.razon_social }}</p>
+                    <p><strong>RFC:</strong> {{ devolucion.proveedor.rfc }}</p>
+                    <p><strong>Motivo:</strong> {{ devolucion.get_motivo_general_display }}</p>
+                    <p><strong>Descripción:</strong> {{ devolucion.descripcion|default:"N/A" }}</p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Contacto</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Contacto:</strong> {{ devolucion.contacto_proveedor|default:"N/A" }}</p>
+                    <p><strong>Teléfono:</strong> {{ devolucion.telefono_proveedor|default:"N/A" }}</p>
+                    <p><strong>Email:</strong> {{ devolucion.email_proveedor|default:"N/A" }}</p>
+                    <p><strong>Fecha Entrega Estimada:</strong> {{ devolucion.fecha_entrega_estimada|date:"d/m/Y"|default:"N/A" }}</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Items de Devolución -->
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">Items a Devolver</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Lote</th>
+                        <th>Producto</th>
+                        <th>Cantidad</th>
+                        <th>Precio Unitario</th>
+                        <th>Subtotal</th>
+                        <th>Motivo</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr>
+                        <td><strong>{{ item.lote.numero_lote }}</strong></td>
+                        <td>{{ item.lote.producto.descripcion }}</td>
+                        <td>{{ item.cantidad }}</td>
+                        <td>${{ item.precio_unitario|floatformat:2 }}</td>
+                        <td>${{ item.subtotal|floatformat:2 }}</td>
+                        <td><small>{{ item.motivo_especifico|default:"N/A" }}</small></td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">
+                            No hay items registrados
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <div class="card-footer bg-light">
+            <div class="row">
+                <div class="col-md-6">
+                    <strong>Total de Items:</strong> {{ total_items }}
+                </div>
+                <div class="col-md-6 text-end">
+                    <strong>Monto Total:</strong> ${{ total_valor|floatformat:2 }}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Información de Autorización -->
+    {% if devolucion.numero_autorizacion %}
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">Información de Autorización</h5>
+        </div>
+        <div class="card-body">
+            <p><strong>Número de Autorización:</strong> {{ devolucion.numero_autorizacion }}</p>
+            <p><strong>Fecha de Autorización:</strong> {{ devolucion.fecha_autorizacion|date:"d/m/Y H:i"|default:"N/A" }}</p>
+            <p><strong>Autorizado por:</strong> {{ devolucion.usuario_autorizo.get_full_name|default:"N/A" }}</p>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Información de Entrega -->
+    {% if devolucion.estado == 'COMPLETADA' %}
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">Información de Entrega</h5>
+        </div>
+        <div class="card-body">
+            <p><strong>Fecha de Entrega:</strong> {{ devolucion.fecha_entrega_real|date:"d/m/Y"|default:"N/A" }}</p>
+            <p><strong>Número de Guía:</strong> {{ devolucion.numero_guia|default:"N/A" }}</p>
+            <p><strong>Empresa de Transporte:</strong> {{ devolucion.empresa_transporte|default:"N/A" }}</p>
+            <p><strong>Número de Nota de Crédito:</strong> {{ devolucion.numero_nota_credito|default:"N/A" }}</p>
+            <p><strong>Fecha de Nota de Crédito:</strong> {{ devolucion.fecha_nota_credito|date:"d/m/Y"|default:"N/A" }}</p>
+            <p><strong>Monto de Nota de Crédito:</strong> ${{ devolucion.monto_nota_credito|floatformat:2 }}</p>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Auditoría -->
+    <div class="card">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">Auditoría</h5>
+        </div>
+        <div class="card-body">
+            <p><strong>Creado por:</strong> {{ devolucion.usuario_creacion.get_full_name|default:"N/A" }}</p>
+            <p><strong>Fecha de Creación:</strong> {{ devolucion.fecha_creacion|date:"d/m/Y H:i" }}</p>
+            <p><strong>Última Actualización:</strong> {{ devolucion.fecha_actualizacion|date:"d/m/Y H:i" }}</p>
+        </div>
+    </div>
+
+    <!-- Botones de Acción -->
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <a href="{% url 'lista_devoluciones' %}" class="btn btn-secondary">
+                <i class="bi bi-arrow-left"></i> Volver a la Lista
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}

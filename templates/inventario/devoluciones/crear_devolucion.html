@@ -1,0 +1,237 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Crear Devolución{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Encabezado -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h1 class="h2">📦 Crear Nueva Devolución</h1>
+            <p class="text-muted">Registra una devolución a proveedor</p>
+        </div>
+    </div>
+
+    <form method="post" class="needs-validation" novalidate>
+        {% csrf_token %}
+
+        <!-- Información General -->
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Información General</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Proveedor *</label>
+                            {{ form.proveedor }}
+                            {% if form.proveedor.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.proveedor.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Motivo General *</label>
+                            {{ form.motivo_general }}
+                            {% if form.motivo_general.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.motivo_general.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-12">
+                        <div class="mb-3">
+                            <label class="form-label">Descripción</label>
+                            {{ form.descripcion }}
+                            {% if form.descripcion.errors %}
+                                <div class="invalid-feedback d-block">
+                                    {{ form.descripcion.errors.0 }}
+                                </div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label">Contacto Proveedor</label>
+                            {{ form.contacto_proveedor }}
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label">Teléfono</label>
+                            {{ form.telefono_proveedor }}
+                        </div>
+                    </div>
+
+                    <div class="col-md-4">
+                        <div class="mb-3">
+                            <label class="form-label">Email</label>
+                            {{ form.email_proveedor }}
+                        </div>
+                    </div>
+                </div>
+
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="mb-3">
+                            <label class="form-label">Fecha Entrega Estimada</label>
+                            {{ form.fecha_entrega_estimada }}
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Items de Devolución -->
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Items a Devolver</h5>
+            </div>
+            <div class="card-body">
+                <div class="table-responsive">
+                    <table class="table table-bordered" id="items-table">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Lote</th>
+                                <th>Cantidad</th>
+                                <th>Precio Unitario</th>
+                                <th>Subtotal</th>
+                                <th>Motivo Específico</th>
+                                <th>Acción</th>
+                            </tr>
+                        </thead>
+                        <tbody id="formset-container">
+                            {{ formset.management_form }}
+                            {% for form in formset.forms %}
+                            <tr class="formset-row">
+                                <td>{{ form.lote }}</td>
+                                <td>{{ form.cantidad }}</td>
+                                <td>{{ form.precio_unitario }}</td>
+                                <td><span class="subtotal">$0.00</span></td>
+                                <td>{{ form.motivo_especifico }}</td>
+                                <td>
+                                    {{ form.DELETE }}
+                                    <button type="button" class="btn btn-sm btn-danger delete-row" style="display:none;">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <button type="button" class="btn btn-sm btn-secondary" id="add-row">
+                    <i class="bi bi-plus-circle"></i> Agregar Item
+                </button>
+            </div>
+        </div>
+
+        <!-- Resumen -->
+        <div class="card mb-4">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Resumen</h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-md-6">
+                        <h6>Total de Items: <span id="total-items">0</span></h6>
+                    </div>
+                    <div class="col-md-6 text-end">
+                        <h6>Monto Total: <span id="total-monto">$0.00</span></h6>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Botones de Acción -->
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <button type="submit" class="btn btn-primary">
+                    <i class="bi bi-check-circle"></i> Crear Devolución
+                </button>
+                <a href="{% url 'lista_devoluciones' %}" class="btn btn-secondary">
+                    <i class="bi bi-arrow-left"></i> Cancelar
+                </a>
+            </div>
+        </div>
+    </form>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Calcular subtotales
+    function calcularSubtotales() {
+        let totalItems = 0;
+        let totalMonto = 0;
+
+        document.querySelectorAll('.formset-row').forEach((row, index) => {
+            const cantidadInput = row.querySelector('input[name*="cantidad"]');
+            const precioInput = row.querySelector('input[name*="precio_unitario"]');
+            const subtotalSpan = row.querySelector('.subtotal');
+            const deleteCheckbox = row.querySelector('input[name*="DELETE"]');
+
+            if (cantidadInput && precioInput && !deleteCheckbox.checked) {
+                const cantidad = parseFloat(cantidadInput.value) || 0;
+                const precio = parseFloat(precioInput.value) || 0;
+                const subtotal = cantidad * precio;
+
+                subtotalSpan.textContent = '$' + subtotal.toFixed(2);
+                totalItems += cantidad;
+                totalMonto += subtotal;
+            }
+        });
+
+        document.getElementById('total-items').textContent = totalItems;
+        document.getElementById('total-monto').textContent = '$' + totalMonto.toFixed(2);
+    }
+
+    // Agregar fila
+    document.getElementById('add-row').addEventListener('click', function() {
+        const container = document.getElementById('formset-container');
+        const formCount = container.querySelectorAll('.formset-row').length;
+        const totalForms = document.getElementById('id_itemdevolucion_set-TOTAL_FORMS');
+
+        // Crear nueva fila
+        const newRow = document.querySelector('.formset-row').cloneNode(true);
+        
+        // Actualizar nombres de inputs
+        newRow.querySelectorAll('input, select, textarea').forEach(input => {
+            const name = input.getAttribute('name');
+            if (name) {
+                input.setAttribute('name', name.replace(/\d+/, formCount));
+                input.value = '';
+            }
+        });
+
+        container.appendChild(newRow);
+        totalForms.value = formCount + 1;
+        calcularSubtotales();
+    });
+
+    // Eventos de cambio
+    document.addEventListener('change', function(e) {
+        if (e.target.matches('input[name*="cantidad"], input[name*="precio_unitario"], input[name*="DELETE"]')) {
+            calcularSubtotales();
+        }
+    });
+
+    // Inicializar
+    calcularSubtotales();
+});
+</script>
+{% endblock %}

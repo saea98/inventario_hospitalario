@@ -1350,3 +1350,145 @@ from .pedidos_models import SolicitudPedido, ItemSolicitud
 # FASE 2.2.2: LLEGADA DE PROVEEDORES
 # ============================================================================
 from .llegada_models import LlegadaProveedor, ItemLlegada, DocumentoLlegada
+
+
+# ============================================================================
+# FASE 2.4: DEVOLUCIONES DE PROVEEDORES
+# ============================================================================
+
+class DevolucionProveedor(models.Model):
+    """Modelo para registrar devoluciones a proveedores"""
+    
+    ESTADOS_CHOICES = [
+        ('PENDIENTE', 'Pendiente'),
+        ('AUTORIZADA', 'Autorizada'),
+        ('COMPLETADA', 'Completada'),
+        ('CANCELADA', 'Cancelada'),
+    ]
+    
+    MOTIVOS_CHOICES = [
+        ('DEFECTUOSO', 'Producto Defectuoso'),
+        ('CADUCADO', 'Producto Caducado'),
+        ('INCORRECTO', 'Producto Incorrecto'),
+        ('CANTIDAD_INCORRECTA', 'Cantidad Incorrecta'),
+        ('EMBALAJE_DAÑADO', 'Embalaje Dañado'),
+        ('NO_CONFORME', 'No Conforme con Especificaciones'),
+        ('SOLICITUD_CLIENTE', 'Solicitud del Cliente'),
+        ('OTROS', 'Otros'),
+    ]
+    
+    # Identificadores
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    folio = models.CharField(max_length=50, unique=True)
+    
+    # Relaciones
+    institucion = models.ForeignKey(Institucion, on_delete=models.PROTECT)
+    proveedor = models.ForeignKey(Proveedor, on_delete=models.PROTECT)
+    lotes = models.ManyToManyField(Lote, through='ItemDevolucion', related_name='devoluciones')
+    
+    # Información de la devolución
+    estado = models.CharField(max_length=20, choices=ESTADOS_CHOICES, default='PENDIENTE')
+    motivo_general = models.CharField(max_length=20, choices=MOTIVOS_CHOICES)
+    descripcion = models.TextField(blank=True, null=True)
+    
+    # Información de contacto
+    contacto_proveedor = models.CharField(max_length=100, blank=True)
+    telefono_proveedor = models.CharField(max_length=20, blank=True)
+    email_proveedor = models.EmailField(blank=True)
+    
+    # Información de autorización
+    numero_autorizacion = models.CharField(max_length=50, blank=True, null=True)
+    fecha_autorizacion = models.DateTimeField(blank=True, null=True)
+    usuario_autorizo = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='devoluciones_autorizadas')
+    
+    # Información de entrega
+    fecha_entrega_estimada = models.DateField(blank=True, null=True)
+    fecha_entrega_real = models.DateField(blank=True, null=True)
+    numero_guia = models.CharField(max_length=100, blank=True, null=True)
+    empresa_transporte = models.CharField(max_length=100, blank=True, null=True)
+    
+    # Información de nota de crédito
+    numero_nota_credito = models.CharField(max_length=50, blank=True, null=True)
+    fecha_nota_credito = models.DateField(blank=True, null=True)
+    monto_nota_credito = models.DecimalField(max_digits=12, decimal_places=2, default=0)
+    
+    # Auditoría
+    usuario_creacion = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='devoluciones_creadas')
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        db_table = 'inventario_devolucion_proveedor'
+        verbose_name = 'Devolución a Proveedor'
+        verbose_name_plural = 'Devoluciones a Proveedores'
+        ordering = ['-fecha_creacion']
+        indexes = [
+            models.Index(fields=['folio']),
+            models.Index(fields=['estado', '-fecha_creacion']),
+            models.Index(fields=['proveedor', '-fecha_creacion']),
+            models.Index(fields=['institucion', '-fecha_creacion']),
+        ]
+    
+    def __str__(self):
+        return f"Devolución {self.folio} - {self.proveedor.razon_social}"
+    
+    def save(self, *args, **kwargs):
+        """Generar folio automáticamente si no existe"""
+        if not self.folio:
+            # Formato: DEV-YYYYMMDD-XXXXXX
+            fecha = timezone.now()
+            contador = DevolucionProveedor.objects.filter(
+                fecha_creacion__date=fecha.date()
+            ).count() + 1
+            self.folio = f"DEV-{fecha.strftime('%Y%m%d')}-{str(contador).zfill(6)}"
+        
+        super().save(*args, **kwargs)
+    
+    @property
+    def total_items(self):
+        """Total de items en la devolución"""
+        return self.itemdevolucion_set.aggregate(total=models.Sum('cantidad'))['total'] or 0
+    
+    @property
+    def total_valor(self):
+        """Valor total de la devolución"""
+        return self.itemdevolucion_set.aggregate(
+            total=models.Sum(models.F('cantidad') * models.F('precio_unitario'), output_field=models.DecimalField())
+        )['total'] or 0
+
+
+class ItemDevolucion(models.Model):
+    """Modelo para los items incluidos en una devolución"""
+    
+    # Identificadores
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    devolucion = models.ForeignKey(DevolucionProveedor, on_delete=models.CASCADE)
+    lote = models.ForeignKey(Lote, on_delete=models.PROTECT)
+    
+    # Información del item
+    cantidad = models.PositiveIntegerField()
+    precio_unitario = models.DecimalField(max_digits=10, decimal_places=2)
+    motivo_especifico = models.TextField(blank=True)
+    
+    # Información de inspección
+    inspeccionado = models.BooleanField(default=False)
+    fecha_inspeccion = models.DateTimeField(blank=True, null=True)
+    usuario_inspeccion = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='items_devolucion_inspeccionados')
+    observaciones_inspeccion = models.TextField(blank=True)
+    
+    # Auditoría
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    
+    class Meta:
+        db_table = 'inventario_item_devolucion'
+        verbose_name = 'Item de Devolución'
+        verbose_name_plural = 'Items de Devolución'
+        unique_together = ['devolucion', 'lote']
+    
+    def __str__(self):
+        return f"Item {self.lote.numero_lote} - Cantidad: {self.cantidad}"
+    
+    @property
+    def subtotal(self):
+        """Subtotal del item"""
+        return self.cantidad * self.precio_unitario
