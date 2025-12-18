@@ -41,7 +41,7 @@ class LlegadaProveedor(models.Model):
     folio = models.CharField(max_length=50, unique=True, db_index=True)
     
     # Relaciones
-    cita = models.OneToOneField('inventario.Cita', on_delete=models.PROTECT, related_name='llegada_proveedor')
+    cita = models.OneToOneField('inventario.CitaProveedor', on_delete=models.PROTECT, related_name='llegada_proveedor')
     proveedor = models.ForeignKey('inventario.Proveedor', on_delete=models.PROTECT)
     
     # Datos de Llegada (Captura Almacenero - CAMPOS VERDES)
