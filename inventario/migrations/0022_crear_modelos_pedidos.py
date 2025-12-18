@@ -1,4 +1,4 @@
-# Generated migration for Fase 2.2.1 - Gestión de Pedidos y Salida
+# Generated migration for Fase 2.2.1 - Gestión de Pedidos y Salida (CORREGIDA)
 
 from django.conf import settings
 from django.db import migrations, models
@@ -28,7 +28,8 @@ class Migration(migrations.Migration):
                 ('observaciones', models.TextField(blank=True)),
                 ('almacen_origen', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='solicitudes_pedido', to='inventario.almacen')),
                 ('institucion', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, related_name='solicitudes_pedido', to='inventario.institucion')),
-                ('usuario_solicitante', models.ForeignKey(on_delete=django.db.models.deletion.SET_NULL, null=True, related_name='solicitudes_pedido_creadas', to=settings.AUTH_USER_MODEL)),
+                ('usuario_solicitante', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='solicitudes_pedido_creadas', to=settings.AUTH_USER_MODEL)),
+                ('usuario_validacion', models.ForeignKey(blank=True, null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='solicitudes_pedido_validadas', to=settings.AUTH_USER_MODEL)),
             ],
             options={
                 'verbose_name': 'Solicitud de Pedido',
@@ -86,7 +87,7 @@ class Migration(migrations.Migration):
                 ('almacen_origen', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to='inventario.almacen')),
                 ('institucion_destino', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to='inventario.institucion')),
                 ('solicitud', models.OneToOneField(on_delete=django.db.models.deletion.CASCADE, related_name='salida_existencias', to='inventario.solicitudpedido')),
-                ('usuario_validacion', models.ForeignKey(on_delete=django.db.models.deletion.SET_NULL, null=True, to=settings.AUTH_USER_MODEL)),
+                ('usuario_validacion', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, to=settings.AUTH_USER_MODEL)),
             ],
             options={
                 'verbose_name': 'Salida de Existencias',
@@ -106,7 +107,7 @@ class Migration(migrations.Migration):
                 ('lote', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to='inventario.lote')),
                 ('producto', models.ForeignKey(on_delete=django.db.models.deletion.PROTECT, to='inventario.producto')),
                 ('salida', models.ForeignKey(on_delete=django.db.models.deletion.CASCADE, related_name='items', to='inventario.salidaexistencias')),
-                ('ubicacion', models.ForeignKey(on_delete=django.db.models.deletion.SET_NULL, null=True, to='inventario.ubicacionalmacen')),
+                ('ubicacion', models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, to='inventario.ubicacionalmacen')),
             ],
             options={
                 'verbose_name': 'Item de Salida',
