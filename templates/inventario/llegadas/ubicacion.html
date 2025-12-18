@@ -1,0 +1,27 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="h3 mb-2 text-gray-800">Asignar Ubicación - {{ llegada.folio }}</h1>
+    <form method="post">
+        {% csrf_token %}
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Asignar Ubicación a Lotes</h6>
+            </div>
+            <div class="card-body">
+                {{ formset.management_form }}
+                {% for form in formset %}
+                    <div class="item-form">
+                        <p><strong>{{ form.instance.producto.descripcion }} - Lote {{ form.instance.numero_lote }}</strong></p>
+                        {{ form|crispy }}
+                        <hr>
+                    </div>
+                {% endfor %}
+            </div>
+        </div>
+        <button type="submit" class="btn btn-primary">Guardar Ubicaciones</button>
+    </form>
+</div>
+{% endblock %}

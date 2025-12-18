@@ -1344,3 +1344,9 @@ class LogNotificaciones(models.Model):
 # FASE 2.2.1: GESTIÓN DE PEDIDOS (MODELOS RECONSTRUIDOS)
 # ============================================================================
 from .pedidos_models import SolicitudPedido, ItemSolicitud
+
+
+# ============================================================================
+# FASE 2.2.2: LLEGADA DE PROVEEDORES
+# ============================================================================
+from .llegada_models import LlegadaProveedor, ItemLlegada, DocumentoLlegada
