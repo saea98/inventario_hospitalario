@@ -92,7 +92,7 @@ def crear_solicitud(request):
             solicitud.save()
             
             messages.success(request, f'Solicitud {solicitud.folio} creada exitosamente')
-            return redirect('agregar_items_solicitud', solicitud_id=solicitud.id)
+            return redirect('logistica:agregar_items_solicitud', solicitud_id=solicitud.id)
     else:
         form = SolicitudPedidoForm()
     
@@ -110,7 +110,7 @@ def agregar_items_solicitud(request, solicitud_id):
     # Solo el creador puede agregar items
     if solicitud.usuario_solicita != request.user:
         messages.error(request, 'No tienes permiso para editar esta solicitud')
-        return redirect('lista_solicitudes')
+        return redirect('logistica:lista_solicitudes')
     
     if request.method == 'POST':
         form = ItemSolicitudPedidoForm(request.POST)
@@ -124,7 +124,7 @@ def agregar_items_solicitud(request, solicitud_id):
             solicitud.save()
             
             messages.success(request, f'Item {item.producto.clave_cnis} agregado')
-            return redirect('agregar_items_solicitud', solicitud_id=solicitud_id)
+            return redirect('logistica:agregar_items_solicitud', solicitud_id=solicitud_id)
     else:
         form = ItemSolicitudPedidoForm()
     
@@ -147,7 +147,7 @@ def validar_solicitud(request, solicitud_id):
     # Verificar que puede validarse
     if not solicitud.puede_validarse():
         messages.error(request, 'Esta solicitud no puede validarse')
-        return redirect('detalle_solicitud', solicitud_id=solicitud_id)
+        return redirect('logistica:detalle_solicitud', solicitud_id=solicitud_id)
     
     if request.method == 'POST':
         form = ValidarSolicitudPedidoForm(request.POST, solicitud=solicitud)
@@ -193,7 +193,7 @@ def validar_solicitud(request, solicitud_id):
                 crear_orden_surtimiento(solicitud)
                 
                 messages.success(request, f'Solicitud {solicitud.folio} validada correctamente')
-                return redirect('detalle_solicitud', solicitud_id=solicitud_id)
+                return redirect('logistica:detalle_solicitud', solicitud_id=solicitud_id)
     else:
         form = ValidarSolicitudPedidoForm(solicitud=solicitud)
     
@@ -265,7 +265,7 @@ def confirmar_salida(request, solicitud_id):
     
     if solicitud.estado != 'PREPARADA':
         messages.error(request, 'Esta solicitud no está lista para entrega')
-        return redirect('detalle_solicitud', solicitud_id=solicitud_id)
+        return redirect('logistica:detalle_solicitud', solicitud_id=solicitud_id)
     
     if request.method == 'POST':
         form = ConfirmarSalidaForm(request.POST)
@@ -313,7 +313,7 @@ def confirmar_salida(request, solicitud_id):
                 solicitud.save()
                 
                 messages.success(request, f'Pedido {solicitud.folio} entregado exitosamente')
-                return redirect('detalle_solicitud', solicitud_id=solicitud_id)
+                return redirect('logistica:detalle_solicitud', solicitud_id=solicitud_id)
     else:
         form = ConfirmarSalidaForm()
     
