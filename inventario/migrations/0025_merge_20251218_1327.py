@@ -6,8 +6,8 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
+        ('inventario', '0023_itempropuesta_loteasignado_propuestapedido_and_more'),
         ('inventario', '0026_devolucion_proveedor'),
-        ('inventario', '0024_llegadaproveedor_itemllegada_documentollegada_and_more'),
     ]
 
     operations = [

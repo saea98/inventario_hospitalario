@@ -9,7 +9,7 @@ import uuid
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('inventario', '0025_merge_20251218_1327'),
+        ('inventario', '0024_llegadaproveedor_itemllegada_documentollegada_and_more'),
     ]
 
     operations = [
