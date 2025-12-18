@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="h3 mb-2 text-gray-800">Detalle de Llegada {{ llegada.folio }}</h1>
+    
+    <!-- Resumen de la Llegada -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Información General</h6>
+        </div>
+        <div class="card-body">
+            <p><strong>Proveedor:</strong> {{ llegada.proveedor.nombre }}</p>
+            <p><strong>Fecha Llegada:</strong> {{ llegada.fecha_llegada_real|date:"d/m/Y H:i" }}</p>
+            <p><strong>Estado:</strong> <span class="badge badge-info">{{ llegada.get_estado_display }}</span></p>
+            <!-- Agrega más campos según sea necesario -->
+        </div>
+    </div>
+
+    <!-- Items de la Llegada -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Items Recibidos</h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered">
+                    <thead>
+                        <tr>
+                            <th>Producto</th>
+                            <th>Lote</th>
+                            <th>Caducidad</th>
+                            <th>Cantidad Recibida</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in llegada.items.all %}
+                        <tr>
+                            <td>{{ item.producto.descripcion }}</td>
+                            <td>{{ item.numero_lote }}</td>
+                            <td>{{ item.fecha_caducidad|date:"d/m/Y" }}</td>
+                            <td>{{ item.cantidad_recibida }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- Acciones -->
+    <div class="d-flex justify-content-end">
+        {% if llegada.puede_validar_calidad %}
+            <a href="{% url 'inventario:control_calidad' pk=llegada.pk %}" class="btn btn-warning mr-2">Validar Calidad</a>
+        {% endif %}
+        {% if llegada.puede_facturar %}
+            <a href="{% url 'inventario:facturacion' pk=llegada.pk %}" class="btn btn-info mr-2">Capturar Facturación</a>
+        {% endif %}
+        {% if llegada.puede_supervisar %}
+            <a href="{% url 'inventario:supervision' pk=llegada.pk %}" class="btn btn-success mr-2">Supervisar</a>
+        {% endif %}
+        {% if llegada.puede_ubicar %}
+            <a href="{% url 'inventario:ubicacion' pk=llegada.pk %}" class="btn btn-primary mr-2">Asignar Ubicación</a>
+        {% endif %}
+        <a href="{% url 'inventario:lista_llegadas' %}" class="btn btn-secondary">Volver a la Lista</a>
+    </div>
+
+</div>
+{% endblock %}

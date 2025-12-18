@@ -1,0 +1,68 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="h3 mb-2 text-gray-800">Registrar Nueva Llegada</h1>
+    <p class="mb-4">Completa los datos para registrar una nueva llegada de proveedor.</p>
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Datos de la Llegada</h6>
+            </div>
+            <div class="card-body">
+                {{ form|crispy }}
+            </div>
+        </div>
+
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Items de la Llegada</h6>
+            </div>
+            <div class="card-body">
+                {{ formset.management_form }}
+                <div id="item-formset">
+                    {% for form in formset %}
+                        <div class="item-form">
+                            {{ form|crispy }}
+                            <hr>
+                        </div>
+                    {% endfor %}
+                </div>
+                <button type="button" id="add-item-form" class="btn btn-success btn-sm">Agregar Item</button>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Guardar Llegada</button>
+        <a href="{% url 'inventario:lista_llegadas' %}" class="btn btn-secondary">Cancelar</a>
+    </form>
+</div>
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Función para agregar un nuevo formulario de item
+    $('#add-item-form').click(function() {
+        var form_idx = $('#id_items-TOTAL_FORMS').val();
+        $('#item-formset').append($('#empty-form').html().replace(/__prefix__/g, form_idx));
+        $('#id_items-TOTAL_FORMS').val(parseInt(form_idx) + 1);
+        // Reinicializar Select2 para el nuevo campo
+        $('.select2-single').select2({
+            dropdownParent: $('body')
+        });
+    });
+
+    // Template para el formulario vacío
+    var empty_form_template = `
+        <div class="item-form">
+            {{ formset.empty_form|crispy }}
+            <hr>
+        </div>
+    `;
+    $('body').append('<div id="empty-form" style="display: none;">' + empty_form_template + '</div>');
+});
+</script>
+{% endblock %}
+{% endblock %}
