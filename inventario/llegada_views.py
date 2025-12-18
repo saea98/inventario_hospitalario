@@ -47,7 +47,9 @@ class CrearLlegadaView(LoginRequiredMixin, PermissionRequiredMixin, View):
             with transaction.atomic():
                 llegada = form.save(commit=False)
                 llegada.creado_por = request.user
-                llegada.proveedor = llegada.cita.proveedor
+                # Asignar proveedor desde la cita
+                if llegada.cita and llegada.cita.proveedor:
+                    llegada.proveedor_id = llegada.cita.proveedor_id
                 timestamp = timezone.now().strftime('%Y%m%d%H%M%S')
                 llegada.folio = f"LLEG-{timestamp}"
                 llegada.save()
