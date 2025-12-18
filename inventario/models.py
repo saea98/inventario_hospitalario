@@ -1481,7 +1481,7 @@ class ItemDevolucion(models.Model):
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     
     class Meta:
-        db_table = 'inventario_item_devolucion'
+        db_table = 'inventario_itemdevolucion'
         verbose_name = 'Item de Devolución'
         verbose_name_plural = 'Items de Devolución'
         unique_together = ['devolucion', 'lote']
