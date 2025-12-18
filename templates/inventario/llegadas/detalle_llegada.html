@@ -51,18 +51,18 @@
     <!-- Acciones -->
     <div class="d-flex justify-content-end">
         {% if llegada.puede_validar_calidad %}
-            <a href="{% url 'logistica:control_calidad' pk=llegada.pk %}" class="btn btn-warning mr-2">Validar Calidad</a>
+            <a href="{% url 'logistica:llegadas:control_calidad' pk=llegada.pk %}" class="btn btn-warning mr-2">Validar Calidad</a>
         {% endif %}
         {% if llegada.puede_facturar %}
-            <a href="{% url 'logistica:facturacion' pk=llegada.pk %}" class="btn btn-info mr-2">Capturar Facturación</a>
+            <a href="{% url 'logistica:llegadas:facturacion' pk=llegada.pk %}" class="btn btn-info mr-2">Capturar Facturación</a>
         {% endif %}
         {% if llegada.puede_supervisar %}
-            <a href="{% url 'logistica:supervision' pk=llegada.pk %}" class="btn btn-success mr-2">Supervisar</a>
+            <a href="{% url 'logistica:llegadas:supervision' pk=llegada.pk %}" class="btn btn-success mr-2">Supervisar</a>
         {% endif %}
         {% if llegada.puede_ubicar %}
-            <a href="{% url 'logistica:ubicacion' pk=llegada.pk %}" class="btn btn-primary mr-2">Asignar Ubicación</a>
+            <a href="{% url 'logistica:llegadas:ubicacion' pk=llegada.pk %}" class="btn btn-primary mr-2">Asignar Ubicación</a>
         {% endif %}
-        <a href="{% url 'logistica:lista_llegadas' %}" class="btn btn-secondary">Volver a la Lista</a>
+        <a href="{% url 'logistica:llegadas:lista_llegadas' %}" class="btn btn-secondary">Volver a la Lista</a>
     </div>
 
 </div>
