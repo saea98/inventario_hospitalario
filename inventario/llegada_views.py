@@ -162,7 +162,9 @@ class UbicacionView(LoginRequiredMixin, PermissionRequiredMixin, View):
         llegada = get_object_or_404(LlegadaProveedor, pk=pk)
         formset = UbicacionFormSet(llegada=llegada)
         items = list(llegada.items.all())
-        return render(request, "inventario/llegadas/ubicacion.html", {"llegada": llegada, "formset": formset, "items": items})
+        # Emparejar items con formularios
+        items_forms = list(zip(items, formset.forms))
+        return render(request, "inventario/llegadas/ubicacion.html", {"llegada": llegada, "formset": formset, "items": items, "items_forms": items_forms})
     
     def post(self, request, pk):
         llegada = get_object_or_404(LlegadaProveedor, pk=pk)
@@ -201,7 +203,9 @@ class UbicacionView(LoginRequiredMixin, PermissionRequiredMixin, View):
                 return redirect("logistica:llegadas:detalle_llegada", pk=llegada.pk)
         
         items = list(llegada.items.all())
-        return render(request, "inventario/llegadas/ubicacion.html", {"llegada": llegada, "formset": formset, "items": items})
+        # Emparejar items con formularios
+        items_forms = list(zip(items, formset.forms))
+        return render(request, "inventario/llegadas/ubicacion.html", {"llegada": llegada, "formset": formset, "items": items, "items_forms": items_forms})
 
 
 class SubirDocumentoView(LoginRequiredMixin, View):
