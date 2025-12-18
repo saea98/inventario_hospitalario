@@ -8,7 +8,7 @@ from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Submit, Row, Column, HTML
 from datetime import date, timedelta
 
-from .pedidos_models import SolicitudPedido, ItemSolicitud
+from .pedidos_models import SolicitudPedido, ItemSolicitud, PropuestaPedido, ItemPropuesta
 from .models import Producto, Lote, Institucion, Almacen
 
 
@@ -28,17 +28,20 @@ class SolicitudPedidoForm(forms.ModelForm):
         widgets = {
             'institucion_solicitante': forms.Select(attrs={
                 'class': 'form-control select2-single',
-                'data-placeholder': 'Selecciona una institución'
+                'data-placeholder': 'Selecciona una institución',
+                'required': 'required'
             }),
             'almacen_destino': forms.Select(attrs={
                 'class': 'form-control select2-single',
-                'data-placeholder': 'Selecciona un almacén'
+                'data-placeholder': 'Selecciona un almacén',
+                'required': 'required'
             }),
             'fecha_entrega_programada': forms.DateInput(
                 attrs={
                     'class': 'form-control',
                     'type': 'date',
-                    'min': (date.today() + timedelta(days=1)).isoformat()
+                    'min': (date.today() + timedelta(days=1)).isoformat(),
+                    'required': 'required'
                 }
             ),
             'observaciones_solicitud': forms.Textarea(
@@ -52,6 +55,11 @@ class SolicitudPedidoForm(forms.ModelForm):
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        # Asegurar que los campos requeridos estén marcados
+        self.fields['institucion_solicitante'].required = True
+        self.fields['almacen_destino'].required = True
+        self.fields['fecha_entrega_programada'].required = True
+        
         self.helper = FormHelper()
         self.helper.layout = Layout(
             Row(
@@ -152,6 +160,58 @@ class ValidarSolicitudPedidoForm(forms.Form):
                 
                 if cantidad_aprobada is not None and cantidad_aprobada < 0:
                     self.add_error(field_name, "La cantidad aprobada no puede ser negativa.")
+        
+        return cleaned_data
+
+
+class EditarPropuestaForm(forms.Form):
+    """
+    Formulario para que el personal de almacén edite la propuesta de pedido.
+    Permite cambiar cantidades propuestas y agregar observaciones.
+    """
+    
+    def __init__(self, *args, propuesta=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.propuesta = propuesta
+        
+        if propuesta:
+            # Crear campos para cada item de la propuesta
+            for item in propuesta.items.all():
+                # Campo para cantidad propuesta
+                field_name = f'item_{item.id}_cantidad_propuesta'
+                self.fields[field_name] = forms.IntegerField(
+                    label=f"{item.producto.clave_cnis} - Cantidad Propuesta",
+                    initial=item.cantidad_propuesta,
+                    min_value=0,
+                    max_value=item.cantidad_disponible,
+                    widget=forms.NumberInput(attrs={
+                        'class': 'form-control',
+                        'type': 'number'
+                    })
+                )
+                
+                # Campo para observaciones
+                obs_field_name = f'item_{item.id}_observaciones'
+                self.fields[obs_field_name] = forms.CharField(
+                    label=f"Observaciones",
+                    required=False,
+                    widget=forms.Textarea(attrs={
+                        'class': 'form-control',
+                        'rows': 2,
+                        'placeholder': 'Observaciones sobre este item'
+                    })
+                )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        
+        if self.propuesta:
+            for item in self.propuesta.items.all():
+                field_name = f'item_{item.id}_cantidad_propuesta'
+                cantidad = cleaned_data.get(field_name)
+                
+                if cantidad is not None and cantidad < 0:
+                    self.add_error(field_name, "La cantidad no puede ser negativa.")
         
         return cleaned_data
 

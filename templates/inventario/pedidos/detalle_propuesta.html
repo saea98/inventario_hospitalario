@@ -78,6 +78,7 @@
     <!-- Acciones -->
     <div class="mb-4">
         {% if propuesta.estado == 'GENERADA' %}
+            <a href="{% url 'logistica:editar_propuesta' propuesta.id %}" class="btn btn-info">Editar Propuesta</a>
             <a href="{% url 'logistica:revisar_propuesta' propuesta.id %}" class="btn btn-warning">Revisar Propuesta</a>
         {% endif %}
         {% if propuesta.estado == 'REVISADA' %}

@@ -272,3 +272,49 @@ def surtir_propuesta(request, propuesta_id):
         'page_title': f"Surtir Propuesta {propuesta.solicitud.folio}"
     }
     return render(request, 'inventario/pedidos/surtir_propuesta.html', context)
+
+
+
+@login_required
+@transaction.atomic
+def editar_propuesta(request, propuesta_id):
+    """
+    Permite al personal de almacén editar la propuesta antes de revisar.
+    Puede cambiar cantidades propuestas y agregar observaciones.
+    """
+    from .pedidos_forms import EditarPropuestaForm
+    
+    propuesta = get_object_or_404(PropuestaPedido, id=propuesta_id, estado='GENERADA')
+    
+    if request.method == 'POST':
+        form = EditarPropuestaForm(request.POST, propuesta=propuesta)
+        if form.is_valid():
+            # Actualizar cada item con los datos del formulario
+            for item in propuesta.items.all():
+                field_name = f'item_{item.id}_cantidad_propuesta'
+                obs_field_name = f'item_{item.id}_observaciones'
+                
+                nueva_cantidad = form.cleaned_data.get(field_name)
+                nuevas_observaciones = form.cleaned_data.get(obs_field_name)
+                
+                if nueva_cantidad is not None:
+                    item.cantidad_propuesta = nueva_cantidad
+                    if nuevas_observaciones:
+                        item.observaciones = nuevas_observaciones
+                    item.save()
+            
+            # Actualizar totales de la propuesta
+            propuesta.total_propuesto = sum(item.cantidad_propuesta for item in propuesta.items.all())
+            propuesta.save()
+            
+            messages.success(request, "Propuesta actualizada correctamente.")
+            return redirect('logistica:detalle_propuesta', propuesta_id=propuesta.id)
+    else:
+        form = EditarPropuestaForm(propuesta=propuesta)
+    
+    context = {
+        'propuesta': propuesta,
+        'form': form,
+        'page_title': f"Editar Propuesta {propuesta.solicitud.folio}"
+    }
+    return render(request, 'inventario/pedidos/editar_propuesta.html', context)
