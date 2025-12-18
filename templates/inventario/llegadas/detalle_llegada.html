@@ -31,6 +31,8 @@
                             <th>Lote</th>
                             <th>Caducidad</th>
                             <th>Cantidad Recibida</th>
+                            <th>Almacén</th>
+                            <th>Ubicación</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -40,6 +42,20 @@
                             <td>{{ item.numero_lote }}</td>
                             <td>{{ item.fecha_caducidad|date:"d/m/Y" }}</td>
                             <td>{{ item.cantidad_recibida }}</td>
+                            <td>
+                                {% if item.lote_creado %}
+                                    {{ item.lote_creado.almacen.nombre }}
+                                {% else %}
+                                    <span class="text-muted">No asignado</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if item.lote_creado %}
+                                    {{ item.lote_creado.ubicacion.codigo }}
+                                {% else %}
+                                    <span class="text-muted">No asignado</span>
+                                {% endif %}
+                            </td>
                         </tr>
                         {% endfor %}
                     </tbody>
