@@ -7,15 +7,44 @@ from django.forms import inlineformset_factory
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Submit, Row, Column, HTML
 from datetime import date, timedelta
+from django_select2.forms import ModelSelect2Widget
 
 from .pedidos_models import SolicitudPedido, ItemSolicitud
-from .models import Producto, Lote
+from .models import Producto, Lote, Institucion, Almacen
 
 
 class SolicitudPedidoForm(forms.ModelForm):
     """
-    Formulario para crear una nueva solicitud de pedido.
+    Formulario para crear una nueva solicitud de pedido con Select2.
     """
+    
+    institucion_solicitante = forms.ModelChoiceField(
+        queryset=Institucion.objects.all(),
+        widget=ModelSelect2Widget(
+            model=Institucion,
+            search_fields=['nombre__icontains'],
+            attrs={
+                'class': 'form-control',
+                'data-placeholder': 'Selecciona una institución',
+                'style': 'width: 100%'
+            }
+        ),
+        label="Institución Solicitante"
+    )
+    
+    almacen_destino = forms.ModelChoiceField(
+        queryset=Almacen.objects.all(),
+        widget=ModelSelect2Widget(
+            model=Almacen,
+            search_fields=['nombre__icontains'],
+            attrs={
+                'class': 'form-control',
+                'data-placeholder': 'Selecciona un almacén',
+                'style': 'width: 100%'
+            }
+        ),
+        label="Almacén Destino"
+    )
     
     class Meta:
         model = SolicitudPedido
@@ -26,8 +55,6 @@ class SolicitudPedidoForm(forms.ModelForm):
             'observaciones_solicitud'
         ]
         widgets = {
-            'institucion_solicitante': forms.Select(attrs={'class': 'form-control'}),
-            'almacen_destino': forms.Select(attrs={'class': 'form-control'}),
             'fecha_entrega_programada': forms.DateInput(
                 attrs={
                     'class': 'form-control',
@@ -61,12 +88,20 @@ class SolicitudPedidoForm(forms.ModelForm):
 
 class ItemSolicitudForm(forms.ModelForm):
     """
-    Formulario para agregar items a una solicitud de pedido.
+    Formulario para agregar items a una solicitud de pedido con Select2.
     """
     
     producto = forms.ModelChoiceField(
         queryset=Producto.objects.filter(activo=True),
-        widget=forms.Select(attrs={'class': 'form-control'}),
+        widget=ModelSelect2Widget(
+            model=Producto,
+            search_fields=['clave_cnis__icontains', 'descripcion__icontains'],
+            attrs={
+                'class': 'form-control',
+                'data-placeholder': 'Busca por CNIS o descripción',
+                'style': 'width: 100%'
+            }
+        ),
         label="Producto (CNIS)"
     )
     

@@ -8,6 +8,8 @@ import uuid
 from django.db import models
 from django.conf import settings
 from django.core.validators import MinValueValidator
+from django.utils import timezone
+from datetime import datetime
 
 # Importaciones de modelos existentes
 from .models import Institucion, Almacen, Producto, Lote
