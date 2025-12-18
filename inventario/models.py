@@ -1376,7 +1376,7 @@ class SolicitudPedido(models.Model):
         related_name='solicitudes_salida',
         verbose_name="Almacén de Origen"
     )
-    usuario_solicitante = models.ForeignKey(
+    usuario_solicita = models.ForeignKey(
         settings.AUTH_USER_MODEL,
         on_delete=models.PROTECT,
         related_name='solicitudes_creadas',
