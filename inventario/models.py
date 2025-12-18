@@ -1382,14 +1382,6 @@ class SolicitudPedido(models.Model):
         related_name='solicitudes_creadas',
         verbose_name="Usuario Solicitante"
     )
-    usuario_validacion = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.SET_NULL,
-        null=True,
-        blank=True,
-        related_name='solicitudes_validadas',
-        verbose_name="Usuario que Validó"
-    )
     
     # Fechas
     fecha_solicitud = models.DateTimeField(
