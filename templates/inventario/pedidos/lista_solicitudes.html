@@ -53,7 +53,7 @@
                         {% for solicitud in solicitudes %}
                         <tr>
                             <td>{{ solicitud.folio }}</td>
-                            <td>{{ solicitud.institucion_solicitante.nombre }}</td>
+                            <td>{{ solicitud.institucion_solicitante.denominacion }}</td>
                             <td>{{ solicitud.almacen_destino.nombre }}</td>
                             <td>{{ solicitud.fecha_solicitud|date:"d/m/Y H:i" }}</td>
                             <td>
