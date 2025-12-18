@@ -26,7 +26,7 @@ class ListaLlegadasView(LoginRequiredMixin, View):
     """Muestra la lista de llegadas de proveedores"""
     
     def get(self, request):
-        llegadas = LlegadaProveedor.objects.all()
+        llegadas = LlegadaProveedor.objects.select_related('proveedor').all()
         return render(request, "inventario/llegadas/lista_llegadas.html", {"llegadas": llegadas})
 
 
@@ -65,7 +65,7 @@ class DetalleLlegadaView(LoginRequiredMixin, View):
     """Muestra el detalle de una llegada"""
     
     def get(self, request, pk):
-        llegada = get_object_or_404(LlegadaProveedor, pk=pk)
+        llegada = get_object_or_404(LlegadaProveedor.objects.select_related('proveedor'), pk=pk)
         return render(request, "inventario/llegadas/detalle_llegada.html", {"llegada": llegada})
 
 
