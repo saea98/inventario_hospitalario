@@ -21,8 +21,8 @@ from .forms_devoluciones import DevolucionProveedorForm, ItemDevolucionForm, Ite
 def dashboard_devoluciones(request):
     """Dashboard de devoluciones de proveedores"""
     
-    # Obtener institución del usuario
-    institucion = request.user.institucion if hasattr(request.user, 'institucion') else None
+    # Obtener institución del usuario a través del almacén
+    institucion = request.user.almacen.institucion if hasattr(request.user, 'almacen') and request.user.almacen else None
     
     # Filtro base
     if institucion:
@@ -80,8 +80,8 @@ def dashboard_devoluciones(request):
 def lista_devoluciones(request):
     """Lista de devoluciones con filtros y búsqueda"""
     
-    # Obtener institución del usuario
-    institucion = request.user.institucion if hasattr(request.user, 'institucion') else None
+    # Obtener institución del usuario a través del almacén
+    institucion = request.user.almacen.institucion if hasattr(request.user, 'almacen') and request.user.almacen else None
     
     # Filtro base
     if institucion:
@@ -142,8 +142,8 @@ def lista_devoluciones(request):
 def crear_devolucion(request):
     """Crear nueva devolución de proveedor"""
     
-    # Obtener institución del usuario
-    institucion = request.user.institucion if hasattr(request.user, 'institucion') else None
+    # Obtener institución del usuario a través del almacén
+    institucion = request.user.almacen.institucion if hasattr(request.user, 'almacen') and request.user.almacen else None
     
     # Validar que el usuario tenga institución asignada
     if not institucion:
