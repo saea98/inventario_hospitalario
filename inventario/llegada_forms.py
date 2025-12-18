@@ -218,10 +218,38 @@ class UbicacionForm(forms.ModelForm):
     Formulario para asignar ubicación física del lote en almacén.
     """
     
+    almacen = forms.ModelChoiceField(
+        queryset=None,
+        label="Almacén",
+        widget=forms.Select(attrs={"class": "form-control"})
+    )
+    
+    ubicacion = forms.ModelChoiceField(
+        queryset=None,
+        label="Ubicación",
+        widget=forms.Select(attrs={"class": "form-control"})
+    )
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        from django.apps import apps
+        Almacen = apps.get_model('inventario', 'Almacen')
+        UbicacionAlmacen = apps.get_model('inventario', 'UbicacionAlmacen')
+        
+        self.fields['almacen'].queryset = Almacen.objects.all()
+        self.fields['ubicacion'].queryset = UbicacionAlmacen.objects.all()
+    
     class Meta:
         model = ItemLlegada
-        fields = []  # No hay campos específicos, solo se actualiza el lote_creado
+        fields = []  # Los campos almacen y ubicacion se manejan por separado
         widgets = {}
+
+
+class UbicacionFormSetHelper:
+    """Helper para manejar los datos de ubicación"""
+    def __init__(self, llegada):
+        self.llegada = llegada
+        self.items = llegada.items.all()
 
 
 UbicacionFormSet = inlineformset_factory(
