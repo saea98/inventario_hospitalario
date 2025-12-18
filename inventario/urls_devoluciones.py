@@ -5,6 +5,8 @@ URLs para la Fase 2.4: Devoluciones de Proveedores
 from django.urls import path
 from . import views_devoluciones
 
+app_name = 'devoluciones'
+
 urlpatterns = [
     # Dashboard
     path('', views_devoluciones.dashboard_devoluciones, name='dashboard_devoluciones'),
