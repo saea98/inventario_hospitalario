@@ -147,7 +147,7 @@ def crear_devolucion(request):
     
     if request.method == 'POST':
         form = DevolucionProveedorForm(request.POST, institucion=institucion)
-        formset = ItemDevolucionFormSet(request.POST, queryset=ItemDevolucion.objects.none())
+        formset = ItemDevolucionFormSet(request.POST)
         
         if form.is_valid() and formset.is_valid():
             # Crear devolución
@@ -167,7 +167,7 @@ def crear_devolucion(request):
             return redirect('detalle_devolucion', devolucion_id=devolucion.id)
     else:
         form = DevolucionProveedorForm(institucion=institucion)
-        formset = ItemDevolucionFormSet(queryset=ItemDevolucion.objects.none())
+        formset = ItemDevolucionFormSet()
     
     context = {
         'form': form,
