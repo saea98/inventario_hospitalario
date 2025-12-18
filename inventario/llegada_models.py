@@ -41,8 +41,8 @@ class LlegadaProveedor(models.Model):
     folio = models.CharField(max_length=50, unique=True, db_index=True)
     
     # Relaciones
-    cita = models.OneToOneField('Cita', on_delete=models.PROTECT, related_name='llegada_proveedor')
-    proveedor = models.ForeignKey('Proveedor', on_delete=models.PROTECT)
+    cita = models.OneToOneField('inventario.Cita', on_delete=models.PROTECT, related_name='llegada_proveedor')
+    proveedor = models.ForeignKey('inventario.Proveedor', on_delete=models.PROTECT)
     
     # Datos de Llegada (Captura Almacenero - CAMPOS VERDES)
     fecha_llegada_real = models.DateTimeField(default=timezone.now)
@@ -168,7 +168,7 @@ class ItemLlegada(models.Model):
     llegada = models.ForeignKey(LlegadaProveedor, on_delete=models.CASCADE, related_name='items')
     
     # Producto (CAMPOS VERDES)
-    producto = models.ForeignKey('Producto', on_delete=models.PROTECT)
+    producto = models.ForeignKey('inventario.Producto', on_delete=models.PROTECT)
     clave = models.CharField(max_length=50)  # CNIS
     descripcion = models.TextField()
     unidad_medida = models.CharField(max_length=50)
@@ -244,7 +244,7 @@ class ItemLlegada(models.Model):
     
     # Lote creado (después de ubicación)
     lote_creado = models.OneToOneField(
-        'Lote',
+        'inventario.Lote',
         on_delete=models.SET_NULL,
         null=True,
         blank=True,
