@@ -5,7 +5,7 @@ Incluye: Citas, Traslados y Conteo Físico
 
 from django.urls import path, include
 from . import views_fase2, views_telegram_test, views_traslados_completo, views_conteo_fisico_v2, pedidos_views
-# from . import llegada_urls  # Comentado temporalmente para migraciones
+from . import llegada_urls
 
 app_name = 'logistica'
 
@@ -76,7 +76,7 @@ urlpatterns = [
     # ========================================================================
     # FASE 2.2.2: LLEGADA DE PROVEEDORES
     # ========================================================================
-    # path('llegadas/', include(llegada_urls)),  # Comentado temporalmente para migraciones
+    path('llegadas/', include(llegada_urls)),
     
     # ========================================================================
     # PRUEBA DE TELEGRAM
