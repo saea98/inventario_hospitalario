@@ -195,15 +195,22 @@ document.addEventListener('DOMContentLoaded', function() {
         width: '100%'
     });
 
-    // Inicializar Select2 para los lotes en el formset
-    $(document).on('select2:open', function() {
-        $('select[name*="lote"]').select2({
-            theme: 'bootstrap-5',
-            placeholder: 'Selecciona un lote',
-            allowClear: true,
-            width: '100%'
+    // Función para inicializar Select2 en los selects de lote
+    function initializeSelect2() {
+        $('select[name*="lote"]').each(function() {
+            if (!$(this).hasClass('select2-hidden-accessible')) {
+                $(this).select2({
+                    theme: 'bootstrap-5',
+                    placeholder: 'Selecciona un lote',
+                    allowClear: true,
+                    width: '100%'
+                });
+            }
         });
-    });
+    }
+
+    // Inicializar Select2 para los lotes existentes
+    initializeSelect2();
 
     // Calcular subtotales
     function calcularSubtotales() {
@@ -251,6 +258,10 @@ document.addEventListener('DOMContentLoaded', function() {
 
         container.appendChild(newRow);
         totalForms.value = formCount + 1;
+        
+        // Reinicializar Select2 para el nuevo select
+        initializeSelect2();
+        
         calcularSubtotales();
     });
 
