@@ -10,7 +10,7 @@
             <h6 class="m-0 font-weight-bold text-primary">Información General</h6>
         </div>
         <div class="card-body">
-            <p><strong>Proveedor:</strong> {{ llegada.proveedor.nombre|default:"No disponible" }}</p>
+            <p><strong>Proveedor:</strong> {{ llegada.cita.proveedor.nombre|default:"No disponible" }}</p>
             <p><strong>Fecha Llegada:</strong> {{ llegada.fecha_llegada_real|date:"d/m/Y H:i" }}</p>
             <p><strong>Estado:</strong> <span class="badge badge-info">{{ llegada.get_estado_display }}</span></p>
             <!-- Agrega más campos según sea necesario -->
