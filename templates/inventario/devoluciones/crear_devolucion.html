@@ -3,6 +3,11 @@
 
 {% block title %}Crear Devolución{% endblock %}
 
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid py-4">
     <!-- Encabezado -->
@@ -172,8 +177,34 @@
     </form>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    // Inicializar Select2
+    $('#id_proveedor').select2({
+        theme: 'bootstrap-5',
+        placeholder: 'Selecciona un proveedor',
+        allowClear: true,
+        width: '100%'
+    });
+
+    $('#id_motivo_general').select2({
+        theme: 'bootstrap-5',
+        placeholder: 'Selecciona un motivo',
+        allowClear: true,
+        width: '100%'
+    });
+
+    // Inicializar Select2 para los lotes en el formset
+    $(document).on('select2:open', function() {
+        $('select[name*="lote"]').select2({
+            theme: 'bootstrap-5',
+            placeholder: 'Selecciona un lote',
+            allowClear: true,
+            width: '100%'
+        });
+    });
+
     // Calcular subtotales
     function calcularSubtotales() {
         let totalItems = 0;
