@@ -28,24 +28,52 @@
                         </thead>
                         <tbody>
                             {% for form in formset %}
-                                <tr>
-                                    <td>{{ form.instance.producto.descripcion }}</td>
-                                    <td>{{ form.instance.numero_lote }}</td>
-                                    <td>{{ form.instance.cantidad_recibida }}</td>
-                                    <td>{{ form.almacen }}</td>
-                                    <td>{{ form.ubicacion }}</td>
-                                </tr>
-                                {% if form.non_field_errors %}
+                                {% if form.instance.pk %}
                                     <tr>
-                                        <td colspan="5" class="alert alert-danger">
-                                            {{ form.non_field_errors }}
+                                        <td>
+                                            <strong>{{ form.instance.producto.descripcion }}</strong>
+                                        </td>
+                                        <td>
+                                            {{ form.instance.numero_lote }}
+                                        </td>
+                                        <td>
+                                            {{ form.instance.cantidad_recibida }}
+                                        </td>
+                                        <td>
+                                            {{ form.almacen }}
+                                            {% if form.almacen.errors %}
+                                                <div class="alert alert-danger mt-2">
+                                                    {{ form.almacen.errors }}
+                                                </div>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {{ form.ubicacion }}
+                                            {% if form.ubicacion.errors %}
+                                                <div class="alert alert-danger mt-2">
+                                                    {{ form.ubicacion.errors }}
+                                                </div>
+                                            {% endif %}
                                         </td>
                                     </tr>
+                                    {% if form.non_field_errors %}
+                                        <tr>
+                                            <td colspan="5" class="alert alert-danger">
+                                                {{ form.non_field_errors }}
+                                            </td>
+                                        </tr>
+                                    {% endif %}
                                 {% endif %}
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
+                
+                {% if formset.non_form_errors %}
+                    <div class="alert alert-danger">
+                        {{ formset.non_form_errors }}
+                    </div>
+                {% endif %}
             </div>
         </div>
         
@@ -55,4 +83,14 @@
         </div>
     </form>
 </div>
+
+<script>
+    // Inicializar Select2 para los campos de almacén y ubicación
+    document.addEventListener('DOMContentLoaded', function() {
+        $('.select2-single').select2({
+            allowClear: true,
+            placeholder: $(this).data('placeholder')
+        });
+    });
+</script>
 {% endblock %}
