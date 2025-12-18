@@ -234,7 +234,7 @@
                             <tbody>
                                 {% for movimiento in movimientos %}
                                 <tr>
-                                    <td>{{ movimiento.fecha_creacion|date:"d/m/Y H:i" }}</td>
+                                    <td>{{ movimiento.fecha_movimiento|date:"d/m/Y H:i" }}</td>
                                     <td>
                                         <span class="badge bg-secondary">{{ movimiento.get_tipo_movimiento_display }}</span>
                                     </td>
