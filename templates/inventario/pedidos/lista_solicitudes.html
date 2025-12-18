@@ -1,0 +1,84 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">{{ page_title|default:'Gestión de Pedidos' }}</h1>
+        <a href="{% url 'logistica:crear_solicitud' %}" class="btn btn-primary btn-icon-split">
+            <span class="icon text-white-50">
+                <i class="fas fa-plus"></i>
+            </span>
+            <span class="text">Nueva Solicitud</span>
+        </a>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Filtros de Búsqueda</h6>
+        </div>
+        <div class="card-body">
+            <form method="get">
+                {% csrf_token %}
+                <div class="row">
+                    <div class="col-md-3">{{ form.estado|as_crispy_field }}</div>
+                    <div class="col-md-3">{{ form.fecha_inicio|as_crispy_field }}</div>
+                    <div class="col-md-3">{{ form.fecha_fin|as_crispy_field }}</div>
+                    <div class="col-md-3">{{ form.institucion|as_crispy_field }}</div>
+                </div>
+                <button type="submit" class="btn btn-info btn-sm mt-2">Buscar</button>
+                <a href="{% url 'logistica:lista_solicitudes' %}" class="btn btn-secondary btn-sm mt-2">Limpiar</a>
+            </form>
+        </div>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Solicitudes de Pedido</h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>Folio</th>
+                            <th>Institución Solicitante</th>
+                            <th>Almacén Destino</th>
+                            <th>Fecha de Solicitud</th>
+                            <th>Estado</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for solicitud in solicitudes %}
+                        <tr>
+                            <td>{{ solicitud.folio }}</td>
+                            <td>{{ solicitud.institucion_solicitante.nombre }}</td>
+                            <td>{{ solicitud.almacen_destino.nombre }}</td>
+                            <td>{{ solicitud.fecha_solicitud|date:"d/m/Y H:i" }}</td>
+                            <td>
+                                <span class="badge badge-{{ solicitud.get_estado_display|lower|slugify }}">{{ solicitud.get_estado_display }}</span>
+                            </td>
+                            <td>
+                                <a href="{% url 'logistica:detalle_solicitud' solicitud.id %}" class="btn btn-info btn-circle btn-sm" title="Ver Detalle">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                {% if solicitud.estado == 'PENDIENTE' %}
+                                <a href="{% url 'logistica:validar_solicitud' solicitud.id %}" class="btn btn-success btn-circle btn-sm" title="Validar Solicitud">
+                                    <i class="fas fa-check"></i>
+                                </a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="6" class="text-center">No se encontraron solicitudes.</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

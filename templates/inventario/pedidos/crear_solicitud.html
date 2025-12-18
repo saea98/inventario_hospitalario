@@ -1,0 +1,69 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="h3 mb-4 text-gray-800">{{ page_title|default:'Crear Nueva Solicitud de Pedido' }}</h1>
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Datos de la Solicitud</h6>
+            </div>
+            <div class="card-body">
+                {{ form|crispy }}
+            </div>
+        </div>
+
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Items de la Solicitud</h6>
+            </div>
+            <div class="card-body">
+                {{ formset.management_form }}
+                <div id="item-forms-container">
+                    {% for form in formset %}
+                        <div class="item-form mb-3">
+                            <div class="row">
+                                <div class="col-md-8">{{ form.producto|as_crispy_field }}</div>
+                                <div class="col-md-3">{{ form.cantidad_solicitada|as_crispy_field }}</div>
+                                <div class="col-md-1 d-flex align-items-center">
+                                    {% if form.instance.pk %}
+                                        {{ form.DELETE }}
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+                    {% endfor %}
+                </div>
+                <button type="button" id="add-item-form" class="btn btn-secondary btn-sm">Añadir otro item</button>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary">Guardar Solicitud</button>
+        <a href="{% url 'logistica:lista_solicitudes' %}" class="btn btn-secondary">Cancelar</a>
+    </form>
+</div>
+
+{% block extra_js %}
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const container = document.getElementById('item-forms-container');
+        const addButton = document.getElementById('add-item-form');
+        const totalForms = document.getElementById('id_{{ formset.prefix }}-TOTAL_FORMS');
+        let formCount = {{ formset.total_form_count }};
+
+        addButton.addEventListener('click', function() {
+            const newForm = container.children[0].cloneNode(true);
+            const formRegex = new RegExp('{{ formset.prefix }}-(\d+)-', 'g');
+            
+            newForm.innerHTML = newForm.innerHTML.replace(formRegex, `{{ formset.prefix }}-${formCount}-`);
+            container.appendChild(newForm);
+            
+            totalForms.value = ++formCount;
+        });
+    });
+</script>
+{% endblock %}
+{% endblock %}
