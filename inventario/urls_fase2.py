@@ -4,7 +4,7 @@ Incluye: Citas, Traslados y Conteo Físico
 """
 
 from django.urls import path, include
-from . import views_fase2, views_telegram_test, views_traslados_completo, views_conteo_fisico_v2, views_pedidos
+from . import views_fase2, views_telegram_test, views_traslados_completo, views_conteo_fisico_v2
 
 app_name = 'logistica'
 
@@ -57,18 +57,6 @@ urlpatterns = [
     # API AJAX para obtener información del lote
     path('api/conteos/lote-info/', views_conteo_fisico_v2.api_obtener_lote_info, name='api_lote_info'),
     
-    # ========================================================================
-    # FASE 2.2.1: GESTIÓN DE PEDIDOS Y SALIDA
-    # ========================================================================
-    path('pedidos/solicitudes/', views_pedidos.lista_solicitudes, name='lista_solicitudes'),
-    path('pedidos/crear/', views_pedidos.crear_solicitud, name='crear_solicitud'),
-    path('pedidos/<uuid:solicitud_id>/items/', views_pedidos.agregar_items_solicitud, name='agregar_items_solicitud'),
-    path('pedidos/<uuid:solicitud_id>/validar/', views_pedidos.validar_solicitud, name='validar_solicitud'),
-    path('pedidos/<uuid:solicitud_id>/', views_pedidos.detalle_solicitud, name='detalle_solicitud'),
-    path('pedidos/orden/<uuid:orden_id>/imprimir/', views_pedidos.imprimir_orden_surtimiento, name='imprimir_orden_surtimiento'),
-    path('pedidos/<uuid:solicitud_id>/confirmar-salida/', views_pedidos.confirmar_salida, name='confirmar_salida'),
-    path('pedidos/historial/', views_pedidos.historial_pedidos, name='historial_pedidos'),
-    path('pedidos/salida/<uuid:salida_id>/', views_pedidos.detalle_salida, name='detalle_salida'),
     
     # ========================================================================
     # PRUEBA DE TELEGRAM
