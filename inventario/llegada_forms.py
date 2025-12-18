@@ -213,21 +213,31 @@ class DocumentoLlegadaForm(forms.ModelForm):
 
 
 
-class UbicacionForm(forms.ModelForm):
+class UbicacionForm(forms.Form):
     """
     Formulario para asignar ubicación física del lote en almacén.
+    Este es un formulario independiente (no ModelForm) porque los campos
+    almacen y ubicacion no pertenecen a ItemLlegada, sino a Lote.
     """
     
     almacen = forms.ModelChoiceField(
         queryset=None,
         label="Almacén",
-        widget=forms.Select(attrs={"class": "form-control"})
+        required=True,
+        widget=forms.Select(attrs={
+            "class": "form-control select2-single",
+            "data-placeholder": "-- Selecciona un almacén --"
+        })
     )
     
     ubicacion = forms.ModelChoiceField(
         queryset=None,
         label="Ubicación",
-        widget=forms.Select(attrs={"class": "form-control"})
+        required=True,
+        widget=forms.Select(attrs={
+            "class": "form-control select2-single",
+            "data-placeholder": "-- Selecciona una ubicación --"
+        })
     )
     
     def __init__(self, *args, **kwargs):
@@ -236,26 +246,22 @@ class UbicacionForm(forms.ModelForm):
         Almacen = apps.get_model('inventario', 'Almacen')
         UbicacionAlmacen = apps.get_model('inventario', 'UbicacionAlmacen')
         
-        self.fields['almacen'].queryset = Almacen.objects.all()
-        self.fields['ubicacion'].queryset = UbicacionAlmacen.objects.all()
-    
-    class Meta:
-        model = ItemLlegada
-        fields = []  # Los campos almacen y ubicacion se manejan por separado
-        widgets = {}
+        self.fields['almacen'].queryset = Almacen.objects.all().order_by('nombre')
+        self.fields['ubicacion'].queryset = UbicacionAlmacen.objects.all().order_by('codigo')
 
 
-class UbicacionFormSetHelper:
-    """Helper para manejar los datos de ubicación"""
-    def __init__(self, llegada):
-        self.llegada = llegada
-        self.items = llegada.items.all()
+# Crear un formset personalizado que combine ItemLlegada con UbicacionForm
+from django.forms import BaseInlineFormSet
 
+class UbicacionBaseFormSet(BaseInlineFormSet):
+    """Formset personalizado para manejar ubicaciones"""
+    pass
 
 UbicacionFormSet = inlineformset_factory(
     LlegadaProveedor,
     ItemLlegada,
     form=UbicacionForm,
+    formset=UbicacionBaseFormSet,
     extra=0,
     can_delete=False,
     fk_name="llegada",
