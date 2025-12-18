@@ -25,36 +25,42 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for form in formset.forms %}
-                                {% with item=items|slice:forloop.counter0|first %}
-                                    <tr>
-                                        <td>
-                                            <strong>{{ item.producto.descripcion }}</strong>
-                                        </td>
-                                        <td>
-                                            {{ item.numero_lote }}
-                                        </td>
-                                        <td>
-                                            {{ item.cantidad_recibida }}
-                                        </td>
-                                        <td>
-                                            {{ form.almacen }}
-                                            {% if form.almacen.errors %}
-                                                <div class="alert alert-danger mt-2 small">
-                                                    {{ form.almacen.errors }}
-                                                </div>
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            {{ form.ubicacion }}
-                                            {% if form.ubicacion.errors %}
-                                                <div class="alert alert-danger mt-2 small">
-                                                    {{ form.ubicacion.errors }}
-                                                </div>
-                                            {% endif %}
-                                        </td>
-                                    </tr>
-                                {% endwith %}
+                            {% for item in items %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ item.producto.descripcion }}</strong>
+                                    </td>
+                                    <td>
+                                        {{ item.numero_lote }}
+                                    </td>
+                                    <td>
+                                        {{ item.cantidad_recibida }}
+                                    </td>
+                                    <td>
+                                        {% with form=formset.forms|slice:forloop.counter0 %}
+                                            {% for f in form %}
+                                                {{ f.almacen }}
+                                                {% if f.almacen.errors %}
+                                                    <div class="alert alert-danger mt-2 small">
+                                                        {{ f.almacen.errors }}
+                                                    </div>
+                                                {% endif %}
+                                            {% endfor %}
+                                        {% endwith %}
+                                    </td>
+                                    <td>
+                                        {% with form=formset.forms|slice:forloop.counter0 %}
+                                            {% for f in form %}
+                                                {{ f.ubicacion }}
+                                                {% if f.ubicacion.errors %}
+                                                    <div class="alert alert-danger mt-2 small">
+                                                        {{ f.ubicacion.errors }}
+                                                    </div>
+                                                {% endif %}
+                                            {% endfor %}
+                                        {% endwith %}
+                                    </td>
+                                </tr>
                             {% endfor %}
                         </tbody>
                     </table>
