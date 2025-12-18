@@ -4,7 +4,7 @@ Incluye: Citas, Traslados y Conteo Físico
 """
 
 from django.urls import path, include
-from . import views_fase2, views_telegram_test, views_traslados_completo, views_conteo_fisico_v2
+from . import views_fase2, views_telegram_test, views_traslados_completo, views_conteo_fisico_v2, pedidos_views
 
 app_name = 'logistica'
 
@@ -54,9 +54,16 @@ urlpatterns = [
     # Detalle de un movimiento de conteo
     path('conteos/movimientos/<int:movimiento_id>/', views_conteo_fisico_v2.detalle_movimiento_conteo, name='detalle_movimiento_conteo'),
     
-    # API AJAX para obtener información del lote
+    # API AJAX para obtener informacion del lote
     path('api/conteos/lote-info/', views_conteo_fisico_v2.api_obtener_lote_info, name='api_lote_info'),
     
+    # ========================================================================
+    # FASE 2.2.1: GESTION DE PEDIDOS (RECONSTRUIDA)
+    # ========================================================================
+    path('pedidos/', pedidos_views.lista_solicitudes, name='lista_solicitudes'),
+    path('pedidos/crear/', pedidos_views.crear_solicitud, name='crear_solicitud'),
+    path('pedidos/<uuid:solicitud_id>/', pedidos_views.detalle_solicitud, name='detalle_solicitud'),
+    path('pedidos/<uuid:solicitud_id>/validar/', pedidos_views.validar_solicitud, name='validar_solicitud'),
     
     # ========================================================================
     # PRUEBA DE TELEGRAM
