@@ -25,45 +25,43 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for item in llegada.items.all %}
-                                {% if forloop.counter0 < formset.forms|length %}
-                                    {% with form=formset.forms|add:forloop.counter0 %}
+                            {% for form in formset.forms %}
+                                {% with item=llegada.items.all|add:forloop.counter0 %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ item.producto.descripcion }}</strong>
+                                        </td>
+                                        <td>
+                                            {{ item.numero_lote }}
+                                        </td>
+                                        <td>
+                                            {{ item.cantidad_recibida }}
+                                        </td>
+                                        <td>
+                                            {{ form.almacen }}
+                                            {% if form.almacen.errors %}
+                                                <div class="alert alert-danger mt-2 small">
+                                                    {{ form.almacen.errors }}
+                                                </div>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {{ form.ubicacion }}
+                                            {% if form.ubicacion.errors %}
+                                                <div class="alert alert-danger mt-2 small">
+                                                    {{ form.ubicacion.errors }}
+                                                </div>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                    {% if form.non_field_errors %}
                                         <tr>
-                                            <td>
-                                                <strong>{{ item.producto.descripcion }}</strong>
-                                            </td>
-                                            <td>
-                                                {{ item.numero_lote }}
-                                            </td>
-                                            <td>
-                                                {{ item.cantidad_recibida }}
-                                            </td>
-                                            <td>
-                                                {{ form.almacen }}
-                                                {% if form.almacen.errors %}
-                                                    <div class="alert alert-danger mt-2 small">
-                                                        {{ form.almacen.errors }}
-                                                    </div>
-                                                {% endif %}
-                                            </td>
-                                            <td>
-                                                {{ form.ubicacion }}
-                                                {% if form.ubicacion.errors %}
-                                                    <div class="alert alert-danger mt-2 small">
-                                                        {{ form.ubicacion.errors }}
-                                                    </div>
-                                                {% endif %}
+                                            <td colspan="5" class="alert alert-danger">
+                                                {{ form.non_field_errors }}
                                             </td>
                                         </tr>
-                                        {% if form.non_field_errors %}
-                                            <tr>
-                                                <td colspan="5" class="alert alert-danger">
-                                                    {{ form.non_field_errors }}
-                                                </td>
-                                            </tr>
-                                        {% endif %}
-                                    {% endwith %}
-                                {% endif %}
+                                    {% endif %}
+                                {% endwith %}
                             {% endfor %}
                         </tbody>
                     </table>
@@ -78,12 +76,15 @@
     </form>
 </div>
 
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+
 <script>
     // Inicializar Select2 para los campos de almacén y ubicación
     document.addEventListener('DOMContentLoaded', function() {
         $('.select2-single').select2({
             allowClear: true,
-            placeholder: $(this).data('placeholder')
+            placeholder: 'Selecciona una opción'
         });
     });
 </script>

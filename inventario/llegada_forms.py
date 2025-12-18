@@ -254,19 +254,23 @@ class UbicacionForm(forms.Form):
 class UbicacionFormSet(BaseFormSet):
     """Formset personalizado para manejar ubicaciones de items en llegada"""
     
-    def __init__(self, *args, llegada=None, **kwargs):
+    def __init__(self, data=None, files=None, llegada=None, **kwargs):
         self.llegada = llegada
-        super().__init__(*args, **kwargs)
+        self._forms = None
+        super().__init__(data=data, files=files, **kwargs)
     
     @property
     def forms(self):
         """Generar formularios dinámicamente basados en los items de la llegada"""
-        if not hasattr(self, '_forms'):
+        if self._forms is None:
             self._forms = []
             if self.llegada:
                 items = self.llegada.items.all()
-                for item in items:
-                    form = UbicacionForm(self.data, prefix=f"ubicacion-{item.id}" if self.data else None)
+                for idx, item in enumerate(items):
+                    prefix = f"ubicacion-{idx}"
+                    # Pasar self.data si existe (POST), None si es GET
+                    form_data = self.data if self.data else None
+                    form = UbicacionForm(form_data, prefix=prefix)
                     self._forms.append(form)
         return self._forms
     
@@ -274,7 +278,11 @@ class UbicacionFormSet(BaseFormSet):
         """Validar todos los formularios"""
         if not self.llegada:
             return True
-        return all(form.is_valid() for form in self.forms)
+        # Acceder a forms para asegurar que se generan
+        forms = self.forms
+        if not forms:
+            return True
+        return all(form.is_valid() for form in forms)
     
     def save(self):
         """Guardar los datos de ubicación para cada item"""
