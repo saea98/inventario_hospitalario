@@ -13,8 +13,6 @@
                 <h6 class="m-0 font-weight-bold text-primary">Asignar Ubicación a Lotes</h6>
             </div>
             <div class="card-body">
-                {{ formset.management_form }}
-                
                 <div class="table-responsive">
                     <table class="table table-bordered">
                         <thead>
@@ -27,53 +25,49 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for form in formset %}
-                                {% if form.instance.pk %}
-                                    <tr>
-                                        <td>
-                                            <strong>{{ form.instance.producto.descripcion }}</strong>
-                                        </td>
-                                        <td>
-                                            {{ form.instance.numero_lote }}
-                                        </td>
-                                        <td>
-                                            {{ form.instance.cantidad_recibida }}
-                                        </td>
-                                        <td>
-                                            {{ form.almacen }}
-                                            {% if form.almacen.errors %}
-                                                <div class="alert alert-danger mt-2">
-                                                    {{ form.almacen.errors }}
-                                                </div>
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            {{ form.ubicacion }}
-                                            {% if form.ubicacion.errors %}
-                                                <div class="alert alert-danger mt-2">
-                                                    {{ form.ubicacion.errors }}
-                                                </div>
-                                            {% endif %}
-                                        </td>
-                                    </tr>
-                                    {% if form.non_field_errors %}
+                            {% for item in llegada.items.all %}
+                                {% if forloop.counter0 < formset.forms|length %}
+                                    {% with form=formset.forms|add:forloop.counter0 %}
                                         <tr>
-                                            <td colspan="5" class="alert alert-danger">
-                                                {{ form.non_field_errors }}
+                                            <td>
+                                                <strong>{{ item.producto.descripcion }}</strong>
+                                            </td>
+                                            <td>
+                                                {{ item.numero_lote }}
+                                            </td>
+                                            <td>
+                                                {{ item.cantidad_recibida }}
+                                            </td>
+                                            <td>
+                                                {{ form.almacen }}
+                                                {% if form.almacen.errors %}
+                                                    <div class="alert alert-danger mt-2 small">
+                                                        {{ form.almacen.errors }}
+                                                    </div>
+                                                {% endif %}
+                                            </td>
+                                            <td>
+                                                {{ form.ubicacion }}
+                                                {% if form.ubicacion.errors %}
+                                                    <div class="alert alert-danger mt-2 small">
+                                                        {{ form.ubicacion.errors }}
+                                                    </div>
+                                                {% endif %}
                                             </td>
                                         </tr>
-                                    {% endif %}
+                                        {% if form.non_field_errors %}
+                                            <tr>
+                                                <td colspan="5" class="alert alert-danger">
+                                                    {{ form.non_field_errors }}
+                                                </td>
+                                            </tr>
+                                        {% endif %}
+                                    {% endwith %}
                                 {% endif %}
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
-                
-                {% if formset.non_form_errors %}
-                    <div class="alert alert-danger">
-                        {{ formset.non_form_errors }}
-                    </div>
-                {% endif %}
             </div>
         </div>
         
