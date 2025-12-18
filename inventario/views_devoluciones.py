@@ -145,6 +145,11 @@ def crear_devolucion(request):
     # Obtener institución del usuario
     institucion = request.user.institucion if hasattr(request.user, 'institucion') else None
     
+    # Validar que el usuario tenga institución asignada
+    if not institucion:
+        messages.error(request, 'No tienes una institución asignada. Contacta al administrador.')
+        return redirect('lista_devoluciones')
+    
     if request.method == 'POST':
         form = DevolucionProveedorForm(request.POST, institucion=institucion)
         formset = ItemDevolucionFormSet(request.POST)
@@ -152,7 +157,7 @@ def crear_devolucion(request):
         if form.is_valid() and formset.is_valid():
             # Crear devolución
             devolucion = form.save(commit=False)
-            devolucion.institucion = institucion
+            devolucion.institucion = institucion  # Asegurar que se asigna la institución
             devolucion.usuario_creacion = request.user
             devolucion.save()
             

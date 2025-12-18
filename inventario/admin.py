@@ -185,10 +185,10 @@ class CustomUserAdmin(BaseUserAdmin):
     
     # Agrega el campo 'clue' a los fieldsets
     fieldsets = BaseUserAdmin.fieldsets + (
-        ('Información Adicional', {'fields': ('clue',)}),
+        ('Información Adicional', {'fields': ('clue', 'almacen')}),
     )
     add_fieldsets = BaseUserAdmin.add_fieldsets + (
-        ('Información Adicional', {'fields': ('clue',)}),
+        ('Información Adicional', {'fields': ('clue', 'almacen')}),
     )
 
 # Registrar Group de Django (para permisos)
