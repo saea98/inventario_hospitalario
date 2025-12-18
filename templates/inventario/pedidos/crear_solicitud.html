@@ -4,7 +4,7 @@
 <div class="container-fluid">
     <h1 class="h3 mb-4 text-gray-800">{{ page_title|default:'Crear Nueva Solicitud de Pedido' }}</h1>
 
-    <form method="post" enctype="multipart/form-data">
+    <form method="post" enctype="multipart/form-data" id="solicitud-form">
         {% csrf_token %}
         
         <!-- Datos de la Solicitud -->
@@ -15,10 +15,15 @@
             <div class="card-body">
                 <!-- Institución Solicitante -->
                 <div class="form-group">
-                    <label for="{{ form.institucion_solicitante.id_for_label }}">
+                    <label for="id_institucion_solicitante">
                         Institución Solicitante <span class="text-danger">*</span>
                     </label>
-                    {{ form.institucion_solicitante }}
+                    <select id="id_institucion_solicitante" name="institucion_solicitante" class="form-control select2-single" required>
+                        <option value="">-- Selecciona una institución --</option>
+                        {% for institucion in form.institucion_solicitante.field.queryset %}
+                            <option value="{{ institucion.id }}">{{ institucion.nombre }}</option>
+                        {% endfor %}
+                    </select>
                     {% if form.institucion_solicitante.errors %}
                         <div class="invalid-feedback d-block">
                             {{ form.institucion_solicitante.errors }}
@@ -28,10 +33,15 @@
 
                 <!-- Almacén Destino -->
                 <div class="form-group">
-                    <label for="{{ form.almacen_destino.id_for_label }}">
+                    <label for="id_almacen_destino">
                         Almacén Destino <span class="text-danger">*</span>
                     </label>
-                    {{ form.almacen_destino }}
+                    <select id="id_almacen_destino" name="almacen_destino" class="form-control select2-single" required>
+                        <option value="">-- Selecciona un almacén --</option>
+                        {% for almacen in form.almacen_destino.field.queryset %}
+                            <option value="{{ almacen.id }}">{{ almacen.nombre }}</option>
+                        {% endfor %}
+                    </select>
                     {% if form.almacen_destino.errors %}
                         <div class="invalid-feedback d-block">
                             {{ form.almacen_destino.errors }}
@@ -41,10 +51,10 @@
 
                 <!-- Fecha de Entrega Programada -->
                 <div class="form-group">
-                    <label for="{{ form.fecha_entrega_programada.id_for_label }}">
+                    <label for="id_fecha_entrega_programada">
                         Fecha de Entrega Programada <span class="text-danger">*</span>
                     </label>
-                    {{ form.fecha_entrega_programada }}
+                    <input type="date" id="id_fecha_entrega_programada" name="fecha_entrega_programada" class="form-control" required>
                     {% if form.fecha_entrega_programada.errors %}
                         <div class="invalid-feedback d-block">
                             {{ form.fecha_entrega_programada.errors }}
@@ -54,10 +64,10 @@
 
                 <!-- Observaciones -->
                 <div class="form-group">
-                    <label for="{{ form.observaciones_solicitud.id_for_label }}">
+                    <label for="id_observaciones_solicitud">
                         Observaciones
                     </label>
-                    {{ form.observaciones_solicitud }}
+                    <textarea id="id_observaciones_solicitud" name="observaciones_solicitud" class="form-control" rows="3" placeholder="Observaciones adicionales (opcional)"></textarea>
                     {% if form.observaciones_solicitud.errors %}
                         <div class="invalid-feedback d-block">
                             {{ form.observaciones_solicitud.errors }}
@@ -167,6 +177,25 @@
         const container = document.getElementById('item-forms-container');
         const addButton = document.getElementById('add-item-form');
         const totalFormsInput = document.getElementById('id_items-TOTAL_FORMS');
+        const form = document.getElementById('solicitud-form');
+        
+        // Validar que institución esté seleccionada antes de enviar
+        form.addEventListener('submit', function(e) {
+            const institucion = document.getElementById('id_institucion_solicitante').value;
+            const almacen = document.getElementById('id_almacen_destino').value;
+            
+            if (!institucion) {
+                e.preventDefault();
+                alert('Por favor, selecciona una institución solicitante');
+                return false;
+            }
+            
+            if (!almacen) {
+                e.preventDefault();
+                alert('Por favor, selecciona un almacén destino');
+                return false;
+            }
+        });
         
         addButton.addEventListener('click', function(e) {
             e.preventDefault();
@@ -200,7 +229,8 @@
             $('.select2-single').select2({
                 width: '100%',
                 language: 'es',
-                allowClear: true
+                allowClear: true,
+                dropdownParent: $('body')
             });
         }
     });
