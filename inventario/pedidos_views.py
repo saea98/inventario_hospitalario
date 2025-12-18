@@ -8,13 +8,14 @@ from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.utils import timezone
 
-from .pedidos_models import SolicitudPedido, ItemSolicitud
+from .pedidos_models import SolicitudPedido, ItemSolicitud, PropuestaPedido, ItemPropuesta
 from .pedidos_forms import (
     SolicitudPedidoForm,
     ItemSolicitudFormSet,
     FiltroSolicitudesForm,
     ValidarSolicitudPedidoForm
 )
+from .propuesta_generator import PropuestaGenerator
 
 # ============================================================================
 # VISTAS DE GESTIÓN DE PEDIDOS
@@ -102,8 +103,12 @@ def detalle_solicitud(request, solicitud_id):
         id=solicitud_id
     )
     
+    # Obtener la propuesta si existe
+    propuesta = PropuestaPedido.objects.filter(solicitud=solicitud).first()
+    
     context = {
         'solicitud': solicitud,
+        'propuesta': propuesta,
         'page_title': f"Detalle de Solicitud {solicitud.folio}"
     }
     return render(request, 'inventario/pedidos/detalle_solicitud.html', context)
@@ -114,6 +119,7 @@ def detalle_solicitud(request, solicitud_id):
 def validar_solicitud(request, solicitud_id):
     """
     Permite a un usuario autorizado validar, modificar o rechazar los items de una solicitud.
+    Genera automáticamente la propuesta de pedido si la solicitud es aprobada.
     """
     solicitud = get_object_or_404(SolicitudPedido, id=solicitud_id, estado='PENDIENTE')
     
@@ -137,11 +143,19 @@ def validar_solicitud(request, solicitud_id):
             if total_aprobado == 0:
                 solicitud.estado = 'RECHAZADA'
                 messages.warning(request, f"Solicitud {solicitud.folio} ha sido rechazada.")
+                solicitud.save()
             else:
                 solicitud.estado = 'VALIDADA'
-                messages.success(request, f"Solicitud {solicitud.folio} ha sido validada con éxito.")
+                solicitud.save()
+                
+                # Generar la propuesta de pedido automáticamente
+                try:
+                    generator = PropuestaGenerator(solicitud.id, request.user)
+                    propuesta = generator.generate()
+                    messages.success(request, f"Solicitud {solicitud.folio} validada y propuesta de pedido generada.")
+                except Exception as e:
+                    messages.error(request, f"Error al generar la propuesta: {str(e)}")
             
-            solicitud.save()
             return redirect('logistica:detalle_pedido', solicitud_id=solicitud.id)
     else:
         form = ValidarSolicitudPedidoForm(solicitud=solicitud)
@@ -152,3 +166,109 @@ def validar_solicitud(request, solicitud_id):
         'page_title': f"Validar Solicitud {solicitud.folio}"
     }
     return render(request, 'inventario/pedidos/validar_solicitud.html', context)
+
+
+# ============================================================================
+# VISTAS DE PROPUESTA DE PEDIDO (Para personal de almacén)
+# ============================================================================
+
+@login_required
+def lista_propuestas(request):
+    """
+    Muestra una lista de propuestas de pedido para que el almacén las revise y surta.
+    """
+    propuestas = PropuestaPedido.objects.select_related(
+        'solicitud__institucion_solicitante',
+        'solicitud__almacen_destino'
+    ).all()
+    
+    # Filtrar por estado
+    estado = request.GET.get('estado')
+    if estado:
+        propuestas = propuestas.filter(estado=estado)
+    
+    context = {
+        'propuestas': propuestas,
+        'estados': PropuestaPedido.ESTADO_CHOICES,
+        'page_title': 'Propuestas de Pedido para Surtimiento'
+    }
+    return render(request, 'inventario/pedidos/lista_propuestas.html', context)
+
+
+@login_required
+def detalle_propuesta(request, propuesta_id):
+    """
+    Muestra el detalle de una propuesta de pedido con los lotes asignados.
+    """
+    propuesta = get_object_or_404(
+        PropuestaPedido.objects.select_related(
+            'solicitud__institucion_solicitante',
+            'solicitud__almacen_destino'
+        ).prefetch_related('items__lotes_asignados__lote'),
+        id=propuesta_id
+    )
+    
+    context = {
+        'propuesta': propuesta,
+        'page_title': f"Propuesta {propuesta.solicitud.folio}"
+    }
+    return render(request, 'inventario/pedidos/detalle_propuesta.html', context)
+
+
+@login_required
+@transaction.atomic
+def revisar_propuesta(request, propuesta_id):
+    """
+    Permite al personal de almacén revisar la propuesta antes de surtir.
+    """
+    propuesta = get_object_or_404(PropuestaPedido, id=propuesta_id, estado='GENERADA')
+    
+    if request.method == 'POST':
+        propuesta.estado = 'REVISADA'
+        propuesta.fecha_revision = timezone.now()
+        propuesta.usuario_revision = request.user
+        propuesta.observaciones_revision = request.POST.get('observaciones', '')
+        propuesta.save()
+        
+        messages.success(request, "Propuesta revisada. Procede al surtimiento.")
+        return redirect('logistica:detalle_propuesta', propuesta_id=propuesta.id)
+    
+    context = {
+        'propuesta': propuesta,
+        'page_title': f"Revisar Propuesta {propuesta.solicitud.folio}"
+    }
+    return render(request, 'inventario/pedidos/revisar_propuesta.html', context)
+
+
+@login_required
+@transaction.atomic
+def surtir_propuesta(request, propuesta_id):
+    """
+    Permite al personal de almacén confirmar el surtimiento de una propuesta.
+    """
+    propuesta = get_object_or_404(PropuestaPedido, id=propuesta_id, estado='REVISADA')
+    
+    if request.method == 'POST':
+        propuesta.estado = 'EN_SURTIMIENTO'
+        propuesta.fecha_surtimiento = timezone.now()
+        propuesta.usuario_surtimiento = request.user
+        propuesta.save()
+        
+        # Marcar los lotes como surtidos
+        for item in propuesta.items.all():
+            for lote_asignado in item.lotes_asignados.all():
+                lote_asignado.surtido = True
+                lote_asignado.fecha_surtimiento = timezone.now()
+                lote_asignado.save()
+        
+        propuesta.estado = 'SURTIDA'
+        propuesta.save()
+        
+        messages.success(request, "Propuesta surtida exitosamente.")
+        return redirect('logistica:lista_propuestas')
+    
+    context = {
+        'propuesta': propuesta,
+        'page_title': f"Surtir Propuesta {propuesta.solicitud.folio}"
+    }
+    return render(request, 'inventario/pedidos/surtir_propuesta.html', context)

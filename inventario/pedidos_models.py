@@ -114,3 +114,189 @@ class ItemSolicitud(models.Model):
     def __str__(self):
         return f"{self.producto.clave_cnis} - {self.cantidad_solicitada} Unidades"
 
+
+
+class PropuestaPedido(models.Model):
+    """
+    Representa una propuesta de surtimiento generada automáticamente basada en 
+    la disponibilidad de inventario y las reglas de validación.
+    
+    Se genera automáticamente cuando una solicitud es validada.
+    El personal de almacén la revisa y surte según esta propuesta.
+    """
+    ESTADO_CHOICES = [
+        ('GENERADA', 'Propuesta Generada'),
+        ('REVISADA', 'Revisada por Almacén'),
+        ('EN_SURTIMIENTO', 'En Proceso de Surtimiento'),
+        ('SURTIDA', 'Completamente Surtida'),
+        ('PARCIAL', 'Parcialmente Surtida'),
+        ('NO_DISPONIBLE', 'No Disponible'),
+        ('CANCELADA', 'Cancelada'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    solicitud = models.OneToOneField(
+        SolicitudPedido, 
+        on_delete=models.CASCADE, 
+        related_name='propuesta_pedido',
+        verbose_name="Solicitud de Pedido"
+    )
+    
+    # Información de generación
+    fecha_generacion = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de Generación")
+    usuario_generacion = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.PROTECT,
+        related_name='propuestas_generadas',
+        verbose_name="Usuario que Generó"
+    )
+    
+    # Estado del surtimiento
+    estado = models.CharField(
+        max_length=20, 
+        choices=ESTADO_CHOICES, 
+        default='GENERADA',
+        verbose_name="Estado de la Propuesta"
+    )
+    
+    # Información de revisión
+    fecha_revision = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de Revisión")
+    usuario_revision = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name='propuestas_revisadas',
+        null=True, blank=True,
+        verbose_name="Usuario que Revisó"
+    )
+    observaciones_revision = models.TextField(blank=True, verbose_name="Observaciones de Revisión")
+    
+    # Información de surtimiento
+    fecha_surtimiento = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de Surtimiento")
+    usuario_surtimiento = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        related_name='propuestas_surtidas',
+        null=True, blank=True,
+        verbose_name="Usuario que Surtió"
+    )
+    
+    # Resumen de disponibilidad
+    total_solicitado = models.PositiveIntegerField(default=0, verbose_name="Total Solicitado")
+    total_disponible = models.PositiveIntegerField(default=0, verbose_name="Total Disponible")
+    total_propuesto = models.PositiveIntegerField(default=0, verbose_name="Total Propuesto")
+    
+    class Meta:
+        verbose_name = "Propuesta de Pedido"
+        verbose_name_plural = "Propuestas de Pedidos"
+        ordering = ['-fecha_generacion']
+
+    def __str__(self):
+        return f"Propuesta {self.solicitud.folio} - {self.get_estado_display()}"
+
+    @property
+    def porcentaje_disponibilidad(self):
+        """Calcula el porcentaje de disponibilidad"""
+        if self.total_solicitado == 0:
+            return 0
+        return round((self.total_disponible / self.total_solicitado) * 100, 2)
+
+
+class ItemPropuesta(models.Model):
+    """
+    Representa un item específico dentro de una propuesta de pedido.
+    Incluye información de disponibilidad y lotes sugeridos.
+    """
+    ESTADO_CHOICES = [
+        ('DISPONIBLE', 'Disponible'),
+        ('PARCIAL', 'Disponible Parcialmente'),
+        ('NO_DISPONIBLE', 'No Disponible'),
+        ('SURTIDO', 'Surtido'),
+    ]
+
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    propuesta = models.ForeignKey(
+        PropuestaPedido, 
+        on_delete=models.CASCADE, 
+        related_name='items',
+        verbose_name="Propuesta de Pedido"
+    )
+    item_solicitud = models.ForeignKey(
+        ItemSolicitud,
+        on_delete=models.CASCADE,
+        related_name='items_propuesta',
+        verbose_name="Item de Solicitud"
+    )
+    
+    # Información del producto
+    producto = models.ForeignKey(
+        Producto, 
+        on_delete=models.PROTECT,
+        verbose_name="Producto"
+    )
+    
+    # Cantidades
+    cantidad_solicitada = models.PositiveIntegerField(verbose_name="Cantidad Solicitada")
+    cantidad_disponible = models.PositiveIntegerField(default=0, verbose_name="Cantidad Disponible")
+    cantidad_propuesta = models.PositiveIntegerField(default=0, verbose_name="Cantidad Propuesta")
+    cantidad_surtida = models.PositiveIntegerField(default=0, verbose_name="Cantidad Surtida")
+    
+    # Estado
+    estado = models.CharField(
+        max_length=20,
+        choices=ESTADO_CHOICES,
+        default='NO_DISPONIBLE',
+        verbose_name="Estado de Disponibilidad"
+    )
+    
+    # Observaciones
+    observaciones = models.TextField(blank=True, verbose_name="Observaciones")
+    
+    class Meta:
+        verbose_name = "Item de Propuesta"
+        verbose_name_plural = "Items de Propuesta"
+        ordering = ['producto__clave_cnis']
+
+    def __str__(self):
+        return f"{self.producto.clave_cnis} - {self.cantidad_propuesta} Unidades"
+
+
+class LoteAsignado(models.Model):
+    """
+    Registra qué lotes específicos se asignan para surtir cada item de la propuesta.
+    Permite trazabilidad completa del surtimiento.
+    """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    item_propuesta = models.ForeignKey(
+        ItemPropuesta,
+        on_delete=models.CASCADE,
+        related_name='lotes_asignados',
+        verbose_name="Item de Propuesta"
+    )
+    lote = models.ForeignKey(
+        Lote,
+        on_delete=models.PROTECT,
+        verbose_name="Lote"
+    )
+    
+    # Cantidad asignada de este lote
+    cantidad_asignada = models.PositiveIntegerField(
+        validators=[MinValueValidator(1)],
+        verbose_name="Cantidad Asignada"
+    )
+    
+    # Información del lote al momento de la asignación
+    fecha_caducidad_lote = models.DateField(verbose_name="Fecha de Caducidad del Lote")
+    dias_para_caducar = models.PositiveIntegerField(verbose_name="Días para Caducar")
+    
+    # Estado del surtimiento
+    fecha_asignacion = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de Asignación")
+    fecha_surtimiento = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de Surtimiento")
+    surtido = models.BooleanField(default=False, verbose_name="¿Fue Surtido?")
+    
+    class Meta:
+        verbose_name = "Lote Asignado"
+        verbose_name_plural = "Lotes Asignados"
+        ordering = ['fecha_caducidad_lote']
+
+    def __str__(self):
+        return f"{self.lote.numero_lote} - {self.cantidad_asignada} Unidades"

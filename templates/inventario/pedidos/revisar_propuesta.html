@@ -1,0 +1,26 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="h3 mb-4 text-gray-800">{{ page_title }}</h1>
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Revisar Propuesta</h6>
+            </div>
+            <div class="card-body">
+                <p>Estás a punto de marcar esta propuesta como revisada. Esto indica que has verificado la disponibilidad y los lotes asignados.</p>
+                <div class="form-group">
+                    <label for="id_observaciones">Observaciones (opcional)</label>
+                    <textarea name="observaciones" id="id_observaciones" class="form-control" rows="3"></textarea>
+                </div>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-warning">Confirmar Revisión</button>
+        <a href="{% url 'logistica:detalle_propuesta' propuesta.id %}" class="btn btn-secondary">Cancelar</a>
+    </form>
+</div>
+{% endblock %}

@@ -65,6 +65,12 @@ urlpatterns = [
     path('pedidos/<uuid:solicitud_id>/', pedidos_views.detalle_solicitud, name='detalle_pedido'),
     path('pedidos/<uuid:solicitud_id>/validar/', pedidos_views.validar_solicitud, name='validar_pedido'),
     
+    # Propuestas de Pedido (para personal de almacén)
+    path('propuestas/', pedidos_views.lista_propuestas, name='lista_propuestas'),
+    path('propuestas/<uuid:propuesta_id>/', pedidos_views.detalle_propuesta, name='detalle_propuesta'),
+    path('propuestas/<uuid:propuesta_id>/revisar/', pedidos_views.revisar_propuesta, name='revisar_propuesta'),
+    path('propuestas/<uuid:propuesta_id>/surtir/', pedidos_views.surtir_propuesta, name='surtir_propuesta'),
+    
     # ========================================================================
     # PRUEBA DE TELEGRAM
     # ========================================================================
