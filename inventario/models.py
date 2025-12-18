@@ -1418,7 +1418,7 @@ class DevolucionProveedor(models.Model):
     fecha_actualizacion = models.DateTimeField(auto_now=True)
     
     class Meta:
-        db_table = 'inventario_devolucion_proveedor'
+        db_table = 'inventario_devolucionproveedor'
         verbose_name = 'Devolución a Proveedor'
         verbose_name_plural = 'Devoluciones a Proveedores'
         ordering = ['-fecha_creacion']
