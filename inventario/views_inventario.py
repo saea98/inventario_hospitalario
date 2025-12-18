@@ -60,7 +60,7 @@ def dashboard_inventario(request):
     ).order_by('fecha_caducidad')[:10]
     
     # Movimientos recientes
-    movimientos_recientes = MovimientoInventario.objects.select_related('lote').order_by('-fecha_creacion')[:10]
+    movimientos_recientes = MovimientoInventario.objects.select_related('lote').order_by('-fecha_movimiento')[:10]
     
     # Productos con bajo stock
     productos_bajo_stock = []
@@ -180,7 +180,7 @@ def detalle_lote(request, lote_id):
     )
     
     # Movimientos del lote
-    movimientos = lote.movimientos.all().order_by('-fecha_creacion')
+    movimientos = lote.movimientos.all().order_by('-fecha_movimiento')
     
     # Información adicional
     dias_para_caducidad = lote.dias_para_caducidad
@@ -352,14 +352,14 @@ def lista_movimientos(request):
     if filtro_fecha_desde:
         try:
             fecha = datetime.strptime(filtro_fecha_desde, '%Y-%m-%d').date()
-            movimientos = movimientos.filter(fecha_creacion__date__gte=fecha)
+            movimientos = movimientos.filter(fecha_movimiento__date__gte=fecha)
         except ValueError:
             pass
     
     if filtro_fecha_hasta:
         try:
             fecha = datetime.strptime(filtro_fecha_hasta, '%Y-%m-%d').date()
-            movimientos = movimientos.filter(fecha_creacion__date__lte=fecha)
+            movimientos = movimientos.filter(fecha_movimiento__date__lte=fecha)
         except ValueError:
             pass
     
@@ -371,7 +371,7 @@ def lista_movimientos(request):
         )
     
     # Ordenar
-    movimientos = movimientos.order_by('-fecha_creacion')
+    movimientos = movimientos.order_by('-fecha_movimiento')
     
     # Opciones para filtros
     tipos_movimiento = MovimientoInventario.TIPOS_MOVIMIENTO
