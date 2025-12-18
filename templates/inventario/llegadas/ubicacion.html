@@ -25,43 +25,46 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for form in formset.forms %}
-                                {% with item=llegada.items.all|add:forloop.counter0 %}
-                                    <tr>
-                                        <td>
-                                            <strong>{{ item.producto.descripcion }}</strong>
-                                        </td>
-                                        <td>
-                                            {{ item.numero_lote }}
-                                        </td>
-                                        <td>
-                                            {{ item.cantidad_recibida }}
-                                        </td>
-                                        <td>
-                                            {{ form.almacen }}
-                                            {% if form.almacen.errors %}
-                                                <div class="alert alert-danger mt-2 small">
-                                                    {{ form.almacen.errors }}
-                                                </div>
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            {{ form.ubicacion }}
-                                            {% if form.ubicacion.errors %}
-                                                <div class="alert alert-danger mt-2 small">
-                                                    {{ form.ubicacion.errors }}
-                                                </div>
-                                            {% endif %}
-                                        </td>
-                                    </tr>
-                                    {% if form.non_field_errors %}
-                                        <tr>
-                                            <td colspan="5" class="alert alert-danger">
-                                                {{ form.non_field_errors }}
-                                            </td>
-                                        </tr>
-                                    {% endif %}
-                                {% endwith %}
+                            {% for item in llegada.items.all %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ item.producto.descripcion }}</strong>
+                                    </td>
+                                    <td>
+                                        {{ item.numero_lote }}
+                                    </td>
+                                    <td>
+                                        {{ item.cantidad_recibida }}
+                                    </td>
+                                    <td>
+                                        {% if forloop.counter0 < formset.forms|length %}
+                                            {% with form=formset.forms|slice:forloop.counter0:forloop.counter %}
+                                                {% for f in form %}
+                                                    {{ f.almacen }}
+                                                    {% if f.almacen.errors %}
+                                                        <div class="alert alert-danger mt-2 small">
+                                                            {{ f.almacen.errors }}
+                                                        </div>
+                                                    {% endif %}
+                                                {% endfor %}
+                                            {% endwith %}
+                                        {% endif %}
+                                    </td>
+                                    <td>
+                                        {% if forloop.counter0 < formset.forms|length %}
+                                            {% with form=formset.forms|slice:forloop.counter0:forloop.counter %}
+                                                {% for f in form %}
+                                                    {{ f.ubicacion }}
+                                                    {% if f.ubicacion.errors %}
+                                                        <div class="alert alert-danger mt-2 small">
+                                                            {{ f.ubicacion.errors }}
+                                                        </div>
+                                                    {% endif %}
+                                                {% endfor %}
+                                            {% endwith %}
+                                        {% endif %}
+                                    </td>
+                                </tr>
                             {% endfor %}
                         </tbody>
                     </table>
