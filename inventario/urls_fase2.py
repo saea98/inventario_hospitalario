@@ -60,10 +60,10 @@ urlpatterns = [
     # ========================================================================
     # FASE 2.2.1: GESTION DE PEDIDOS (RECONSTRUIDA)
     # ========================================================================
-    path('pedidos/', pedidos_views.lista_solicitudes, name='lista_solicitudes'),
-    path('pedidos/crear/', pedidos_views.crear_solicitud, name='crear_solicitud'),
-    path('pedidos/<uuid:solicitud_id>/', pedidos_views.detalle_solicitud, name='detalle_solicitud'),
-    path('pedidos/<uuid:solicitud_id>/validar/', pedidos_views.validar_solicitud, name='validar_solicitud'),
+    path('pedidos/', pedidos_views.lista_solicitudes, name='lista_pedidos'),
+    path('pedidos/crear/', pedidos_views.crear_solicitud, name='crear_pedido'),
+    path('pedidos/<uuid:solicitud_id>/', pedidos_views.detalle_solicitud, name='detalle_pedido'),
+    path('pedidos/<uuid:solicitud_id>/validar/', pedidos_views.validar_solicitud, name='validar_pedido'),
     
     # ========================================================================
     # PRUEBA DE TELEGRAM

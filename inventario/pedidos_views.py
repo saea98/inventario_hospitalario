@@ -69,7 +69,7 @@ def crear_solicitud(request):
             formset.save()
             
             messages.success(request, f"Solicitud {solicitud.folio} creada con éxito.")
-            return redirect('logistica:detalle_solicitud', solicitud_id=solicitud.id)
+            return redirect('logistica:detalle_pedido', solicitud_id=solicitud.id)
         else:
             messages.error(request, "Por favor, corrige los errores en el formulario.")
 
@@ -137,7 +137,7 @@ def validar_solicitud(request, solicitud_id):
                 messages.success(request, f"Solicitud {solicitud.folio} ha sido validada con éxito.")
             
             solicitud.save()
-            return redirect('logistica:detalle_solicitud', solicitud_id=solicitud.id)
+            return redirect('logistica:detalle_pedido', solicitud_id=solicitud.id)
     else:
         form = ValidarSolicitudPedidoForm(solicitud=solicitud)
         
