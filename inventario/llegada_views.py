@@ -48,7 +48,8 @@ class CrearLlegadaView(LoginRequiredMixin, PermissionRequiredMixin, View):
                 llegada = form.save(commit=False)
                 llegada.creado_por = request.user
                 llegada.proveedor = llegada.cita.proveedor
-                llegada.folio = f"LLEG-{timezone.now().strftime("%Y%m%d%H%M%S")}"
+                timestamp = timezone.now().strftime('%Y%m%d%H%M%S')
+                llegada.folio = f"LLEG-{timestamp}"
                 llegada.save()
                 
                 formset.instance = llegada
