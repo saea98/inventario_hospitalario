@@ -26,33 +26,35 @@
                         </thead>
                         <tbody>
                             {% for form in formset.forms %}
-                                <tr>
-                                    <td>
-                                        <strong>{{ form.instance.producto.descripcion }}</strong>
-                                    </td>
-                                    <td>
-                                        {{ form.instance.numero_lote }}
-                                    </td>
-                                    <td>
-                                        {{ form.instance.cantidad_recibida }}
-                                    </td>
-                                    <td>
-                                        {{ form.almacen }}
-                                        {% if form.almacen.errors %}
-                                            <div class="alert alert-danger mt-2 small">
-                                                {{ form.almacen.errors }}
-                                            </div>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {{ form.ubicacion }}
-                                        {% if form.ubicacion.errors %}
-                                            <div class="alert alert-danger mt-2 small">
-                                                {{ form.ubicacion.errors }}
-                                            </div>
-                                        {% endif %}
-                                    </td>
-                                </tr>
+                                {% with item=llegada.items.all|slice:forloop.counter0|first %}
+                                    <tr>
+                                        <td>
+                                            <strong>{{ item.producto.descripcion }}</strong>
+                                        </td>
+                                        <td>
+                                            {{ item.numero_lote }}
+                                        </td>
+                                        <td>
+                                            {{ item.cantidad_recibida }}
+                                        </td>
+                                        <td>
+                                            {{ form.almacen }}
+                                            {% if form.almacen.errors %}
+                                                <div class="alert alert-danger mt-2 small">
+                                                    {{ form.almacen.errors }}
+                                                </div>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {{ form.ubicacion }}
+                                            {% if form.ubicacion.errors %}
+                                                <div class="alert alert-danger mt-2 small">
+                                                    {{ form.ubicacion.errors }}
+                                                </div>
+                                            {% endif %}
+                                        </td>
+                                    </tr>
+                                {% endwith %}
                             {% endfor %}
                         </tbody>
                     </table>
