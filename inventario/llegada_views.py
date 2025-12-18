@@ -191,7 +191,7 @@ class UbicacionView(LoginRequiredMixin, PermissionRequiredMixin, View):
                             almacen=almacen,
                             ubicacion=ubicacion,
                             estado=1,  # 1 = Disponible
-                            institucion=llegada.cita.institucion,  # Obtener institución de la cita
+                            institucion=llegada.cita.almacen.institucion,  # Obtener institución del almacén de la cita
                             fecha_recepcion=llegada.fecha_llegada_real.date(),
                             precio_unitario=item.precio_unitario_sin_iva or 0,
                             valor_total=(item.precio_unitario_sin_iva or 0) * item.cantidad_recibida,
