@@ -12,7 +12,7 @@
                     <h1 class="display-5">📋 Detalle de Solicitud</h1>
                 </div>
                 <div class="col-md-4 text-right">
-                    <a href="{% url 'lista_solicitudes' %}" class="btn btn-secondary">
+                    <a href="{% url 'logistica:lista_solicitudes' %}" class="btn btn-secondary">
                         <i class="fas fa-arrow-left"></i> Volver
                     </a>
                 </div>
@@ -165,15 +165,15 @@
                 </div>
                 <div class="card-body">
                     {% if solicitud.estado == 'PENDIENTE' %}
-                        <a href="{% url 'validar_solicitud' solicitud.id %}" class="btn btn-success btn-lg">
+                        <a href="{% url 'logistica:validar_solicitud' solicitud.id %}" class="btn btn-success btn-lg">
                             <i class="fas fa-check"></i> Validar Solicitud
                         </a>
                     {% elif solicitud.estado == 'VALIDADA' %}
-                        <a href="{% url 'imprimir_orden_surtimiento' orden.id %}" class="btn btn-primary btn-lg">
+                        <a href="{% url 'logistica:imprimir_orden_surtimiento' orden.id %}" class="btn btn-primary btn-lg">
                             <i class="fas fa-print"></i> Imprimir Orden de Surtimiento
                         </a>
                     {% elif solicitud.estado == 'PREPARADA' %}
-                        <a href="{% url 'confirmar_salida' solicitud.id %}" class="btn btn-success btn-lg">
+                        <a href="{% url 'logistica:confirmar_salida' solicitud.id %}" class="btn btn-success btn-lg">
                             <i class="fas fa-truck"></i> Confirmar Entrega
                         </a>
                     {% elif solicitud.estado == 'ENTREGADA' %}

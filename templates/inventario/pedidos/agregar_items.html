@@ -129,13 +129,13 @@
                 <div class="card-footer bg-light">
                     <div class="row">
                         <div class="col-md-6">
-                            <a href="{% url 'lista_solicitudes' %}" class="btn btn-secondary">
+                            <a href="{% url 'logistica:lista_solicitudes' %}" class="btn btn-secondary">
                                 <i class="fas fa-arrow-left"></i> Volver
                             </a>
                         </div>
                         <div class="col-md-6 text-right">
                             {% if items %}
-                            <a href="{% url 'validar_solicitud' solicitud.id %}" class="btn btn-success btn-lg">
+                            <a href="{% url 'logistica:validar_solicitud' solicitud.id %}" class="btn btn-success btn-lg">
                                 <i class="fas fa-check"></i> Validar Solicitud
                             </a>
                             {% else %}
