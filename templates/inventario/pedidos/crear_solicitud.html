@@ -21,7 +21,7 @@
                     <select id="id_institucion_solicitante" name="institucion_solicitante" class="form-control select2-single" required>
                         <option value="">-- Selecciona una institución --</option>
                         {% for institucion in form.institucion_solicitante.field.queryset %}
-                            <option value="{{ institucion.id }}">{{ institucion.nombre }}</option>
+                            <option value="{{ institucion.id }}">{{ institucion.denominacion }}</option>
                         {% endfor %}
                     </select>
                     {% if form.institucion_solicitante.errors %}
