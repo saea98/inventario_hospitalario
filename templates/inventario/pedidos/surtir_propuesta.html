@@ -1,0 +1,23 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="h3 mb-4 text-gray-800">{{ page_title }}</h1>
+
+    <form method="post">
+        {% csrf_token %}
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Confirmar Surtimiento</h6>
+            </div>
+            <div class="card-body">
+                <p>Estás a punto de marcar esta propuesta como surtida. Esto registrará la salida de los lotes asignados del inventario.</p>
+                <p><strong>Esta acción no se puede deshacer.</strong></p>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-success">Confirmar Surtimiento</button>
+        <a href="{% url 'logistica:detalle_propuesta' propuesta.id %}" class="btn btn-secondary">Cancelar</a>
+    </form>
+</div>
+{% endblock %}
