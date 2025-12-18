@@ -1,5 +1,4 @@
 {% extends 'base.html' %}
-{% load crispy_forms_tags %}
 
 {% block content %}
 <div class="container-fluid">
@@ -14,7 +13,57 @@
                 <h6 class="m-0 font-weight-bold text-primary">Datos de la Solicitud</h6>
             </div>
             <div class="card-body">
-                {{ form|crispy }}
+                <!-- Institución Solicitante -->
+                <div class="form-group">
+                    <label for="{{ form.institucion_solicitante.id_for_label }}">
+                        Institución Solicitante <span class="text-danger">*</span>
+                    </label>
+                    {{ form.institucion_solicitante }}
+                    {% if form.institucion_solicitante.errors %}
+                        <div class="invalid-feedback d-block">
+                            {{ form.institucion_solicitante.errors }}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Almacén Destino -->
+                <div class="form-group">
+                    <label for="{{ form.almacen_destino.id_for_label }}">
+                        Almacén Destino <span class="text-danger">*</span>
+                    </label>
+                    {{ form.almacen_destino }}
+                    {% if form.almacen_destino.errors %}
+                        <div class="invalid-feedback d-block">
+                            {{ form.almacen_destino.errors }}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Fecha de Entrega Programada -->
+                <div class="form-group">
+                    <label for="{{ form.fecha_entrega_programada.id_for_label }}">
+                        Fecha de Entrega Programada <span class="text-danger">*</span>
+                    </label>
+                    {{ form.fecha_entrega_programada }}
+                    {% if form.fecha_entrega_programada.errors %}
+                        <div class="invalid-feedback d-block">
+                            {{ form.fecha_entrega_programada.errors }}
+                        </div>
+                    {% endif %}
+                </div>
+
+                <!-- Observaciones -->
+                <div class="form-group">
+                    <label for="{{ form.observaciones_solicitud.id_for_label }}">
+                        Observaciones
+                    </label>
+                    {{ form.observaciones_solicitud }}
+                    {% if form.observaciones_solicitud.errors %}
+                        <div class="invalid-feedback d-block">
+                            {{ form.observaciones_solicitud.errors }}
+                        </div>
+                    {% endif %}
+                </div>
             </div>
         </div>
 
@@ -123,14 +172,6 @@
             e.preventDefault();
             
             const formCount = parseInt(totalFormsInput.value);
-            const emptyForm = document.getElementById('id_items-__prefix__-producto');
-            
-            if (!emptyForm) {
-                console.error('No se encontró el formulario vacío');
-                return;
-            }
-            
-            // Clonar el primer formulario como referencia
             const firstForm = container.querySelector('.item-form');
             const newForm = firstForm.cloneNode(true);
             

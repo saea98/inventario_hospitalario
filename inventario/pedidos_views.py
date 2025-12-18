@@ -279,42 +279,59 @@ def surtir_propuesta(request, propuesta_id):
 @transaction.atomic
 def editar_propuesta(request, propuesta_id):
     """
-    Permite al personal de almacén editar la propuesta antes de revisar.
-    Puede cambiar cantidades propuestas y agregar observaciones.
+    Permite al personal de almacén editar los lotes y cantidades de la propuesta.
+    Puede cambiar qué lotes se asignan y qué cantidades se proponen para cada item.
     """
-    from .pedidos_forms import EditarPropuestaForm
+    from .pedidos_models import LoteAsignado
     
     propuesta = get_object_or_404(PropuestaPedido, id=propuesta_id, estado='GENERADA')
     
     if request.method == 'POST':
-        form = EditarPropuestaForm(request.POST, propuesta=propuesta)
-        if form.is_valid():
-            # Actualizar cada item con los datos del formulario
-            for item in propuesta.items.all():
-                field_name = f'item_{item.id}_cantidad_propuesta'
-                obs_field_name = f'item_{item.id}_observaciones'
-                
-                nueva_cantidad = form.cleaned_data.get(field_name)
-                nuevas_observaciones = form.cleaned_data.get(obs_field_name)
-                
-                if nueva_cantidad is not None:
-                    item.cantidad_propuesta = nueva_cantidad
-                    if nuevas_observaciones:
-                        item.observaciones = nuevas_observaciones
-                    item.save()
+        # Procesar cambios en cantidades y lotes
+        for item in propuesta.items.all():
+            # Actualizar cantidad propuesta
+            nueva_cantidad = request.POST.get(f'item_{item.id}_cantidad_propuesta')
+            if nueva_cantidad:
+                item.cantidad_propuesta = int(nueva_cantidad)
+                item.save()
             
-            # Actualizar totales de la propuesta
-            propuesta.total_propuesto = sum(item.cantidad_propuesta for item in propuesta.items.all())
-            propuesta.save()
+            # Procesar cambios en lotes asignados
+            lotes_actuales = item.lotes_asignados.all()
+            for lote_asignado in lotes_actuales:
+                nueva_cantidad_lote = request.POST.get(f'lote_{lote_asignado.id}_cantidad')
+                if nueva_cantidad_lote:
+                    lote_asignado.cantidad_asignada = int(nueva_cantidad_lote)
+                    lote_asignado.save()
+                
+                # Eliminar lote si se marca para eliminar
+                if request.POST.get(f'lote_{lote_asignado.id}_eliminar'):
+                    lote_asignado.delete()
             
-            messages.success(request, "Propuesta actualizada correctamente.")
-            return redirect('logistica:detalle_propuesta', propuesta_id=propuesta.id)
-    else:
-        form = EditarPropuestaForm(propuesta=propuesta)
+            # Agregar nuevos lotes si se seleccionan
+            nuevo_lote_id = request.POST.get(f'item_{item.id}_nuevo_lote')
+            if nuevo_lote_id:
+                from .models import Lote
+                lote = Lote.objects.get(id=nuevo_lote_id)
+                cantidad_nuevo = int(request.POST.get(f'item_{item.id}_cantidad_nuevo_lote', 0))
+                
+                if cantidad_nuevo > 0:
+                    LoteAsignado.objects.create(
+                        item_propuesta=item,
+                        lote=lote,
+                        cantidad_asignada=cantidad_nuevo,
+                        fecha_caducidad_lote=lote.fecha_caducidad,
+                        dias_para_caducar=(lote.fecha_caducidad - date.today()).days
+                    )
+        
+        # Actualizar totales de la propuesta
+        propuesta.total_propuesto = sum(item.cantidad_propuesta for item in propuesta.items.all())
+        propuesta.save()
+        
+        messages.success(request, "Propuesta actualizada correctamente.")
+        return redirect('logistica:detalle_propuesta', propuesta_id=propuesta.id)
     
     context = {
         'propuesta': propuesta,
-        'form': form,
         'page_title': f"Editar Propuesta {propuesta.solicitud.folio}"
     }
     return render(request, 'inventario/pedidos/editar_propuesta.html', context)
