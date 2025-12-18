@@ -244,6 +244,11 @@
                                         <i class="fas fa-truck-loading me-2"></i>Llegada de Proveedores
                                     </a>
                                 </li>
+                                <li class="nav-item">
+                                    <a class="nav-link submenu-item {% if 'devolucion' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'devoluciones:lista_devoluciones' %}">
+                                        <i class="fas fa-undo me-2"></i>Devoluciones de Proveedores
+                                    </a>
+                                </li>
 
                             </ul>
                         </div>
