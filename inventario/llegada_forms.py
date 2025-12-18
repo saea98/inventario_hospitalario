@@ -3,7 +3,7 @@ Formularios para la Fase 2.2.2: Llegada de Proveedores
 """
 
 from django import forms
-from django.forms import inlineformset_factory
+from django.forms import inlineformset_factory, BaseFormSet
 from .llegada_models import LlegadaProveedor, ItemLlegada, DocumentoLlegada
 
 
@@ -251,19 +251,42 @@ class UbicacionForm(forms.Form):
 
 
 # Crear un formset personalizado que combine ItemLlegada con UbicacionForm
-from django.forms import BaseInlineFormSet
-
-class UbicacionBaseFormSet(BaseInlineFormSet):
-    """Formset personalizado para manejar ubicaciones"""
-    pass
-
-UbicacionFormSet = inlineformset_factory(
-    LlegadaProveedor,
-    ItemLlegada,
-    form=UbicacionForm,
-    formset=UbicacionBaseFormSet,
-    fields=[],  # No renderizar campos del modelo ItemLlegada
-    extra=0,
-    can_delete=False,
-    fk_name="llegada",
-)
+class UbicacionFormSet(BaseFormSet):
+    """Formset personalizado para manejar ubicaciones de items en llegada"""
+    
+    def __init__(self, *args, llegada=None, **kwargs):
+        self.llegada = llegada
+        super().__init__(*args, **kwargs)
+    
+    @property
+    def forms(self):
+        """Generar formularios dinámicamente basados en los items de la llegada"""
+        if not hasattr(self, '_forms'):
+            self._forms = []
+            if self.llegada:
+                items = self.llegada.items.all()
+                for item in items:
+                    form = UbicacionForm(self.data, prefix=f"ubicacion-{item.id}" if self.data else None)
+                    self._forms.append(form)
+        return self._forms
+    
+    def is_valid(self):
+        """Validar todos los formularios"""
+        if not self.llegada:
+            return True
+        return all(form.is_valid() for form in self.forms)
+    
+    def save(self):
+        """Guardar los datos de ubicación para cada item"""
+        if not self.llegada:
+            return
+        
+        items = list(self.llegada.items.all())
+        for i, form in enumerate(self.forms):
+            if i < len(items) and form.is_valid():
+                item = items[i]
+                almacen = form.cleaned_data.get('almacen')
+                ubicacion = form.cleaned_data.get('ubicacion')
+                # Guardar datos temporales en el item para procesarlos en la vista
+                item._almacen = almacen
+                item._ubicacion = ubicacion

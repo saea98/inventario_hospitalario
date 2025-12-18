@@ -160,28 +160,36 @@ class UbicacionView(LoginRequiredMixin, PermissionRequiredMixin, View):
     
     def get(self, request, pk):
         llegada = get_object_or_404(LlegadaProveedor, pk=pk)
-        formset = UbicacionFormSet(instance=llegada, prefix="items")
+        formset = UbicacionFormSet(llegada=llegada)
         return render(request, "inventario/llegadas/ubicacion.html", {"llegada": llegada, "formset": formset})
     
     def post(self, request, pk):
         llegada = get_object_or_404(LlegadaProveedor, pk=pk)
-        formset = UbicacionFormSet(request.POST, instance=llegada, prefix="items")
+        formset = UbicacionFormSet(request.POST, llegada=llegada)
         
         if formset.is_valid():
             with transaction.atomic():
-                for form in formset:
-                    item = form.instance
-                    lote = Lote.objects.create(
-                        producto=item.producto,
-                        numero_lote=item.numero_lote,
-                        fecha_caducidad=item.fecha_caducidad,
-                        cantidad_disponible=item.cantidad_recibida,
-                        almacen=form.cleaned_data["almacen"],
-                        ubicacion=form.cleaned_data["ubicacion"],
-                        estado="DISPONIBLE",
-                    )
-                    item.lote_creado = lote
-                    item.save()
+                from django.apps import apps
+                Lote = apps.get_model('inventario', 'Lote')
+                
+                items = list(llegada.items.all())
+                for i, form in enumerate(formset.forms):
+                    if i < len(items) and form.is_valid():
+                        item = items[i]
+                        almacen = form.cleaned_data.get('almacen')
+                        ubicacion = form.cleaned_data.get('ubicacion')
+                        
+                        lote = Lote.objects.create(
+                            producto=item.producto,
+                            numero_lote=item.numero_lote,
+                            fecha_caducidad=item.fecha_caducidad,
+                            cantidad_disponible=item.cantidad_recibida,
+                            almacen=almacen,
+                            ubicacion=ubicacion,
+                            estado="DISPONIBLE",
+                        )
+                        item.lote_creado = lote
+                        item.save()
                 
                 llegada.usuario_ubicacion = request.user
                 llegada.fecha_ubicacion = timezone.now()
