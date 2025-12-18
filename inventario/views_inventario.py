@@ -350,7 +350,9 @@ def lista_movimientos(request):
     filtro_tipo = request.GET.get('tipo', '')
     filtro_fecha_desde = request.GET.get('fecha_desde', '')
     filtro_fecha_hasta = request.GET.get('fecha_hasta', '')
-    busqueda = request.GET.get('busqueda', '')
+    busqueda_lote = request.GET.get('busqueda_lote', '')
+    busqueda_producto = request.GET.get('busqueda_producto', '')
+    busqueda_motivo = request.GET.get('busqueda_motivo', '')
     
     # Aplicar filtros
     if filtro_tipo:
@@ -370,12 +372,15 @@ def lista_movimientos(request):
         except ValueError:
             pass
     
-    if busqueda:
-        movimientos = movimientos.filter(
-            Q(lote__numero_lote__icontains=busqueda) |
-            Q(lote__producto__descripcion__icontains=busqueda) |
-            Q(motivo__icontains=busqueda)
-        )
+    # Búsquedas separadas
+    if busqueda_lote:
+        movimientos = movimientos.filter(lote__numero_lote__icontains=busqueda_lote)
+    
+    if busqueda_producto:
+        movimientos = movimientos.filter(lote__producto__descripcion__icontains=busqueda_producto)
+    
+    if busqueda_motivo:
+        movimientos = movimientos.filter(motivo__icontains=busqueda_motivo)
     
     # Ordenar
     movimientos = movimientos.order_by('-fecha_movimiento')
@@ -389,7 +394,9 @@ def lista_movimientos(request):
         'filtro_tipo': filtro_tipo,
         'filtro_fecha_desde': filtro_fecha_desde,
         'filtro_fecha_hasta': filtro_fecha_hasta,
-        'busqueda': busqueda,
+        'busqueda_lote': busqueda_lote,
+        'busqueda_producto': busqueda_producto,
+        'busqueda_motivo': busqueda_motivo,
     }
     
     return render(request, 'inventario/lista_movimientos.html', context)
