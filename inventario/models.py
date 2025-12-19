@@ -1515,7 +1515,7 @@ class SalidaExistencias(models.Model):
     folio = models.CharField(max_length=50, unique=True, verbose_name="Folio")
     
     # Información de la salida
-    institucion = models.ForeignKey(Institucion, on_delete=models.PROTECT, verbose_name="Institución")
+    institucion_destino = models.ForeignKey(Institucion, on_delete=models.PROTECT, verbose_name="Institución Destino")
     almacen = models.ForeignKey(Almacen, on_delete=models.PROTECT, verbose_name="Almacén")
     tipo_entrega = models.ForeignKey(TipoEntrega, on_delete=models.PROTECT, verbose_name="Tipo de Entrega")
     
