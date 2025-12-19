@@ -1502,80 +1502,36 @@ class ItemDevolucion(models.Model):
 class SalidaExistencias(models.Model):
     """Modelo para gestionar salidas de existencias del almacén"""
     
-    # Estados posibles
-    ESTADOS_SALIDA = [
-        ('PENDIENTE', 'Pendiente'),
-        ('AUTORIZADA', 'Autorizada'),
-        ('COMPLETADA', 'Completada'),
-        ('CANCELADA', 'Cancelada'),
-    ]
-    
     # Identificadores
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     folio = models.CharField(max_length=50, unique=True, verbose_name="Folio")
     
     # Información de la salida
     institucion_destino = models.ForeignKey(Institucion, on_delete=models.PROTECT, verbose_name="Institución Destino")
-    almacen = models.ForeignKey(Almacen, on_delete=models.PROTECT, verbose_name="Almacén")
-    tipo_entrega = models.ForeignKey(TipoEntrega, on_delete=models.PROTECT, verbose_name="Tipo de Entrega")
+    almacen_origen = models.ForeignKey(Almacen, on_delete=models.PROTECT, db_column='almacen_origen_id', verbose_name="Almacén Origen")
     
     # Datos de la salida
-    estado = models.CharField(max_length=20, choices=ESTADOS_SALIDA, default='PENDIENTE', verbose_name="Estado")
-    fecha_salida_estimada = models.DateField(verbose_name="Fecha de Salida Estimada")
-    fecha_salida_real = models.DateField(blank=True, null=True, verbose_name="Fecha de Salida Real")
+    fecha_salida = models.DateTimeField(verbose_name="Fecha de Salida")
+    nombre_receptor = models.CharField(max_length=200, verbose_name="Nombre del Receptor")
+    firma_receptor = models.TextField(verbose_name="Firma del Receptor")
     
-    # Información del responsable
-    responsable_salida = models.CharField(max_length=100, verbose_name="Responsable de Salida")
-    telefono_responsable = models.CharField(max_length=20, blank=True, verbose_name="Teléfono del Responsable")
-    email_responsable = models.EmailField(blank=True, verbose_name="Email del Responsable")
+    # Solicitud relacionada
+    solicitud = models.OneToOneField('SolicitudInventario', on_delete=models.PROTECT, verbose_name="Solicitud")
     
     # Observaciones
-    observaciones = models.TextField(blank=True, verbose_name="Observaciones")
+    observaciones = models.TextField(verbose_name="Observaciones")
     
     # Autorización
-    numero_autorizacion = models.CharField(max_length=50, blank=True, null=True, unique=True, verbose_name="Número de Autorización")
-    fecha_autorizacion = models.DateTimeField(blank=True, null=True, verbose_name="Fecha de Autorización")
-    usuario_autorizo = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='salidas_autorizadas', verbose_name="Usuario que Autorizó")
-    
-    # Auditoría
-    fecha_creacion = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de Creación")
-    fecha_actualizacion = models.DateTimeField(auto_now=True, verbose_name="Fecha de Actualización")
-    usuario_creacion = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='salidas_creadas', verbose_name="Usuario que Crea")
+    usuario_autoriza = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='salidas_autorizadas', db_column='usuario_autoriza_id', verbose_name="Usuario que Autoriza")
     
     class Meta:
         db_table = 'inventario_salidaexistencias'
         verbose_name = 'Salida de Existencias'
         verbose_name_plural = 'Salidas de Existencias'
-        ordering = ['-fecha_creacion']
-        indexes = [
-            models.Index(fields=['folio']),
-            models.Index(fields=['estado']),
-            models.Index(fields=['institucion_destino']),
-        ]
+        ordering = ['-fecha_salida']
     
     def __str__(self):
-        return f"Salida {self.folio} - {self.estado}"
-    
-    def save(self, *args, **kwargs):
-        """Generar folio automáticamente si no existe"""
-        if not self.folio:
-            from django.utils import timezone
-            fecha = timezone.now().strftime('%Y%m%d')
-            ultimo = SalidaExistencias.objects.filter(folio__startswith=f'SAL-{fecha}').count()
-            self.folio = f'SAL-{fecha}-{ultimo + 1:06d}'
-        super().save(*args, **kwargs)
-    
-    @property
-    def total_items(self):
-        """Total de items en la salida"""
-        return self.itemsalidaexistencias_set.aggregate(total=models.Sum('cantidad'))['total'] or 0
-    
-    @property
-    def total_valor(self):
-        """Valor total de la salida"""
-        return self.itemsalidaexistencias_set.aggregate(
-            total=models.Sum(models.F('cantidad') * models.F('precio_unitario'), output_field=models.DecimalField())
-        )['total'] or Decimal('0.00')
+        return f"Salida {self.folio} - {self.nombre_receptor}"
 
 
 class ItemSalidaExistencias(models.Model):
