@@ -59,7 +59,7 @@ def lista_salidas(request):
         )
     
     # Ordenamiento
-    salidas = salidas.order_by('-fecha_creacion')
+    salidas = salidas.order_by('-fecha_salida')
     
     context = {
         'salidas': salidas,
@@ -347,7 +347,7 @@ def dashboard_salidas(request):
     )['total'] or Decimal('0.00')
     
     # Últimas salidas
-    ultimas_salidas = salidas.order_by('-fecha_creacion')[:10]
+    ultimas_salidas = salidas.order_by('-fecha_salida')[:10]
     
     # Salidas por almacén
     salidas_por_almacen = salidas.values('almacen__nombre').annotate(
