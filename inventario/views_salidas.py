@@ -30,7 +30,7 @@ def lista_salidas(request):
     """Lista todas las salidas de existencias"""
     
     # Obtener institución del usuario
-    institucion = request.user.almacen.institucion if request.user.almacen else None
+    institucion = request.user.almacen_origen.institucion if request.user.almacen_origen else None
     if not institucion:
         messages.error(request, 'No tienes una institución asignada.')
         return redirect('dashboard')
@@ -47,7 +47,7 @@ def lista_salidas(request):
     
     almacen = request.GET.get('almacen')
     if almacen:
-        salidas = salidas.filter(almacen_id=almacen)
+        salidas = salidas.filter(almacen_origen_id=almacen)
     
     # Búsqueda
     busqueda = request.GET.get('busqueda')
@@ -55,7 +55,7 @@ def lista_salidas(request):
         salidas = salidas.filter(
             Q(folio__icontains=busqueda) |
             Q(numero_autorizacion__icontains=busqueda) |
-            Q(responsable_salida__icontains=busqueda)
+            Q(nombre_receptor__icontains=busqueda)
         )
     
     # Ordenamiento
@@ -84,7 +84,7 @@ def crear_salida(request):
     """Crear una nueva salida de existencias"""
     
     # Obtener institución del usuario
-    institucion = request.user.almacen.institucion if request.user.almacen else None
+    institucion = request.user.almacen_origen.institucion if request.user.almacen_origen else None
     if not institucion:
         messages.error(request, 'No tienes una institución asignada.')
         return redirect('lista_salidas')
@@ -95,11 +95,11 @@ def crear_salida(request):
                 # Crear salida
                 salida = SalidaExistencias(
                     institucion_destino=institucion,
-                    almacen_id=request.POST.get('almacen'),
+                    almacen_origen_id=request.POST.get('almacen'),
                     tipo_entrega_id=request.POST.get('tipo_entrega'),
-                    fecha_salida_estimada=request.POST.get('fecha_salida_estimada'),
-                    responsable_salida=request.POST.get('responsable_salida'),
-                    telefono_responsable=request.POST.get('telefono_responsable'),
+                    fecha_salida=request.POST.get('fecha_salida'),
+                    nombre_receptor=request.POST.get('nombre_receptor'),
+                    firma_receptor=request.POST.get('firma_receptor'),
                     email_responsable=request.POST.get('email_responsable'),
                     observaciones=request.POST.get('observaciones'),
                     usuario_creacion=request.user,
@@ -153,7 +153,7 @@ def detalle_salida(request, pk):
     salida = get_object_or_404(SalidaExistencias, pk=pk)
     
     # Verificar que el usuario tenga acceso
-    if salida.institucion_destino != request.user.almacen.institucion:
+    if salida.institucion_destino != request.user.almacen_origen.institucion:
         messages.error(request, 'No tienes acceso a esta salida.')
         return redirect('lista_salidas')
     
@@ -184,7 +184,7 @@ def autorizar_salida(request, pk):
     salida = get_object_or_404(SalidaExistencias, pk=pk)
     
     # Verificar que el usuario tenga acceso
-    if salida.institucion_destino != request.user.almacen.institucion:
+    if salida.institucion_destino != request.user.almacen_origen.institucion:
         messages.error(request, 'No tienes acceso a esta salida.')
         return redirect('lista_salidas')
     
@@ -197,7 +197,7 @@ def autorizar_salida(request, pk):
             salida.estado = 'AUTORIZADA'
             salida.numero_autorizacion = request.POST.get('numero_autorizacion')
             salida.fecha_autorizacion = timezone.now()
-            salida.usuario_autorizo = request.user
+            salida.usuario_autoriza = request.user
             salida.save()
             
             messages.success(request, f'Salida {salida.folio} autorizada exitosamente.')
@@ -222,7 +222,7 @@ def cancelar_salida(request, pk):
     salida = get_object_or_404(SalidaExistencias, pk=pk)
     
     # Verificar que el usuario tenga acceso
-    if salida.institucion_destino != request.user.almacen.institucion:
+    if salida.institucion_destino != request.user.almacen_origen.institucion:
         messages.error(request, 'No tienes acceso a esta salida.')
         return redirect('lista_salidas')
     
@@ -258,7 +258,7 @@ def distribuir_salida(request, pk):
     salida = get_object_or_404(SalidaExistencias, pk=pk)
     
     # Verificar que el usuario tenga acceso
-    if salida.institucion_destino != request.user.almacen.institucion:
+    if salida.institucion_destino != request.user.almacen_origen.institucion:
         messages.error(request, 'No tienes acceso a esta salida.')
         return redirect('lista_salidas')
     
@@ -274,7 +274,7 @@ def distribuir_salida(request, pk):
                     salida=salida,
                     area_destino=request.POST.get('area_destino'),
                     responsable_area=request.POST.get('responsable_area'),
-                    telefono_responsable=request.POST.get('telefono_responsable'),
+                    firma_receptor=request.POST.get('firma_receptor'),
                     email_responsable=request.POST.get('email_responsable'),
                     fecha_entrega_estimada=request.POST.get('fecha_entrega_estimada'),
                     usuario_creacion=request.user,
@@ -327,7 +327,7 @@ def dashboard_salidas(request):
     """Dashboard con estadísticas de salidas"""
     
     # Obtener institución del usuario
-    institucion = request.user.almacen.institucion if request.user.almacen else None
+    institucion = request.user.almacen_origen.institucion if request.user.almacen_origen else None
     if not institucion:
         messages.error(request, 'No tienes una institución asignada.')
         return redirect('dashboard')
@@ -378,7 +378,7 @@ def dashboard_salidas(request):
 def api_grafico_estados(request):
     """API para gráfico de salidas por estado"""
     
-    institucion = request.user.almacen.institucion if request.user.almacen else None
+    institucion = request.user.almacen_origen.institucion if request.user.almacen_origen else None
     if not institucion:
         return JsonResponse({'error': 'No tienes institución asignada'}, status=400)
     
@@ -403,7 +403,7 @@ def api_grafico_estados(request):
 def api_grafico_almacenes(request):
     """API para gráfico de salidas por almacén"""
     
-    institucion = request.user.almacen.institucion if request.user.almacen else None
+    institucion = request.user.almacen_origen.institucion if request.user.almacen_origen else None
     if not institucion:
         return JsonResponse({'error': 'No tienes institución asignada'}, status=400)
     
