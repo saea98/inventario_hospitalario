@@ -169,6 +169,10 @@ class PermissionRequiredMixin:
         return super().dispatch(request, *args, **kwargs)
 
 
+# Alias para compatibilidad
+requiere_rol = require_role
+
+
 # ============================================================
 # FUNCIONES AUXILIARES PARA VERIFICAR ROLES
 # ============================================================
