@@ -105,7 +105,7 @@ def reporte_general_devoluciones(request):
     devoluciones_lista = devoluciones.order_by('-fecha_creacion')[:20]
     for dev in devoluciones_lista:
         items = ItemDevolucion.objects.filter(devolucion=dev)
-        dev.total_valor = sum(item.cantidad * item.precio_unitario for item in items)
+        dev.monto_total = sum(item.cantidad * item.precio_unitario for item in items)
         dev.total_items = sum(item.cantidad for item in items)
     
     context = {
