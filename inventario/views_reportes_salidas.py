@@ -39,9 +39,9 @@ def reporte_general_salidas(request):
     salidas = SalidaExistencias.objects.filter(institucion_destino=institucion)
     
     if fecha_inicio:
-        salidas = salidas.filter(fecha_creacion__date__gte=fecha_inicio)
+        salidas = salidas.filter(fecha_salida__date__gte=fecha_inicio)
     if fecha_fin:
-        salidas = salidas.filter(fecha_creacion__date__lte=fecha_fin)
+        salidas = salidas.filter(fecha_salida__date__lte=fecha_fin)
     if estado:
         salidas = salidas.filter(estado=estado)
     
@@ -129,9 +129,9 @@ def analisis_distribuciones(request):
     )
     
     if fecha_inicio:
-        distribuciones = distribuciones.filter(fecha_creacion__date__gte=fecha_inicio)
+        distribuciones = distribuciones.filter(fecha_salida__date__gte=fecha_inicio)
     if fecha_fin:
-        distribuciones = distribuciones.filter(fecha_creacion__date__lte=fecha_fin)
+        distribuciones = distribuciones.filter(fecha_salida__date__lte=fecha_fin)
     if estado:
         distribuciones = distribuciones.filter(estado=estado)
     
@@ -216,39 +216,39 @@ def analisis_temporal_salidas(request):
     
     salidas = SalidaExistencias.objects.filter(
         institucion_destino=institucion,
-        fecha_creacion__date__gte=fecha_inicio,
-        fecha_creacion__date__lte=fecha_fin
+        fecha_salida__date__gte=fecha_inicio,
+        fecha_salida__date__lte=fecha_fin
     )
     
     # Salidas por día
-    salidas_por_dia = salidas.values('fecha_creacion__date').annotate(
+    salidas_por_dia = salidas.values('fecha_salida__date').annotate(
         cantidad=Count('id'),
         items=Sum('itemsalidaexistencias__cantidad'),
         monto=Sum(
             F('itemsalidaexistencias__cantidad') * F('itemsalidaexistencias__precio_unitario'),
             output_field=DecimalField()
         )
-    ).order_by('fecha_creacion__date')
+    ).order_by('fecha_salida__date')
     
     # Salidas por semana
-    salidas_por_semana = salidas.values('fecha_creacion__week').annotate(
+    salidas_por_semana = salidas.values('fecha_salida__week').annotate(
         cantidad=Count('id'),
         items=Sum('itemsalidaexistencias__cantidad'),
         monto=Sum(
             F('itemsalidaexistencias__cantidad') * F('itemsalidaexistencias__precio_unitario'),
             output_field=DecimalField()
         )
-    ).order_by('fecha_creacion__week')
+    ).order_by('fecha_salida__week')
     
     # Salidas por mes
-    salidas_por_mes = salidas.values('fecha_creacion__month').annotate(
+    salidas_por_mes = salidas.values('fecha_salida__month').annotate(
         cantidad=Count('id'),
         items=Sum('itemsalidaexistencias__cantidad'),
         monto=Sum(
             F('itemsalidaexistencias__cantidad') * F('itemsalidaexistencias__precio_unitario'),
             output_field=DecimalField()
         )
-    ).order_by('fecha_creacion__month')
+    ).order_by('fecha_salida__month')
     
     context = {
         'salidas_por_dia': list(salidas_por_dia),
@@ -393,19 +393,19 @@ def api_grafico_salidas_por_dia(request):
     
     salidas = SalidaExistencias.objects.filter(
         institucion_destino=institucion,
-        fecha_creacion__date__gte=fecha_inicio,
-        fecha_creacion__date__lte=fecha_fin
+        fecha_salida__date__gte=fecha_inicio,
+        fecha_salida__date__lte=fecha_fin
     )
     
-    datos = salidas.values('fecha_creacion__date').annotate(
+    datos = salidas.values('fecha_salida__date').annotate(
         cantidad=Count('id'),
         monto=Sum(
             F('itemsalidaexistencias__cantidad') * F('itemsalidaexistencias__precio_unitario'),
             output_field=DecimalField()
         )
-    ).order_by('fecha_creacion__date')
+    ).order_by('fecha_salida__date')
     
-    labels = [d['fecha_creacion__date'].strftime('%d/%m') for d in datos]
+    labels = [d['fecha_salida__date'].strftime('%d/%m') for d in datos]
     cantidades = [d['cantidad'] for d in datos]
     montos = [float(d['monto'] or 0) for d in datos]
     
