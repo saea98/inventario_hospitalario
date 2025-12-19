@@ -26,7 +26,7 @@ def reporte_general_salidas(request):
     """Reporte general de salidas"""
     
     # Obtener institución del usuario
-    institucion = request.user.almacen.institucion_destino if request.user.almacen else None
+    institucion = request.user.almacen.institucion if request.user.almacen else None
     if not institucion:
         messages.error(request, 'No tienes una institución asignada.')
         return redirect('dashboard')
@@ -114,7 +114,7 @@ def analisis_distribuciones(request):
     """Análisis de distribuciones a áreas"""
     
     # Obtener institución del usuario
-    institucion = request.user.almacen.institucion_destino if request.user.almacen else None
+    institucion = request.user.almacen.institucion if request.user.almacen else None
     if not institucion:
         messages.error(request, 'No tienes una institución asignada.')
         return redirect('dashboard')
@@ -196,7 +196,7 @@ def analisis_temporal_salidas(request):
     """Análisis temporal de salidas"""
     
     # Obtener institución del usuario
-    institucion = request.user.almacen.institucion_destino if request.user.almacen else None
+    institucion = request.user.almacen.institucion if request.user.almacen else None
     if not institucion:
         messages.error(request, 'No tienes una institución asignada.')
         return redirect('dashboard')
@@ -271,7 +271,7 @@ def analisis_temporal_salidas(request):
 def api_grafico_salidas_por_estado(request):
     """API para gráfico de salidas por estado"""
     
-    institucion = request.user.almacen.institucion_destino if request.user.almacen else None
+    institucion = request.user.almacen.institucion if request.user.almacen else None
     if not institucion:
         return JsonResponse({'error': 'No tienes institución asignada'}, status=400)
     
@@ -311,7 +311,7 @@ def api_grafico_salidas_por_estado(request):
 def api_grafico_salidas_por_almacen(request):
     """API para gráfico de salidas por almacén"""
     
-    institucion = request.user.almacen.institucion_destino if request.user.almacen else None
+    institucion = request.user.almacen.institucion if request.user.almacen else None
     if not institucion:
         return JsonResponse({'error': 'No tienes institución asignada'}, status=400)
     
@@ -344,7 +344,7 @@ def api_grafico_salidas_por_almacen(request):
 def api_grafico_distribuciones_por_estado(request):
     """API para gráfico de distribuciones por estado"""
     
-    institucion = request.user.almacen.institucion_destino if request.user.almacen else None
+    institucion = request.user.almacen.institucion if request.user.almacen else None
     if not institucion:
         return JsonResponse({'error': 'No tienes institución asignada'}, status=400)
     
@@ -383,7 +383,7 @@ def api_grafico_distribuciones_por_estado(request):
 def api_grafico_salidas_por_dia(request):
     """API para gráfico de salidas por día"""
     
-    institucion = request.user.almacen.institucion_destino if request.user.almacen else None
+    institucion = request.user.almacen.institucion if request.user.almacen else None
     if not institucion:
         return JsonResponse({'error': 'No tienes institución asignada'}, status=400)
     
