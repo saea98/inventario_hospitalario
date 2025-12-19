@@ -1502,6 +1502,14 @@ class ItemDevolucion(models.Model):
 class SalidaExistencias(models.Model):
     """Modelo para gestionar salidas de existencias del almacén"""
     
+    # Estados posibles
+    ESTADOS_SALIDA = [
+        ('PENDIENTE', 'Pendiente'),
+        ('AUTORIZADA', 'Autorizada'),
+        ('COMPLETADA', 'Completada'),
+        ('CANCELADA', 'Cancelada'),
+    ]
+    
     # Identificadores
     id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     folio = models.CharField(max_length=50, unique=True, verbose_name="Folio")
