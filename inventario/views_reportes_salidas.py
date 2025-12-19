@@ -1,29 +1,32 @@
 """
-Vistas para Reportes de Salidas y Distribuciones
+Vistas para Reportes de Salidas y Análisis
+Basados en datos existentes del módulo de Pedidos/Solicitudes
 """
 
-from django.shortcuts import render, redirect
+from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse
-from django.db.models import Sum, F, DecimalField, Count, Q
+from django.db.models import Sum, Count, Q, F, DecimalField
 from django.views.decorators.http import require_http_methods
 from django.utils import timezone
 from datetime import timedelta
-from decimal import Decimal
+import json
 
-from .models import SalidaExistencias, ItemSalidaExistencias, DistribucionArea, ItemDistribucion
+from .models import (
+    SalidaExistencias, ItemSalidaExistencias, Institucion, Almacen
+)
 from .decorators_roles import requiere_rol
 
 
 # ============================================================
-# REPORTES GENERALES
+# REPORTE GENERAL DE SALIDAS
 # ============================================================
 
 @login_required
-@requiere_rol('Administrador', 'Gestor de Inventario')
+@requiere_rol('Administrador', 'Gestor de Inventario', 'Analista')
 def reporte_general_salidas(request):
-    """Reporte general de salidas"""
+    """Reporte general de salidas con estadísticas"""
     
     # Obtener institución del usuario
     institucion = request.user.almacen.institucion if request.user.almacen else None
@@ -31,74 +34,56 @@ def reporte_general_salidas(request):
         messages.error(request, 'No tienes una institución asignada.')
         return redirect('dashboard')
     
-    # Filtros
+    # Filtros de fecha
     fecha_inicio = request.GET.get('fecha_inicio')
     fecha_fin = request.GET.get('fecha_fin')
-    estado = request.GET.get('estado')
     
+    # Consulta base
     salidas = SalidaExistencias.objects.filter(institucion_destino=institucion)
     
+    # Aplicar filtros de fecha
     if fecha_inicio:
-        salidas = salidas.filter(fecha_salida__date__gte=fecha_inicio)
+        salidas = salidas.filter(fecha_salida__gte=fecha_inicio)
     if fecha_fin:
-        salidas = salidas.filter(fecha_salida__date__lte=fecha_fin)
-    if estado:
-        salidas = salidas.filter(estado=estado)
+        salidas = salidas.filter(fecha_salida__lte=fecha_fin)
     
     # Estadísticas
     total_salidas = salidas.count()
-    total_items = salidas.aggregate(
-        total=Sum('itemsalidaexistencias__cantidad')
-    )['total'] or 0
     
-    total_monto = salidas.aggregate(
-        total=Sum(
-            F('itemsalidaexistencias__cantidad') * F('itemsalidaexistencias__precio_unitario'),
-            output_field=DecimalField()
-        )
-    )['total'] or Decimal('0.00')
-    
-    # Salidas por estado
-    salidas_por_estado = salidas.values('estado').annotate(
-        cantidad=Count('id'),
-        monto=Sum(
-            F('itemsalidaexistencias__cantidad') * F('itemsalidaexistencias__precio_unitario'),
-            output_field=DecimalField()
-        )
+    # Total de items y monto
+    items_stats = ItemSalidaExistencias.objects.filter(
+        salida__institucion_destino=institucion
+    ).aggregate(
+        total_items=Sum('cantidad'),
+        total_monto=Sum(F('cantidad') * F('precio_unitario'), output_field=DecimalField())
     )
     
-    # Salidas por almacén
-    salidas_por_almacen = salidas.values('almacen__nombre').annotate(
-        cantidad=Count('id'),
-        items=Sum('itemsalidaexistencias__cantidad'),
-        monto=Sum(
-            F('itemsalidaexistencias__cantidad') * F('itemsalidaexistencias__precio_unitario'),
-            output_field=DecimalField()
-        )
-    ).order_by('-monto')
+    total_items = items_stats['total_items'] or 0
+    total_monto = items_stats['total_monto'] or 0
     
-    # Productos más salidos
-    productos_top = ItemSalidaExistencias.objects.filter(
+    # Salidas por almacén
+    salidas_por_almacen = salidas.values('almacen_origen__nombre').annotate(
+        cantidad=Count('id'),
+        items=Sum(F('itemsalidaexistencias__cantidad'), output_field=DecimalField())
+    ).order_by('-cantidad')
+    
+    # Top 10 productos más salidos
+    top_productos = ItemSalidaExistencias.objects.filter(
         salida__institucion_destino=institucion
     ).values('lote__producto__nombre').annotate(
-        cantidad_total=Sum('cantidad'),
-        monto_total=Sum(
-            F('cantidad') * F('precio_unitario'),
-            output_field=DecimalField()
-        )
-    ).order_by('-cantidad_total')[:10]
+        total_cantidad=Sum('cantidad'),
+        total_monto=Sum(F('cantidad') * F('precio_unitario'), output_field=DecimalField())
+    ).order_by('-total_cantidad')[:10]
     
     context = {
         'total_salidas': total_salidas,
         'total_items': total_items,
         'total_monto': total_monto,
-        'salidas_por_estado': list(salidas_por_estado),
-        'salidas_por_almacen': list(salidas_por_almacen),
-        'productos_top': list(productos_top),
-        'estados': SalidaExistencias.ESTADOS_SALIDA,
+        'promedio_items': total_items / total_salidas if total_salidas > 0 else 0,
+        'salidas_por_almacen': salidas_por_almacen,
+        'top_productos': top_productos,
         'fecha_inicio': fecha_inicio,
         'fecha_fin': fecha_fin,
-        'estado_filtro': estado,
     }
     
     return render(request, 'inventario/reportes_salidas/reporte_general.html', context)
@@ -109,11 +94,10 @@ def reporte_general_salidas(request):
 # ============================================================
 
 @login_required
-@requiere_rol('Administrador', 'Gestor de Inventario')
+@requiere_rol('Administrador', 'Gestor de Inventario', 'Analista')
 def analisis_distribuciones(request):
     """Análisis de distribuciones a áreas"""
     
-    # Obtener institución del usuario
     institucion = request.user.almacen.institucion if request.user.almacen else None
     if not institucion:
         messages.error(request, 'No tienes una institución asignada.')
@@ -122,65 +106,45 @@ def analisis_distribuciones(request):
     # Filtros
     fecha_inicio = request.GET.get('fecha_inicio')
     fecha_fin = request.GET.get('fecha_fin')
-    estado = request.GET.get('estado')
     
-    distribuciones = DistribucionArea.objects.filter(
-        salida__institucion_destino=institucion
-    )
+    # Estadísticas de distribuciones
+    distribuciones = SalidaExistencias.objects.filter(
+        institucion_destino=institucion
+    ).prefetch_related('distribuciones')
     
     if fecha_inicio:
-        distribuciones = distribuciones.filter(fecha_salida__date__gte=fecha_inicio)
+        distribuciones = distribuciones.filter(fecha_salida__gte=fecha_inicio)
     if fecha_fin:
-        distribuciones = distribuciones.filter(fecha_salida__date__lte=fecha_fin)
-    if estado:
-        distribuciones = distribuciones.filter(estado=estado)
+        distribuciones = distribuciones.filter(fecha_salida__lte=fecha_fin)
     
-    # Estadísticas
-    total_distribuciones = distribuciones.count()
-    total_items_distribuidos = distribuciones.aggregate(
-        total=Sum('itemdistribucion__cantidad')
-    )['total'] or 0
+    # Contar distribuciones por estado
+    dist_por_estado = {}
+    total_dist = 0
     
-    total_monto_distribuido = distribuciones.aggregate(
-        total=Sum(
-            F('itemdistribucion__cantidad') * F('itemdistribucion__precio_unitario'),
-            output_field=DecimalField()
-        )
-    )['total'] or Decimal('0.00')
-    
-    # Distribuciones por estado
-    dist_por_estado = distribuciones.values('estado').annotate(
-        cantidad=Count('id'),
-        monto=Sum(
-            F('itemdistribucion__cantidad') * F('itemdistribucion__precio_unitario'),
-            output_field=DecimalField()
-        )
-    )
+    for salida in distribuciones:
+        for dist in salida.distribuciones.all():
+            estado = dist.get_estado_display() if hasattr(dist, 'get_estado_display') else dist.estado
+            if estado not in dist_por_estado:
+                dist_por_estado[estado] = 0
+            dist_por_estado[estado] += 1
+            total_dist += 1
     
     # Distribuciones por área
-    dist_por_area = distribuciones.values('area_destino').annotate(
-        cantidad=Count('id'),
-        items=Sum('itemdistribucion__cantidad'),
-        monto=Sum(
-            F('itemdistribucion__cantidad') * F('itemdistribucion__precio_unitario'),
-            output_field=DecimalField()
-        )
-    ).order_by('-monto')
-    
-    # Áreas con más distribuciones
-    areas_top = dist_por_area[:10]
+    areas = {}
+    for salida in distribuciones:
+        for dist in salida.distribuciones.all():
+            area = dist.area_destino
+            if area not in areas:
+                areas[area] = {'cantidad': 0, 'items': 0}
+            areas[area]['cantidad'] += 1
+            areas[area]['items'] += dist.total_items
     
     context = {
-        'total_distribuciones': total_distribuciones,
-        'total_items_distribuidos': total_items_distribuidos,
-        'total_monto_distribuido': total_monto_distribuido,
-        'dist_por_estado': list(dist_por_estado),
-        'dist_por_area': list(dist_por_area),
-        'areas_top': list(areas_top),
-        'estados': DistribucionArea.ESTADOS_DISTRIBUCION,
+        'total_distribuciones': total_dist,
+        'dist_por_estado': dist_por_estado,
+        'areas': areas,
         'fecha_inicio': fecha_inicio,
         'fecha_fin': fecha_fin,
-        'estado_filtro': estado,
     }
     
     return render(request, 'inventario/reportes_salidas/analisis_distribuciones.html', context)
@@ -191,226 +155,54 @@ def analisis_distribuciones(request):
 # ============================================================
 
 @login_required
-@requiere_rol('Administrador', 'Gestor de Inventario')
-def analisis_temporal_salidas(request):
-    """Análisis temporal de salidas"""
+@requiere_rol('Administrador', 'Gestor de Inventario', 'Analista')
+def analisis_temporal(request):
+    """Análisis temporal de salidas (últimos 30 días)"""
     
-    # Obtener institución del usuario
     institucion = request.user.almacen.institucion if request.user.almacen else None
     if not institucion:
         messages.error(request, 'No tienes una institución asignada.')
         return redirect('dashboard')
     
-    # Período por defecto: últimos 30 días
-    fecha_fin = timezone.now().date()
-    fecha_inicio = fecha_fin - timedelta(days=30)
-    
-    # Permitir filtro personalizado
-    param_inicio = request.GET.get('fecha_inicio')
-    param_fin = request.GET.get('fecha_fin')
-    
-    if param_inicio:
-        fecha_inicio = param_inicio
-    if param_fin:
-        fecha_fin = param_fin
+    # Últimos 30 días
+    fecha_inicio = timezone.now() - timedelta(days=30)
     
     salidas = SalidaExistencias.objects.filter(
         institucion_destino=institucion,
-        fecha_salida__date__gte=fecha_inicio,
-        fecha_salida__date__lte=fecha_fin
-    )
+        fecha_salida__gte=fecha_inicio
+    ).order_by('fecha_salida')
     
-    # Salidas por día
-    salidas_por_dia = salidas.values('fecha_salida__date').annotate(
-        cantidad=Count('id'),
-        items=Sum('itemsalidaexistencias__cantidad'),
-        monto=Sum(
-            F('itemsalidaexistencias__cantidad') * F('itemsalidaexistencias__precio_unitario'),
-            output_field=DecimalField()
+    # Agrupar por día
+    salidas_por_dia = {}
+    for salida in salidas:
+        fecha = salida.fecha_salida.date()
+        if fecha not in salidas_por_dia:
+            salidas_por_dia[fecha] = {'cantidad': 0, 'items': 0, 'monto': 0}
+        salidas_por_dia[fecha]['cantidad'] += 1
+        
+        # Sumar items y monto
+        items_info = ItemSalidaExistencias.objects.filter(salida=salida).aggregate(
+            total_items=Sum('cantidad'),
+            total_monto=Sum(F('cantidad') * F('precio_unitario'), output_field=DecimalField())
         )
-    ).order_by('fecha_salida__date')
+        salidas_por_dia[fecha]['items'] += items_info['total_items'] or 0
+        salidas_por_dia[fecha]['monto'] += items_info['total_monto'] or 0
     
-    # Salidas por semana
-    salidas_por_semana = salidas.values('fecha_salida__week').annotate(
-        cantidad=Count('id'),
-        items=Sum('itemsalidaexistencias__cantidad'),
-        monto=Sum(
-            F('itemsalidaexistencias__cantidad') * F('itemsalidaexistencias__precio_unitario'),
-            output_field=DecimalField()
-        )
-    ).order_by('fecha_salida__week')
-    
-    # Salidas por mes
-    salidas_por_mes = salidas.values('fecha_salida__month').annotate(
-        cantidad=Count('id'),
-        items=Sum('itemsalidaexistencias__cantidad'),
-        monto=Sum(
-            F('itemsalidaexistencias__cantidad') * F('itemsalidaexistencias__precio_unitario'),
-            output_field=DecimalField()
-        )
-    ).order_by('fecha_salida__month')
+    # Convertir a lista ordenada
+    datos_temporales = [
+        {
+            'fecha': fecha,
+            'cantidad': datos['cantidad'],
+            'items': datos['items'],
+            'monto': float(datos['monto']) if datos['monto'] else 0
+        }
+        for fecha, datos in sorted(salidas_por_dia.items())
+    ]
     
     context = {
-        'salidas_por_dia': list(salidas_por_dia),
-        'salidas_por_semana': list(salidas_por_semana),
-        'salidas_por_mes': list(salidas_por_mes),
-        'fecha_inicio': fecha_inicio,
-        'fecha_fin': fecha_fin,
-        'total_salidas': salidas.count(),
+        'datos_temporales': datos_temporales,
+        'fecha_inicio': fecha_inicio.date(),
+        'fecha_fin': timezone.now().date(),
     }
     
     return render(request, 'inventario/reportes_salidas/analisis_temporal.html', context)
-
-
-# ============================================================
-# APIs PARA GRÁFICOS DE REPORTES
-# ============================================================
-
-@login_required
-@require_http_methods(["GET"])
-def api_grafico_salidas_por_estado(request):
-    """API para gráfico de salidas por estado"""
-    
-    institucion = request.user.almacen.institucion if request.user.almacen else None
-    if not institucion:
-        return JsonResponse({'error': 'No tienes institución asignada'}, status=400)
-    
-    salidas = SalidaExistencias.objects.filter(institucion_destino=institucion)
-    
-    datos = salidas.values('estado').annotate(
-        cantidad=Count('id'),
-        monto=Sum(
-            F('itemsalidaexistencias__cantidad') * F('itemsalidaexistencias__precio_unitario'),
-            output_field=DecimalField()
-        )
-    )
-    
-    labels = []
-    cantidades = []
-    montos = []
-    colores = {'PENDIENTE': '#FFC107', 'AUTORIZADA': '#17A2B8', 'COMPLETADA': '#28A745', 'CANCELADA': '#DC3545'}
-    colors = []
-    
-    for d in datos:
-        estado = d['estado']
-        labels.append(dict(SalidaExistencias.ESTADOS_SALIDA).get(estado, estado))
-        cantidades.append(d['cantidad'])
-        montos.append(float(d['monto'] or 0))
-        colors.append(colores.get(estado, '#6C757D'))
-    
-    return JsonResponse({
-        'labels': labels,
-        'cantidades': cantidades,
-        'montos': montos,
-        'colors': colors
-    })
-
-
-@login_required
-@require_http_methods(["GET"])
-def api_grafico_salidas_por_almacen(request):
-    """API para gráfico de salidas por almacén"""
-    
-    institucion = request.user.almacen.institucion if request.user.almacen else None
-    if not institucion:
-        return JsonResponse({'error': 'No tienes institución asignada'}, status=400)
-    
-    salidas = SalidaExistencias.objects.filter(institucion_destino=institucion)
-    
-    datos = salidas.values('almacen__nombre').annotate(
-        cantidad=Count('id'),
-        items=Sum('itemsalidaexistencias__cantidad'),
-        monto=Sum(
-            F('itemsalidaexistencias__cantidad') * F('itemsalidaexistencias__precio_unitario'),
-            output_field=DecimalField()
-        )
-    ).order_by('-monto')[:10]
-    
-    labels = [d['almacen__nombre'] for d in datos]
-    cantidades = [d['cantidad'] for d in datos]
-    items = [d['items'] or 0 for d in datos]
-    montos = [float(d['monto'] or 0) for d in datos]
-    
-    return JsonResponse({
-        'labels': labels,
-        'cantidades': cantidades,
-        'items': items,
-        'montos': montos
-    })
-
-
-@login_required
-@require_http_methods(["GET"])
-def api_grafico_distribuciones_por_estado(request):
-    """API para gráfico de distribuciones por estado"""
-    
-    institucion = request.user.almacen.institucion if request.user.almacen else None
-    if not institucion:
-        return JsonResponse({'error': 'No tienes institución asignada'}, status=400)
-    
-    distribuciones = DistribucionArea.objects.filter(
-        salida__institucion_destino=institucion
-    )
-    
-    datos = distribuciones.values('estado').annotate(
-        cantidad=Count('id'),
-        monto=Sum(
-            F('itemdistribucion__cantidad') * F('itemdistribucion__precio_unitario'),
-            output_field=DecimalField()
-        )
-    )
-    
-    labels = []
-    cantidades = []
-    colores = {'PENDIENTE': '#FFC107', 'EN_TRANSITO': '#17A2B8', 'ENTREGADA': '#28A745', 'RECHAZADA': '#DC3545'}
-    colors = []
-    
-    for d in datos:
-        estado = d['estado']
-        labels.append(dict(DistribucionArea.ESTADOS_DISTRIBUCION).get(estado, estado))
-        cantidades.append(d['cantidad'])
-        colors.append(colores.get(estado, '#6C757D'))
-    
-    return JsonResponse({
-        'labels': labels,
-        'data': cantidades,
-        'colors': colors
-    })
-
-
-@login_required
-@require_http_methods(["GET"])
-def api_grafico_salidas_por_dia(request):
-    """API para gráfico de salidas por día"""
-    
-    institucion = request.user.almacen.institucion if request.user.almacen else None
-    if not institucion:
-        return JsonResponse({'error': 'No tienes institución asignada'}, status=400)
-    
-    # Últimos 30 días
-    fecha_fin = timezone.now().date()
-    fecha_inicio = fecha_fin - timedelta(days=30)
-    
-    salidas = SalidaExistencias.objects.filter(
-        institucion_destino=institucion,
-        fecha_salida__date__gte=fecha_inicio,
-        fecha_salida__date__lte=fecha_fin
-    )
-    
-    datos = salidas.values('fecha_salida__date').annotate(
-        cantidad=Count('id'),
-        monto=Sum(
-            F('itemsalidaexistencias__cantidad') * F('itemsalidaexistencias__precio_unitario'),
-            output_field=DecimalField()
-        )
-    ).order_by('fecha_salida__date')
-    
-    labels = [d['fecha_salida__date'].strftime('%d/%m') for d in datos]
-    cantidades = [d['cantidad'] for d in datos]
-    montos = [float(d['monto'] or 0) for d in datos]
-    
-    return JsonResponse({
-        'labels': labels,
-        'cantidades': cantidades,
-        'montos': montos
-    })
