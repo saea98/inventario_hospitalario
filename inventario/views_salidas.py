@@ -30,14 +30,14 @@ def lista_salidas(request):
     """Lista todas las salidas de existencias"""
     
     # Obtener institución del usuario
-    institucion = request.user.almacen_origen.institucion if request.user.almacen_origen else None
+    institucion = request.user.almacen.institucion if request.user.almacen else None
     if not institucion:
         messages.error(request, 'No tienes una institución asignada.')
         return redirect('dashboard')
     
     # Filtrar salidas por institución
     salidas = SalidaExistencias.objects.filter(institucion_destino=institucion).select_related(
-        'almacen', 'tipo_entrega', 'usuario_creacion'
+        'almacen_origen', 'usuario_creacion'
     )
     
     # Filtros
@@ -84,7 +84,7 @@ def crear_salida(request):
     """Crear una nueva salida de existencias"""
     
     # Obtener institución del usuario
-    institucion = request.user.almacen_origen.institucion if request.user.almacen_origen else None
+    institucion = request.user.almacen.institucion if request.user.almacen else None
     if not institucion:
         messages.error(request, 'No tienes una institución asignada.')
         return redirect('lista_salidas')
@@ -153,7 +153,7 @@ def detalle_salida(request, pk):
     salida = get_object_or_404(SalidaExistencias, pk=pk)
     
     # Verificar que el usuario tenga acceso
-    if salida.institucion_destino != request.user.almacen_origen.institucion:
+    if salida.institucion_destino != request.user.almacen.institucion:
         messages.error(request, 'No tienes acceso a esta salida.')
         return redirect('lista_salidas')
     
@@ -184,7 +184,7 @@ def autorizar_salida(request, pk):
     salida = get_object_or_404(SalidaExistencias, pk=pk)
     
     # Verificar que el usuario tenga acceso
-    if salida.institucion_destino != request.user.almacen_origen.institucion:
+    if salida.institucion_destino != request.user.almacen.institucion:
         messages.error(request, 'No tienes acceso a esta salida.')
         return redirect('lista_salidas')
     
@@ -222,7 +222,7 @@ def cancelar_salida(request, pk):
     salida = get_object_or_404(SalidaExistencias, pk=pk)
     
     # Verificar que el usuario tenga acceso
-    if salida.institucion_destino != request.user.almacen_origen.institucion:
+    if salida.institucion_destino != request.user.almacen.institucion:
         messages.error(request, 'No tienes acceso a esta salida.')
         return redirect('lista_salidas')
     
@@ -258,7 +258,7 @@ def distribuir_salida(request, pk):
     salida = get_object_or_404(SalidaExistencias, pk=pk)
     
     # Verificar que el usuario tenga acceso
-    if salida.institucion_destino != request.user.almacen_origen.institucion:
+    if salida.institucion_destino != request.user.almacen.institucion:
         messages.error(request, 'No tienes acceso a esta salida.')
         return redirect('lista_salidas')
     
@@ -327,7 +327,7 @@ def dashboard_salidas(request):
     """Dashboard con estadísticas de salidas"""
     
     # Obtener institución del usuario
-    institucion = request.user.almacen_origen.institucion if request.user.almacen_origen else None
+    institucion = request.user.almacen.institucion if request.user.almacen else None
     if not institucion:
         messages.error(request, 'No tienes una institución asignada.')
         return redirect('dashboard')
@@ -378,7 +378,7 @@ def dashboard_salidas(request):
 def api_grafico_estados(request):
     """API para gráfico de salidas por estado"""
     
-    institucion = request.user.almacen_origen.institucion if request.user.almacen_origen else None
+    institucion = request.user.almacen.institucion if request.user.almacen else None
     if not institucion:
         return JsonResponse({'error': 'No tienes institución asignada'}, status=400)
     
@@ -403,7 +403,7 @@ def api_grafico_estados(request):
 def api_grafico_almacenes(request):
     """API para gráfico de salidas por almacén"""
     
-    institucion = request.user.almacen_origen.institucion if request.user.almacen_origen else None
+    institucion = request.user.almacen.institucion if request.user.almacen else None
     if not institucion:
         return JsonResponse({'error': 'No tienes institución asignada'}, status=400)
     
