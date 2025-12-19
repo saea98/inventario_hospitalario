@@ -101,7 +101,7 @@
                         <td>{{ item.items|default:"0" }}</td>
                         <td>
                             {% if item.cantidad > 0 %}
-                                ${{ item.monto|add:0|div:item.cantidad|floatformat:2 }}
+                                ${{ item.monto|floatformat:2 }}
                             {% else %}
                                 $0.00
                             {% endif %}
