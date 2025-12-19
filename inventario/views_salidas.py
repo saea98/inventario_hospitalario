@@ -25,7 +25,7 @@ from .decorators_roles import requiere_rol
 # ============================================================
 
 @login_required
-@requiere_rol(['Administrador', 'Gestor de Inventario', 'Almacenista'])
+@requiere_rol('Administrador', 'Gestor de Inventario', 'Almacenista')
 def lista_salidas(request):
     """Lista todas las salidas de existencias"""
     
@@ -78,7 +78,7 @@ def lista_salidas(request):
 # ============================================================
 
 @login_required
-@requiere_rol(['Administrador', 'Gestor de Inventario', 'Almacenista'])
+@requiere_rol('Administrador', 'Gestor de Inventario', 'Almacenista')
 @require_http_methods(["GET", "POST"])
 def crear_salida(request):
     """Crear una nueva salida de existencias"""
@@ -146,7 +146,7 @@ def crear_salida(request):
 # ============================================================
 
 @login_required
-@requiere_rol(['Administrador', 'Gestor de Inventario', 'Almacenista'])
+@requiere_rol('Administrador', 'Gestor de Inventario', 'Almacenista')
 def detalle_salida(request, pk):
     """Mostrar detalle de una salida"""
     
@@ -176,7 +176,7 @@ def detalle_salida(request, pk):
 # ============================================================
 
 @login_required
-@requiere_rol(['Administrador', 'Gestor de Inventario'])
+@requiere_rol('Administrador', 'Gestor de Inventario')
 @require_http_methods(["GET", "POST"])
 def autorizar_salida(request, pk):
     """Autorizar una salida de existencias"""
@@ -214,7 +214,7 @@ def autorizar_salida(request, pk):
 # ============================================================
 
 @login_required
-@requiere_rol(['Administrador', 'Gestor de Inventario'])
+@requiere_rol('Administrador', 'Gestor de Inventario')
 @require_http_methods(["GET", "POST"])
 def cancelar_salida(request, pk):
     """Cancelar una salida de existencias"""
@@ -250,7 +250,7 @@ def cancelar_salida(request, pk):
 # ============================================================
 
 @login_required
-@requiere_rol(['Administrador', 'Gestor de Inventario', 'Almacenista'])
+@requiere_rol('Administrador', 'Gestor de Inventario', 'Almacenista')
 @require_http_methods(["GET", "POST"])
 def distribuir_salida(request, pk):
     """Distribuir una salida a diferentes áreas"""
@@ -322,7 +322,7 @@ def distribuir_salida(request, pk):
 # ============================================================
 
 @login_required
-@requiere_rol(['Administrador', 'Gestor de Inventario'])
+@requiere_rol('Administrador', 'Gestor de Inventario')
 def dashboard_salidas(request):
     """Dashboard con estadísticas de salidas"""
     
