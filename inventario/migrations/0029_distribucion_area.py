@@ -9,7 +9,7 @@ import uuid
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('inventario', '0027_create_devolucion_tables'),
+        ('inventario', '0028_fase4_salidas_existentes'),
     ]
 
     operations = [
