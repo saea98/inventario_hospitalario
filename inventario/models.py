@@ -1550,7 +1550,7 @@ class SalidaExistencias(models.Model):
         indexes = [
             models.Index(fields=['folio']),
             models.Index(fields=['estado']),
-            models.Index(fields=['institucion']),
+            models.Index(fields=['institucion_destino']),
         ]
     
     def __str__(self):
