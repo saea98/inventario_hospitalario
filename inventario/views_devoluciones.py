@@ -278,11 +278,17 @@ def completar_devolucion(request, devolucion_id):
         fecha_nota_credito = request.POST.get('fecha_nota_credito', '')
         
         try:
+            # Validar que fecha_entrega_real sea proporcionada
+            if not fecha_entrega:
+                messages.error(request, 'La fecha de entrega real es requerida')
+                return render(request, 'inventario/devoluciones/completar_devolucion.html', {'devolucion': devolucion})
+            
             devolucion.estado = 'COMPLETADA'
-            devolucion.fecha_entrega_real = datetime.strptime(fecha_entrega, '%Y-%m-%d').date() if fecha_entrega else None
-            devolucion.numero_guia = numero_guia
-            devolucion.empresa_transporte = empresa_transporte
-            devolucion.numero_nota_credito = numero_nota_credito
+            devolucion.fecha_entrega_real = datetime.strptime(fecha_entrega, '%Y-%m-%d').date()
+            devolucion.numero_guia = numero_guia or 'N/A'
+            devolucion.empresa_transporte = empresa_transporte or 'N/A'
+            # Si no se proporciona número de nota de crédito, usar N/A
+            devolucion.numero_nota_credito = numero_nota_credito or 'N/A'
             devolucion.fecha_nota_credito = datetime.strptime(fecha_nota_credito, '%Y-%m-%d').date() if fecha_nota_credito else None
             devolucion.monto_nota_credito = devolucion.total_valor
             devolucion.save()
