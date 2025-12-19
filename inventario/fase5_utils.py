@@ -55,8 +55,7 @@ def generar_movimientos_suministro(propuesta_id, usuario):
                         documento_referencia=str(propuesta.solicitud.folio),
                         pedido=str(propuesta.solicitud.folio),
                         folio=str(propuesta.id),
-                        usuario=usuario,
-                        estado=1
+                        usuario=usuario
                     )
                     
                     # Actualizar cantidad disponible del lote
