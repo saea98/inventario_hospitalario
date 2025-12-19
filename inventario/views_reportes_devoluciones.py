@@ -63,14 +63,36 @@ def reporte_general_devoluciones(request):
     
     # Estadísticas generales
     total_devoluciones = devoluciones.count()
-    total_monto = devoluciones.aggregate(total=Sum('total_valor', output_field=DecimalField()))['total'] or Decimal('0.00')
-    total_items = ItemDevolucion.objects.filter(devolucion__in=devoluciones).aggregate(total=Sum('cantidad'))['total'] or 0
     
-    # Por estado
-    por_estado = devoluciones.values('estado').annotate(
-        cantidad=Count('id'),
-        monto=Sum('total_valor', output_field=DecimalField())
-    ).order_by('estado')
+    # Calcular monto total desde ItemDevolucion
+    items_devoluciones = ItemDevolucion.objects.filter(devolucion__in=devoluciones)
+    total_items = items_devoluciones.aggregate(total=Sum('cantidad'))['total'] or 0
+    
+    # Calcular monto total como suma de subtotales (cantidad * precio_unitario)
+    total_monto = Decimal('0.00')
+    for item in items_devoluciones:
+        total_monto += item.cantidad * item.precio_unitario
+    
+    # Por estado - calcular monto desde items
+    por_estado_list = []
+    for estado_choice in DevolucionProveedor.ESTADOS_CHOICES:
+        estado_value = estado_choice[0]
+        devs_estado = devoluciones.filter(estado=estado_value)
+        cantidad = devs_estado.count()
+        items_estado = ItemDevolucion.objects.filter(devolucion__in=devs_estado)
+        monto_estado = Decimal('0.00')
+        for item in items_estado:
+            monto_estado += item.cantidad * item.precio_unitario
+        
+        if cantidad > 0 or monto_estado > 0:
+            por_estado_list.append({
+                'estado': estado_value,
+                'get_estado_display': dict(DevolucionProveedor.ESTADOS_CHOICES)[estado_value],
+                'cantidad': cantidad,
+                'monto': monto_estado
+            })
+    
+    por_estado = por_estado_list
     
     # Promedio por devolución
     promedio_monto = total_monto / total_devoluciones if total_devoluciones > 0 else Decimal('0.00')
@@ -79,6 +101,13 @@ def reporte_general_devoluciones(request):
     # Proveedores
     proveedores = Proveedor.objects.filter(institucion=institucion).order_by('razon_social')
     
+    # Últimas devoluciones con monto calculado
+    devoluciones_lista = devoluciones.order_by('-fecha_creacion')[:20]
+    for dev in devoluciones_lista:
+        items = ItemDevolucion.objects.filter(devolucion=dev)
+        dev.total_valor = sum(item.cantidad * item.precio_unitario for item in items)
+        dev.total_items = sum(item.cantidad for item in items)
+    
     context = {
         'total_devoluciones': total_devoluciones,
         'total_monto': total_monto,
@@ -86,7 +115,7 @@ def reporte_general_devoluciones(request):
         'promedio_monto': promedio_monto,
         'promedio_items': promedio_items,
         'por_estado': por_estado,
-        'devoluciones': devoluciones[:20],  # Últimas 20
+        'devoluciones': devoluciones_lista,
         'fecha_inicio': fecha_inicio,
         'fecha_fin': fecha_fin,
         'estado_filtro': estado_filtro,
@@ -120,7 +149,7 @@ def analisis_proveedores(request):
     # Query base
     devoluciones = DevolucionProveedor.objects.filter(institucion=institucion)
     
-    # Aplicar filtros de fecha
+    # Aplicar filtros
     if fecha_inicio:
         try:
             devoluciones = devoluciones.filter(fecha_creacion__gte=datetime.strptime(fecha_inicio, '%Y-%m-%d'))
@@ -135,29 +164,58 @@ def analisis_proveedores(request):
             pass
     
     # Análisis por proveedor
-    analisis_proveedores = devoluciones.values('proveedor__id', 'proveedor__razon_social').annotate(
-        total_devoluciones=Count('id'),
-        monto_total=Sum('total_valor', output_field=DecimalField()),
-        items_total=Sum('itemdevolucion__cantidad'),
-        monto_promedio=Avg('total_valor', output_field=DecimalField()),
-        pendientes=Count('id', filter=Q(estado='PENDIENTE')),
-        autorizadas=Count('id', filter=Q(estado='AUTORIZADA')),
-        completadas=Count('id', filter=Q(estado='COMPLETADA')),
-        canceladas=Count('id', filter=Q(estado='CANCELADA')),
-    ).order_by('-monto_total')
+    analisis_proveedores_list = []
+    for proveedor in Proveedor.objects.filter(institucion=institucion):
+        devs_proveedor = devoluciones.filter(proveedor=proveedor)
+        items_proveedor = ItemDevolucion.objects.filter(devolucion__in=devs_proveedor)
+        
+        total_dev = devs_proveedor.count()
+        total_items = items_proveedor.aggregate(total=Sum('cantidad'))['total'] or 0
+        total_monto = sum(item.cantidad * item.precio_unitario for item in items_proveedor)
+        
+        if total_dev > 0:
+            analisis_proveedores_list.append({
+                'proveedor__razon_social': proveedor.razon_social,
+                'total_devoluciones': total_dev,
+                'monto_total': total_monto,
+                'items_total': total_items,
+                'monto_promedio': total_monto / total_dev if total_dev > 0 else Decimal('0.00'),
+                'pendientes': devs_proveedor.filter(estado='PENDIENTE').count(),
+                'autorizadas': devs_proveedor.filter(estado='AUTORIZADA').count(),
+                'completadas': devs_proveedor.filter(estado='COMPLETADA').count(),
+                'canceladas': devs_proveedor.filter(estado='CANCELADA').count(),
+            })
+    
+    # Ordenar por total de devoluciones
+    analisis_proveedores_list.sort(key=lambda x: x['total_devoluciones'], reverse=True)
     
     # Motivos más frecuentes
-    motivos_frecuentes = devoluciones.values('motivo_general').annotate(
-        cantidad=Count('id'),
-        monto=Sum('total_valor', output_field=DecimalField())
-    ).order_by('-cantidad')[:10]
+    motivos_frecuentes = []
+    motivos_dict = {}
+    for item in ItemDevolucion.objects.filter(devolucion__in=devoluciones):
+        motivo = item.devolucion.motivo_general
+        if motivo not in motivos_dict:
+            motivos_dict[motivo] = {'cantidad': 0, 'monto': Decimal('0.00')}
+        motivos_dict[motivo]['cantidad'] += 1
+        motivos_dict[motivo]['monto'] += item.cantidad * item.precio_unitario
+    
+    for motivo, data in sorted(motivos_dict.items(), key=lambda x: x[1]['cantidad'], reverse=True):
+        motivos_frecuentes.append({
+            'motivo_general': dict(DevolucionProveedor.MOTIVOS_CHOICES).get(motivo, motivo),
+            'cantidad': data['cantidad'],
+            'monto': data['monto']
+        })
+    
+    total_devoluciones = devoluciones.count()
+    total_proveedores = len(analisis_proveedores_list)
     
     context = {
-        'analisis_proveedores': analisis_proveedores,
+        'analisis_proveedores': analisis_proveedores_list,
         'motivos_frecuentes': motivos_frecuentes,
+        'total_devoluciones': total_devoluciones,
+        'total_proveedores': total_proveedores,
         'fecha_inicio': fecha_inicio,
         'fecha_fin': fecha_fin,
-        'total_proveedores': len(analisis_proveedores),
     }
     
     return render(request, 'inventario/reportes/analisis_proveedores.html', context)
@@ -169,7 +227,7 @@ def analisis_proveedores(request):
 
 @login_required
 def analisis_temporal(request):
-    """Análisis de tendencias temporales de devoluciones"""
+    """Análisis temporal de devoluciones"""
     
     # Obtener institución del usuario
     institucion = request.user.almacen.institucion if hasattr(request.user, 'almacen') and request.user.almacen else None
@@ -178,179 +236,213 @@ def analisis_temporal(request):
         messages.error(request, 'No tienes una institución asignada')
         return redirect('devoluciones:lista_devoluciones')
     
-    # Filtros
-    tipo_periodo = request.GET.get('tipo_periodo', 'mes')  # mes, año
+    # Tipo de período
+    tipo_periodo = request.GET.get('tipo_periodo', 'mes')
     
     # Query base
     devoluciones = DevolucionProveedor.objects.filter(institucion=institucion)
     
-    # Agrupar por período
+    # Tendencia por período
+    tendencia_list = []
     if tipo_periodo == 'mes':
-        tendencia = devoluciones.annotate(
-            periodo=TruncMonth('fecha_creacion')
-        ).values('periodo').annotate(
-            cantidad=Count('id'),
-            monto=Sum('total_valor', output_field=DecimalField()),
-            items=Sum('itemdevolucion__cantidad'),
-        ).order_by('periodo')
-    else:  # año
-        tendencia = devoluciones.annotate(
-            periodo=TruncYear('fecha_creacion')
-        ).values('periodo').annotate(
-            cantidad=Count('id'),
-            monto=Sum('total_valor', output_field=DecimalField()),
-            items=Sum('itemdevolucion__cantidad'),
-        ).order_by('periodo')
+        # Últimos 12 meses
+        for i in range(11, -1, -1):
+            fecha_mes = timezone.now() - timedelta(days=30*i)
+            mes_inicio = fecha_mes.replace(day=1)
+            if i > 0:
+                mes_fin = (fecha_mes - timedelta(days=30*(i-1))).replace(day=1)
+            else:
+                mes_fin = timezone.now() + timedelta(days=30)
+            
+            devs_mes = devoluciones.filter(fecha_creacion__gte=mes_inicio, fecha_creacion__lt=mes_fin)
+            items_mes = ItemDevolucion.objects.filter(devolucion__in=devs_mes)
+            
+            cantidad = devs_mes.count()
+            monto = sum(item.cantidad * item.precio_unitario for item in items_mes)
+            items_total = items_mes.aggregate(total=Sum('cantidad'))['total'] or 0
+            
+            tendencia_list.append({
+                'periodo': mes_inicio,
+                'cantidad': cantidad,
+                'monto': monto,
+                'items': items_total,
+            })
+    else:
+        # Por año
+        for i in range(4, -1, -1):
+            año = timezone.now().year - i
+            año_inicio = datetime(año, 1, 1)
+            año_fin = datetime(año + 1, 1, 1)
+            
+            devs_año = devoluciones.filter(fecha_creacion__gte=año_inicio, fecha_creacion__lt=año_fin)
+            items_año = ItemDevolucion.objects.filter(devolucion__in=devs_año)
+            
+            cantidad = devs_año.count()
+            monto = sum(item.cantidad * item.precio_unitario for item in items_año)
+            items_total = items_año.aggregate(total=Sum('cantidad'))['total'] or 0
+            
+            tendencia_list.append({
+                'periodo': año_inicio,
+                'cantidad': cantidad,
+                'monto': monto,
+                'items': items_total,
+            })
     
     # Tiempo promedio de autorización
-    autorizadas = devoluciones.filter(estado__in=['AUTORIZADA', 'COMPLETADA'], fecha_autorizacion__isnull=False)
+    devoluciones_autorizadas = devoluciones.filter(fecha_autorizacion__isnull=False)
     tiempo_promedio_autorizacion = None
-    if autorizadas.exists():
-        tiempos = []
-        for dev in autorizadas:
-            if dev.fecha_autorizacion and dev.fecha_creacion:
-                tiempo = (dev.fecha_autorizacion - dev.fecha_creacion).total_seconds() / 86400
-                tiempos.append(tiempo)
-        if tiempos:
-            tiempo_promedio_autorizacion = sum(tiempos) / len(tiempos)
+    if devoluciones_autorizadas.exists():
+        total_dias = Decimal('0')
+        for dev in devoluciones_autorizadas:
+            if dev.fecha_autorizacion:
+                dias = (dev.fecha_autorizacion - dev.fecha_creacion).days
+                total_dias += dias
+        tiempo_promedio_autorizacion = float(total_dias) / devoluciones_autorizadas.count() if devoluciones_autorizadas.count() > 0 else 0
     
     # Tiempo promedio de entrega
-    completadas = devoluciones.filter(estado='COMPLETADA', fecha_entrega_real__isnull=False)
+    devoluciones_completadas = devoluciones.filter(fecha_entrega_real__isnull=False)
     tiempo_promedio_entrega = None
-    if completadas.exists():
-        tiempos = []
-        for dev in completadas:
-            if dev.fecha_entrega_real and dev.fecha_creacion:
-                tiempo = (dev.fecha_entrega_real - dev.fecha_creacion.date()).days
-                tiempos.append(tiempo)
-        if tiempos:
-            tiempo_promedio_entrega = sum(tiempos) / len(tiempos)
+    if devoluciones_completadas.exists():
+        total_dias = Decimal('0')
+        for dev in devoluciones_completadas:
+            if dev.fecha_entrega_real:
+                dias = (dev.fecha_entrega_real - dev.fecha_creacion.date()).days
+                total_dias += dias
+        tiempo_promedio_entrega = float(total_dias) / devoluciones_completadas.count() if devoluciones_completadas.count() > 0 else 0
     
     context = {
-        'tendencia': tendencia,
-        'tipo_periodo': tipo_periodo,
+        'tendencia': tendencia_list,
         'tiempo_promedio_autorizacion': tiempo_promedio_autorizacion,
         'tiempo_promedio_entrega': tiempo_promedio_entrega,
+        'tipo_periodo': tipo_periodo,
     }
     
     return render(request, 'inventario/reportes/analisis_temporal.html', context)
 
 
 # ============================================================
-# API PARA GRÁFICOS (JSON)
+# APIs PARA GRÁFICOS
 # ============================================================
 
 @login_required
 def api_grafico_estado(request):
-    """API para obtener datos de gráfico de estados"""
+    """API para gráfico de estados"""
     
     institucion = request.user.almacen.institucion if hasattr(request.user, 'almacen') and request.user.almacen else None
     
     if not institucion:
-        return JsonResponse({'error': 'No tienes institución asignada'}, status=400)
+        return JsonResponse({'error': 'No institution'}, status=403)
     
     devoluciones = DevolucionProveedor.objects.filter(institucion=institucion)
     
-    datos = devoluciones.values('estado').annotate(
-        cantidad=Count('id')
-    ).order_by('estado')
-    
-    labels = []
-    values = []
-    colors = {
-        'PENDIENTE': '#FFC107',
-        'AUTORIZADA': '#17A2B8',
-        'COMPLETADA': '#28A745',
-        'CANCELADA': '#6C757D',
+    data = {
+        'labels': ['Pendiente', 'Autorizada', 'Completada', 'Cancelada'],
+        'data': [
+            devoluciones.filter(estado='PENDIENTE').count(),
+            devoluciones.filter(estado='AUTORIZADA').count(),
+            devoluciones.filter(estado='COMPLETADA').count(),
+            devoluciones.filter(estado='CANCELADA').count(),
+        ],
+        'colors': ['#FFC107', '#17A2B8', '#28A745', '#6C757D']
     }
     
-    for item in datos:
-        labels.append(item['estado'])
-        values.append(item['cantidad'])
-    
-    return JsonResponse({
-        'labels': labels,
-        'data': values,
-        'colors': [colors.get(label, '#999') for label in labels],
-    })
+    return JsonResponse(data)
 
 
 @login_required
 def api_grafico_proveedores(request):
-    """API para obtener datos de gráfico de proveedores"""
+    """API para gráfico de proveedores"""
     
     institucion = request.user.almacen.institucion if hasattr(request.user, 'almacen') and request.user.almacen else None
     
     if not institucion:
-        return JsonResponse({'error': 'No tienes institución asignada'}, status=400)
+        return JsonResponse({'error': 'No institution'}, status=403)
     
     devoluciones = DevolucionProveedor.objects.filter(institucion=institucion)
     
-    datos = devoluciones.values('proveedor__razon_social').annotate(
-        cantidad=Count('id')
-    ).order_by('-cantidad')[:10]
+    # Top 10 proveedores
+    proveedores_count = {}
+    for dev in devoluciones:
+        prov_name = dev.proveedor.razon_social
+        proveedores_count[prov_name] = proveedores_count.get(prov_name, 0) + 1
     
-    labels = [item['proveedor__razon_social'] for item in datos]
-    values = [item['cantidad'] for item in datos]
+    # Ordenar y tomar top 10
+    sorted_proveedores = sorted(proveedores_count.items(), key=lambda x: x[1], reverse=True)[:10]
     
-    return JsonResponse({
-        'labels': labels,
-        'data': values,
-    })
+    data = {
+        'labels': [prov[0] for prov in sorted_proveedores],
+        'data': [prov[1] for prov in sorted_proveedores]
+    }
+    
+    return JsonResponse(data)
 
 
 @login_required
 def api_grafico_tendencia(request):
-    """API para obtener datos de gráfico de tendencia temporal"""
+    """API para gráfico de tendencia"""
     
     institucion = request.user.almacen.institucion if hasattr(request.user, 'almacen') and request.user.almacen else None
     
     if not institucion:
-        return JsonResponse({'error': 'No tienes institución asignada'}, status=400)
+        return JsonResponse({'error': 'No institution'}, status=403)
     
     devoluciones = DevolucionProveedor.objects.filter(institucion=institucion)
     
     # Últimos 12 meses
-    fecha_inicio = timezone.now() - timedelta(days=365)
-    devoluciones = devoluciones.filter(fecha_creacion__gte=fecha_inicio)
+    labels = []
+    data_cantidad = []
+    data_monto = []
     
-    tendencia = devoluciones.annotate(
-        periodo=TruncMonth('fecha_creacion')
-    ).values('periodo').annotate(
-        cantidad=Count('id'),
-        monto=Sum('total_valor', output_field=DecimalField()),
-    ).order_by('periodo')
+    for i in range(11, -1, -1):
+        fecha_mes = timezone.now() - timedelta(days=30*i)
+        mes_inicio = fecha_mes.replace(day=1)
+        if i > 0:
+            mes_fin = (fecha_mes - timedelta(days=30*(i-1))).replace(day=1)
+        else:
+            mes_fin = timezone.now() + timedelta(days=30)
+        
+        devs_mes = devoluciones.filter(fecha_creacion__gte=mes_inicio, fecha_creacion__lt=mes_fin)
+        items_mes = ItemDevolucion.objects.filter(devolucion__in=devs_mes)
+        
+        cantidad = devs_mes.count()
+        monto = sum(item.cantidad * item.precio_unitario for item in items_mes)
+        
+        labels.append(mes_inicio.strftime('%b %Y'))
+        data_cantidad.append(cantidad)
+        data_monto.append(float(monto))
     
-    labels = [item['periodo'].strftime('%b %Y') if item['periodo'] else 'N/A' for item in tendencia]
-    values_cantidad = [item['cantidad'] for item in tendencia]
-    values_monto = [float(item['monto'] or 0) for item in tendencia]
-    
-    return JsonResponse({
+    data = {
         'labels': labels,
-        'data_cantidad': values_cantidad,
-        'data_monto': values_monto,
-    })
+        'data_cantidad': data_cantidad,
+        'data_monto': data_monto
+    }
+    
+    return JsonResponse(data)
 
 
 @login_required
 def api_grafico_motivos(request):
-    """API para obtener datos de gráfico de motivos"""
+    """API para gráfico de motivos"""
     
     institucion = request.user.almacen.institucion if hasattr(request.user, 'almacen') and request.user.almacen else None
     
     if not institucion:
-        return JsonResponse({'error': 'No tienes institución asignada'}, status=400)
+        return JsonResponse({'error': 'No institution'}, status=403)
     
     devoluciones = DevolucionProveedor.objects.filter(institucion=institucion)
     
-    datos = devoluciones.values('motivo_general').annotate(
-        cantidad=Count('id')
-    ).order_by('-cantidad')
+    # Contar motivos
+    motivos_count = {}
+    for dev in devoluciones:
+        motivo = dict(DevolucionProveedor.MOTIVOS_CHOICES).get(dev.motivo_general, dev.motivo_general)
+        motivos_count[motivo] = motivos_count.get(motivo, 0) + 1
     
-    labels = [item.get('motivo_general', 'N/A') for item in datos]
-    values = [item['cantidad'] for item in datos]
+    # Ordenar
+    sorted_motivos = sorted(motivos_count.items(), key=lambda x: x[1], reverse=True)
     
-    return JsonResponse({
-        'labels': labels,
-        'data': values,
-    })
+    data = {
+        'labels': [motivo[0] for motivo in sorted_motivos],
+        'data': [motivo[1] for motivo in sorted_motivos]
+    }
+    
+    return JsonResponse(data)
