@@ -142,7 +142,7 @@
                         <td>${{ item.monto|floatformat:2 }}</td>
                         <td>
                             {% if total_devoluciones > 0 %}
-                                {{ item.cantidad|add:0|mul:100|div:total_devoluciones|floatformat:1 }}%
+                                {% widthratio item.cantidad total_devoluciones 100 %}%
                             {% else %}
                                 0%
                             {% endif %}
