@@ -133,7 +133,13 @@
         <div class="card-body">
             <p><strong>Número de Autorización:</strong> {{ devolucion.numero_autorizacion }}</p>
             <p><strong>Fecha de Autorización:</strong> {{ devolucion.fecha_autorizacion|date:"d/m/Y H:i"|default:"N/A" }}</p>
-            <p><strong>Autorizado por:</strong> {{ devolucion.usuario_autorizo.get_full_name|default:"N/A" }}</p>
+            <p><strong>Autorizado por:</strong> 
+                {% if devolucion.usuario_autorizo %}
+                    {{ devolucion.usuario_autorizo.get_full_name|default:devolucion.usuario_autorizo.username }}
+                {% else %}
+                    N/A
+                {% endif %}
+            </p>
         </div>
     </div>
     {% endif %}
@@ -161,7 +167,13 @@
             <h5 class="mb-0">Auditoría</h5>
         </div>
         <div class="card-body">
-            <p><strong>Creado por:</strong> {{ devolucion.usuario_creacion.get_full_name|default:"N/A" }}</p>
+            <p><strong>Creado por:</strong> 
+                {% if devolucion.usuario_creacion %}
+                    {{ devolucion.usuario_creacion.get_full_name|default:devolucion.usuario_creacion.username }}
+                {% else %}
+                    N/A
+                {% endif %}
+            </p>
             <p><strong>Fecha de Creación:</strong> {{ devolucion.fecha_creacion|date:"d/m/Y H:i" }}</p>
             <p><strong>Última Actualización:</strong> {{ devolucion.fecha_actualizacion|date:"d/m/Y H:i" }}</p>
         </div>
