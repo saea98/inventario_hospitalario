@@ -26,7 +26,7 @@ def reporte_general_salidas(request):
     """Reporte general de salidas"""
     
     # Obtener institución del usuario
-    institucion = request.user.almacen.institucion if request.user.almacen else None
+    institucion = request.user.almacen.institucion_destino if request.user.almacen else None
     if not institucion:
         messages.error(request, 'No tienes una institución asignada.')
         return redirect('dashboard')
@@ -36,7 +36,7 @@ def reporte_general_salidas(request):
     fecha_fin = request.GET.get('fecha_fin')
     estado = request.GET.get('estado')
     
-    salidas = SalidaExistencias.objects.filter(institucion=institucion)
+    salidas = SalidaExistencias.objects.filter(institucion_destino=institucion)
     
     if fecha_inicio:
         salidas = salidas.filter(fecha_creacion__date__gte=fecha_inicio)
@@ -79,7 +79,7 @@ def reporte_general_salidas(request):
     
     # Productos más salidos
     productos_top = ItemSalidaExistencias.objects.filter(
-        salida__institucion=institucion
+        salida__institucion_destino=institucion
     ).values('lote__producto__nombre').annotate(
         cantidad_total=Sum('cantidad'),
         monto_total=Sum(
@@ -114,7 +114,7 @@ def analisis_distribuciones(request):
     """Análisis de distribuciones a áreas"""
     
     # Obtener institución del usuario
-    institucion = request.user.almacen.institucion if request.user.almacen else None
+    institucion = request.user.almacen.institucion_destino if request.user.almacen else None
     if not institucion:
         messages.error(request, 'No tienes una institución asignada.')
         return redirect('dashboard')
@@ -125,7 +125,7 @@ def analisis_distribuciones(request):
     estado = request.GET.get('estado')
     
     distribuciones = DistribucionArea.objects.filter(
-        salida__institucion=institucion
+        salida__institucion_destino=institucion
     )
     
     if fecha_inicio:
@@ -196,7 +196,7 @@ def analisis_temporal_salidas(request):
     """Análisis temporal de salidas"""
     
     # Obtener institución del usuario
-    institucion = request.user.almacen.institucion if request.user.almacen else None
+    institucion = request.user.almacen.institucion_destino if request.user.almacen else None
     if not institucion:
         messages.error(request, 'No tienes una institución asignada.')
         return redirect('dashboard')
@@ -215,7 +215,7 @@ def analisis_temporal_salidas(request):
         fecha_fin = param_fin
     
     salidas = SalidaExistencias.objects.filter(
-        institucion=institucion,
+        institucion_destino=institucion,
         fecha_creacion__date__gte=fecha_inicio,
         fecha_creacion__date__lte=fecha_fin
     )
@@ -271,11 +271,11 @@ def analisis_temporal_salidas(request):
 def api_grafico_salidas_por_estado(request):
     """API para gráfico de salidas por estado"""
     
-    institucion = request.user.almacen.institucion if request.user.almacen else None
+    institucion = request.user.almacen.institucion_destino if request.user.almacen else None
     if not institucion:
         return JsonResponse({'error': 'No tienes institución asignada'}, status=400)
     
-    salidas = SalidaExistencias.objects.filter(institucion=institucion)
+    salidas = SalidaExistencias.objects.filter(institucion_destino=institucion)
     
     datos = salidas.values('estado').annotate(
         cantidad=Count('id'),
@@ -311,11 +311,11 @@ def api_grafico_salidas_por_estado(request):
 def api_grafico_salidas_por_almacen(request):
     """API para gráfico de salidas por almacén"""
     
-    institucion = request.user.almacen.institucion if request.user.almacen else None
+    institucion = request.user.almacen.institucion_destino if request.user.almacen else None
     if not institucion:
         return JsonResponse({'error': 'No tienes institución asignada'}, status=400)
     
-    salidas = SalidaExistencias.objects.filter(institucion=institucion)
+    salidas = SalidaExistencias.objects.filter(institucion_destino=institucion)
     
     datos = salidas.values('almacen__nombre').annotate(
         cantidad=Count('id'),
@@ -344,12 +344,12 @@ def api_grafico_salidas_por_almacen(request):
 def api_grafico_distribuciones_por_estado(request):
     """API para gráfico de distribuciones por estado"""
     
-    institucion = request.user.almacen.institucion if request.user.almacen else None
+    institucion = request.user.almacen.institucion_destino if request.user.almacen else None
     if not institucion:
         return JsonResponse({'error': 'No tienes institución asignada'}, status=400)
     
     distribuciones = DistribucionArea.objects.filter(
-        salida__institucion=institucion
+        salida__institucion_destino=institucion
     )
     
     datos = distribuciones.values('estado').annotate(
@@ -383,7 +383,7 @@ def api_grafico_distribuciones_por_estado(request):
 def api_grafico_salidas_por_dia(request):
     """API para gráfico de salidas por día"""
     
-    institucion = request.user.almacen.institucion if request.user.almacen else None
+    institucion = request.user.almacen.institucion_destino if request.user.almacen else None
     if not institucion:
         return JsonResponse({'error': 'No tienes institución asignada'}, status=400)
     
@@ -392,7 +392,7 @@ def api_grafico_salidas_por_dia(request):
     fecha_inicio = fecha_fin - timedelta(days=30)
     
     salidas = SalidaExistencias.objects.filter(
-        institucion=institucion,
+        institucion_destino=institucion,
         fecha_creacion__date__gte=fecha_inicio,
         fecha_creacion__date__lte=fecha_fin
     )
