@@ -285,10 +285,10 @@ def completar_devolucion(request, devolucion_id):
             
             devolucion.estado = 'COMPLETADA'
             devolucion.fecha_entrega_real = datetime.strptime(fecha_entrega, '%Y-%m-%d').date()
-            devolucion.numero_guia = numero_guia or 'N/A'
-            devolucion.empresa_transporte = empresa_transporte or 'N/A'
-            # Si no se proporciona número de nota de crédito, usar N/A
-            devolucion.numero_nota_credito = numero_nota_credito or 'N/A'
+            # Dejar NULL si no se proporciona valor (para evitar conflictos con restricción UNIQUE)
+            devolucion.numero_guia = numero_guia if numero_guia else None
+            devolucion.empresa_transporte = empresa_transporte if empresa_transporte else None
+            devolucion.numero_nota_credito = numero_nota_credito if numero_nota_credito else None
             devolucion.fecha_nota_credito = datetime.strptime(fecha_nota_credito, '%Y-%m-%d').date() if fecha_nota_credito else None
             devolucion.monto_nota_credito = devolucion.total_valor
             devolucion.save()
