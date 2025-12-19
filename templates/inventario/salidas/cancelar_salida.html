@@ -1,0 +1,186 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Cancelar Salida - Sistema de Inventario{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Encabezado -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1 class="h3 mb-0">
+                <i class="fas fa-times-circle text-danger"></i> Cancelar Salida
+            </h1>
+            <small class="text-muted">{{ salida.folio }}</small>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="{% url 'salidas:detalle_salida' salida.pk %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Volver
+            </a>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Alerta -->
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <i class="fas fa-exclamation-circle"></i>
+                <strong>¡Atención!</strong> Esta acción cancelará la salida y no podrá ser revertida.
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+
+            <!-- Información de la Salida -->
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">
+                        <i class="fas fa-info-circle"></i> Información de la Salida
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <small class="text-muted">Folio</small>
+                            <p class="mb-0"><strong>{{ salida.folio }}</strong></p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <small class="text-muted">Estado Actual</small>
+                            <p class="mb-0">
+                                {% if salida.estado == 'PENDIENTE' %}
+                                    <span class="badge bg-warning">Pendiente</span>
+                                {% elif salida.estado == 'AUTORIZADA' %}
+                                    <span class="badge bg-info">Autorizada</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <small class="text-muted">Almacén</small>
+                            <p class="mb-0"><strong>{{ salida.almacen.nombre }}</strong></p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <small class="text-muted">Responsable</small>
+                            <p class="mb-0">{{ salida.responsable_salida }}</p>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6 mb-3">
+                            <small class="text-muted">Total Items</small>
+                            <p class="mb-0"><strong>{{ salida.total_items }}</strong></p>
+                        </div>
+                        <div class="col-md-6 mb-3">
+                            <small class="text-muted">Monto Total</small>
+                            <p class="mb-0"><strong>${{ salida.total_valor|floatformat:2 }}</strong></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Items -->
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">
+                        <i class="fas fa-boxes"></i> Items a Cancelar
+                    </h5>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-sm mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Producto</th>
+                                <th>Lote</th>
+                                <th>Cantidad</th>
+                                <th>Precio</th>
+                                <th>Subtotal</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in salida.itemsalidaexistencias_set.all %}
+                                <tr>
+                                    <td>{{ item.lote.producto.nombre }}</td>
+                                    <td>{{ item.lote.numero_lote }}</td>
+                                    <td>{{ item.cantidad }}</td>
+                                    <td>${{ item.precio_unitario|floatformat:2 }}</td>
+                                    <td>${{ item.subtotal|floatformat:2 }}</td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Formulario de Cancelación -->
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">
+                        <i class="fas fa-comment"></i> Motivo de Cancelación
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        
+                        <div class="mb-3">
+                            <label for="motivo_cancelacion" class="form-label">
+                                Motivo de Cancelación *
+                            </label>
+                            <textarea name="motivo_cancelacion" id="motivo_cancelacion" 
+                                      class="form-control" rows="5" placeholder="Describe el motivo de la cancelación..." 
+                                      required autofocus></textarea>
+                            <small class="text-muted">Mínimo 10 caracteres</small>
+                        </div>
+                        
+                        <div class="alert alert-warning">
+                            <i class="fas fa-info-circle"></i>
+                            <strong>Consecuencias:</strong>
+                            <ul class="mb-0 mt-2">
+                                <li>La salida cambiará a estado CANCELADA</li>
+                                <li>Los items volverán al almacén</li>
+                                <li>Se registrará un movimiento de cancelación</li>
+                                <li>Esta acción no podrá ser revertida</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="d-grid gap-2">
+                            <button type="submit" class="btn btn-danger btn-lg">
+                                <i class="fas fa-times"></i> Cancelar Salida
+                            </button>
+                            <a href="{% url 'salidas:detalle_salida' salida.pk %}" class="btn btn-outline-secondary">
+                                <i class="fas fa-arrow-left"></i> Volver sin Cancelar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <!-- Panel Lateral -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">
+                        <i class="fas fa-shield-alt"></i> Confirmación
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <p class="small">
+                        <strong>Antes de cancelar, verifica:</strong>
+                    </p>
+                    <ul class="small">
+                        <li>☐ El motivo es válido</li>
+                        <li>☐ Realmente deseas cancelar</li>
+                        <li>☐ Has documentado el motivo</li>
+                        <li>☐ Has notificado al responsable</li>
+                    </ul>
+                    <hr>
+                    <p class="small text-danger">
+                        <strong>Esta acción no puede ser revertida.</strong>
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
