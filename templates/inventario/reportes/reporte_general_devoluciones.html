@@ -181,7 +181,7 @@
                                 {{ dev.get_estado_display }}
                             </span>
                         </td>
-                        <td>${{ dev.monto_total|floatformat:2 }}</td>
+                        <td>${{ dev.total_valor|floatformat:2 }}</td>
                         <td>{{ dev.fecha_creacion|date:"d/m/Y H:i" }}</td>
                         <td>
                             <a href="{% url 'devoluciones:detalle_devolucion' dev.id %}" class="btn btn-sm btn-primary">
