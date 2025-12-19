@@ -21,7 +21,7 @@ from .decorators_roles import requiere_rol
 # ============================================================
 
 @login_required
-@requiere_rol(['Administrador', 'Gestor de Inventario'])
+@requiere_rol('Administrador', 'Gestor de Inventario')
 def reporte_general_salidas(request):
     """Reporte general de salidas"""
     
@@ -109,7 +109,7 @@ def reporte_general_salidas(request):
 # ============================================================
 
 @login_required
-@requiere_rol(['Administrador', 'Gestor de Inventario'])
+@requiere_rol('Administrador', 'Gestor de Inventario')
 def analisis_distribuciones(request):
     """Análisis de distribuciones a áreas"""
     
@@ -191,7 +191,7 @@ def analisis_distribuciones(request):
 # ============================================================
 
 @login_required
-@requiere_rol(['Administrador', 'Gestor de Inventario'])
+@requiere_rol('Administrador', 'Gestor de Inventario')
 def analisis_temporal_salidas(request):
     """Análisis temporal de salidas"""
     
