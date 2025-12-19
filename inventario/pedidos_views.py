@@ -253,7 +253,10 @@ def revisar_propuesta(request, propuesta_id):
 def surtir_propuesta(request, propuesta_id):
     """
     Permite al personal de almacén confirmar el surtimiento de una propuesta.
+    FASE 5: Genera automáticamente movimientos de inventario.
     """
+    from .fase5_utils import generar_movimientos_suministro
+    
     propuesta = get_object_or_404(PropuestaPedido, id=propuesta_id, estado='REVISADA')
     
     if request.method == 'POST':
@@ -272,7 +275,19 @@ def surtir_propuesta(request, propuesta_id):
         propuesta.estado = 'SURTIDA'
         propuesta.save()
         
-        messages.success(request, "Propuesta surtida exitosamente.")
+        # FASE 5: Generar movimientos de inventario automáticamente
+        resultado = generar_movimientos_suministro(propuesta.id, request.user)
+        if resultado['exito']:
+            messages.success(
+                request, 
+                f"Propuesta surtida exitosamente. {resultado['mensaje']}"
+            )
+        else:
+            messages.warning(
+                request, 
+                f"Propuesta surtida pero con advertencia: {resultado['mensaje']}"
+            )
+        
         return redirect('logistica:lista_propuestas')
     
     context = {
