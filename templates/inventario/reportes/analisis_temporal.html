@@ -1,0 +1,212 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Análisis Temporal{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h1 class="mb-3">
+                <i class="bi bi-calendar-event"></i> Análisis Temporal de Devoluciones
+            </h1>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">Filtros</h5>
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-6">
+                    <label class="form-label">Período</label>
+                    <select name="tipo_periodo" class="form-select">
+                        <option value="mes" {% if tipo_periodo == 'mes' %}selected{% endif %}>Por Mes</option>
+                        <option value="año" {% if tipo_periodo == 'año' %}selected{% endif %}>Por Año</option>
+                    </select>
+                </div>
+                <div class="col-md-6 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-search"></i> Filtrar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Estadísticas Temporales -->
+    <div class="row mb-4">
+        {% if tiempo_promedio_autorizacion %}
+        <div class="col-md-6">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h6 class="card-title text-muted">Tiempo Promedio de Autorización</h6>
+                    <h2 class="text-primary">{{ tiempo_promedio_autorizacion|floatformat:1 }} días</h2>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+        {% if tiempo_promedio_entrega %}
+        <div class="col-md-6">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h6 class="card-title text-muted">Tiempo Promedio de Entrega</h6>
+                    <h2 class="text-success">{{ tiempo_promedio_entrega|floatformat:1 }} días</h2>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Gráficos -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Tendencia de Devoluciones</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="graficoTendencia"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de Tendencia -->
+    <div class="card">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">Datos Detallados por Período</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Período</th>
+                        <th>Cantidad</th>
+                        <th>Monto Total</th>
+                        <th>Items</th>
+                        <th>Promedio por Devolución</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in tendencia %}
+                    <tr>
+                        <td><strong>{{ item.periodo|date:"M Y" }}</strong></td>
+                        <td>
+                            <span class="badge bg-primary">{{ item.cantidad }}</span>
+                        </td>
+                        <td>${{ item.monto|floatformat:2 }}</td>
+                        <td>{{ item.items|default:"0" }}</td>
+                        <td>
+                            {% if item.cantidad > 0 %}
+                                ${{ item.monto|add:0|div:item.cantidad|floatformat:2 }}
+                            {% else %}
+                                $0.00
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="5" class="text-center text-muted py-4">
+                            No hay datos disponibles
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Gráfico de Tendencia
+    fetch('{% url "reportes_devoluciones:api_grafico_tendencia" %}')
+        .then(response => response.json())
+        .then(data => {
+            const ctx = document.getElementById('graficoTendencia').getContext('2d');
+            new Chart(ctx, {
+                type: 'line',
+                data: {
+                    labels: data.labels,
+                    datasets: [
+                        {
+                            label: 'Cantidad de Devoluciones',
+                            data: data.data_cantidad,
+                            borderColor: '#0d6efd',
+                            backgroundColor: 'rgba(13, 110, 253, 0.1)',
+                            tension: 0.4,
+                            fill: true,
+                            yAxisID: 'y',
+                        },
+                        {
+                            label: 'Monto Total ($)',
+                            data: data.data_monto,
+                            borderColor: '#198754',
+                            backgroundColor: 'rgba(25, 135, 84, 0.1)',
+                            tension: 0.4,
+                            fill: true,
+                            yAxisID: 'y1',
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true,
+                    interaction: {
+                        mode: 'index',
+                        intersect: false,
+                    },
+                    plugins: {
+                        legend: {
+                            position: 'top',
+                        }
+                    },
+                    scales: {
+                        y: {
+                            type: 'linear',
+                            display: true,
+                            position: 'left',
+                            title: {
+                                display: true,
+                                text: 'Cantidad'
+                            }
+                        },
+                        y1: {
+                            type: 'linear',
+                            display: true,
+                            position: 'right',
+                            title: {
+                                display: true,
+                                text: 'Monto ($)'
+                            },
+                            grid: {
+                                drawOnChartArea: false,
+                            },
+                        },
+                    }
+                }
+            });
+        });
+});
+</script>
+
+<style>
+    .card {
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    }
+    
+    .card-header {
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    h1 {
+        color: #333;
+        font-weight: 600;
+    }
+</style>
+{% endblock %}

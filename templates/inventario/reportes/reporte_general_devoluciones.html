@@ -1,0 +1,287 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Reporte General de Devoluciones{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h1 class="mb-3">
+                <i class="bi bi-file-earmark-bar-graph"></i> Reporte General de Devoluciones
+            </h1>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">Filtros</h5>
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Fecha Inicio</label>
+                    <input type="date" name="fecha_inicio" class="form-control" value="{{ fecha_inicio }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Fecha Fin</label>
+                    <input type="date" name="fecha_fin" class="form-control" value="{{ fecha_fin }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Estado</label>
+                    <select name="estado" class="form-select">
+                        <option value="">Todos</option>
+                        {% for value, label in estados %}
+                        <option value="{{ value }}" {% if estado_filtro == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Proveedor</label>
+                    <select name="proveedor" class="form-select">
+                        <option value="">Todos</option>
+                        {% for prov in proveedores %}
+                        <option value="{{ prov.id }}" {% if proveedor_filtro == prov.id|stringformat:"s" %}selected{% endif %}>{{ prov.razon_social }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="bi bi-search"></i> Filtrar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Estadísticas Generales -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h6 class="card-title text-muted">Total Devoluciones</h6>
+                    <h2 class="text-primary">{{ total_devoluciones }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h6 class="card-title text-muted">Monto Total</h6>
+                    <h2 class="text-success">${{ total_monto|floatformat:2 }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h6 class="card-title text-muted">Total Items</h6>
+                    <h2 class="text-info">{{ total_items }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center">
+                <div class="card-body">
+                    <h6 class="card-title text-muted">Promedio por Devolución</h6>
+                    <h2 class="text-warning">${{ promedio_monto|floatformat:2 }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráficos -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Devoluciones por Estado</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="graficoEstado"></canvas>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">Devoluciones por Proveedor (Top 10)</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="graficoProveedores"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de Estados -->
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">Resumen por Estado</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Estado</th>
+                        <th>Cantidad</th>
+                        <th>Monto Total</th>
+                        <th>Porcentaje</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in por_estado %}
+                    <tr>
+                        <td>
+                            <span class="badge bg-{% if item.estado == 'PENDIENTE' %}warning{% elif item.estado == 'AUTORIZADA' %}info{% elif item.estado == 'COMPLETADA' %}success{% else %}secondary{% endif %}">
+                                {{ item.get_estado_display }}
+                            </span>
+                        </td>
+                        <td>{{ item.cantidad }}</td>
+                        <td>${{ item.monto|floatformat:2 }}</td>
+                        <td>
+                            {% if total_devoluciones > 0 %}
+                                {{ item.cantidad|add:0|mul:100|div:total_devoluciones|floatformat:1 }}%
+                            {% else %}
+                                0%
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Últimas Devoluciones -->
+    <div class="card">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">Últimas Devoluciones</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Folio</th>
+                        <th>Proveedor</th>
+                        <th>Estado</th>
+                        <th>Monto</th>
+                        <th>Fecha</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for dev in devoluciones %}
+                    <tr>
+                        <td><strong>{{ dev.folio }}</strong></td>
+                        <td>{{ dev.proveedor.razon_social }}</td>
+                        <td>
+                            <span class="badge bg-{% if dev.estado == 'PENDIENTE' %}warning{% elif dev.estado == 'AUTORIZADA' %}info{% elif dev.estado == 'COMPLETADA' %}success{% else %}secondary{% endif %}">
+                                {{ dev.get_estado_display }}
+                            </span>
+                        </td>
+                        <td>${{ dev.total_valor|floatformat:2 }}</td>
+                        <td>{{ dev.fecha_creacion|date:"d/m/Y H:i" }}</td>
+                        <td>
+                            <a href="{% url 'devoluciones:detalle_devolucion' dev.id %}" class="btn btn-sm btn-primary">
+                                <i class="bi bi-eye"></i> Ver
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">
+                            No hay devoluciones registradas
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Gráfico de Estados
+    fetch('{% url "reportes_devoluciones:api_grafico_estado" %}')
+        .then(response => response.json())
+        .then(data => {
+            const ctx = document.getElementById('graficoEstado').getContext('2d');
+            new Chart(ctx, {
+                type: 'doughnut',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        data: data.data,
+                        backgroundColor: data.colors,
+                        borderColor: '#fff',
+                        borderWidth: 2,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    plugins: {
+                        legend: {
+                            position: 'bottom',
+                        }
+                    }
+                }
+            });
+        });
+
+    // Gráfico de Proveedores
+    fetch('{% url "reportes_devoluciones:api_grafico_proveedores" %}')
+        .then(response => response.json())
+        .then(data => {
+            const ctx = document.getElementById('graficoProveedores').getContext('2d');
+            new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: data.labels,
+                    datasets: [{
+                        label: 'Cantidad de Devoluciones',
+                        data: data.data,
+                        backgroundColor: '#0d6efd',
+                        borderColor: '#0d6efd',
+                        borderWidth: 1,
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    indexAxis: 'y',
+                    plugins: {
+                        legend: {
+                            display: false,
+                        }
+                    },
+                    scales: {
+                        x: {
+                            beginAtZero: true,
+                        }
+                    }
+                }
+            });
+        });
+});
+</script>
+
+<style>
+    .card {
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    }
+    
+    .card-header {
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    h1 {
+        color: #333;
+        font-weight: 600;
+    }
+</style>
+{% endblock %}
