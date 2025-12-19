@@ -99,7 +99,7 @@ def reporte_general_devoluciones(request):
     promedio_items = total_items / total_devoluciones if total_devoluciones > 0 else 0
     
     # Proveedores
-    proveedores = Proveedor.objects.filter(institucion=institucion).order_by('razon_social')
+    proveedores = Proveedor.objects.all().order_by('razon_social')
     
     # Últimas devoluciones con monto calculado
     devoluciones_lista = devoluciones.order_by('-fecha_creacion')[:20]
@@ -165,7 +165,7 @@ def analisis_proveedores(request):
     
     # Análisis por proveedor
     analisis_proveedores_list = []
-    for proveedor in Proveedor.objects.filter(institucion=institucion):
+    for proveedor in Proveedor.objects.all():
         devs_proveedor = devoluciones.filter(proveedor=proveedor)
         items_proveedor = ItemDevolucion.objects.filter(devolucion__in=devs_proveedor)
         
@@ -209,11 +209,14 @@ def analisis_proveedores(request):
     total_devoluciones = devoluciones.count()
     total_proveedores = len(analisis_proveedores_list)
     
+    # Filtrar solo proveedores que tienen devoluciones
+    proveedores_con_devoluciones = [ap['proveedor__razon_social'] for ap in analisis_proveedores_list]
+    
     context = {
         'analisis_proveedores': analisis_proveedores_list,
         'motivos_frecuentes': motivos_frecuentes,
         'total_devoluciones': total_devoluciones,
-        'total_proveedores': total_proveedores,
+        'total_proveedores': len(proveedores_con_devoluciones),
         'fecha_inicio': fecha_inicio,
         'fecha_fin': fecha_fin,
     }
