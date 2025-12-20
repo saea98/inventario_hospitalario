@@ -110,7 +110,7 @@ def picking_propuesta(request, propuesta_id):
                 'lote_numero': lote.numero_lote,
                 'almacen': lote.almacen.nombre,
                 'almacen_id': lote.almacen_id,
-                'ubicacion': lote.ubicacion.nombre if lote.ubicacion else 'Sin ubicación',
+                'ubicacion': lote.ubicacion.codigo if lote.ubicacion else 'Sin ubicación',
                 'ubicacion_id': lote.ubicacion_id if lote.ubicacion else 0,
                 'clave_cnis': lote.producto.clave_cnis,
             })
