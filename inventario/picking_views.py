@@ -31,7 +31,7 @@ def dashboard_picking(request):
     # Obtener propuestas en estado REVISADA o EN_SURTIMIENTO
     propuestas = PropuestaPedido.objects.filter(
         estado__in=['REVISADA', 'EN_SURTIMIENTO']
-    ).select_related('solicitud', 'almacen').order_by('-fecha_creacion')
+    ).select_related('solicitud', 'almacen').order_by('-fecha_generacion')
     
     # Filtros
     almacen_filter = request.GET.get('almacen')
