@@ -136,6 +136,7 @@ def api_estadisticas_dashboard(request):
 # 2. INSTITUCIONES (CLUES)
 # ==========================================
 @login_required
+@requiere_rol('Administrador')
 def lista_instituciones(request):
     instituciones = Institucion.objects.select_related('alcaldia', 'tipo_institucion')
     search = request.GET.get('search')

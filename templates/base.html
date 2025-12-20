@@ -134,6 +134,7 @@
                         </a>
                     </li>
 
+                    {% if user.groups.filter|dictsort:"name"|first.name == "Administrador" or user.is_superuser %}
                     <li class="nav-item">
                         <a class="nav-link {% if 'instituciones' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'lista_instituciones' %}">
                             <i class="fas fa-building"></i>
@@ -147,8 +148,10 @@
                             Productos
                         </a>
                     </li>
+                    {% endif %}
 
                     <!-- Lotes con submenú -->
+                    {% if user.groups.filter|dictsort:"name"|first.name in "Almacenero,Supervisión,Control Calidad,Facturación,Gestor de Inventario" or user.is_superuser %}
                     <li class="nav-item">
                         <a class="nav-link {% if 'lotes' in request.resolver_match.url_name or request.resolver_match.url_name == 'carga_lotes_excel' %}active{% endif %}" 
                            data-bs-toggle="collapse" href="#submenuLotes" role="button">
@@ -162,14 +165,17 @@
                                         <i class="fas fa-list me-2"></i>Lista de Existencias
                                     </a>
                                 </li>
+                                {% if user.groups.filter|dictsort:"name"|first.name in "Almacenero,Supervisión" or user.is_superuser %}
                                 <li class="nav-item">
                                     <a class="nav-link submenu-item {% if request.resolver_match.url_name == 'carga_lotes_excel' %}active{% endif %}" href="{% url 'carga_lotes_excel' %}">
                                         <i class="fas fa-file-excel me-2"></i>Carga desde Excel
                                     </a>
                                 </li>
+                                {% endif %}
                             </ul>
                         </div>
                     </li>
+                    {% endif %}
 
                     <!-- 
                     INSTRUCCIONES: Agregar este código al menú de base.html
@@ -204,6 +210,7 @@
                             </ul>
                         </div>
                     </li>
+                    {% endif %}
 
                     <!-- CITAS, TRASLADOS Y CONTEO - NUEVOS MÓDULOS FASE 2 -->
                     <li class="nav-item">
