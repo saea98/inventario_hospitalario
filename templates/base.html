@@ -224,41 +224,56 @@
                         </a>
                         <div class="collapse {% if 'cita' in request.resolver_match.url_name or 'traslado' in request.resolver_match.url_name or 'conteo' in request.resolver_match.url_name or 'pedido' in request.resolver_match.url_name or 'llegada' in request.resolver_match.url_name %}show{% endif %}" id="submenuGestion">
                             <ul class="nav flex-column">
+                                {% if user|usuario_tiene_alguno_de_estos_roles:"Revisión,Supervisión" %}
                                 <li class="nav-item">
                                     <a class="nav-link submenu-item {% if 'cita' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'logistica:lista_citas' %}">
                                         <i class="fas fa-calendar-check me-2"></i>Citas de Proveedores
                                     </a>
                                 </li>
+                                {% endif %}
+                                {% if user|usuario_tiene_alguno_de_estos_roles:"Logística,Supervisión" %}
                                 <li class="nav-item">
                                     <a class="nav-link submenu-item {% if 'traslado' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'logistica:lista_traslados' %}">
                                         <i class="fas fa-truck me-2"></i>Traslados
                                     </a>
                                 </li>
+                                {% endif %}
+                                {% if user|usuario_tiene_alguno_de_estos_roles:"Conteo,Supervisión" %}
                                 <li class="nav-item">
                                     <a class="nav-link submenu-item {% if 'conteo' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'logistica:buscar_lote_conteo' %}">
                                         <i class="fas fa-clipboard-check me-2"></i>Conteo Físico
                                     </a>
                                 </li>
+                                {% endif %}
+                                {% if user|usuario_tiene_alguno_de_estos_roles:"Revisión,Supervisión,Logística" %}
                                 <li class="nav-item">
                                     <a class="nav-link submenu-item {% if 'pedido' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'logistica:lista_pedidos' %}">
                                         <i class="fas fa-shopping-cart me-2"></i>Gestión de Pedidos
                                     </a>
                                 </li>
+                                {% endif %}
+                                {% if user|usuario_tiene_alguno_de_estos_roles:"Almacenero,Supervisión" %}
                                 <li class="nav-item">
                                     <a class="nav-link submenu-item {% if 'propuesta' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'logistica:lista_propuestas' %}">
                                         <i class="fas fa-boxes me-2"></i>Propuestas de Surtimiento
                                     </a>
                                 </li>
+                                {% endif %}
+                                {% if user|usuario_tiene_alguno_de_estos_roles:"Recepción,Supervisión" %}
                                 <li class="nav-item">
                                     <a class="nav-link submenu-item {% if 'llegada' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'logistica:llegadas:lista_llegadas' %}">
                                         <i class="fas fa-truck-loading me-2"></i>Llegada de Proveedores
                                     </a>
                                 </li>
+                                {% endif %}
+                                {% if user|usuario_tiene_alguno_de_estos_roles:"Almacenero,Supervisión" %}
                                 <li class="nav-item">
                                     <a class="nav-link submenu-item {% if 'devolucion' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'devoluciones:lista_devoluciones' %}">
                                         <i class="fas fa-undo me-2"></i>Devoluciones de Proveedores
                                     </a>
                                 </li>
+                                {% endif %}
+                                {% if user|usuario_tiene_alguno_de_estos_roles:"Supervisión" %}
                                 <li class="nav-item">
                                     <a class="nav-link submenu-item" href="#" data-bs-toggle="collapse" data-bs-target="#reportesDevoluciones">
                                         <i class="fas fa-chart-bar me-2"></i>Reportes de Devoluciones
@@ -284,6 +299,8 @@
                                         </ul>
                                     </div>
                                 </li>
+                                {% endif %}
+                                {% if user|usuario_tiene_alguno_de_estos_roles:"Supervisión" %}
                                 <li class="nav-item">
                                     <a class="nav-link submenu-item" href="#" data-bs-toggle="collapse" data-bs-target="#reportesSalidas">
                                         <i class="fas fa-arrow-right me-2"></i>Reportes de Salidas
@@ -309,6 +326,7 @@
                                         </ul>
                                     </div>
                                 </li>
+                                {% endif %}
                             </ul>
                         </div>
                     </li>
