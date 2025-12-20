@@ -22,17 +22,19 @@
                 </div>
             </div>
 
-            <!-- Información de búsqueda -->
-            <div class="card mb-4 bg-light">
+            <!-- Información de búsqueda - Encabezado mejorado -->
+            <div class="card mb-4 border-info">
                 <div class="card-body">
-                    <div class="row">
+                    <div class="row align-items-center">
                         <div class="col-md-6">
-                            <label class="form-label small text-muted">CLAVE (CNIS)</label>
-                            <h5><code>{{ clave_cnis }}</code></h5>
+                            <label class="form-label small text-muted fw-bold">CLAVE (CNIS)</label>
+                            <h3 class="text-danger fw-bold mb-0" style="font-family: 'Courier New', monospace; letter-spacing: 2px;">
+                                {{ clave_cnis }}
+                            </h3>
                         </div>
-                        <div class="col-md-6">
-                            <label class="form-label small text-muted">ALMACÉN</label>
-                            <h5>{{ almacen.nombre }}</h5>
+                        <div class="col-md-6 text-md-end">
+                            <label class="form-label small text-muted fw-bold">ALMACÉN</label>
+                            <h4 class="text-dark fw-bold mb-0">{{ almacen.nombre }}</h4>
                         </div>
                     </div>
                 </div>
