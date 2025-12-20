@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Picking List</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+        
+        body {
+            font-family: Arial, sans-serif;
+            font-size: 11px;
+            line-height: 1.4;
+        }
+        
+        .container {
+            width: 100%;
+            padding: 10mm;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 15mm;
+            border-bottom: 2px solid #1f77b4;
+            padding-bottom: 5mm;
+        }
+        
+        .header h1 {
+            font-size: 24px;
+            color: #1f77b4;
+            margin-bottom: 5mm;
+        }
+        
+        .info-table {
+            width: 100%;
+            margin-bottom: 10mm;
+            border-collapse: collapse;
+        }
+        
+        .info-table td {
+            padding: 3mm;
+            border: 1px solid #ddd;
+        }
+        
+        .info-table td:first-child {
+            font-weight: bold;
+            background-color: #f0f0f0;
+            width: 30%;
+        }
+        
+        .items-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 10mm;
+        }
+        
+        .items-table thead {
+            background-color: #1f77b4;
+            color: white;
+        }
+        
+        .items-table th {
+            padding: 4mm;
+            text-align: left;
+            font-weight: bold;
+            border: 1px solid #1f77b4;
+            font-size: 10px;
+        }
+        
+        .items-table td {
+            padding: 3mm;
+            border: 1px solid #ddd;
+            font-size: 10px;
+        }
+        
+        .items-table tbody tr:nth-child(even) {
+            background-color: #f9f9f9;
+        }
+        
+        .ubicacion {
+            font-weight: bold;
+            color: #1f77b4;
+        }
+        
+        .producto {
+            font-size: 9px;
+        }
+        
+        .cantidad {
+            text-align: center;
+            font-weight: bold;
+            background-color: #e8f4f8;
+        }
+        
+        .lote {
+            text-align: center;
+            font-size: 9px;
+        }
+        
+        .footer {
+            margin-top: 15mm;
+            text-align: center;
+            font-size: 9px;
+            color: #666;
+            border-top: 1px solid #ddd;
+            padding-top: 5mm;
+        }
+        
+        @page {
+            size: A4;
+            margin: 10mm;
+        }
+        
+        @media print {
+            body {
+                margin: 0;
+                padding: 0;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <!-- Header -->
+        <div class="header">
+            <h1>📋 PICKING LIST</h1>
+        </div>
+        
+        <!-- Información de la propuesta -->
+        <table class="info-table">
+            <tr>
+                <td>Propuesta</td>
+                <td>{{ propuesta.solicitud.folio }}</td>
+            </tr>
+            <tr>
+                <td>Fecha</td>
+                <td>{{ fecha }}</td>
+            </tr>
+            <tr>
+                <td>Total Items</td>
+                <td>{{ total_items }}</td>
+            </tr>
+        </table>
+        
+        <!-- Tabla de items -->
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th style="width: 25%;">UBICACIÓN</th>
+                    <th style="width: 45%;">PRODUCTO</th>
+                    <th style="width: 15%;">CANTIDAD</th>
+                    <th style="width: 15%;">LOTE</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for item in items_picking %}
+                <tr>
+                    <td class="ubicacion">
+                        {{ item.almacen }}<br>
+                        {{ item.ubicacion }}
+                    </td>
+                    <td class="producto">
+                        {{ item.producto }}<br>
+                        <small>({{ item.clave_cnis }})</small>
+                    </td>
+                    <td class="cantidad">{{ item.cantidad }}</td>
+                    <td class="lote">{{ item.lote_numero }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        
+        <!-- Footer -->
+        <div class="footer">
+            <p>Generado el {{ fecha }}</p>
+        </div>
+    </div>
+</body>
+</html>
