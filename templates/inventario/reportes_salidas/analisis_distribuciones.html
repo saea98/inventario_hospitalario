@@ -12,11 +12,11 @@
             <form method="GET" class="row g-3">
                 <div class="col-md-4">
                     <label for="fecha_inicio" class="form-label">Fecha Inicio</label>
-                    <input type="date" class="form-control" id="fecha_inicio" name="fecha_inicio" value="{{ fecha_inicio }}">
+                    <input type="date" class="form-control" id="fecha_inicio" name="fecha_inicio" value="{{ fecha_inicio|default:'' }}">
                 </div>
                 <div class="col-md-4">
                     <label for="fecha_fin" class="form-label">Fecha Fin</label>
-                    <input type="date" class="form-control" id="fecha_fin" name="fecha_fin" value="{{ fecha_fin }}">
+                    <input type="date" class="form-control" id="fecha_fin" name="fecha_fin" value="{{ fecha_fin|default:'' }}">
                 </div>
                 <div class="col-md-4">
                     <label>&nbsp;</label>
@@ -28,40 +28,68 @@
 
     <!-- KPIs -->
     <div class="row mb-4">
-        <div class="col-md-12">
+        <div class="col-md-3">
             <div class="card bg-primary text-white">
                 <div class="card-body">
-                    <h6 class="card-title">Total Distribuciones</h6>
-                    <h2>{{ total_distribuciones }}</h2>
+                    <h6 class="card-title">Total Movimientos</h6>
+                    <h2>{{ total_movimientos }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-success text-white">
+                <div class="card-body">
+                    <h6 class="card-title">Total Items</h6>
+                    <h2>{{ total_cantidad }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <h6 class="card-title">Monto Total</h6>
+                    <h2>${{ total_monto|floatformat:2 }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card bg-warning text-white">
+                <div class="card-body">
+                    <h6 class="card-title">Promedio por Movimiento</h6>
+                    <h2>{{ promedio_cantidad|floatformat:1 }}</h2>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Distribuciones por Estado -->
+    <!-- Distribuciones por Almacén -->
     <div class="row mb-4">
         <div class="col-md-6">
             <div class="card">
                 <div class="card-header">
-                    <h5 class="mb-0">Distribuciones por Estado</h5>
+                    <h5 class="mb-0">Distribuciones por Almacén</h5>
                 </div>
                 <div class="card-body">
-                    <table class="table">
+                    <table class="table table-sm">
                         <thead>
                             <tr>
-                                <th>Estado</th>
-                                <th>Cantidad</th>
+                                <th>Almacén</th>
+                                <th>Movimientos</th>
+                                <th>Items</th>
+                                <th>Monto</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for estado, cantidad in dist_por_estado.items %}
+                            {% for almacen in distribuciones_almacen %}
                             <tr>
-                                <td>{{ estado }}</td>
-                                <td><span class="badge bg-info">{{ cantidad }}</span></td>
+                                <td>{{ almacen.lote__almacen__nombre }}</td>
+                                <td>{{ almacen.cantidad_movimientos }}</td>
+                                <td>{{ almacen.total_cantidad }}</td>
+                                <td>${{ almacen.total_monto|floatformat:2 }}</td>
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="2" class="text-center text-muted">No hay datos</td>
+                                <td colspan="4" class="text-center text-muted">No hay datos</td>
                             </tr>
                             {% endfor %}
                         </tbody>
@@ -70,31 +98,33 @@
             </div>
         </div>
 
-        <!-- Distribuciones por Área -->
+        <!-- Distribuciones por Propuesta -->
         <div class="col-md-6">
             <div class="card">
                 <div class="card-header">
-                    <h5 class="mb-0">Distribuciones por Área</h5>
+                    <h5 class="mb-0">Distribuciones por Propuesta</h5>
                 </div>
                 <div class="card-body">
-                    <table class="table">
+                    <table class="table table-sm">
                         <thead>
                             <tr>
-                                <th>Área</th>
-                                <th>Cantidad</th>
+                                <th>Propuesta</th>
+                                <th>Movimientos</th>
                                 <th>Items</th>
+                                <th>Monto</th>
                             </tr>
                         </thead>
                         <tbody>
-                            {% for area, datos in areas.items %}
+                            {% for propuesta in distribuciones_propuesta %}
                             <tr>
-                                <td>{{ area }}</td>
-                                <td>{{ datos.cantidad }}</td>
-                                <td>{{ datos.items }}</td>
+                                <td>{{ propuesta.motivo|truncatewords:5 }}</td>
+                                <td>{{ propuesta.cantidad_movimientos }}</td>
+                                <td>{{ propuesta.total_cantidad }}</td>
+                                <td>${{ propuesta.total_monto|floatformat:2 }}</td>
                             </tr>
                             {% empty %}
                             <tr>
-                                <td colspan="3" class="text-center text-muted">No hay datos</td>
+                                <td colspan="4" class="text-center text-muted">No hay datos</td>
                             </tr>
                             {% endfor %}
                         </tbody>
