@@ -34,7 +34,7 @@ def require_role(*roles):
                     f"No tienes permiso para acceder a esta sección. "
                     f"Se requiere uno de los siguientes roles: {', '.join(roles)}"
                 )
-                return redirect('home')  # O la URL que prefieras
+                return redirect('dashboard')
             
             return view_func(request, *args, **kwargs)
         
@@ -63,7 +63,7 @@ def require_permission(*permissions):
                         f"No tienes permiso para realizar esta acción. "
                         f"Se requiere: {perm}"
                     )
-                    return redirect('home')
+                    return redirect('dashboard')
             
             return view_func(request, *args, **kwargs)
         
@@ -102,7 +102,7 @@ def require_role_or_permission(roles=None, permissions=None):
                     request,
                     "No tienes permiso para acceder a esta sección."
                 )
-                return redirect('home')
+                return redirect('dashboard')
             
             return view_func(request, *args, **kwargs)
         
@@ -135,7 +135,7 @@ class RoleRequiredMixin:
                 f"No tienes permiso para acceder a esta sección. "
                 f"Se requiere uno de los siguientes roles: {', '.join(self.required_roles)}"
             )
-            return redirect('home')
+            return redirect('dashboard')
         
         return super().dispatch(request, *args, **kwargs)
 
@@ -164,7 +164,7 @@ class PermissionRequiredMixin:
                     f"No tienes permiso para realizar esta acción. "
                     f"Se requiere: {perm}"
                 )
-                return redirect('home')
+                return redirect('dashboard')
         
         return super().dispatch(request, *args, **kwargs)
 
