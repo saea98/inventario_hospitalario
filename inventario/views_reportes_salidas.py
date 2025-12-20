@@ -64,7 +64,7 @@ def reporte_general_salidas(request):
     # Salidas por almacén
     salidas_por_almacen = salidas.values('almacen_origen__nombre').annotate(
         cantidad=Count('id'),
-        items=Sum(F('itemsalidaexistencias__cantidad'), output_field=DecimalField())
+        items=Sum(F('itemsalidaexistencias_set__cantidad'), output_field=DecimalField())
     ).order_by('-cantidad')
     
     # Top 10 productos más salidos
