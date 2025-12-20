@@ -9,6 +9,7 @@ from django.contrib import messages
 from django.http import JsonResponse, HttpResponse
 from django.db.models import Q, F
 from django.views.decorators.http import require_http_methods
+from django.views.decorators.csrf import csrf_exempt
 from datetime import datetime
 
 from .pedidos_models import PropuestaPedido, ItemPropuesta, LoteAsignado
@@ -148,6 +149,7 @@ def picking_propuesta(request, propuesta_id):
 # ============================================================
 
 @login_required
+@csrf_exempt
 @require_http_methods(['POST'])
 def marcar_item_recogido(request, lote_asignado_id):
     """
