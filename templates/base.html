@@ -274,6 +274,31 @@
                                         </ul>
                                     </div>
                                 </li>
+                                <li class="nav-item">
+                                    <a class="nav-link submenu-item" href="#" data-bs-toggle="collapse" data-bs-target="#reportesSalidas">
+                                        <i class="fas fa-arrow-right me-2"></i>Reportes de Salidas
+                                        <i class="fas fa-chevron-down ms-2" style="font-size: 0.75rem;"></i>
+                                    </a>
+                                    <div class="collapse" id="reportesSalidas">
+                                        <ul class="nav flex-column ms-3">
+                                            <li class="nav-item">
+                                                <a class="nav-link submenu-item" href="{% url 'reportes_salidas:reporte_general' %}">
+                                                    <i class="fas fa-file-alt me-2"></i>Reporte General
+                                                </a>
+                                            </li>
+                                            <li class="nav-item">
+                                                <a class="nav-link submenu-item" href="{% url 'reportes_salidas:analisis_distribuciones' %}">
+                                                    <i class="fas fa-sitemap me-2"></i>Análisis de Distribuciones
+                                                </a>
+                                            </li>
+                                            <li class="nav-item">
+                                                <a class="nav-link submenu-item" href="{% url 'reportes_salidas:analisis_temporal' %}">
+                                                    <i class="fas fa-calendar-alt me-2"></i>Análisis Temporal
+                                                </a>
+                                            </li>
+                                        </ul>
+                                    </div>
+                                </li>
                             </ul>
                         </div>
                     </li>
