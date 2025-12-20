@@ -1,0 +1,20 @@
+{% load menu_tags %}
+
+<!-- Menú Dinámico por Roles -->
+<ul class="nav flex-column">
+    {% for item in items %}
+        <li class="nav-item">
+            <a class="nav-link" href="{% url item.url_name %}">
+                <i class="{{ item.icono }}"></i>
+                {{ item.nombre_mostrado }}
+            </a>
+        </li>
+    {% empty %}
+        <li class="nav-item">
+            <a class="nav-link" href="#">
+                <i class="fas fa-ban"></i>
+                Sin acceso a opciones
+            </a>
+        </li>
+    {% endfor %}
+</ul>

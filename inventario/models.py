@@ -1659,3 +1659,123 @@ class ItemDistribucion(models.Model):
     def subtotal(self):
         """Subtotal del item distribuido"""
         return self.cantidad * self.precio_unitario
+
+
+
+# ============================================================
+# MODELO PARA CONFIGURACIÓN DE MENÚ POR ROLES
+# ============================================================
+
+class MenuItemRol(models.Model):
+    """
+    Modelo para definir qué opciones de menú pueden ver los usuarios según sus roles.
+    Permite configurar el acceso al menú sin tocar código.
+    """
+    
+    MENU_CHOICES = [
+        ('dashboard', 'Dashboard'),
+        ('instituciones', 'Instituciones'),
+        ('productos', 'Productos'),
+        ('proveedores', 'Proveedores'),
+        ('alcaldias', 'Alcaldías'),
+        ('almacenes', 'Almacenes'),
+        ('existencias', 'Existencias'),
+        ('entrada_almacen', 'Entrada al Almacén'),
+        ('salidas_almacen', 'Salidas del Almacén'),
+        ('citas', 'Citas de Proveedores'),
+        ('traslados', 'Traslados'),
+        ('conteo_fisico', 'Conteo Físico'),
+        ('gestion_pedidos', 'Gestión de Pedidos'),
+        ('propuestas_surtimiento', 'Propuestas de Surtimiento'),
+        ('llegada_proveedores', 'Llegada de Proveedores'),
+        ('devoluciones', 'Devoluciones de Proveedores'),
+        ('reportes_devoluciones', 'Reportes de Devoluciones'),
+        ('reportes_salidas', 'Reportes de Salidas'),
+        ('inventario', 'Inventario'),
+        ('alertas', 'Alertas'),
+        ('solicitudes', 'Solicitudes'),
+        ('cargas_masivas', 'Cargas Masivas'),
+        ('picking', 'Picking y Operaciones'),
+        ('administracion', 'Administración'),
+    ]
+    
+    menu_item = models.CharField(
+        max_length=50,
+        choices=MENU_CHOICES,
+        unique=True,
+        verbose_name='Opción de Menú'
+    )
+    
+    nombre_mostrado = models.CharField(
+        max_length=100,
+        verbose_name='Nombre Mostrado',
+        help_text='Nombre que se muestra en el menú'
+    )
+    
+    icono = models.CharField(
+        max_length=50,
+        default='fas fa-circle',
+        verbose_name='Icono Font Awesome',
+        help_text='Clase Font Awesome para el icono (ej: fas fa-home)'
+    )
+    
+    url_name = models.CharField(
+        max_length=100,
+        verbose_name='Nombre de URL',
+        help_text='Nombre de la URL en urls.py (ej: dashboard, lista_productos)'
+    )
+    
+    roles_permitidos = models.ManyToManyField(
+        'auth.Group',
+        verbose_name='Roles Permitidos',
+        help_text='Selecciona los roles que pueden ver esta opción'
+    )
+    
+    orden = models.IntegerField(
+        default=0,
+        verbose_name='Orden',
+        help_text='Orden de aparición en el menú'
+    )
+    
+    activo = models.BooleanField(
+        default=True,
+        verbose_name='Activo'
+    )
+    
+    es_submenu = models.BooleanField(
+        default=False,
+        verbose_name='Es Submenú',
+        help_text='Marcar si es un elemento de submenú'
+    )
+    
+    menu_padre = models.ForeignKey(
+        'self',
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='submenus',
+        verbose_name='Menú Padre',
+        help_text='Si es un submenú, selecciona el menú padre'
+    )
+    
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    
+    class Meta:
+        verbose_name = 'Configuración de Menú por Rol'
+        verbose_name_plural = 'Configuraciones de Menú por Rol'
+        ordering = ['orden', 'nombre_mostrado']
+    
+    def __str__(self):
+        return f"{self.nombre_mostrado} ({self.menu_item})"
+    
+    def puede_ver_usuario(self, usuario):
+        """Verifica si un usuario puede ver esta opción de menú"""
+        if usuario.is_superuser:
+            return True
+        
+        # Obtener los roles del usuario
+        roles_usuario = usuario.groups.all()
+        
+        # Verificar si alguno de sus roles está en los roles permitidos
+        return self.roles_permitidos.filter(id__in=roles_usuario.values_list('id', flat=True)).exists()
