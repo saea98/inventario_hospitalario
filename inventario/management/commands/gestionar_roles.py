@@ -4,7 +4,8 @@ Uso: python manage.py gestionar_roles [opción] [argumentos]
 """
 
 from django.core.management.base import BaseCommand, CommandError
-from django.contrib.auth.models import Group, User
+from django.contrib.auth.models import Group
+from inventario.models import User
 
 
 class Command(BaseCommand):
