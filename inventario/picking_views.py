@@ -17,6 +17,67 @@ from .decorators_roles import requiere_rol
 
 
 # ============================================================
+# DASHBOARD DE PICKING
+# ============================================================
+
+@login_required
+@requiere_rol('Almacenista', 'Administrador', 'Gestor de Inventario')
+def dashboard_picking(request):
+    """
+    Dashboard de picking - Muestra propuestas disponibles para picking
+    Optimizado para tablet
+    """
+    
+    # Obtener propuestas en estado REVISADA o EN_SURTIMIENTO
+    propuestas = PropuestaPedido.objects.filter(
+        estado__in=['REVISADA', 'EN_SURTIMIENTO']
+    ).select_related('solicitud', 'almacen').order_by('-fecha_creacion')
+    
+    # Filtros
+    almacen_filter = request.GET.get('almacen')
+    if almacen_filter:
+        propuestas = propuestas.filter(almacen_id=almacen_filter)
+    
+    estado_filter = request.GET.get('estado')
+    if estado_filter:
+        propuestas = propuestas.filter(estado=estado_filter)
+    
+    # Búsqueda
+    busqueda = request.GET.get('q')
+    if busqueda:
+        propuestas = propuestas.filter(
+            Q(solicitud__folio__icontains=busqueda) |
+            Q(solicitud__area__nombre__icontains=busqueda)
+        )
+    
+    # Contar items por propuesta
+    propuestas_con_items = []
+    for prop in propuestas:
+        total_items = sum(item.lotes_asignados.count() for item in prop.items.all())
+        propuestas_con_items.append({
+            'propuesta': prop,
+            'total_items': total_items,
+            'items_pendientes': sum(
+                item.lotes_asignados.filter(surtido=False).count() 
+                for item in prop.items.all()
+            )
+        })
+    
+    # Obtener almacenes para filtro
+    almacenes = Almacen.objects.all()
+    
+    context = {
+        'propuestas': propuestas_con_items,
+        'almacenes': almacenes,
+        'almacen_filter': almacen_filter,
+        'estado_filter': estado_filter,
+        'busqueda': busqueda,
+    }
+    
+    return render(request, 'inventario/picking/dashboard_picking.html', context)
+
+
+# ============================================================
 # VISTA DE PICKING OPTIMIZADA
 # ============================================================
 
