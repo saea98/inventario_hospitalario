@@ -392,10 +392,19 @@
                         <hr class="text-white">
                     </li>
 
+                    {% if user.is_superuser or 'Administrador' in user.groups.values_list.name %}
+                    <li class="nav-item">
+                        <a class="nav-link {% if 'admin_roles' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_roles:dashboard' %}">
+                            <i class="fas fa-user-shield"></i>
+                            Administración de Roles
+                        </a>
+                    </li>
+                    {% endif %}
+
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'admin:index' %}">
                             <i class="fas fa-cog"></i>
-                            Administración
+                            Panel de Django
                         </a>
                     </li>
 
