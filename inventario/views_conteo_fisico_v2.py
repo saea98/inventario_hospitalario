@@ -480,10 +480,14 @@ def seleccionar_lote_conteo(request):
             messages.error(request, 'Lote no encontrado.')
             return redirect('logistica:seleccionar_lote_conteo')
     
+    # Obtener la descripción del producto del primer lote
+    producto_descripcion = lotes.first().producto.descripcion if lotes.exists() else ''
+    
     contexto = {
         'lotes': lotes,
         'clave_cnis': clave_cnis,
         'almacen': Almacen.objects.get(id=almacen_id),
+        'producto_descripcion': producto_descripcion,
     }
     
     return render(request, 'inventario/conteo_fisico/seleccionar_lote.html', contexto)

@@ -22,9 +22,19 @@
                 </div>
             </div>
 
-            <!-- Información de búsqueda - Encabezado mejorado -->
+            <!-- Informacion de busqueda - Encabezado mejorado -->
             <div class="card mb-4 border-info">
                 <div class="card-body">
+                    <!-- Descripcion del Producto -->
+                    <div class="row mb-3">
+                        <div class="col-12">
+                            <h5 class="text-primary fw-bold mb-1">
+                                <i class="fas fa-pills"></i> {{ producto_descripcion }}
+                            </h5>
+                        </div>
+                    </div>
+                    
+                    <!-- CLAVE CNIS y ALMACEN -->
                     <div class="row align-items-center">
                         <div class="col-md-6">
                             <label class="form-label small text-muted fw-bold">CLAVE (CNIS)</label>
@@ -33,7 +43,7 @@
                             </h3>
                         </div>
                         <div class="col-md-6 text-md-end">
-                            <label class="form-label small text-muted fw-bold">ALMACÉN</label>
+                            <label class="form-label small text-muted fw-bold">ALMACEN</label>
                             <h4 class="text-dark fw-bold mb-0">{{ almacen.nombre }}</h4>
                         </div>
                     </div>
@@ -63,18 +73,6 @@
                                         >
                                         <div class="d-flex justify-content-between align-items-start w-100">
                                             <div>
-                                                <!-- Informacion del Producto -->
-                                                <div class="mb-2">
-                                                    <h6 class="mb-1">
-                                                        <i class="fas fa-pills text-primary"></i>
-                                                        <strong>{{ lote.producto.descripcion }}</strong>
-                                                    </h6>
-                                                    <small class="text-muted d-block">
-                                                        <i class="fas fa-barcode"></i>
-                                                        CLAVE CNIS: <code>{{ lote.producto.clave_cnis }}</code>
-                                                    </small>
-                                                </div>
-                                                
                                                 <!-- Informacion del Lote -->
                                                 <h6 class="mb-1">
                                                     Lote: <strong>{{ lote.numero_lote }}</strong>
