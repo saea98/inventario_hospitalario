@@ -102,16 +102,18 @@
 
                             <!-- Progreso -->
                             <div class="mb-3">
+                                {% with items_completados=item.total_items|add:item.items_pendientes %}
                                 <div class="d-flex justify-content-between mb-2">
                                     <small class="text-muted">Progreso de Picking</small>
                                     <small class="text-muted">
-                                        {{ item.total_items|add:item.items_pendientes|sub:item.items_pendientes }}/{{ item.total_items }}
+                                        {{ items_completados }}/{{ item.total_items }}
                                     </small>
                                 </div>
                                 <div class="progress" style="height: 8px;">
-                                    {% widthratio item.total_items|add:item.items_pendientes|sub:item.items_pendientes item.total_items 100 as progress_percent %}
+                                    {% widthratio items_completados item.total_items 100 as progress_percent %}
                                     <div class="progress-bar bg-success" style="width: {{ progress_percent }}%"></div>
                                 </div>
+                                {% endwith %}
                             </div>
 
                             <!-- Items -->
