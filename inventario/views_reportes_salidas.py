@@ -70,7 +70,7 @@ def reporte_general_salidas(request):
     # Top 10 productos más salidos
     top_productos = ItemSalidaExistencias.objects.filter(
         salida__institucion_destino=institucion
-    ).values('lote__producto__nombre').annotate(
+    ).values('lote__producto__descripcion').annotate(
         total_cantidad=Sum('cantidad'),
         total_monto=Sum(F('cantidad') * F('precio_unitario'), output_field=DecimalField())
     ).order_by('-total_cantidad')[:10]
