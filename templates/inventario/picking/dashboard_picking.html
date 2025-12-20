@@ -1,0 +1,204 @@
+{% extends 'base.html' %}
+
+{% block title %}Picking - Dashboard{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-3 p-md-4">
+    <!-- Header -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h3 mb-3">
+                <i class="fas fa-dolly me-2"></i>Dashboard de Picking
+            </h1>
+            <p class="text-muted">Selecciona una propuesta para comenzar el picking</p>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <!-- Búsqueda -->
+                        <div class="col-12 col-md-6">
+                            <input 
+                                type="text" 
+                                name="q" 
+                                class="form-control form-control-lg" 
+                                placeholder="Buscar por folio o área..."
+                                value="{{ busqueda }}"
+                            >
+                        </div>
+
+                        <!-- Filtro Almacén -->
+                        <div class="col-12 col-md-3">
+                            <select name="almacen" class="form-select form-select-lg">
+                                <option value="">Todos los almacenes</option>
+                                {% for almacen in almacenes %}
+                                    <option value="{{ almacen.id }}" {% if almacen_filter == almacen.id|stringformat:"s" %}selected{% endif %}>
+                                        {{ almacen.nombre }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Filtro Estado -->
+                        <div class="col-12 col-md-3">
+                            <select name="estado" class="form-select form-select-lg">
+                                <option value="">Todos los estados</option>
+                                <option value="REVISADA" {% if estado_filter == 'REVISADA' %}selected{% endif %}>
+                                    Revisada
+                                </option>
+                                <option value="EN_SURTIMIENTO" {% if estado_filter == 'EN_SURTIMIENTO' %}selected{% endif %}>
+                                    En Surtimiento
+                                </option>
+                            </select>
+                        </div>
+
+                        <!-- Botón Buscar -->
+                        <div class="col-12">
+                            <button type="submit" class="btn btn-primary btn-lg w-100">
+                                <i class="fas fa-search me-2"></i>Buscar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Propuestas -->
+    <div class="row">
+        {% if propuestas %}
+            {% for item in propuestas %}
+            <div class="col-12 col-md-6 col-lg-4 mb-4">
+                <a href="{% url 'picking:picking_propuesta' item.propuesta.id %}" class="text-decoration-none">
+                    <div class="card h-100 shadow-sm hover-card">
+                        <div class="card-body">
+                            <!-- Folio -->
+                            <h5 class="card-title mb-3">
+                                <i class="fas fa-file-alt me-2 text-primary"></i>
+                                {{ item.propuesta.solicitud.folio }}
+                            </h5>
+
+                            <!-- Información -->
+                            <div class="mb-3">
+                                <p class="mb-2">
+                                    <strong>Área:</strong> {{ item.propuesta.solicitud.area.nombre }}
+                                </p>
+                                <p class="mb-2">
+                                    <strong>Almacén:</strong> {{ item.propuesta.almacen.nombre }}
+                                </p>
+                                <p class="mb-2">
+                                    <strong>Estado:</strong>
+                                    {% if item.propuesta.estado == 'REVISADA' %}
+                                        <span class="badge bg-info">Revisada</span>
+                                    {% elif item.propuesta.estado == 'EN_SURTIMIENTO' %}
+                                        <span class="badge bg-warning">En Surtimiento</span>
+                                    {% endif %}
+                                </p>
+                            </div>
+
+                            <!-- Progreso -->
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between mb-2">
+                                    <small class="text-muted">Progreso de Picking</small>
+                                    <small class="text-muted">
+                                        {{ item.total_items|add:item.items_pendientes|sub:item.items_pendientes }}/{{ item.total_items }}
+                                    </small>
+                                </div>
+                                <div class="progress" style="height: 8px;">
+                                    {% widthratio item.total_items|add:item.items_pendientes|sub:item.items_pendientes item.total_items 100 as progress_percent %}
+                                    <div class="progress-bar bg-success" style="width: {{ progress_percent }}%"></div>
+                                </div>
+                            </div>
+
+                            <!-- Items -->
+                            <div class="alert alert-light mb-0">
+                                <div class="row text-center">
+                                    <div class="col-6">
+                                        <p class="mb-1">
+                                            <strong class="h5 text-primary">{{ item.total_items }}</strong>
+                                        </p>
+                                        <small class="text-muted">Total Items</small>
+                                    </div>
+                                    <div class="col-6">
+                                        <p class="mb-1">
+                                            <strong class="h5 text-warning">{{ item.items_pendientes }}</strong>
+                                        </p>
+                                        <small class="text-muted">Pendientes</small>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Footer -->
+                        <div class="card-footer bg-light border-0">
+                            <button class="btn btn-primary btn-sm w-100">
+                                <i class="fas fa-arrow-right me-2"></i>Iniciar Picking
+                            </button>
+                        </div>
+                    </div>
+                </a>
+            </div>
+            {% endfor %}
+        {% else %}
+            <div class="col-12">
+                <div class="alert alert-info text-center py-5">
+                    <i class="fas fa-inbox fa-3x mb-3 d-block"></i>
+                    <h5>No hay propuestas disponibles para picking</h5>
+                    <p class="text-muted mb-0">
+                        Todas las propuestas han sido procesadas o no hay propuestas en estado REVISADA
+                    </p>
+                </div>
+            </div>
+        {% endif %}
+    </div>
+</div>
+
+<style>
+    .hover-card {
+        transition: all 0.3s ease;
+        cursor: pointer;
+    }
+
+    .hover-card:hover {
+        transform: translateY(-5px);
+        box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15) !important;
+    }
+
+    .card {
+        border: none;
+        border-radius: 12px;
+    }
+
+    .form-control-lg,
+    .form-select-lg {
+        padding: 0.75rem 1rem;
+        font-size: 1rem;
+    }
+
+    .btn-lg {
+        padding: 0.75rem 1rem;
+        font-size: 1rem;
+    }
+
+    /* Optimización para tablet -->
+    @media (max-width: 768px) {
+        .container-fluid {
+            padding: 0.5rem !important;
+        }
+
+        .card {
+            margin-bottom: 1rem;
+        }
+
+        .form-control-lg,
+        .form-select-lg,
+        .btn-lg {
+            font-size: 16px; /* Previene zoom en iOS */
+        }
+    }
+</style>
+{% endblock %}

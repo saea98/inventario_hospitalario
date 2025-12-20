@@ -8,6 +8,9 @@ from . import picking_views
 app_name = 'picking'
 
 urlpatterns = [
+    # Dashboard
+    path('', picking_views.dashboard_picking, name='dashboard'),
+    
     # Picking
     path('propuesta/<uuid:propuesta_id>/', picking_views.picking_propuesta, name='picking_propuesta'),
     

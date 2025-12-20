@@ -12,7 +12,7 @@ from django.views.decorators.http import require_http_methods
 from datetime import datetime
 
 from .pedidos_models import PropuestaPedido, ItemPropuesta, LoteAsignado
-from .models import Lote, UbicacionAlmacen
+from .models import Lote, UbicacionAlmacen, Almacen
 from .decorators_roles import requiere_rol
 
 
