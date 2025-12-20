@@ -12,7 +12,7 @@ from django.views.decorators.http import require_http_methods
 from io import BytesIO
 from datetime import datetime
 from django.template.loader import render_to_string
-from weasyprint import HTML, CSS
+from xhtml2pdf import pisa
 
 from .pedidos_models import PropuestaPedido, ItemPropuesta, LoteAsignado
 from .models import Lote, Ubicacion
@@ -95,7 +95,7 @@ def picking_propuesta(request, propuesta_id):
 @requiere_rol('Almacenista', 'Administrador', 'Gestor de Inventario')
 def generar_picking_pdf(request, propuesta_id):
     """
-    Genera un PDF optimizado para impresora térmica usando weasyprint
+    Genera un PDF optimizado para impresora térmica usando xhtml2pdf
     """
     
     propuesta = get_object_or_404(PropuestaPedido, id=propuesta_id)
@@ -131,12 +131,16 @@ def generar_picking_pdf(request, propuesta_id):
     # Renderizar HTML
     html_string = render_to_string('inventario/picking/picking_pdf.html', context)
     
-    # Convertir a PDF con weasyprint
-    html = HTML(string=html_string)
-    pdf_bytes = html.write_pdf()
+    # Convertir a PDF con xhtml2pdf
+    result = BytesIO()
+    pdf_status = pisa.CreatePDF(html_string, result)
+    
+    if pdf_status.err:
+        return HttpResponse('Error al generar PDF', status=500)
     
     # Retornar PDF
-    response = HttpResponse(pdf_bytes, content_type='application/pdf')
+    result.seek(0)
+    response = HttpResponse(result.getvalue(), content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename="picking_{propuesta.solicitud.folio}.pdf"'
     
     return response
