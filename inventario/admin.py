@@ -198,7 +198,7 @@ class GroupAdmin(BaseGroupAdmin):
 
 
 # Registrar SolicitudInventario que falta en tu admin actual
-from .models import SolicitudInventario
+from .models import SolicitudInventario, MenuItemRol
 
 @admin.register(SolicitudInventario)
 class SolicitudInventarioAdmin(admin.ModelAdmin):
@@ -416,3 +416,33 @@ class LogNotificacionesAdmin(admin.ModelAdmin):
     def has_delete_permission(self, request, obj=None):
         """No permitir eliminar logs"""
         return False
+
+
+
+# Registrar MenuItemRol para administrar el menu por roles
+@admin.register(MenuItemRol)
+class MenuItemRolAdmin(admin.ModelAdmin):
+    list_display = ['nombre_mostrado', 'menu_item', 'orden', 'activo', 'roles_count']
+    list_filter = ['activo', 'roles_permitidos', 'es_submenu']
+    search_fields = ['nombre_mostrado', 'menu_item', 'url_name']
+    filter_horizontal = ['roles_permitidos']
+    ordering = ['orden', 'nombre_mostrado']
+    
+    fieldsets = (
+        ('Informacion Principal', {
+            'fields': ('menu_item', 'nombre_mostrado', 'icono', 'url_name')
+        }),
+        ('Configuracion', {
+            'fields': ('orden', 'activo', 'es_submenu', 'menu_padre')
+        }),
+        ('Control de Acceso', {
+            'fields': ('roles_permitidos',),
+            'description': 'Selecciona los roles que pueden ver esta opcion de menu'
+        }),
+    )
+    
+    def roles_count(self, obj):
+        """Muestra el numero de roles permitidos"""
+        count = obj.roles_permitidos.count()
+        return f"{count} rol{'es' if count != 1 else ''}"
+    roles_count.short_description = 'Roles Permitidos'
