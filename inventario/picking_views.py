@@ -31,12 +31,12 @@ def dashboard_picking(request):
     # Obtener propuestas en estado REVISADA o EN_SURTIMIENTO
     propuestas = PropuestaPedido.objects.filter(
         estado__in=['REVISADA', 'EN_SURTIMIENTO']
-    ).select_related('solicitud', 'almacen').order_by('-fecha_generacion')
+    ).select_related('solicitud').order_by('-fecha_generacion')
     
     # Filtros
     almacen_filter = request.GET.get('almacen')
     if almacen_filter:
-        propuestas = propuestas.filter(almacen_id=almacen_filter)
+        propuestas = propuestas.filter(solicitud__almacen_destino_id=almacen_filter)
     
     estado_filter = request.GET.get('estado')
     if estado_filter:
@@ -47,20 +47,17 @@ def dashboard_picking(request):
     if busqueda:
         propuestas = propuestas.filter(
             Q(solicitud__folio__icontains=busqueda) |
-            Q(solicitud__area__nombre__icontains=busqueda)
+            Q(solicitud__institucion_solicitante__nombre__icontains=busqueda)
         )
     
     # Contar items por propuesta
     propuestas_con_items = []
     for prop in propuestas:
-        total_items = sum(item.lotes_asignados.count() for item in prop.items.all())
+        total_items = prop.items.count()
         propuestas_con_items.append({
             'propuesta': prop,
             'total_items': total_items,
-            'items_pendientes': sum(
-                item.lotes_asignados.filter(surtido=False).count() 
-                for item in prop.items.all()
-            )
+            'items_pendientes': prop.items.filter(estado__in=['DISPONIBLE', 'PARCIAL']).count()
         })
     
     # Obtener almacenes para filtro
