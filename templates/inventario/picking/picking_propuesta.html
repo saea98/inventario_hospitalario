@@ -266,7 +266,7 @@
             <option value="cantidad" {% if orden_picking == 'cantidad' %}selected{% endif %}>Ordenar por Cantidad</option>
         </select>
         
-        <button class="btn-imprimir" onclick="imprimirPickingList()">
+        <button class="btn-imprimir" onclick="window.print()">
             <i class="fas fa-print"></i> Imprimir
         </button>
         
@@ -379,8 +379,6 @@
         document.getElementById('progreso-texto').textContent = porcentaje + '%';
     }
     
-    function imprimirPickingList() {
-        window.open(`/picking/propuesta/{{ propuesta.id }}/pdf/`, '_blank');
-    }
+
 </script>
 {% endblock %}

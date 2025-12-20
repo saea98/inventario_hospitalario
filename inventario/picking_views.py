@@ -9,10 +9,7 @@ from django.contrib import messages
 from django.http import JsonResponse, HttpResponse
 from django.db.models import Q, F
 from django.views.decorators.http import require_http_methods
-from io import BytesIO
 from datetime import datetime
-from django.template.loader import render_to_string
-from xhtml2pdf import pisa
 
 from .pedidos_models import PropuestaPedido, ItemPropuesta, LoteAsignado
 from .models import Lote, Ubicacion
@@ -86,64 +83,6 @@ def picking_propuesta(request, propuesta_id):
     
     return render(request, 'inventario/picking/picking_propuesta.html', context)
 
-
-# ============================================================
-# GENERAR PICKING LIST (PDF)
-# ============================================================
-
-@login_required
-@requiere_rol('Almacenista', 'Administrador', 'Gestor de Inventario')
-def generar_picking_pdf(request, propuesta_id):
-    """
-    Genera un PDF optimizado para impresora térmica usando xhtml2pdf
-    """
-    
-    propuesta = get_object_or_404(PropuestaPedido, id=propuesta_id)
-    
-    # Obtener items de la propuesta
-    items_picking = []
-    
-    for item in propuesta.items.all():
-        for lote_asignado in item.lotes_asignados.filter(surtido=False):
-            lote = lote_asignado.lote
-            items_picking.append({
-                'producto': lote.producto.descripcion,
-                'cantidad': lote_asignado.cantidad_asignada,
-                'lote_numero': lote.numero_lote,
-                'almacen': lote.almacen.nombre,
-                'ubicacion': lote.ubicacion.nombre if lote.ubicacion else 'Sin ubicación',
-                'clave_cnis': lote.producto.clave_cnis,
-                'almacen_id': lote.almacen_id,
-                'ubicacion_id': lote.ubicacion_id if lote.ubicacion else 0,
-            })
-    
-    # Ordenar por ubicación
-    items_picking.sort(key=lambda x: (x['almacen_id'], x['ubicacion_id']))
-    
-    # Preparar contexto para template
-    context = {
-        'propuesta': propuesta,
-        'items_picking': items_picking,
-        'fecha': datetime.now().strftime('%d/%m/%Y %H:%M'),
-        'total_items': len(items_picking),
-    }
-    
-    # Renderizar HTML
-    html_string = render_to_string('inventario/picking/picking_pdf.html', context)
-    
-    # Convertir a PDF con xhtml2pdf
-    result = BytesIO()
-    pdf_status = pisa.CreatePDF(html_string, result)
-    
-    if pdf_status.err:
-        return HttpResponse('Error al generar PDF', status=500)
-    
-    # Retornar PDF
-    result.seek(0)
-    response = HttpResponse(result.getvalue(), content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename="picking_{propuesta.solicitud.folio}.pdf"'
-    
-    return response
 
 
 # ============================================================
