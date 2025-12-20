@@ -33,6 +33,15 @@ class Command(BaseCommand):
 
             # ===== SECCIÓN ADMINISTRACIÓN =====
             {
+                'menu_item': 'admin_roles',
+                'nombre_mostrado': 'Administración de Roles',
+                'icono': 'fas fa-user-shield',
+                'url_name': 'admin_roles:dashboard',
+                'roles': ['Administrador'],
+                'orden': 5,
+                'es_submenu': False,
+            },
+            {
                 'menu_item': 'instituciones',
                 'nombre_mostrado': 'Instituciones',
                 'icono': 'fas fa-building',
@@ -250,7 +259,7 @@ class Command(BaseCommand):
             # ===== SECCIÓN ADMINISTRACIÓN SISTEMA =====
             {
                 'menu_item': 'administracion',
-                'nombre_mostrado': 'Administración',
+                'nombre_mostrado': 'Panel de Django',
                 'icono': 'fas fa-cog',
                 'url_name': 'admin:index',
                 'roles': ['Administrador'],
@@ -259,6 +268,7 @@ class Command(BaseCommand):
             },
         ]
 
+        # Actualizar MENU_CHOICES en el modelo si es necesario
         # Cargar la configuración
         self.stdout.write(self.style.SUCCESS('⏳ Cargando configuración del menú...\n'))
 

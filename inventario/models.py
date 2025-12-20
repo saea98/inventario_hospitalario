@@ -1674,6 +1674,7 @@ class MenuItemRol(models.Model):
     
     MENU_CHOICES = [
         ('dashboard', 'Dashboard'),
+        ('admin_roles', 'Administración de Roles'),
         ('instituciones', 'Instituciones'),
         ('productos', 'Productos'),
         ('proveedores', 'Proveedores'),
@@ -1696,7 +1697,7 @@ class MenuItemRol(models.Model):
         ('solicitudes', 'Solicitudes'),
         ('cargas_masivas', 'Cargas Masivas'),
         ('picking', 'Picking y Operaciones'),
-        ('administracion', 'Administración'),
+        ('administracion', 'Panel de Django'),
     ]
     
     menu_item = models.CharField(

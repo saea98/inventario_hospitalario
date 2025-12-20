@@ -23,6 +23,7 @@ from django.contrib.auth import views as auth_views
 urlpatterns = [
     path('admin/', admin.site.urls),
     path("select2/", include("django_select2.urls")),
+    path('admin-roles/', include('inventario.admin_roles_urls')),
     path('', include('inventario.urls')),
     
     # Autenticación
@@ -34,7 +35,6 @@ urlpatterns = [
     path('password_reset/done/', auth_views.PasswordResetDoneView.as_view(), name='password_reset_done'),
     path('reset/<uidb64>/<token>/', auth_views.PasswordResetConfirmView.as_view(), name='password_reset_confirm'),
     path('reset/done/', auth_views.PasswordResetCompleteView.as_view(), name='password_reset_complete'),
-    
 ]
 
 # Servir archivos media en desarrollo
