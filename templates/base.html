@@ -112,6 +112,7 @@
 
 </head>
 <body>
+{% load menu_access %}
 <div class="container-fluid">
     <div class="row">
 
@@ -134,7 +135,7 @@
                         </a>
                     </li>
 
-                    {% if user.is_superuser or user.groups.values_list.name|first == "Administrador" %}
+                    {% if user|usuario_tiene_rol:"Administrador" %}
                     <li class="nav-item">
                         <a class="nav-link {% if 'instituciones' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'lista_instituciones' %}">
                             <i class="fas fa-building"></i>
@@ -150,8 +151,8 @@
                     </li>
                     {% endif %}
 
-                    <!-- Lotes con submenú -->
-                    {% if user.is_superuser or user.groups.values_list|first %}
+                    <!-- Lotes con submenuú -->
+                    {% if user|usuario_tiene_alguno_de_estos_roles:"Almacenero,Supervisión,Control Calidad,Facturación,Gestor de Inventario" %}
                     <li class="nav-item">
                         <a class="nav-link {% if 'lotes' in request.resolver_match.url_name or request.resolver_match.url_name == 'carga_lotes_excel' %}active{% endif %}" 
                            data-bs-toggle="collapse" href="#submenuLotes" role="button">
@@ -165,7 +166,7 @@
                                         <i class="fas fa-list me-2"></i>Lista de Existencias
                                     </a>
                                 </li>
-                                {% if user.is_superuser or user.groups.filter|length > 0 %}
+                                {% if user|usuario_tiene_alguno_de_estos_roles:"Almacenero,Supervisión" %}
                                 <li class="nav-item">
                                     <a class="nav-link submenu-item {% if request.resolver_match.url_name == 'carga_lotes_excel' %}active{% endif %}" href="{% url 'carga_lotes_excel' %}">
                                         <i class="fas fa-file-excel me-2"></i>Carga desde Excel
@@ -184,7 +185,7 @@
                     -->
 
                     <!-- ENTRADA AL ALMACÉN Y PROVEEDUÍA - NUEVOS MÓDULOS -->
-                    {% if user.is_superuser or user.groups.filter|length > 0 %}
+                    {% if user|usuario_tiene_alguno_de_estos_roles:"Almacenero,Supervisión,Control Calidad" %}
                     <li class="nav-item">
                         <a class="nav-link {% if 'entrada_almacen' in request.resolver_match.url_name or 'proveeduria' in request.resolver_match.url_name %}active{% endif %}" 
                         data-bs-toggle="collapse" href="#submenuOperaciones" role="button">
