@@ -13,6 +13,9 @@ from django.core.serializers.json import DjangoJSONEncoder
 import json
 from datetime import date
 
+# Control de acceso por roles
+from .access_control import requiere_rol
+
 from .models import Lote, MovimientoInventario, Producto, Almacen, Institucion
 from .forms_entrada_salida import (
     EntradaAlmacenForm,

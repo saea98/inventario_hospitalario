@@ -20,6 +20,9 @@ from django.db.models import Q
 from django.db.models import Count
 from django.db.models import Case, When, Value, BooleanField
 
+# Control de acceso por roles
+from .access_control import requiere_rol
+
 
 from .forms import CargaLotesForm
 from .carga_datos import carga_lotes_desde_excel
