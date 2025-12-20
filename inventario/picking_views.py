@@ -10,11 +10,13 @@ from django.http import JsonResponse, HttpResponse
 from django.db.models import Q, F
 from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
+from django.utils import timezone
 from datetime import datetime
 
 from .pedidos_models import PropuestaPedido, ItemPropuesta, LoteAsignado
 from .models import Lote, UbicacionAlmacen, Almacen
 from .decorators_roles import requiere_rol
+from .fase5_utils import generar_movimientos_suministro
 
 
 # ============================================================
@@ -154,16 +156,45 @@ def picking_propuesta(request, propuesta_id):
 def marcar_item_recogido(request, lote_asignado_id):
     """
     Marca un item como recogido en la vista de picking
+    Verifica si todos los items están recogidos y completa la propuesta
     """
     
     try:
         lote_asignado = LoteAsignado.objects.get(id=lote_asignado_id)
+        propuesta = lote_asignado.item_propuesta.propuesta
+        
         lote_asignado.surtido = True
         lote_asignado.save()
         
+        # Verificar si todos los items de la propuesta están recogidos
+        total_lotes = LoteAsignado.objects.filter(
+            item_propuesta__propuesta=propuesta
+        ).count()
+        
+        lotes_recogidos = LoteAsignado.objects.filter(
+            item_propuesta__propuesta=propuesta,
+            surtido=True
+        ).count()
+        
+        propuesta_completada = False
+        
+        if total_lotes == lotes_recogidos and total_lotes > 0:
+            # Todos los items han sido recogidos
+            propuesta.estado = 'SURTIDA'
+            propuesta.fecha_surtimiento = timezone.now()
+            propuesta.usuario_surtimiento = request.user
+            propuesta.save()
+            
+            # Generar movimientos de inventario
+            resultado = generar_movimientos_suministro(propuesta.id, request.user)
+            propuesta_completada = True
+        
         return JsonResponse({
             'exito': True,
-            'mensaje': 'Item marcado como recogido'
+            'mensaje': 'Item marcado como recogido',
+            'propuesta_completada': propuesta_completada,
+            'lotes_recogidos': lotes_recogidos,
+            'total_lotes': total_lotes
         })
     
     except LoteAsignado.DoesNotExist:
