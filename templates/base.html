@@ -371,6 +371,23 @@
                         </div>
                     </li>
 
+                    <!-- Picking y Operaciones -->
+                    <li class="nav-item mt-3">
+                        <a class="nav-link {% if 'picking' in request.resolver_match.url_name %}active{% endif %}" data-bs-toggle="collapse" href="#submenuPicking">
+                            <i class="fas fa-dolly"></i>
+                            Picking y Operaciones
+                        </a>
+                        <div class="collapse {% if 'picking' in request.resolver_match.url_name %}show{% endif %}" id="submenuPicking">
+                            <ul class="nav flex-column">
+                                <li class="nav-item">
+                                    <a class="nav-link submenu-item" href="#">
+                                        <i class="fas fa-list me-2"></i>Propuestas para Picking
+                                    </a>
+                                </li>
+                            </ul>
+                        </div>
+                    </li>
+
                     <li class="nav-item mt-3">
                         <hr class="text-white">
                     </li>
