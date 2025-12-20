@@ -15,9 +15,11 @@ ProgrammingError: relation "inventario_menuitemrol" does not exist
 
 ---
 
-## 🚀 Solución Rápida
+## ⚡ Solución Rápida
 
-En tu servidor de calidad, ejecuta estos comandos en orden:
+**IMPORTANTE:** Los comandos DEBEN ejecutarse en este orden exacto.
+
+En tu servidor de calidad, ejecuta:
 
 ### 1️⃣ Descargar los cambios más recientes
 ```bash
@@ -25,23 +27,25 @@ cd /ruta/a/tu/proyecto
 git pull origin main
 ```
 
-### 2️⃣ Ejecutar las migraciones
+### 2️⃣ Ejecutar las migraciones (PRIMERO)
 ```bash
 docker-compose exec web python manage.py migrate
 ```
 
-**Salida esperada:**
+**ESPERA a que termine completamente.** Salida esperada:
 ```
 Operations to perform:
   Apply all migrations: admin, auth, contenttypes, inventario, sessions, ...
 Running migrations:
-  Applying inventario.0029_menuitemrol
-  Applying inventario.0030_menuitemrol_roles
-  Applying inventario.0031_alter_menuitemrol_options
+  Applying inventario.0028_create_roles
+  Applying inventario.0029_add_menu_item_rol
   ... (más migraciones)
 ```
 
-### 3️⃣ Cargar datos iniciales (Roles, Usuarios, Menú)
+### 3️⃣ Cargar datos iniciales (DESPUES de migraciones)
+
+**IMPORTANTE:** Solo ejecuta estos comandos DESPUES de que las migraciones terminen.
+
 ```bash
 # Crear roles
 docker-compose exec web python manage.py crear_roles
@@ -49,7 +53,7 @@ docker-compose exec web python manage.py crear_roles
 # Crear usuarios de ejemplo
 docker-compose exec web python manage.py cargar_usuarios_ejemplo
 
-# Cargar configuración del menú
+# Cargar configuración del menú (REQUIERE que la tabla exista)
 docker-compose exec web python manage.py cargar_menu_roles
 
 # Configurar permisos por rol
