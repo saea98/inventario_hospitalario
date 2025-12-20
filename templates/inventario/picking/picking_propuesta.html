@@ -1,0 +1,386 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Picking - {{ propuesta.solicitud.folio }}{% endblock %}
+
+{% block content %}
+<style>
+    /* Estilos optimizados para tablet */
+    .picking-container {
+        max-width: 100%;
+        margin: 0;
+        padding: 10px;
+    }
+    
+    .picking-header {
+        background: linear-gradient(135deg, #1f77b4 0%, #1557a0 100%);
+        color: white;
+        padding: 15px;
+        border-radius: 8px;
+        margin-bottom: 15px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+    }
+    
+    .picking-header h1 {
+        margin: 0;
+        font-size: 24px;
+    }
+    
+    .picking-header .info {
+        text-align: right;
+    }
+    
+    .picking-header .info p {
+        margin: 5px 0;
+        font-size: 14px;
+    }
+    
+    .controles {
+        display: flex;
+        gap: 10px;
+        margin-bottom: 15px;
+        flex-wrap: wrap;
+    }
+    
+    .controles button, .controles select {
+        padding: 12px 20px;
+        font-size: 16px;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        flex: 1;
+        min-width: 150px;
+    }
+    
+    .btn-imprimir {
+        background-color: #28a745;
+        color: white;
+    }
+    
+    .btn-imprimir:hover {
+        background-color: #218838;
+    }
+    
+    .btn-volver {
+        background-color: #6c757d;
+        color: white;
+    }
+    
+    .btn-volver:hover {
+        background-color: #5a6268;
+    }
+    
+    select {
+        background-color: #f8f9fa;
+        border: 2px solid #dee2e6;
+    }
+    
+    .ubicacion-grupo {
+        background: white;
+        border: 2px solid #1f77b4;
+        border-radius: 8px;
+        margin-bottom: 15px;
+        overflow: hidden;
+    }
+    
+    .ubicacion-titulo {
+        background-color: #1f77b4;
+        color: white;
+        padding: 15px;
+        font-size: 18px;
+        font-weight: bold;
+        margin: 0;
+    }
+    
+    .item-picking {
+        padding: 15px;
+        border-bottom: 1px solid #e9ecef;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        gap: 10px;
+        background-color: #f8f9fa;
+        margin: 5px;
+        border-radius: 6px;
+    }
+    
+    .item-picking:last-child {
+        border-bottom: none;
+    }
+    
+    .item-picking.recogido {
+        background-color: #d4edda;
+        opacity: 0.7;
+    }
+    
+    .item-info {
+        flex: 1;
+    }
+    
+    .item-producto {
+        font-size: 16px;
+        font-weight: bold;
+        color: #333;
+        margin-bottom: 5px;
+    }
+    
+    .item-detalles {
+        font-size: 13px;
+        color: #666;
+        display: grid;
+        grid-template-columns: 1fr 1fr;
+        gap: 10px;
+    }
+    
+    .item-cantidad {
+        background-color: #1f77b4;
+        color: white;
+        padding: 12px 20px;
+        border-radius: 6px;
+        font-size: 18px;
+        font-weight: bold;
+        min-width: 80px;
+        text-align: center;
+    }
+    
+    .btn-recoger {
+        padding: 12px 20px;
+        font-size: 16px;
+        background-color: #ffc107;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+        font-weight: bold;
+        min-width: 120px;
+    }
+    
+    .btn-recoger:hover {
+        background-color: #e0a800;
+    }
+    
+    .btn-recoger:disabled {
+        background-color: #28a745;
+        color: white;
+        cursor: not-allowed;
+    }
+    
+    .resumen {
+        background: white;
+        border: 2px solid #1f77b4;
+        border-radius: 8px;
+        padding: 15px;
+        margin-top: 20px;
+        display: grid;
+        grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+        gap: 15px;
+        text-align: center;
+    }
+    
+    .resumen-item {
+        padding: 10px;
+    }
+    
+    .resumen-label {
+        font-size: 12px;
+        color: #666;
+        margin-bottom: 5px;
+    }
+    
+    .resumen-valor {
+        font-size: 24px;
+        font-weight: bold;
+        color: #1f77b4;
+    }
+    
+    .progreso-barra {
+        width: 100%;
+        height: 30px;
+        background-color: #e9ecef;
+        border-radius: 6px;
+        overflow: hidden;
+        margin-top: 10px;
+    }
+    
+    .progreso-relleno {
+        height: 100%;
+        background: linear-gradient(90deg, #28a745 0%, #20c997 100%);
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        font-weight: bold;
+        font-size: 14px;
+        transition: width 0.3s ease;
+    }
+    
+    @media (max-width: 768px) {
+        .picking-header {
+            flex-direction: column;
+            text-align: center;
+        }
+        
+        .picking-header .info {
+            text-align: center;
+            margin-top: 10px;
+        }
+        
+        .controles {
+            flex-direction: column;
+        }
+        
+        .controles button, .controles select {
+            flex: none;
+            width: 100%;
+        }
+        
+        .item-picking {
+            flex-direction: column;
+            align-items: flex-start;
+        }
+        
+        .item-cantidad, .btn-recoger {
+            width: 100%;
+        }
+    }
+</style>
+
+<div class="picking-container">
+    <!-- Header -->
+    <div class="picking-header">
+        <div>
+            <h1><i class="fas fa-dolly"></i> PICKING</h1>
+        </div>
+        <div class="info">
+            <p><strong>Propuesta:</strong> {{ propuesta.solicitud.folio }}</p>
+            <p><strong>Total Items:</strong> <span id="total-items">{{ total_items }}</span></p>
+        </div>
+    </div>
+    
+    <!-- Controles -->
+    <div class="controles">
+        <select id="orden-select" onchange="cambiarOrden(this.value)">
+            <option value="ubicacion" {% if orden_picking == 'ubicacion' %}selected{% endif %}>Ordenar por Ubicación</option>
+            <option value="producto" {% if orden_picking == 'producto' %}selected{% endif %}>Ordenar por Producto</option>
+            <option value="cantidad" {% if orden_picking == 'cantidad' %}selected{% endif %}>Ordenar por Cantidad</option>
+        </select>
+        
+        <button class="btn-imprimir" onclick="imprimirPickingList()">
+            <i class="fas fa-print"></i> Imprimir
+        </button>
+        
+        <button class="btn-volver" onclick="window.history.back()">
+            <i class="fas fa-arrow-left"></i> Volver
+        </button>
+    </div>
+    
+    <!-- Resumen de progreso -->
+    <div class="resumen">
+        <div class="resumen-item">
+            <div class="resumen-label">Recogidos</div>
+            <div class="resumen-valor" id="recogidos">0</div>
+        </div>
+        <div class="resumen-item">
+            <div class="resumen-label">Pendientes</div>
+            <div class="resumen-valor" id="pendientes">{{ total_items }}</div>
+        </div>
+        <div class="resumen-item">
+            <div class="resumen-label">Progreso</div>
+            <div class="resumen-valor" id="porcentaje">0%</div>
+        </div>
+    </div>
+    
+    <!-- Barra de progreso -->
+    <div class="progreso-barra">
+        <div class="progreso-relleno" id="progreso-relleno" style="width: 0%">
+            <span id="progreso-texto">0%</span>
+        </div>
+    </div>
+    
+    <!-- Items de picking agrupados por ubicación -->
+    <div style="margin-top: 20px;">
+        {% for ubicacion, items in ubicaciones_agrupadas.items %}
+        <div class="ubicacion-grupo">
+            <h3 class="ubicacion-titulo">
+                <i class="fas fa-map-marker-alt"></i> {{ ubicacion }}
+            </h3>
+            
+            {% for item in items %}
+            <div class="item-picking" id="item-{{ item.lote_asignado_id }}">
+                <div class="item-info">
+                    <div class="item-producto">{{ item.producto }}</div>
+                    <div class="item-detalles">
+                        <div><strong>Lote:</strong> {{ item.lote_numero }}</div>
+                        <div><strong>CNIS:</strong> {{ item.clave_cnis }}</div>
+                    </div>
+                </div>
+                
+                <div class="item-cantidad">{{ item.cantidad }}</div>
+                
+                <button class="btn-recoger" 
+                        id="btn-{{ item.lote_asignado_id }}"
+                        onclick="marcarRecogido('{{ item.lote_asignado_id }}', this)">
+                    Recoger
+                </button>
+            </div>
+            {% endfor %}
+        </div>
+        {% endfor %}
+    </div>
+</div>
+
+<script>
+    function cambiarOrden(orden) {
+        const url = new URL(window.location);
+        url.searchParams.set('orden', orden);
+        window.location.href = url.toString();
+    }
+    
+    function marcarRecogido(loteAsignadoId, button) {
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
+                         document.querySelector('meta[name="csrf-token"]')?.content;
+        
+        fetch(`/picking/marcar-recogido/${loteAsignadoId}/`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': csrfToken
+            }
+        })
+        .then(response => response.json())
+        .then(data => {
+            if (data.exito) {
+                const itemDiv = document.getElementById(`item-${loteAsignadoId}`);
+                itemDiv.classList.add('recogido');
+                button.disabled = true;
+                button.textContent = '✓ Recogido';
+                actualizarProgreso();
+            } else {
+                alert('Error: ' + data.mensaje);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error al marcar como recogido');
+        });
+    }
+    
+    function actualizarProgreso() {
+        const total = {{ total_items }};
+        const recogidos = document.querySelectorAll('.item-picking.recogido').length;
+        const pendientes = total - recogidos;
+        const porcentaje = Math.round((recogidos / total) * 100);
+        
+        document.getElementById('recogidos').textContent = recogidos;
+        document.getElementById('pendientes').textContent = pendientes;
+        document.getElementById('porcentaje').textContent = porcentaje + '%';
+        document.getElementById('progreso-relleno').style.width = porcentaje + '%';
+        document.getElementById('progreso-texto').textContent = porcentaje + '%';
+    }
+    
+    function imprimirPickingList() {
+        window.open(`/picking/propuesta/{{ propuesta.id }}/pdf/`, '_blank');
+    }
+</script>
+{% endblock %}

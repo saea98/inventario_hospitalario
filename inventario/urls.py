@@ -1,6 +1,6 @@
 from django.urls import path, include
 from . import views
-from . import urls_entrada_salida, urls_fase2, urls_inventario, urls_devoluciones, urls_reportes_devoluciones, urls_reportes_salidas
+from . import urls_entrada_salida, urls_fase2, urls_inventario, urls_devoluciones, urls_reportes_devoluciones, urls_reportes_salidas, urls_picking
 #from inventario.admin import inventario_admin
 from django.contrib import admin as django_admin
 
@@ -83,6 +83,7 @@ urlpatterns = [
     path('devoluciones/', include(urls_devoluciones)),  # URLs de FASE 2.4: Devoluciones de Proveedores
     path('reportes/devoluciones/', include(urls_reportes_devoluciones)),  # URLs de FASE 2.5: Reportes de Devoluciones
     path('reportes/salidas/', include(urls_reportes_salidas)),  # URLs de FASE 4: Reportes de Salidas
+    path('picking/', include(urls_picking)),  # URLs de FASE 6: Optimización de Picking
     path('admin/', django_admin.site.urls),
     #path("select2/", include("django_select2.urls")),
     
