@@ -215,6 +215,7 @@
                     {% endif %}
 
                     <!-- CITAS, TRASLADOS Y CONTEO - NUEVOS MÓDULOS FASE 2 -->
+                    {% if user|usuario_tiene_alguno_de_estos_roles:"Revisión,Supervisión,Logística,Recepción,Conteo,Almacenero" %}
                     <li class="nav-item">
                         <a class="nav-link {% if 'cita' in request.resolver_match.url_name or 'traslado' in request.resolver_match.url_name or 'conteo' in request.resolver_match.url_name %}active{% endif %}" 
                         data-bs-toggle="collapse" href="#submenuGestion" role="button">
@@ -311,22 +312,28 @@
                             </ul>
                         </div>
                     </li>
+                    {% endif %}
 
+                    {% if user|usuario_tiene_alguno_de_estos_roles:"Supervisión,Gestor de Inventario" %}
                     <li class="nav-item">
                         <a class="nav-link {% if 'inventario' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'lista_movimientos' %}">
                             <i class="fas fa-warehouse"></i>
                             Inventario
                         </a>
                     </li>
+                    {% endif %}
 
+                    {% if user|usuario_tiene_alguno_de_estos_roles:"Supervisión,Gestor de Inventario" %}
                     <li class="nav-item">
                         <a class="nav-link {% if 'alertas' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'alertas_caducidad' %}">
                             <i class="fas fa-exclamation-triangle"></i>
                             Alertas
                         </a>
                     </li>
+                    {% endif %}
 
                     <!-- Solicitudes con submenú -->
+                    {% if user|usuario_tiene_alguno_de_estos_roles:"Revisión,Supervisión,Administrador,Almacenero" %}
                     <li class="nav-item">
                         <a class="nav-link {% if 'solicitud' in request.resolver_match.url_name %}active{% endif %}" data-bs-toggle="collapse" href="#submenuSolicitudes">
                             <i class="fas fa-clipboard-list"></i>
@@ -352,8 +359,10 @@
                             </ul>
                         </div>
                     </li>
+                    {% endif %}
 
                     <!-- Cargas masivas -->
+                    {% if user|usuario_tiene_alguno_de_estos_roles:"Administrador,Almacenero,Supervisión" %}
                     <li class="nav-item mt-3">
                         <a class="nav-link {% if 'carga' in request.resolver_match.url_name %}active{% endif %}" data-bs-toggle="collapse" href="#submenuCargas">
                             <i class="fas fa-file-excel"></i>
@@ -379,8 +388,10 @@
                             </ul>
                         </div>
                     </li>
+                    {% endif %}
 
                     <!-- Picking y Operaciones -->
+                    {% if user|usuario_tiene_alguno_de_estos_roles:"Almacenero,Supervisión" %}
                     <li class="nav-item mt-3">
                         <a class="nav-link {% if 'picking' in request.resolver_match.url_name %}active{% endif %}" data-bs-toggle="collapse" href="#submenuPicking">
                             <i class="fas fa-dolly"></i>
@@ -396,12 +407,13 @@
                             </ul>
                         </div>
                     </li>
+                    {% endif %}
 
                     <li class="nav-item mt-3">
                         <hr class="text-white">
                     </li>
 
-                    {% if user.is_superuser or 'Administrador' in user.groups.values_list.name %}
+                    {% if user|usuario_tiene_rol:"Administrador" %}
                     <li class="nav-item">
                         <a class="nav-link {% if 'admin_roles' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_roles:dashboard' %}">
                             <i class="fas fa-user-shield"></i>
@@ -410,12 +422,14 @@
                     </li>
                     {% endif %}
 
+                    {% if user|usuario_tiene_rol:"Administrador" %}
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'admin:index' %}">
                             <i class="fas fa-cog"></i>
                             Panel de Django
                         </a>
                     </li>
+                    {% endif %}
 
                     <li class="nav-item">
                         <a class="nav-link" href="{% url 'logout' %}">
