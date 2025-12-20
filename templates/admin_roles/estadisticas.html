@@ -1,0 +1,200 @@
+{% extends "base.html" %}
+
+{% block title %}Estadísticas de Roles{% endblock %}
+{% block page_title %}Estadísticas de Roles{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Tarjetas de resumen -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card stat-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title mb-0">Total de Roles</h6>
+                            <h2 class="mb-0">{{ total_roles }}</h2>
+                        </div>
+                        <i class="fas fa-shield-alt fa-3x" style="opacity: 0.3;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card stat-card-success">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title mb-0">Total de Usuarios</h6>
+                            <h2 class="mb-0">{{ total_usuarios }}</h2>
+                        </div>
+                        <i class="fas fa-users fa-3x" style="opacity: 0.3;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card stat-card-warning">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title mb-0">Usuarios con Rol</h6>
+                            <h2 class="mb-0">{{ total_usuarios|add:usuarios_sin_rol|add:"-"|add:usuarios_sin_rol }}</h2>
+                        </div>
+                        <i class="fas fa-user-check fa-3x" style="opacity: 0.3;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card stat-card-info">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title mb-0">Usuarios sin Rol</h6>
+                            <h2 class="mb-0">{{ usuarios_sin_rol }}</h2>
+                        </div>
+                        <i class="fas fa-exclamation-triangle fa-3x" style="opacity: 0.3;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de estadísticas por rol -->
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Estadísticas por Rol</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Rol</th>
+                        <th>Usuarios Asignados</th>
+                        <th>Opciones de Menú</th>
+                        <th>Porcentaje de Usuarios</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for stat in estadisticas %}
+                    <tr>
+                        <td>
+                            <strong>{{ stat.rol.name }}</strong>
+                        </td>
+                        <td>
+                            <span class="badge bg-primary">{{ stat.usuarios }} usuario(s)</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-info">{{ stat.opciones }} opción(es)</span>
+                        </td>
+                        <td>
+                            {% if total_usuarios > 0 %}
+                                {% widthratio stat.usuarios total_usuarios 100 %}%
+                                <div class="progress" style="height: 5px;">
+                                    <div class="progress-bar" style="width: {% widthratio stat.usuarios total_usuarios 100 %}%"></div>
+                                </div>
+                            {% else %}
+                                0%
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Gráfico de distribución -->
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Distribución de Usuarios por Rol</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="chartRoles"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Opciones de Menú por Rol</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="chartOpciones"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Gráfico de distribución de usuarios
+    const ctxRoles = document.getElementById('chartRoles').getContext('2d');
+    new Chart(ctxRoles, {
+        type: 'pie',
+        data: {
+            labels: [
+                {% for stat in estadisticas %}'{{ stat.rol.name }}',{% endfor %}
+            ],
+            datasets: [{
+                data: [
+                    {% for stat in estadisticas %}{{ stat.usuarios }},{% endfor %}
+                ],
+                backgroundColor: [
+                    '#667eea',
+                    '#764ba2',
+                    '#f093fb',
+                    '#4facfe',
+                    '#56ab2f',
+                    '#a8e6cf',
+                    '#ffc107',
+                    '#dc3545',
+                ],
+            }]
+        },
+        options: {
+            responsive: true,
+            plugins: {
+                legend: {
+                    position: 'bottom',
+                }
+            }
+        }
+    });
+
+    // Gráfico de opciones de menú
+    const ctxOpciones = document.getElementById('chartOpciones').getContext('2d');
+    new Chart(ctxOpciones, {
+        type: 'bar',
+        data: {
+            labels: [
+                {% for stat in estadisticas %}'{{ stat.rol.name }}',{% endfor %}
+            ],
+            datasets: [{
+                label: 'Opciones de Menú',
+                data: [
+                    {% for stat in estadisticas %}{{ stat.opciones }},{% endfor %}
+                ],
+                backgroundColor: '#667eea',
+            }]
+        },
+        options: {
+            responsive: true,
+            scales: {
+                y: {
+                    beginAtZero: true,
+                }
+            }
+        }
+    });
+});
+</script>
+{% endblock %}

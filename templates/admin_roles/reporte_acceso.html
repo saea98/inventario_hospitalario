@@ -1,0 +1,102 @@
+{% extends "base.html" %}
+
+{% block title %}Reporte de Acceso por Roles{% endblock %}
+{% block page_title %}Reporte de Acceso por Roles{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle me-2"></i>
+        <strong>Información:</strong> Esta matriz muestra qué opciones de menú puede ver cada usuario basado en sus roles asignados.
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h5 class="mb-0">Matriz de Acceso ({{ total_usuarios }} usuarios × {{ total_opciones }} opciones)</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-sm table-bordered mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th style="min-width: 150px;">Usuario</th>
+                        {% for usuario_acceso in matriz_acceso %}
+                            {% if forloop.first %}
+                                {% for item in usuario_acceso.opciones %}
+                                <th style="max-width: 30px; text-align: center;">
+                                    <small title="{{ item.opcion.nombre_mostrado }}">
+                                        {{ item.opcion.nombre_mostrado|truncatewords:1 }}
+                                    </small>
+                                </th>
+                                {% endfor %}
+                            {% endif %}
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for usuario_acceso in matriz_acceso %}
+                    <tr>
+                        <td>
+                            <strong>{{ usuario_acceso.usuario.username }}</strong>
+                            <br>
+                            <small class="text-muted">
+                                {% for grupo in usuario_acceso.usuario.groups.all %}
+                                    <span class="badge bg-primary">{{ grupo.name }}</span>
+                                {% endfor %}
+                                {% if not usuario_acceso.usuario.groups.all %}
+                                    <span class="badge bg-danger">Sin rol</span>
+                                {% endif %}
+                            </small>
+                        </td>
+                        {% for item in usuario_acceso.opciones %}
+                        <td style="text-align: center;">
+                            {% if item.puede_ver %}
+                                <i class="fas fa-check text-success" title="Acceso permitido"></i>
+                            {% else %}
+                                <i class="fas fa-times text-danger" title="Acceso denegado"></i>
+                            {% endif %}
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">Leyenda</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-2">
+                        <i class="fas fa-check text-success me-2"></i>
+                        <strong>Acceso Permitido:</strong> El usuario puede ver esta opción
+                    </p>
+                    <p class="mb-0">
+                        <i class="fas fa-times text-danger me-2"></i>
+                        <strong>Acceso Denegado:</strong> El usuario no puede ver esta opción
+                    </p>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">Estadísticas</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-2">
+                        <strong>Total de Usuarios:</strong> {{ total_usuarios }}
+                    </p>
+                    <p class="mb-0">
+                        <strong>Total de Opciones:</strong> {{ total_opciones }}
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

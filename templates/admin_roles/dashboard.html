@@ -1,0 +1,147 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard de Administración de Roles{% endblock %}
+{% block page_title %}Dashboard de Administración de Roles{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Tarjetas de estadísticas -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card stat-card">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title mb-0">Total de Usuarios</h6>
+                            <h2 class="mb-0">{{ total_usuarios }}</h2>
+                        </div>
+                        <i class="fas fa-users fa-3x" style="opacity: 0.3;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card stat-card-success">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title mb-0">Total de Roles</h6>
+                            <h2 class="mb-0">{{ total_roles }}</h2>
+                        </div>
+                        <i class="fas fa-shield-alt fa-3x" style="opacity: 0.3;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card stat-card-warning">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title mb-0">Opciones de Menú</h6>
+                            <h2 class="mb-0">{{ total_opciones_menu }}</h2>
+                        </div>
+                        <i class="fas fa-bars fa-3x" style="opacity: 0.3;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-3">
+            <div class="card stat-card-info">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="card-title mb-0">Usuarios Sin Rol</h6>
+                            <h2 class="mb-0">{{ usuarios_sin_rol }}</h2>
+                        </div>
+                        <i class="fas fa-exclamation-triangle fa-3x" style="opacity: 0.3;"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Opciones de administración -->
+    <div class="row">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-users me-2"></i>Gestión de Usuarios</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">Administra los usuarios del sistema y asigna roles.</p>
+                    <a href="{% url 'admin_roles:lista_usuarios' %}" class="btn btn-primary">
+                        <i class="fas fa-list me-2"></i>Ver Usuarios
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0"><i class="fas fa-shield-alt me-2"></i>Gestión de Roles</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">Visualiza los roles disponibles y sus usuarios asignados.</p>
+                    <a href="{% url 'admin_roles:lista_roles' %}" class="btn btn-success">
+                        <i class="fas fa-list me-2"></i>Ver Roles
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0"><i class="fas fa-bars me-2"></i>Configuración de Menú</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">Configura qué opciones de menú puede ver cada rol.</p>
+                    <a href="{% url 'admin_roles:lista_opciones_menu' %}" class="btn btn-warning">
+                        <i class="fas fa-cog me-2"></i>Configurar Menú
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0"><i class="fas fa-chart-bar me-2"></i>Reportes</h5>
+                </div>
+                <div class="card-body">
+                    <p class="text-muted">Visualiza reportes de acceso y estadísticas de roles.</p>
+                    <div>
+                        <a href="{% url 'admin_roles:reporte_acceso' %}" class="btn btn-info btn-sm me-2">
+                            <i class="fas fa-table me-1"></i>Reporte de Acceso
+                        </a>
+                        <a href="{% url 'admin_roles:estadisticas' %}" class="btn btn-info btn-sm">
+                            <i class="fas fa-chart-pie me-1"></i>Estadísticas
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Usuarios activos sin rol -->
+    {% if usuarios_sin_rol > 0 %}
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                <i class="fas fa-exclamation-triangle me-2"></i>
+                <strong>Atención:</strong> Hay {{ usuarios_sin_rol }} usuario(s) sin rol asignado.
+                <a href="{% url 'admin_roles:lista_usuarios' %}" class="alert-link">Asignar roles ahora</a>
+                <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

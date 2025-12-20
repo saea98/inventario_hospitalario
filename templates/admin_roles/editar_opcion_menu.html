@@ -1,0 +1,145 @@
+{% extends "base.html" %}
+
+{% block title %}Editar Opción de Menú - {{ opcion.nombre_mostrado }}{% endblock %}
+{% block page_title %}Editar Opción de Menú: {{ opcion.nombre_mostrado }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-8">
+            <div class="card">
+                <div class="card-header">
+                    <h5 class="mb-0">Información de la Opción</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <p class="mb-1"><strong>Nombre:</strong></p>
+                            <p>{{ opcion.nombre_mostrado }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="mb-1"><strong>Identificador:</strong></p>
+                            <p><code>{{ opcion.menu_item }}</code></p>
+                        </div>
+                    </div>
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <p class="mb-1"><strong>URL:</strong></p>
+                            <p><code>{{ opcion.url_name }}</code></p>
+                        </div>
+                        <div class="col-md-6">
+                            <p class="mb-1"><strong>Icono:</strong></p>
+                            <p><i class="{{ opcion.icono }}"></i> <code>{{ opcion.icono }}</code></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Asignar Roles</h5>
+                </div>
+                <form method="post">
+                    {% csrf_token %}
+                    <div class="card-body">
+                        <p class="text-muted">Selecciona los roles que pueden ver esta opción de menú:</p>
+                        
+                        <div class="row">
+                            {% for rol in roles %}
+                            <div class="col-md-6 mb-3">
+                                <div class="form-check">
+                                    <input 
+                                        class="form-check-input" 
+                                        type="checkbox" 
+                                        name="roles" 
+                                        value="{{ rol.id }}" 
+                                        id="rol_{{ rol.id }}"
+                                        {% if rol in roles_opcion %}checked{% endif %}
+                                    >
+                                    <label class="form-check-label" for="rol_{{ rol.id }}">
+                                        <strong>{{ rol.name }}</strong>
+                                    </label>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+
+                        <hr>
+
+                        <div class="form-check mt-3">
+                            <input 
+                                class="form-check-input" 
+                                type="checkbox" 
+                                name="activo" 
+                                id="activo"
+                                {% if opcion.activo %}checked{% endif %}
+                            >
+                            <label class="form-check-label" for="activo">
+                                <strong>Opción Activa</strong>
+                                <small class="text-muted">(Desactiva esta opción para ocultarla del menú)</small>
+                            </label>
+                        </div>
+                    </div>
+                    <div class="card-footer">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-save me-2"></i>Guardar Cambios
+                        </button>
+                        <a href="{% url 'admin_roles:lista_opciones_menu' %}" class="btn btn-secondary">
+                            <i class="fas fa-times me-2"></i>Cancelar
+                        </a>
+                    </div>
+                </form>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">Roles Actualmente Asignados</h5>
+                </div>
+                <div class="card-body">
+                    {% if roles_opcion %}
+                        <div class="list-group">
+                            {% for rol in roles_opcion %}
+                            <div class="list-group-item">
+                                <div class="d-flex justify-content-between align-items-center">
+                                    <span>
+                                        <i class="fas fa-shield-alt me-2 text-success"></i>
+                                        {{ rol.name }}
+                                    </span>
+                                    <span class="badge bg-success">{{ rol.user_set.count }} usuario(s)</span>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    {% else %}
+                        <p class="text-muted text-center mb-0">
+                            <i class="fas fa-exclamation-triangle me-2"></i>
+                            Sin roles asignados
+                        </p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-header bg-warning text-dark">
+                    <h5 class="mb-0">Estado</h5>
+                </div>
+                <div class="card-body">
+                    {% if opcion.activo %}
+                        <p class="mb-0">
+                            <span class="badge bg-success">Activo</span>
+                            Esta opción es visible en el menú
+                        </p>
+                    {% else %}
+                        <p class="mb-0">
+                            <span class="badge bg-secondary">Inactivo</span>
+                            Esta opción está oculta del menú
+                        </p>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

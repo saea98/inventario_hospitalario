@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+
+{% block title %}Detalle del Rol - {{ rol.name }}{% endblock %}
+{% block page_title %}Detalle del Rol: {{ rol.name }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-md-8">
+            <!-- Usuarios asignados al rol -->
+            <div class="card mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-users me-2"></i>Usuarios Asignados ({{ total_usuarios }})
+                    </h5>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Usuario</th>
+                                <th>Email</th>
+                                <th>Nombre Completo</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for usuario in usuarios %}
+                            <tr>
+                                <td><strong>{{ usuario.username }}</strong></td>
+                                <td>{{ usuario.email }}</td>
+                                <td>{{ usuario.get_full_name|default:"No especificado" }}</td>
+                                <td>
+                                    {% if usuario.is_active %}
+                                        <span class="badge bg-success">Activo</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Inactivo</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center text-muted py-4">
+                                    No hay usuarios asignados a este rol
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+
+            <!-- Opciones de menú disponibles -->
+            <div class="card">
+                <div class="card-header bg-success text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-bars me-2"></i>Opciones de Menú Disponibles ({{ total_opciones }})
+                    </h5>
+                </div>
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Opción</th>
+                                <th>URL</th>
+                                <th>Icono</th>
+                                <th>Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for opcion in opciones_menu %}
+                            <tr>
+                                <td><strong>{{ opcion.nombre_mostrado }}</strong></td>
+                                <td><code>{{ opcion.url_name }}</code></td>
+                                <td><i class="{{ opcion.icono }}"></i></td>
+                                <td>
+                                    {% if opcion.activo %}
+                                        <span class="badge bg-success">Activo</span>
+                                    {% else %}
+                                        <span class="badge bg-secondary">Inactivo</span>
+                                    {% endif %}
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr>
+                                <td colspan="4" class="text-center text-muted py-4">
+                                    No hay opciones de menú asignadas a este rol
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="card">
+                <div class="card-header bg-info text-white">
+                    <h5 class="mb-0">Información del Rol</h5>
+                </div>
+                <div class="card-body">
+                    <p class="mb-3">
+                        <strong>Nombre:</strong><br>
+                        {{ rol.name }}
+                    </p>
+                    <p class="mb-3">
+                        <strong>Usuarios:</strong><br>
+                        <span class="badge bg-primary">{{ total_usuarios }}</span>
+                    </p>
+                    <p class="mb-3">
+                        <strong>Opciones de Menú:</strong><br>
+                        <span class="badge bg-success">{{ total_opciones }}</span>
+                    </p>
+                </div>
+            </div>
+
+            <div class="card mt-4">
+                <div class="card-header">
+                    <h5 class="mb-0">Acciones</h5>
+                </div>
+                <div class="card-body">
+                    <a href="{% url 'admin_roles:lista_roles' %}" class="btn btn-secondary w-100">
+                        <i class="fas fa-arrow-left me-2"></i>Volver
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
