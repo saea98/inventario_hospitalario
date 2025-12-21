@@ -62,15 +62,24 @@ def buscar_lote_conteo(request):
         form = BuscarLoteForm(request.POST, institucion=institucion)
         
         if form.is_valid():
-            clave_cnis = form.cleaned_data['clave_cnis'].strip()
+            tipo_busqueda = form.cleaned_data['tipo_busqueda']
+            criterio_busqueda = form.cleaned_data['criterio_busqueda'].strip()
             almacen = form.cleaned_data['almacen']
             
-            # Buscar lote por CLAVE en el almacén seleccionado
+            # Buscar lote según el tipo de búsqueda
             try:
-                lote = Lote.objects.get(
-                    producto__clave_cnis=clave_cnis,
-                    almacen=almacen
-                )
+                if tipo_busqueda == 'clave':
+                    # Búsqueda por CLAVE (CNIS)
+                    lote = Lote.objects.get(
+                        producto__clave_cnis=criterio_busqueda,
+                        almacen=almacen
+                    )
+                else:
+                    # Búsqueda por NÚMERO DE LOTE
+                    lote = Lote.objects.get(
+                        numero_lote=criterio_busqueda,
+                        almacen=almacen
+                    )
                 
                 # Redirigir a captura de conteos
                 return redirect(
@@ -80,29 +89,44 @@ def buscar_lote_conteo(request):
                 
             except Lote.DoesNotExist:
                 # Lote no encontrado - Ofrecer opción de crear
-                error = f"No se encontró lote con CLAVE: {clave_cnis}"
+                tipo_busqueda_label = 'CLAVE' if tipo_busqueda == 'clave' else 'LOTE'
+                error = f"No se encontró lote con {tipo_busqueda_label}: {criterio_busqueda}"
                 
                 # Guardar datos en sesión para crear nuevo lote
-                request.session['clave_cnis_busqueda'] = clave_cnis
+                if tipo_busqueda == 'clave':
+                    request.session['clave_cnis_busqueda'] = criterio_busqueda
+                else:
+                    request.session['numero_lote_busqueda'] = criterio_busqueda
                 request.session['almacen_id_busqueda'] = almacen.id
                 
                 return redirect('logistica:crear_lote_conteo')
             
             except Lote.MultipleObjectsReturned:
                 # Múltiples lotes encontrados - Mostrar lista para seleccionar
-                lotes = Lote.objects.filter(
-                    producto__clave_cnis=clave_cnis,
-                    almacen=almacen
-                ).order_by('numero_lote')
+                if tipo_busqueda == 'clave':
+                    lotes = Lote.objects.filter(
+                        producto__clave_cnis=criterio_busqueda,
+                        almacen=almacen
+                    ).select_related('producto').order_by('numero_lote')
+                    request.session['clave_cnis_busqueda'] = criterio_busqueda
+                else:
+                    lotes = Lote.objects.filter(
+                        numero_lote=criterio_busqueda,
+                        almacen=almacen
+                    ).select_related('producto').order_by('numero_lote')
+                    request.session['numero_lote_busqueda'] = criterio_busqueda
                 
                 if lotes.exists():
                     # Guardar datos en sesión y redirigir a selección de lote
-                    request.session['clave_cnis_busqueda'] = clave_cnis
                     request.session['almacen_id_busqueda'] = almacen.id
                     return redirect('logistica:seleccionar_lote_conteo')
                 else:
-                    error = f"No se encontró lote con CLAVE: {clave_cnis}"
-                    request.session['clave_cnis_busqueda'] = clave_cnis
+                    tipo_busqueda_label = 'CLAVE' if tipo_busqueda == 'clave' else 'LOTE'
+                    error = f"No se encontró lote con {tipo_busqueda_label}: {criterio_busqueda}"
+                    if tipo_busqueda == 'clave':
+                        request.session['clave_cnis_busqueda'] = criterio_busqueda
+                    else:
+                        request.session['numero_lote_busqueda'] = criterio_busqueda
                     request.session['almacen_id_busqueda'] = almacen.id
                     return redirect('logistica:crear_lote_conteo')
     

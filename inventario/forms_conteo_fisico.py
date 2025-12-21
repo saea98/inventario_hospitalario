@@ -13,19 +13,37 @@ from .models import Lote, Producto, Almacen, UbicacionAlmacen
 
 class BuscarLoteForm(forms.Form):
     """
-    Formulario para buscar un lote por CLAVE (CNIS).
+    Formulario para buscar un lote por CLAVE (CNIS) o NÚMERO DE LOTE.
     
     Si el lote existe, se cargan los datos del sistema.
     Si no existe, se ofrece la opción de crear uno nuevo.
+    
+    Permite búsqueda por:
+    - CLAVE (CNIS) del producto
+    - NÚMERO DE LOTE (para personal externo que solo ve el número en las cajas)
     """
     
-    clave_cnis = forms.CharField(
-        label="CLAVE (CNIS)",
+    TIPO_BUSQUEDA_CHOICES = [
+        ('clave', 'Buscar por CLAVE (CNIS)'),
+        ('lote', 'Buscar por NÚMERO DE LOTE'),
+    ]
+    
+    tipo_busqueda = forms.ChoiceField(
+        label="Tipo de Búsqueda",
+        choices=TIPO_BUSQUEDA_CHOICES,
+        initial='clave',
+        widget=forms.RadioSelect(attrs={
+            'class': 'form-check-input',
+        })
+    )
+    
+    criterio_busqueda = forms.CharField(
+        label="Ingrese CLAVE o NÚMERO DE LOTE",
         max_length=150,
         required=True,
         widget=forms.TextInput(attrs={
             'class': 'form-control form-control-lg',
-            'placeholder': 'Ingrese la clave CNIS del producto',
+            'placeholder': 'Ej: 010.000.0104.00 o LT-2025-001',
             'autofocus': True,
             'autocomplete': 'off'
         })
