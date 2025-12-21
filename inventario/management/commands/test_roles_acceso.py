@@ -8,9 +8,13 @@ Uso:
 """
 
 from django.core.management.base import BaseCommand, CommandError
-from django.contrib.auth.models import User, Group
+from django.contrib.auth.models import Group
 from django.test import Client
 from django.urls import reverse
+from django.apps import apps
+
+# Obtener el modelo User personalizado
+User = apps.get_model('inventario', 'User')
 
 
 class Command(BaseCommand):
@@ -174,11 +178,16 @@ class Command(BaseCommand):
     def verificar_usuarios_prueba(self, roles):
         """Verificar que existan usuarios de prueba"""
         usuarios = {}
-        for rol in roles:
-            username = f'test_{rol.lower().replace(" ", "_")}'
-            usuario = User.objects.filter(username=username).first()
-            if usuario:
-                usuarios[rol] = usuario
+        try:
+            for rol in roles:
+                username = f'test_{rol.lower().replace(" ", "_")}'
+                usuario = User.objects.filter(username=username).first()
+                if usuario:
+                    usuarios[rol] = usuario
+        except Exception as e:
+            self.stdout.write(
+                self.style.ERROR(f'Error al verificar usuarios: {str(e)}')
+            )
         return usuarios
     
     def obtener_usuario_prueba(self, rol):
