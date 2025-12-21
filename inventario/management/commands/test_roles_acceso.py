@@ -11,12 +11,6 @@ from django.core.management.base import BaseCommand, CommandError
 from django.contrib.auth.models import User, Group
 from django.test import Client
 from django.urls import reverse
-from django.db import connection
-import sys
-from colorama import Fore, Back, Style, init
-
-# Inicializar colorama para soporte de colores en terminal
-init(autoreset=True)
 
 
 class Command(BaseCommand):
@@ -62,11 +56,6 @@ class Command(BaseCommand):
                 'roles_permitidos': ['Administrador', 'Almacenista', 'Gestor de Inventario'],
                 'descripcion': 'Dashboard de picking'
             },
-            'Picking Propuesta': {
-                'url': 'logistica:lista_propuestas',
-                'roles_permitidos': ['Administrador', 'Almacenista', 'Gestor de Inventario'],
-                'descripcion': 'Gestión de propuestas de picking'
-            },
             'Buscar Lote Conteo': {
                 'url': 'logistica:buscar_lote_conteo',
                 'roles_permitidos': ['Todos'],
@@ -81,21 +70,6 @@ class Command(BaseCommand):
                 'url': 'inventario:entrada_almacen_paso1',
                 'roles_permitidos': ['Almacenero', 'Supervisión', 'Control Calidad'],
                 'descripcion': 'Entrada de almacén'
-            },
-            'Reportes Salidas': {
-                'url': 'reportes_salidas:reporte_general_salidas',
-                'roles_permitidos': ['Administrador', 'Gestor de Inventario'],
-                'descripcion': 'Reporte general de salidas'
-            },
-            'Admin Roles': {
-                'url': 'admin_roles:dashboard_admin_roles',
-                'roles_permitidos': ['Administrador'],
-                'descripcion': 'Dashboard de administración de roles'
-            },
-            'Lista Usuarios': {
-                'url': 'admin_roles:lista_usuarios_roles',
-                'roles_permitidos': ['Administrador'],
-                'descripcion': 'Gestión de usuarios y roles'
             },
         }
         
@@ -138,7 +112,7 @@ class Command(BaseCommand):
         resultados = {}
         
         for rol in roles_sistema:
-            self.stdout.write(f'\n{Fore.CYAN}🔐 Probando rol: {rol}{Style.RESET_ALL}')
+            self.stdout.write(self.style.HTTP_INFO(f'\n🔐 Probando rol: {rol}'))
             self.stdout.write('-' * 80)
             
             # Obtener usuario para este rol
@@ -258,13 +232,13 @@ class Command(BaseCommand):
             # Mostrar resultado
             if es_correcto:
                 if tiene_acceso:
-                    simbolo = f'{Fore.GREEN}✅{Style.RESET_ALL}'
+                    simbolo = '✅'
                     estado = 'ACCESO PERMITIDO'
                 else:
-                    simbolo = f'{Fore.GREEN}✅{Style.RESET_ALL}'
+                    simbolo = '✅'
                     estado = 'ACCESO DENEGADO (correcto)'
             else:
-                simbolo = f'{Fore.RED}❌{Style.RESET_ALL}'
+                simbolo = '❌'
                 if tiene_acceso:
                     estado = 'ACCESO PERMITIDO (debería estar denegado)'
                 else:
@@ -298,9 +272,9 @@ class Command(BaseCommand):
     def mostrar_resumen(self, resultados, vistas, roles):
         """Mostrar resumen de resultados"""
         
-        self.stdout.write(f'\n{Fore.CYAN}' + '=' * 80)
-        self.stdout.write(f'RESUMEN DE PRUEBAS')
-        self.stdout.write('=' * 80 + f'{Style.RESET_ALL}\n')
+        self.stdout.write('\n' + '=' * 80)
+        self.stdout.write('RESUMEN DE PRUEBAS')
+        self.stdout.write('=' * 80 + '\n')
         
         # Contar resultados
         total_pruebas = 0
@@ -323,17 +297,14 @@ class Command(BaseCommand):
             porcentaje = (rol_correctas / rol_total * 100) if rol_total > 0 else 0
             
             if porcentaje == 100:
-                color = Fore.GREEN
                 simbolo = '✅'
             elif porcentaje >= 80:
-                color = Fore.YELLOW
                 simbolo = '⚠️'
             else:
-                color = Fore.RED
                 simbolo = '❌'
             
             self.stdout.write(
-                f'{simbolo} {color}{rol}: {rol_correctas}/{rol_total} ({porcentaje:.0f}%){Style.RESET_ALL}'
+                f'{simbolo} {rol}: {rol_correctas}/{rol_total} ({porcentaje:.0f}%)'
             )
         
         # Resumen general
@@ -353,4 +324,4 @@ class Command(BaseCommand):
                 )
             )
         
-        self.stdout.write(f'\n{Fore.CYAN}' + '=' * 80 + f'{Style.RESET_ALL}\n')
+        self.stdout.write('\n' + '=' * 80 + '\n')
