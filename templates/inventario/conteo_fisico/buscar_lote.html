@@ -28,30 +28,31 @@
                     <form method="post" class="needs-validation" id="formBuscarLote" novalidate>
                         {% csrf_token %}
 
-                        <!-- Tipo de Búsqueda - MEJORADO -->
+                        <!-- Tipo de Búsqueda -->
                         <div class="mb-4">
                             <label class="form-label fw-bold mb-3">
                                 <i class="fas fa-filter"></i> Tipo de Búsqueda *
                             </label>
                             <div class="row g-3">
-                                {% for radio in form.tipo_busqueda %}
+                                {% for value, label in form.tipo_busqueda.field.choices %}
                                     <div class="col-md-6">
-                                        <div class="form-check form-check-lg p-3 border rounded-2 cursor-pointer" 
-                                             style="border: 2px solid #dee2e6; transition: all 0.3s ease;">
+                                        <div class="form-check form-check-lg p-3 border rounded-2 cursor-pointer opcion-busqueda" 
+                                             data-value="{{ value }}"
+                                             style="border: 2px solid #dee2e6; transition: all 0.3s ease; cursor: pointer;">
                                             <input class="form-check-input tipo-busqueda-radio" 
                                                    type="radio" 
-                                                   name="{{ radio.name }}" 
-                                                   value="{{ radio.choice_value }}" 
-                                                   id="{{ radio.id_for_label }}"
-                                                   {% if radio.choice_value == form.tipo_busqueda.value %}checked{% endif %}
+                                                   name="tipo_busqueda" 
+                                                   value="{{ value }}" 
+                                                   id="id_tipo_busqueda_{{ forloop.counter0 }}"
+                                                   {% if form.tipo_busqueda.value == value %}checked{% endif %}
                                                    style="width: 1.5em; height: 1.5em; cursor: pointer;">
                                             <label class="form-check-label fw-bold ms-2" 
-                                                   for="{{ radio.id_for_label }}"
+                                                   for="id_tipo_busqueda_{{ forloop.counter0 }}"
                                                    style="cursor: pointer; font-size: 1.05rem;">
-                                                {% if radio.choice_value == 'clave' %}
-                                                    <i class="fas fa-barcode text-info"></i> {{ radio.choice_label }}
+                                                {% if value == 'clave' %}
+                                                    <i class="fas fa-barcode text-info"></i> {{ label }}
                                                 {% else %}
-                                                    <i class="fas fa-box text-success"></i> {{ radio.choice_label }}
+                                                    <i class="fas fa-box text-success"></i> {{ label }}
                                                 {% endif %}
                                             </label>
                                         </div>
@@ -59,8 +60,8 @@
                                 {% endfor %}
                             </div>
                             {% if form.tipo_busqueda.errors %}
-                                <div class="invalid-feedback d-block mt-2">
-                                    {{ form.tipo_busqueda.errors.0 }}
+                                <div class="invalid-feedback d-block mt-2" style="display: block !important;">
+                                    <i class="fas fa-exclamation-circle"></i> {{ form.tipo_busqueda.errors.0 }}
                                 </div>
                             {% endif %}
                         </div>
@@ -72,7 +73,7 @@
                             </label>
                             {{ form.criterio_busqueda }}
                             {% if form.criterio_busqueda.errors %}
-                                <div class="invalid-feedback d-block">
+                                <div class="invalid-feedback d-block" style="display: block !important;">
                                     {{ form.criterio_busqueda.errors.0 }}
                                 </div>
                             {% endif %}
@@ -89,7 +90,7 @@
                             </label>
                             {{ form.almacen }}
                             {% if form.almacen.errors %}
-                                <div class="invalid-feedback d-block">
+                                <div class="invalid-feedback d-block" style="display: block !important;">
                                     {{ form.almacen.errors.0 }}
                                 </div>
                             {% endif %}
@@ -168,6 +169,7 @@
         height: 1.5em;
         margin-top: 0;
         cursor: pointer;
+        flex-shrink: 0;
     }
     
     .form-check-input:checked {
@@ -180,22 +182,22 @@
     }
     
     /* Mejorar visual de las opciones de búsqueda */
-    .form-check-lg.p-3 {
+    .opcion-busqueda {
         cursor: pointer;
     }
     
-    .form-check-lg.p-3:hover {
+    .opcion-busqueda:hover {
         border-color: #0d6efd !important;
         background-color: #f8f9fa;
     }
     
-    .form-check-lg.p-3 input:checked ~ label {
-        color: #0d6efd;
-        font-weight: 600;
+    .opcion-busqueda input:checked {
+        border-color: 2px solid #0d6efd;
     }
     
-    .form-check-lg.p-3 input:checked {
-        border-color: 2px solid #0d6efd;
+    .opcion-busqueda input:checked ~ label {
+        color: #0d6efd;
+        font-weight: 600;
     }
 </style>
 
@@ -205,12 +207,15 @@ document.addEventListener('DOMContentLoaded', function() {
     const labelCriterio = document.getElementById('labelCriterio');
     const ejemploCriterio = document.getElementById('ejemploCriterio');
     const inputCriterio = document.getElementById('id_criterio_busqueda');
-    const formCheckContainers = document.querySelectorAll('.form-check-lg');
+    const opcionesBusqueda = document.querySelectorAll('.opcion-busqueda');
     
     function actualizarLabel() {
-        const seleccionado = document.querySelector('.tipo-busqueda-radio:checked').value;
+        const seleccionado = document.querySelector('.tipo-busqueda-radio:checked');
+        if (!seleccionado) return;
         
-        if (seleccionado === 'clave') {
+        const valor = seleccionado.value;
+        
+        if (valor === 'clave') {
             labelCriterio.textContent = 'Ingrese CLAVE (CNIS)';
             inputCriterio.placeholder = 'Ej: 010.000.0104.00';
             ejemploCriterio.innerHTML = '<strong>Ejemplo CLAVE:</strong> 010.000.0104.00<br><strong>Ejemplo LOTE:</strong> LT-2025-001';
@@ -223,7 +228,7 @@ document.addEventListener('DOMContentLoaded', function() {
     
     // Actualizar estilos visuales de los radio buttons
     function actualizarEstilos() {
-        formCheckContainers.forEach(container => {
+        opcionesBusqueda.forEach(container => {
             const radio = container.querySelector('input[type="radio"]');
             if (radio && radio.checked) {
                 container.style.borderColor = '#0d6efd';
@@ -244,32 +249,16 @@ document.addEventListener('DOMContentLoaded', function() {
             actualizarEstilos();
             inputCriterio.focus();
         });
-        
-        // Hacer clickeable todo el contenedor
-        radio.closest('.form-check-lg').addEventListener('click', function(e) {
-            if (e.target !== radio) {
+    });
+    
+    // Hacer clickeable todo el contenedor
+    opcionesBusqueda.forEach(container => {
+        container.addEventListener('click', function(e) {
+            const radio = this.querySelector('input[type="radio"]');
+            if (e.target !== radio && !e.target.closest('label')) {
                 radio.click();
             }
         });
-    });
-    
-    // Validación del formulario
-    document.getElementById('formBuscarLote').addEventListener('submit', function(e) {
-        const tipoBusqueda = document.querySelector('.tipo-busqueda-radio:checked');
-        const criterio = inputCriterio.value.trim();
-        
-        if (!tipoBusqueda) {
-            e.preventDefault();
-            alert('⚠️ Debe seleccionar un tipo de búsqueda (CLAVE o NÚMERO DE LOTE)');
-            return false;
-        }
-        
-        if (!criterio) {
-            e.preventDefault();
-            alert('⚠️ Debe ingresar un criterio de búsqueda');
-            inputCriterio.focus();
-            return false;
-        }
     });
     
     // Inicializar estilos al cargar

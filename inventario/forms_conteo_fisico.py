@@ -32,6 +32,7 @@ class BuscarLoteForm(forms.Form):
         label="Tipo de Búsqueda",
         choices=TIPO_BUSQUEDA_CHOICES,
         initial='clave',
+        required=True,
         widget=forms.RadioSelect(attrs={
             'class': 'form-check-input',
         })
