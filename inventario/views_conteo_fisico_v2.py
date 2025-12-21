@@ -26,7 +26,7 @@ from datetime import datetime
 
 from .models import (
     Lote, Producto, Almacen, UbicacionAlmacen, 
-    MovimientoInventario, Institucion
+    MovimientoInventario, Institucion, CategoriaProducto
 )
 from .forms_conteo_fisico import (
     BuscarLoteForm, CapturarConteosForm, 
@@ -261,11 +261,17 @@ def crear_lote_conteo(request):
     try:
         producto = Producto.objects.get(clave_cnis=clave_cnis)
     except Producto.DoesNotExist:
+        # Obtener categoría por defecto
+        categoria = CategoriaProducto.objects.first()
+        if not categoria:
+            messages.error(request, 'No hay categorías de producto disponibles')
+            return redirect('logistica:buscar_lote_conteo')
+        
         # Crear producto con CLAVE
         producto = Producto.objects.create(
             clave_cnis=clave_cnis,
-            nombre=f"Producto {clave_cnis}",
-            descripcion="Creado automáticamente durante conteo físico"
+            descripcion=f"Producto {clave_cnis} - Creado automáticamente durante conteo físico",
+            categoria=categoria
         )
     
     if request.method == 'POST':
