@@ -238,7 +238,7 @@
                                     </a>
                                 </li>
                                 {% endif %}
-                                {% if user|usuario_tiene_alguno_de_estos_roles:"Conteo,Supervisión" %}
+                                {% if user|usuario_tiene_alguno_de_estos_roles:"Conteo,Supervisión,Almacenero" %}
                                 <li class="nav-item">
                                     <a class="nav-link submenu-item {% if 'conteo' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'logistica:buscar_lote_conteo' %}">
                                         <i class="fas fa-clipboard-check me-2"></i>Conteo Físico
