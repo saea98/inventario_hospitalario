@@ -1,0 +1,95 @@
+<!-- Menú Jerárquico con Submenús Expandibles -->
+{% load menu_tags %}
+{% load url_safe %}
+
+{% obtener_items_menu_principales user as menu_items %}
+
+{% if menu_items %}
+<ul class="nav flex-column">
+    {% for item in menu_items %}
+    {% obtener_submenus item user as submenus %}
+    
+    <li class="nav-item">
+        {% if item|tiene_submenus:user %}
+        <!-- Item con submenús -->
+        <button class="nav-link d-flex justify-content-between align-items-center" 
+                type="button" 
+                data-bs-toggle="collapse" 
+                data-bs-target="#submenu-{{ item.id }}"
+                aria-expanded="false" 
+                aria-controls="submenu-{{ item.id }}"
+                title="{{ item.nombre_mostrado }}">
+            <span>
+                <i class="{{ item.icono }}"></i>
+                {{ item.nombre_mostrado }}
+            </span>
+            <i class="fas fa-chevron-down ms-2"></i>
+        </button>
+        
+        <!-- Submenús -->
+        <div class="collapse" id="submenu-{{ item.id }}">
+            <ul class="nav flex-column ms-3 mt-2">
+                {% for submenu in submenus %}
+                {% obtener_url_segura submenu.url_name as submenu_url %}
+                <li class="nav-item">
+                    <a class="nav-link nav-link-submenu" 
+                       href="{{ submenu_url }}"
+                       title="{{ submenu.nombre_mostrado }}"
+                       {% if submenu_url == '#' %}onclick="return false;" style="cursor: not-allowed; opacity: 0.5;"{% endif %}>
+                        <i class="{{ submenu.icono }}"></i>
+                        {{ submenu.nombre_mostrado }}
+                    </a>
+                </li>
+                {% endfor %}
+            </ul>
+        </div>
+        
+        {% else %}
+        <!-- Item sin submenús -->
+        {% obtener_url_segura item.url_name as item_url %}
+        <a class="nav-link {% if item.url_name == request.resolver_match.url_name %}active{% endif %}" 
+           href="{{ item_url }}"
+           title="{{ item.nombre_mostrado }}"
+           {% if item_url == '#' %}onclick="return false;" style="cursor: not-allowed; opacity: 0.5;"{% endif %}>
+            <i class="{{ item.icono }}"></i>
+            {{ item.nombre_mostrado }}
+        </a>
+        {% endif %}
+    </li>
+    {% endfor %}
+</ul>
+
+{% else %}
+<div class="alert alert-warning" role="alert">
+    <i class="fas fa-exclamation-triangle"></i>
+    No tienes acceso a ninguna sección
+</div>
+{% endif %}
+
+<style>
+    .nav-link-submenu {
+        padding-left: 2rem !important;
+        font-size: 0.95rem;
+    }
+    
+    .nav-link-submenu:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+    
+    .nav-link[data-bs-toggle="collapse"] {
+        cursor: pointer;
+        padding-right: 1rem !important;
+    }
+    
+    .nav-link[data-bs-toggle="collapse"]:hover {
+        background-color: rgba(255, 255, 255, 0.1);
+    }
+    
+    .nav-link[data-bs-toggle="collapse"] i.fa-chevron-down {
+        transition: transform 0.3s ease;
+    }
+    
+    .nav-link[data-bs-toggle="collapse"][aria-expanded="true"] i.fa-chevron-down {
+        transform: rotate(180deg);
+    }
+</style>

@@ -1,5 +1,6 @@
 """
-Template tags para renderizar el menú dinámicamente según los roles del usuario
+Template tags para renderizar menús dinámicos basados en MenuItemRol
+Soporta jerarquía de menús con submenús
 """
 
 from django import template
@@ -8,116 +9,131 @@ from inventario.models import MenuItemRol
 register = template.Library()
 
 
-@register.inclusion_tag('menu/menu_dinamico.html')
-def menu_dinamico(usuario):
+@register.simple_tag
+def obtener_items_menu_principales(user):
     """
-    Template tag que renderiza el menú dinámicamente según los roles del usuario.
-    
-    Uso en template:
-    {% load menu_tags %}
-    {% menu_dinamico user %}
+    Obtiene los items del menú principal (sin padre) que el usuario puede ver
+    basado en sus roles. Soporta jerarquía de menús.
     """
     
-    # Si el usuario es superusuario, mostrar todos los items
-    if usuario.is_superuser:
-        items = MenuItemRol.objects.filter(activo=True).order_by('orden')
-    else:
-        # Obtener los roles del usuario
-        roles_usuario = usuario.groups.all()
-        
-        # Obtener los items de menú que el usuario puede ver
-        items = MenuItemRol.objects.filter(
+    if not user.is_authenticated:
+        return []
+    
+    # Si es superusuario, mostrar todo
+    if user.is_superuser:
+        return MenuItemRol.objects.filter(
+            activo=True, 
+            menu_padre__isnull=True
+        ).order_by('orden')
+    
+    # Obtener grupos del usuario
+    user_groups = user.groups.all()
+    
+    # Obtener items que el usuario puede ver (solo items sin padre)
+    items = MenuItemRol.objects.filter(
+        activo=True,
+        menu_padre__isnull=True,
+        roles_permitidos__in=user_groups
+    ).distinct().order_by('orden')
+    
+    return items
+
+
+@register.simple_tag
+def obtener_submenus(menu_padre, user):
+    """
+    Obtiene los submenús de un menú padre que el usuario puede ver
+    """
+    
+    if not user.is_authenticated:
+        return []
+    
+    # Si es superusuario, mostrar todo
+    if user.is_superuser:
+        return MenuItemRol.objects.filter(
             activo=True,
-            roles_permitidos__in=roles_usuario
-        ).distinct().order_by('orden')
+            menu_padre=menu_padre
+        ).order_by('orden')
     
-    # Separar items principales de submenús
-    items_principales = items.filter(es_submenu=False)
+    # Obtener grupos del usuario
+    user_groups = user.groups.all()
     
-    return {
-        'items': items_principales,
-        'usuario': usuario,
-    }
+    # Obtener submenús que el usuario puede ver
+    submenus = MenuItemRol.objects.filter(
+        activo=True,
+        menu_padre=menu_padre,
+        roles_permitidos__in=user_groups
+    ).distinct().order_by('orden')
+    
+    return submenus
 
 
 @register.filter
-def puede_ver_menu(usuario, menu_item_id):
+def tiene_submenus(menu_item, user):
     """
-    Filtro para verificar si un usuario puede ver un item de menú específico.
+    Verifica si un menú tiene submenús que el usuario puede ver
+    """
     
-    Uso en template:
-    {% if user|puede_ver_menu:menu_item.id %}
-        <!-- mostrar item -->
-    {% endif %}
-    """
-    try:
-        menu_item = MenuItemRol.objects.get(id=menu_item_id)
-        return menu_item.puede_ver_usuario(usuario)
-    except MenuItemRol.DoesNotExist:
+    if not user.is_authenticated:
         return False
-
-
-@register.simple_tag
-def obtener_items_menu(usuario):
-    """
-    Template tag que retorna los items de menú que el usuario puede ver.
     
-    Uso en template:
-    {% obtener_items_menu user as menu_items %}
-    {% for item in menu_items %}
-        ...
-    {% endfor %}
-    """
-    
-    if usuario.is_superuser:
-        return MenuItemRol.objects.filter(activo=True).order_by('orden')
-    else:
-        roles_usuario = usuario.groups.all()
+    # Si es superusuario
+    if user.is_superuser:
         return MenuItemRol.objects.filter(
             activo=True,
-            roles_permitidos__in=roles_usuario
-        ).distinct().order_by('orden')
+            menu_padre=menu_item
+        ).exists()
+    
+    # Obtener grupos del usuario
+    user_groups = user.groups.all()
+    
+    # Verificar si hay submenús
+    return MenuItemRol.objects.filter(
+        activo=True,
+        menu_padre=menu_item,
+        roles_permitidos__in=user_groups
+    ).distinct().exists()
 
 
-@register.simple_tag
-def obtener_items_menu_principales(usuario):
+@register.filter
+def contar_submenus(menu_item, user):
     """
-    Template tag que retorna solo los items principales (no submenus).
-    
-    Uso en template:
-    {% obtener_items_menu_principales user as menu_items %}
-    {% for item in menu_items %}
-        ...
-    {% endfor %}
+    Cuenta cuántos submenús tiene un menú que el usuario puede ver
     """
     
-    if usuario.is_superuser:
-        return MenuItemRol.objects.filter(activo=True, es_submenu=False).order_by('orden')
-    else:
-        roles_usuario = usuario.groups.all()
+    if not user.is_authenticated:
+        return 0
+    
+    # Si es superusuario
+    if user.is_superuser:
         return MenuItemRol.objects.filter(
             activo=True,
-            es_submenu=False,
-            roles_permitidos__in=roles_usuario
-        ).distinct().order_by('orden')
+            menu_padre=menu_item
+        ).count()
+    
+    # Obtener grupos del usuario
+    user_groups = user.groups.all()
+    
+    # Contar submenús
+    return MenuItemRol.objects.filter(
+        activo=True,
+        menu_padre=menu_item,
+        roles_permitidos__in=user_groups
+    ).distinct().count()
 
 
 @register.filter
 def puede_acceder_url(usuario, url_name):
     """
-    Filtro para verificar si un usuario puede acceder a una URL especifica.
-    
-    Uso en template:
-    {% if user|puede_acceder_url:"lista_lotes" %}
-        <a href="...">Lotes</a>
-    {% endif %}
+    Filtro para verificar si un usuario puede acceder a una URL específica.
     """
     if usuario.is_superuser:
         return True
     
     try:
         menu_item = MenuItemRol.objects.get(url_name=url_name, activo=True)
-        return menu_item.puede_ver_usuario(usuario)
+        user_groups = usuario.groups.all()
+        return menu_item.roles_permitidos.filter(id__in=user_groups).exists()
     except MenuItemRol.DoesNotExist:
         return False
 
@@ -126,12 +142,6 @@ def puede_acceder_url(usuario, url_name):
 def obtener_roles_url(url_name):
     """
     Template tag que retorna los roles permitidos para una URL.
-    
-    Uso en template:
-    {% obtener_roles_url "lista_lotes" as roles %}
-    {% for rol in roles %}
-        {{ rol.name }}
-    {% endfor %}
     """
     try:
         menu_item = MenuItemRol.objects.get(url_name=url_name, activo=True)

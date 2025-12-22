@@ -134,27 +134,7 @@
                     </h4>
                 </div>
 
-                {% if menu_items %}
-                <ul class="nav flex-column">
-                    {% for item in menu_items %}
-                    {% obtener_url_segura item.url_name as item_url %}
-                    <li class="nav-item">
-                        <a class="nav-link {% if item.url_name == request.resolver_match.url_name %}active{% endif %}" 
-                           href="{{ item_url }}"
-                           title="{{ item.nombre_mostrado }}"
-                           {% if item_url == '#' %}onclick="return false;" style="cursor: not-allowed; opacity: 0.5;"{% endif %}>
-                            <i class="{{ item.icono }}"></i>
-                            {{ item.nombre_mostrado }}
-                        </a>
-                    </li>
-                    {% endfor %}
-                </ul>
-                {% else %}
-                <div class="alert alert-warning" role="alert">
-                    <i class="fas fa-exclamation-triangle"></i>
-                    No tienes acceso a ninguna seccion
-                </div>
-                {% endif %}
+                {% include "menu/menu_jerarquico.html" %}
 
                 <!-- Separador -->
                 <hr class="my-4 bg-light">
