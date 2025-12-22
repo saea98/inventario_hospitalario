@@ -68,18 +68,30 @@ class Command(BaseCommand):
         for menu_padre_nombre, items_hijos in estructura.items():
             self.stdout.write(f'\nProcesando "{menu_padre_nombre}"...')
             
-            # Crear o obtener el menú padre
-            menu_padre, creado = MenuItemRol.objects.get_or_create(
-                url_name=menu_padre_nombre.lower().replace(' ', '_'),
-                defaults={
-                    'nombre_mostrado': menu_padre_nombre,
-                    'menu_item': menu_padre_nombre.lower().replace(' ', '_'),
-                    'icono': 'fas fa-folder',
-                    'orden': 0,
-                    'activo': True,
-                    'menu_padre': None,
-                }
-            )
+            # Buscar si el menú padre ya existe por nombre mostrado
+            menu_padre = MenuItemRol.objects.filter(
+                nombre_mostrado=menu_padre_nombre
+            ).first()
+            
+            creado = False
+            if not menu_padre:
+                # Crear el menú padre
+                try:
+                    menu_padre = MenuItemRol.objects.create(
+                        url_name=menu_padre_nombre.lower().replace(' ', '_'),
+                        nombre_mostrado=menu_padre_nombre,
+                        menu_item=menu_padre_nombre.lower().replace(' ', '_'),
+                        icono='fas fa-folder',
+                        orden=0,
+                        activo=True,
+                        menu_padre=None,
+                    )
+                    creado = True
+                except Exception as e:
+                    self.stdout.write(
+                        self.style.ERROR(f'  ❌ Error al crear menú padre: {str(e)}')
+                    )
+                    continue
             
             if creado:
                 self.stdout.write(self.style.SUCCESS(f'  ✅ Menú padre creado: {menu_padre_nombre}'))
