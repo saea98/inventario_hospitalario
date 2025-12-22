@@ -47,7 +47,7 @@
         {% else %}
         <!-- Item sin submenús -->
         {% obtener_url_segura item.url_name as item_url %}
-        <a class="nav-link {% if item.url_name == request.resolver_match.url_name %}active{% endif %}" 
+        <a class="nav-link" 
            href="{{ item_url }}"
            title="{{ item.nombre_mostrado }}"
            {% if item_url == '#' %}onclick="return false;" style="cursor: not-allowed; opacity: 0.5;"{% endif %}>
@@ -93,4 +93,55 @@
     .nav-link[data-bs-toggle="collapse"][aria-expanded="true"] i.fa-chevron-down {
         transform: rotate(180deg);
     }
+    
+    /* Estilo para item activo en submenú */
+    .nav-link-submenu.active {
+        background-color: rgba(255, 255, 255, 0.2);
+        font-weight: 600;
+        border-left: 3px solid rgba(255, 255, 255, 0.8);
+        padding-left: calc(2rem - 3px) !important;
+    }
 </style>
+
+<script>
+    // Mantener submenús abiertos y marcar items activos
+    document.addEventListener('DOMContentLoaded', function() {
+        // Obtener la URL actual
+        const currentUrl = window.location.pathname;
+        
+        // Buscar todos los links de submenú
+        const submenuLinks = document.querySelectorAll('.nav-link-submenu');
+        
+        submenuLinks.forEach(link => {
+            // Obtener el href del link
+            const href = link.getAttribute('href');
+            
+            // Si el href coincide con la URL actual, marcar como activo
+            if (href && currentUrl.includes(href)) {
+                // Marcar el link como activo
+                link.classList.add('active');
+                
+                // Encontrar el menú padre (el collapse)
+                const parentCollapse = link.closest('.collapse');
+                if (parentCollapse) {
+                    // Obtener el ID del collapse
+                    const collapseId = parentCollapse.id;
+                    
+                    // Encontrar el botón que abre este collapse
+                    const parentButton = document.querySelector(`[data-bs-target="#${collapseId}"]`);
+                    if (parentButton) {
+                        // Abrir el collapse
+                        const bsCollapse = new bootstrap.Collapse(parentCollapse, {
+                            toggle: false
+                        });
+                        bsCollapse.show();
+                        
+                        // Marcar el botón como expandido
+                        parentButton.setAttribute('aria-expanded', 'true');
+                        parentButton.classList.remove('collapsed');
+                    }
+                }
+            }
+        });
+    });
+</script>
