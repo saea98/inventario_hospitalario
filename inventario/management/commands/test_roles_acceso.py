@@ -56,7 +56,7 @@ class Command(BaseCommand):
                 'descripcion': 'Panel principal del sistema'
             },
             'Picking Dashboard': {
-                'url': 'logistica:dashboard_picking',
+                'url': 'picking:dashboard',
                 'roles_permitidos': ['Administrador', 'Almacenista', 'Gestor de Inventario'],
                 'descripcion': 'Dashboard de picking'
             },
@@ -71,7 +71,7 @@ class Command(BaseCommand):
                 'descripcion': 'Historial de conteos realizados'
             },
             'Entrada Almacén': {
-                'url': 'inventario:entrada_almacen_paso1',
+                'url': 'entrada_almacen_paso1',
                 'roles_permitidos': ['Almacenero', 'Supervisión', 'Control Calidad'],
                 'descripcion': 'Entrada de almacén'
             },
