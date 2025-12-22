@@ -354,7 +354,7 @@
                     {% endif %}
 
                     <!-- Solicitudes con submenú -->
-                    {% if user|usuario_tiene_alguno_de_estos_roles:"Revisión,Supervisión,Administrador,Almacenero" %}
+                    {% if user|usuario_tiene_alguno_de_estos_roles:"Administrador" %}
                     <li class="nav-item">
                         <a class="nav-link {% if 'solicitud' in request.resolver_match.url_name %}active{% endif %}" data-bs-toggle="collapse" href="#submenuSolicitudes">
                             <i class="fas fa-clipboard-list"></i>
