@@ -39,17 +39,24 @@ def requiere_rol(*roles):
     def decorator(view_func):
         @wraps(view_func)
         def wrapper(request, *args, **kwargs):
+            import logging
+            logger = logging.getLogger(__name__)
+            
             # Verificar autenticación primero
             if not request.user.is_authenticated:
+                logger.info(f"Usuario no autenticado intentando acceder a {view_func.__name__}")
                 return redirect('login')
             
             # Si es superusuario, permitir acceso
             if request.user.is_superuser:
+                logger.info(f"Superusuario {request.user.username} accediendo a {view_func.__name__}")
                 return view_func(request, *args, **kwargs)
             
             # Obtener nombres de grupos del usuario
             user_groups = set(request.user.groups.values_list('name', flat=True))
             roles_requeridos = set(roles)
+            
+            logger.debug(f"Usuario: {request.user.username}, Grupos: {user_groups}, Roles requeridos: {roles_requeridos}")
             
             # Verificar si el usuario pertenece a alguno de los roles requeridos
             if not user_groups.intersection(roles_requeridos):
@@ -57,6 +64,7 @@ def requiere_rol(*roles):
                     f"No tienes permiso para acceder a esta sección. "
                     f"Se requiere uno de los siguientes roles: {', '.join(roles)}"
                 )
+                logger.warning(f"Acceso denegado a {request.user.username} en {view_func.__name__}. Grupos: {user_groups}, Requeridos: {roles_requeridos}")
                 messages.error(request, mensaje)
                 
                 # Si es una petición AJAX, retornar JSON
@@ -65,6 +73,7 @@ def requiere_rol(*roles):
                 
                 return redirect('dashboard')
             
+            logger.info(f"Acceso permitido a {request.user.username} en {view_func.__name__}")
             return view_func(request, *args, **kwargs)
         
         return wrapper

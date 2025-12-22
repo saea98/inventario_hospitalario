@@ -15,6 +15,9 @@ def require_role(*roles):
     """
     Decorador que requiere que el usuario pertenezca a uno de los roles especificados.
     
+    IMPORTANTE: Usar SOLO este decorador, sin @login_required adicional.
+    Este decorador ya incluye la validación de autenticación.
+    
     Uso:
         @require_role('almacenero', 'administrador')
         def mi_vista(request):
@@ -22,13 +25,21 @@ def require_role(*roles):
     """
     def decorator(view_func):
         @wraps(view_func)
-        @login_required
         def wrapper(request, *args, **kwargs):
+            # Verificar autenticación primero
+            if not request.user.is_authenticated:
+                return redirect('login')
+            
+            # Si es superusuario, permitir acceso
+            if request.user.is_superuser:
+                return view_func(request, *args, **kwargs)
+            
             # Obtener grupos del usuario
-            user_groups = request.user.groups.values_list('name', flat=True)
+            user_groups = set(request.user.groups.values_list('name', flat=True))
+            roles_requeridos = set(roles)
             
             # Verificar si el usuario pertenece a alguno de los roles requeridos
-            if not any(group in user_groups for group in roles):
+            if not user_groups.intersection(roles_requeridos):
                 messages.error(
                     request,
                     f"No tienes permiso para acceder a esta sección. "
