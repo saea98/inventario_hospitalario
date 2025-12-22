@@ -23,7 +23,6 @@ from .fase5_utils import generar_movimientos_suministro
 # DASHBOARD DE PICKING
 # ============================================================
 
-@login_required
 @requiere_rol('Almacenista', 'Administrador', 'Gestor de Inventario')
 def dashboard_picking(request):
     """
@@ -81,7 +80,6 @@ def dashboard_picking(request):
 # VISTA DE PICKING OPTIMIZADA
 # ============================================================
 
-@login_required
 @requiere_rol('Almacenista', 'Administrador', 'Gestor de Inventario')
 def picking_propuesta(request, propuesta_id):
     """

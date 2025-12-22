@@ -20,6 +20,9 @@ def requiere_rol(*roles):
     """
     Decorador que requiere que el usuario pertenezca a uno de los roles especificados.
     
+    IMPORTANTE: Usar SOLO este decorador, sin @login_required adicional.
+    Este decorador ya incluye la validación de autenticación.
+    
     Soporta tanto nombres de roles como objetos Group.
     
     Uso:
@@ -35,8 +38,11 @@ def requiere_rol(*roles):
     """
     def decorator(view_func):
         @wraps(view_func)
-        @login_required(login_url='login')
         def wrapper(request, *args, **kwargs):
+            # Verificar autenticación primero
+            if not request.user.is_authenticated:
+                return redirect('login')
+            
             # Si es superusuario, permitir acceso
             if request.user.is_superuser:
                 return view_func(request, *args, **kwargs)

@@ -29,7 +29,6 @@ from .forms_entrada_salida import (
 # ENTRADA AL ALMACÉN - PASO 1
 # ============================================================
 
-@login_required
 @requiere_rol('Almacenero', 'Supervisión', 'Control Calidad')
 def entrada_almacen_paso1(request):
     """Captura información general de la remisión"""
