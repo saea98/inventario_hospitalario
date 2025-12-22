@@ -109,8 +109,10 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS('='*80 + '\n'))
 
         if desajustes or items_sin_menuitemrol:
-            return 1
-        return 0
+            self.stdout.write(self.style.WARNING('\nEjecuta con --verbose para ver detalles'))
+        else:
+            self.stdout.write(self.style.SUCCESS('\nTodo esta sincronizado'))
+        return
 
     def _get_all_url_patterns(self, resolver, prefix=''):
         """
