@@ -103,9 +103,9 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS('\n' + '='*80))
         self.stdout.write(self.style.SUCCESS('RESUMEN'))
         self.stdout.write(self.style.SUCCESS('='*80))
-        self.stdout.write(f"Total de URLs: {len(url_patterns)}")
-        self.stdout.write(f"Desajustes: {len(desajustes)}")
-        self.stdout.write(f"Vistas sin MenuItemRol: {len(items_sin_menuitemrol)}")
+        self.stdout.write(self.style.SUCCESS(f"Total de URLs: {len(url_patterns)}"))
+        self.stdout.write(self.style.SUCCESS(f"Desajustes: {len(desajustes)}"))
+        self.stdout.write(self.style.SUCCESS(f"Vistas sin MenuItemRol: {len(items_sin_menuitemrol)}"))
         self.stdout.write(self.style.SUCCESS('='*80 + '\n'))
 
         if desajustes or items_sin_menuitemrol:
