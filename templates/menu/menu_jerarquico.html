@@ -12,7 +12,7 @@
     <li class="nav-item">
         {% if item|tiene_submenus:user %}
         <!-- Item con submenús -->
-        <button class="nav-link d-flex justify-content-between align-items-center" 
+        <button class="nav-link d-flex justify-content-start align-items-center" 
                 type="button" 
                 data-bs-toggle="collapse" 
                 data-bs-target="#submenu-{{ item.id }}"
@@ -23,7 +23,7 @@
                 <i class="{{ item.icono }}"></i>
                 {{ item.nombre_mostrado }}
             </span>
-            <i class="fas fa-chevron-down ms-2"></i>
+            <i class="fas fa-chevron-down ms-auto"></i>
         </button>
         
         <!-- Submenús -->
