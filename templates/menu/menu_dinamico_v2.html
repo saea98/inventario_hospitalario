@@ -1,0 +1,33 @@
+{% load menu_tags %}
+
+<!-- Menú Dinámico Basado en MenuItemRol -->
+<div class="position-sticky pt-3">
+    <div class="text-center mb-4">
+        <h4 class="text-white">
+            <i class="fas fa-hospital"></i>
+            Inventario Hospitalario
+        </h4>
+    </div>
+
+    {% obtener_items_menu_principales user as menu_items %}
+    
+    {% if menu_items %}
+        <ul class="nav flex-column">
+            {% for item in menu_items %}
+                <li class="nav-item">
+                    <a class="nav-link {% if item.url_name == request.resolver_match.url_name %}active{% endif %}" 
+                       href="{% url item.url_name %}"
+                       title="{{ item.nombre_mostrado }}">
+                        <i class="{{ item.icono }}"></i>
+                        {{ item.nombre_mostrado }}
+                    </a>
+                </li>
+            {% endfor %}
+        </ul>
+    {% else %}
+        <div class="alert alert-warning" role="alert">
+            <i class="fas fa-exclamation-triangle"></i>
+            No tienes acceso a ninguna sección
+        </div>
+    {% endif %}
+</div>

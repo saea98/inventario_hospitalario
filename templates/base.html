@@ -120,7 +120,11 @@
     <div class="row">
 
         <!-- Sidebar -->
+        <!-- Sidebar -->
         <nav class="col-md-3 col-lg-2 d-md-block sidebar collapse">
+            {% load menu_tags %}
+            {% obtener_items_menu_principales user as menu_items %}
+            
             <div class="position-sticky pt-3">
                 <div class="text-center mb-4">
                     <h4 class="text-white">
@@ -129,346 +133,25 @@
                     </h4>
                 </div>
 
+                {% if menu_items %}
                 <ul class="nav flex-column">
-
+                    {% for item in menu_items %}
                     <li class="nav-item">
-                        <a class="nav-link {% if request.resolver_match.url_name == 'dashboard' %}active{% endif %}" href="{% url 'dashboard' %}">
-                            <i class="fas fa-tachometer-alt"></i>
-                            Dashboard
+                        <a class="nav-link {% if item.url_name == request.resolver_match.url_name %}active{% endif %}" 
+                           href="{% url item.url_name %}"
+                           title="{{ item.nombre_mostrado }}">
+                            <i class="{{ item.icono }}"></i>
+                            {{ item.nombre_mostrado }}
                         </a>
                     </li>
-
-                    {% if user|usuario_tiene_rol:"Administrador" %}
-                    <li class="nav-item">
-                        <a class="nav-link {% if 'instituciones' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'lista_instituciones' %}">
-                            <i class="fas fa-building"></i>
-                            Instituciones
-                        </a>
-                    </li>
-
-                    <li class="nav-item">
-                        <a class="nav-link {% if 'productos' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'lista_productos' %}">
-                            <i class="fas fa-pills"></i>
-                            Productos
-                        </a>
-                    </li>
-                    {% endif %}
-
-                    <!-- Lotes con submenuú -->
-                    {% if user|usuario_tiene_alguno_de_estos_roles:"Almacenero,Supervisión,Control Calidad,Facturación,Gestor de Inventario" %}
-                    <li class="nav-item">
-                        <a class="nav-link {% if 'lotes' in request.resolver_match.url_name or request.resolver_match.url_name == 'carga_lotes_excel' %}active{% endif %}" 
-                           data-bs-toggle="collapse" href="#submenuLotes" role="button">
-                            <i class="fas fa-boxes"></i>
-                            Existencias
-                        </a>
-                        <div class="collapse {% if 'lotes' in request.resolver_match.url_name or request.resolver_match.url_name == 'carga_lotes_excel' %}show{% endif %}" id="submenuLotes">
-                            <ul class="nav flex-column">
-                                <li class="nav-item">
-                                    <a class="nav-link submenu-item {% if request.resolver_match.url_name == 'lista_lotes' %}active{% endif %}" href="{% url 'lista_lotes' %}">
-                                        <i class="fas fa-list me-2"></i>Lista de Existencias
-                                    </a>
-                                </li>
-                                {% if user|usuario_tiene_alguno_de_estos_roles:"Almacenero,Supervisión" %}
-                                <li class="nav-item">
-                                    <a class="nav-link submenu-item {% if request.resolver_match.url_name == 'carga_lotes_excel' %}active{% endif %}" href="{% url 'carga_lotes_excel' %}">
-                                        <i class="fas fa-file-excel me-2"></i>Carga desde Excel
-                                    </a>
-                                </li>
-                                {% endif %}
-                            </ul>
-                        </div>
-                    </li>
-                    {% endif %}
-
-                    <!-- 
-                    INSTRUCCIONES: Agregar este código al menú de base.html
-                    Ubicación: Después de la sección "Lotes" y antes de "Inventario"
-                    (Aproximadamente después de la línea 172)
-                    -->
-
-                    <!-- ENTRADA AL ALMACÉN Y PROVEEDUÍA - NUEVOS MÓDULOS -->
-                    {% if user|usuario_tiene_alguno_de_estos_roles:"Almacenero,Supervisión,Control Calidad" %}
-                    <li class="nav-item">
-                        <a class="nav-link {% if 'entrada_almacen' in request.resolver_match.url_name or 'proveeduria' in request.resolver_match.url_name %}active{% endif %}" 
-                        data-bs-toggle="collapse" href="#submenuOperaciones" role="button">
-                            <i class="fas fa-exchange-alt"></i>
-                            Operaciones
-                        </a>
-                        <div class="collapse {% if 'entrada_almacen' in request.resolver_match.url_name or 'proveeduria' in request.resolver_match.url_name %}show{% endif %}" id="submenuOperaciones">
-                            <ul class="nav flex-column">
-                                <!-- ENTRADA AL ALMACÉN -->
-                                <li class="nav-item">
-                                    <a class="nav-link submenu-item {% if 'entrada_almacen' in request.resolver_match.url_name %}active{% endif %}" 
-                                    href="{% url 'entrada_almacen_paso1' %}">
-                                        <i class="fas fa-inbox me-2"></i>Entrada al Almacén
-                                    </a>
-                                </li>
-                                
-                                <!-- PROVEEDURÍA -->
-                                <li class="nav-item">
-                                    <a class="nav-link submenu-item {% if 'proveeduria' in request.resolver_match.url_name %}active{% endif %}" 
-                                    href="{% url 'proveeduria_paso1' %}">
-                                        <i class="fas fa-dolly me-2"></i>Salidas Almacen
-                                    </a>
-                                </li>
-                            </ul>
-                        </div>
-                    </li>
-                    {% endif %}
-
-                    <!-- CITAS, TRASLADOS Y CONTEO - NUEVOS MÓDULOS FASE 2 -->
-                    {% if user|usuario_tiene_alguno_de_estos_roles:"Revisión,Supervisión,Logística,Recepción,Conteo,Almacenero" %}
-                    <li class="nav-item">
-                        <a class="nav-link {% if 'cita' in request.resolver_match.url_name or 'traslado' in request.resolver_match.url_name or 'conteo' in request.resolver_match.url_name %}active{% endif %}" 
-                        data-bs-toggle="collapse" href="#submenuGestion" role="button">
-                            <i class="fas fa-tasks"></i>
-                            Gestión Logística
-                        </a>
-                        <div class="collapse {% if 'cita' in request.resolver_match.url_name or 'traslado' in request.resolver_match.url_name or 'conteo' in request.resolver_match.url_name or 'pedido' in request.resolver_match.url_name or 'llegada' in request.resolver_match.url_name %}show{% endif %}" id="submenuGestion">
-                            <ul class="nav flex-column">
-                                {% if user|usuario_tiene_alguno_de_estos_roles:"Revisión,Supervisión" %}
-                                <li class="nav-item">
-                                    <a class="nav-link submenu-item {% if 'cita' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'logistica:lista_citas' %}">
-                                        <i class="fas fa-calendar-check me-2"></i>Citas de Proveedores
-                                    </a>
-                                </li>
-                                {% endif %}
-                                {% if user|usuario_tiene_alguno_de_estos_roles:"Logística,Supervisión" %}
-                                <li class="nav-item">
-                                    <a class="nav-link submenu-item {% if 'traslado' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'logistica:lista_traslados' %}">
-                                        <i class="fas fa-truck me-2"></i>Traslados
-                                    </a>
-                                </li>
-                                {% endif %}
-                                {% if user|usuario_tiene_alguno_de_estos_roles:"Conteo,Supervisión,Almacenero" %}
-                                <li class="nav-item">
-                                    <a class="nav-link submenu-item {% if 'conteo' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'logistica:buscar_lote_conteo' %}">
-                                        <i class="fas fa-clipboard-check me-2"></i>Conteo Físico
-                                    </a>
-                                </li>
-                                {% endif %}
-                                {% if user|usuario_tiene_alguno_de_estos_roles:"Revisión,Supervisión,Logística" %}
-                                <li class="nav-item">
-                                    <a class="nav-link submenu-item {% if 'pedido' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'logistica:lista_pedidos' %}">
-                                        <i class="fas fa-shopping-cart me-2"></i>Gestión de Pedidos
-                                    </a>
-                                </li>
-                                {% endif %}
-                                {% if user|usuario_tiene_alguno_de_estos_roles:"Almacenero,Supervisión" %}
-                                <li class="nav-item">
-                                    <a class="nav-link submenu-item {% if 'propuesta' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'logistica:lista_propuestas' %}">
-                                        <i class="fas fa-boxes me-2"></i>Propuestas de Surtimiento
-                                    </a>
-                                </li>
-                                {% endif %}
-                                {% if user|usuario_tiene_alguno_de_estos_roles:"Recepción,Supervisión" %}
-                                <li class="nav-item">
-                                    <a class="nav-link submenu-item {% if 'llegada' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'logistica:llegadas:lista_llegadas' %}">
-                                        <i class="fas fa-truck-loading me-2"></i>Llegada de Proveedores
-                                    </a>
-                                </li>
-                                {% endif %}
-                                {% if user|usuario_tiene_alguno_de_estos_roles:"Almacenero,Supervisión" %}
-                                <li class="nav-item">
-                                    <a class="nav-link submenu-item {% if 'devolucion' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'devoluciones:lista_devoluciones' %}">
-                                        <i class="fas fa-undo me-2"></i>Devoluciones de Proveedores
-                                    </a>
-                                </li>
-                                {% endif %}
-                                {% if user|usuario_tiene_alguno_de_estos_roles:"Supervisión" %}
-                                <li class="nav-item">
-                                    <a class="nav-link submenu-item" href="#" data-bs-toggle="collapse" data-bs-target="#reportesDevoluciones">
-                                        <i class="fas fa-chart-bar me-2"></i>Reportes de Devoluciones
-                                        <i class="fas fa-chevron-down ms-2" style="font-size: 0.75rem;"></i>
-                                    </a>
-                                    <div class="collapse" id="reportesDevoluciones">
-                                        <ul class="nav flex-column ms-3">
-                                            <li class="nav-item">
-                                                <a class="nav-link submenu-item" href="{% url 'reportes_devoluciones:reporte_general' %}">
-                                                    <i class="fas fa-file-alt me-2"></i>Reporte General
-                                                </a>
-                                            </li>
-                                            <li class="nav-item">
-                                                <a class="nav-link submenu-item" href="{% url 'reportes_devoluciones:analisis_proveedores' %}">
-                                                    <i class="fas fa-building me-2"></i>Análisis de Proveedores
-                                                </a>
-                                            </li>
-                                            <li class="nav-item">
-                                                <a class="nav-link submenu-item" href="{% url 'reportes_devoluciones:analisis_temporal' %}">
-                                                    <i class="fas fa-calendar-alt me-2"></i>Análisis Temporal
-                                                </a>
-                                            </li>
-                                        </ul>
-                                    </div>
-                                </li>
-                                {% endif %}
-                                {% if user|usuario_tiene_alguno_de_estos_roles:"Supervisión" %}
-                                <li class="nav-item">
-                                    <a class="nav-link submenu-item" href="#" data-bs-toggle="collapse" data-bs-target="#reportesSalidas">
-                                        <i class="fas fa-arrow-right me-2"></i>Reportes de Salidas
-                                        <i class="fas fa-chevron-down ms-2" style="font-size: 0.75rem;"></i>
-                                    </a>
-                                    <div class="collapse" id="reportesSalidas">
-                                        <ul class="nav flex-column ms-3">
-                                            <li class="nav-item">
-                                                <a class="nav-link submenu-item" href="{% url 'reportes_salidas:reporte_general' %}">
-                                                    <i class="fas fa-file-alt me-2"></i>Reporte General
-                                                </a>
-                                            </li>
-                                            <li class="nav-item">
-                                                <a class="nav-link submenu-item" href="{% url 'reportes_salidas:analisis_distribuciones' %}">
-                                                    <i class="fas fa-sitemap me-2"></i>Análisis de Distribuciones
-                                                </a>
-                                            </li>
-                                            <li class="nav-item">
-                                                <a class="nav-link submenu-item" href="{% url 'reportes_salidas:analisis_temporal' %}">
-                                                    <i class="fas fa-calendar-alt me-2"></i>Análisis Temporal
-                                                </a>
-                                            </li>
-                                        </ul>
-                                    </div>
-                                </li>
-                                {% endif %}
-                            </ul>
-                        </div>
-                    </li>
-                    {% endif %}
-
-                    {% if user|usuario_tiene_alguno_de_estos_roles:"Supervisión,Gestor de Inventario" %}
-                    <li class="nav-item">
-                        <a class="nav-link {% if 'inventario' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'lista_movimientos' %}">
-                            <i class="fas fa-warehouse"></i>
-                            Inventario
-                        </a>
-                    </li>
-                    {% endif %}
-
-                    {% if user|usuario_tiene_alguno_de_estos_roles:"Supervisión,Gestor de Inventario" %}
-                    <li class="nav-item">
-                        <a class="nav-link {% if 'alertas' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'alertas_caducidad' %}">
-                            <i class="fas fa-exclamation-triangle"></i>
-                            Alertas
-                        </a>
-                    </li>
-                    {% endif %}
-
-                    <!-- Solicitudes con submenú -->
-                    {% if user|usuario_tiene_alguno_de_estos_roles:"Administrador" %}
-                    <li class="nav-item">
-                        <a class="nav-link {% if 'solicitud' in request.resolver_match.url_name %}active{% endif %}" data-bs-toggle="collapse" href="#submenuSolicitudes">
-                            <i class="fas fa-clipboard-list"></i>
-                            Solicitudes
-                        </a>
-                        <div class="collapse {% if 'solicitud' in request.resolver_match.url_name %}show{% endif %}" id="submenuSolicitudes">
-                            <ul class="nav flex-column">
-                                <li class="nav-item">
-                                    <a class="nav-link submenu-item {% if request.resolver_match.url_name == 'lista_solicitudes' %}active{% endif %}" href="{% url 'lista_solicitudes' %}">
-                                        <i class="fas fa-list me-2"></i>Lista de solicitudes
-                                    </a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link submenu-item {% if request.resolver_match.url_name == 'carga_masiva_solicitud' %}active{% endif %}" href="{% url 'carga_masiva_solicitud' %}">
-                                        <i class="fas fa-upload me-2"></i>Carga masiva
-                                    </a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link submenu-item {% if request.resolver_match.url_name == 'complemento_carga_masiva_solicitud' %}active{% endif %}" href="{% url 'complemento_carga_masiva' %}">
-                                        <i class="fas fa-sync-alt me-2"></i>Complemento de carga
-                                    </a>
-                                </li>
-                            </ul>
-                        </div>
-                    </li>
-                    {% endif %}
-
-                    <!-- Cargas masivas -->
-                    {% if user|usuario_tiene_alguno_de_estos_roles:"Administrador,Almacenero,Supervisión" %}
-                    <li class="nav-item mt-3">
-                        <a class="nav-link {% if 'carga' in request.resolver_match.url_name %}active{% endif %}" data-bs-toggle="collapse" href="#submenuCargas">
-                            <i class="fas fa-file-excel"></i>
-                            Cargas Masivas
-                        </a>
-                        <div class="collapse {% if 'carga' in request.resolver_match.url_name %}show{% endif %}" id="submenuCargas">
-                            <ul class="nav flex-column">
-                                <li class="nav-item">
-                                    <a class="nav-link submenu-item {% if request.resolver_match.url_name == 'carga_masiva_instituciones' %}active{% endif %}" href="{% url 'carga_masiva_instituciones' %}">
-                                        <i class="fas fa-hospital me-2"></i>Instituciones
-                                    </a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link submenu-item {% if request.resolver_match.url_name == 'carga_lotes_excel' %}active{% endif %}" href="{% url 'carga_lotes_excel' %}">
-                                        <i class="fas fa-boxes me-2"></i>Existencias
-                                    </a>
-                                </li>
-                                <li class="nav-item">
-                                    <a class="nav-link submenu-item {% if request.resolver_match.url_name == 'carga_masiva_solicitud' %}active{% endif %}" href="{% url 'carga_masiva_solicitud' %}">
-                                        <i class="fas fa-clipboard-list me-2"></i>Solicitudes
-                                    </a>
-                                </li>
-                            </ul>
-                        </div>
-                    </li>
-                    {% endif %}
-
-                    <!-- Picking y Operaciones -->
-                    {% if user|usuario_tiene_alguno_de_estos_roles:"Almacenero,Supervisión" %}
-                    <li class="nav-item mt-3">
-                        <a class="nav-link {% if 'picking' in request.resolver_match.url_name %}active{% endif %}" data-bs-toggle="collapse" href="#submenuPicking">
-                            <i class="fas fa-dolly"></i>
-                            Picking y Operaciones
-                        </a>
-                        <div class="collapse {% if 'picking' in request.resolver_match.url_name %}show{% endif %}" id="submenuPicking">
-                            <ul class="nav flex-column">
-                                <li class="nav-item">
-                                    <a class="nav-link submenu-item" href="{% url 'picking:dashboard' %}">
-                                        <i class="fas fa-list me-2"></i>Propuestas para Picking
-                                    </a>
-                                </li>
-                            </ul>
-                        </div>
-                    </li>
-                    {% endif %}
-
-                    <li class="nav-item mt-3">
-                        <hr class="text-white">
-                    </li>
-
-                    {% if user|usuario_tiene_rol:"Administrador" %}
-                    <li class="nav-item">
-                        <a class="nav-link {% if 'admin_roles' in request.resolver_match.url_name %}active{% endif %}" href="{% url 'admin_roles:dashboard' %}">
-                            <i class="fas fa-user-shield"></i>
-                            Administración de Roles
-                        </a>
-                    </li>
-                    {% endif %}
-
-                    {% if user|usuario_tiene_rol:"Administrador" %}
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'admin:index' %}">
-                            <i class="fas fa-cog"></i>
-                            Panel de Django
-                        </a>
-                    </li>
-                    {% endif %}
-
-                    <li class="nav-item">
-                        <a class="nav-link" href="{% url 'logout' %}">
-                            <i class="fas fa-sign-out-alt"></i>
-                            Cerrar Sesión
-                        </a>
-                    </li>
+                    {% endfor %}
                 </ul>
-
-                <div class="mt-4 text-center">
-                    <small class="text-white-50">
-                        Usuario: {{ user.get_full_name|default:user.username }}
-                    </small>
-                    <br>
-                    <small class="text-white-50">
-                        CLUE: {{ user.clue|default:"No asignado" }}
-                    </small>
+                {% else %}
+                <div class="alert alert-warning" role="alert">
+                    <i class="fas fa-exclamation-triangle"></i>
+                    No tienes acceso a ninguna seccion
                 </div>
+                {% endif %}
             </div>
         </nav>
 
