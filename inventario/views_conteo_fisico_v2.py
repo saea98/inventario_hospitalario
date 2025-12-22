@@ -33,9 +33,10 @@ from .forms_conteo_fisico import (
     CrearLoteManualForm, FiltroConteosForm
 )
 from .servicios_notificaciones import notificaciones
+from .access_control import requiere_rol
 
 
-@login_required
+@requiere_rol('Almacenero', 'Administrador', 'Gestor de Inventario', 'Supervisión')
 def buscar_lote_conteo(request):
     """
     Vista para buscar un lote por CLAVE (CNIS).
@@ -305,7 +306,7 @@ def crear_lote_conteo(request):
     })
 
 
-@login_required
+@requiere_rol('Almacenero', 'Administrador', 'Gestor de Inventario', 'Supervisión')
 def historial_conteos(request):
     """
     Vista para ver el historial de conteos realizados.
