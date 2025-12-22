@@ -1670,42 +1670,16 @@ class MenuItemRol(models.Model):
     """
     Modelo para definir qué opciones de menú pueden ver los usuarios según sus roles.
     Permite configurar el acceso al menú sin tocar código.
+    Soporta creación dinámica de menús sin restricciones de MENU_CHOICES.
     """
     
-    MENU_CHOICES = [
-        ('dashboard', 'Dashboard'),
-        ('admin_roles', 'Administración de Roles'),
-        ('instituciones', 'Instituciones'),
-        ('productos', 'Productos'),
-        ('proveedores', 'Proveedores'),
-        ('alcaldias', 'Alcaldías'),
-        ('almacenes', 'Almacenes'),
-        ('existencias', 'Existencias'),
-        ('entrada_almacen', 'Entrada al Almacén'),
-        ('salidas_almacen', 'Salidas del Almacén'),
-        ('citas', 'Citas de Proveedores'),
-        ('traslados', 'Traslados'),
-        ('conteo_fisico', 'Conteo Físico'),
-        ('gestion_pedidos', 'Gestión de Pedidos'),
-        ('propuestas_surtimiento', 'Propuestas de Surtimiento'),
-        ('llegada_proveedores', 'Llegada de Proveedores'),
-        ('devoluciones', 'Devoluciones de Proveedores'),
-        ('reportes_devoluciones', 'Reportes de Devoluciones'),
-        ('reportes_salidas', 'Reportes de Salidas'),
-        ('inventario', 'Inventario'),
-        ('alertas', 'Alertas'),
-        ('solicitudes', 'Solicitudes'),
-        ('cargas_masivas', 'Cargas Masivas'),
-        ('picking', 'Picking y Operaciones'),
-        ('administracion', 'Panel de Django'),
-    ]
-    
     menu_item = models.CharField(
-        max_length=50,
-        choices=MENU_CHOICES,
+        max_length=100,
         unique=True,
-        verbose_name='Opción de Menú'
+        verbose_name='Opción de Menú',
+        help_text='Identificador único del menú (ej: gestion_proveedores, administracion)'
     )
+    
     
     nombre_mostrado = models.CharField(
         max_length=100,
@@ -1780,3 +1754,83 @@ class MenuItemRol(models.Model):
         
         # Verificar si alguno de sus roles está en los roles permitidos
         return self.roles_permitidos.filter(id__in=roles_usuario.values_list('id', flat=True)).exists()
+
+    def clean(self):
+        """Validación del modelo"""
+        from django.core.exceptions import ValidationError
+        
+        # Validar que menu_item no esté vacío
+        if not self.menu_item or not self.menu_item.strip():
+            raise ValidationError({'menu_item': 'El identificador del menú no puede estar vacío'})
+        
+        # Validar que menu_item sea único (excepto para este objeto)
+        duplicados = MenuItemRol.objects.filter(menu_item=self.menu_item).exclude(id=self.id)
+        if duplicados.exists():
+            raise ValidationError({'menu_item': f'Ya existe un menú con el identificador "{self.menu_item}"'})
+        
+        # Validar que no se cree una referencia circular
+        if self.menu_padre:
+            if self.menu_padre.id == self.id:
+                raise ValidationError({'menu_padre': 'Un menú no puede ser su propio padre'})
+            
+            # Verificar que no haya referencias circulares
+            padre_actual = self.menu_padre
+            mientras_count = 0
+            while padre_actual and mientras_count < 100:
+                if padre_actual.id == self.id:
+                    raise ValidationError({'menu_padre': 'No se permiten referencias circulares en los menús'})
+                padre_actual = padre_actual.menu_padre
+                mientras_count += 1
+    
+    def save(self, *args, **kwargs):
+        """Guardar con validación"""
+        self.clean()
+        super().save(*args, **kwargs)
+    
+    @classmethod
+    def crear_menu_raiz(cls, menu_item, nombre_mostrado, icono='fas fa-folder', url_name=None, orden=0):
+        """
+        Crea un menú raíz (sin padre) de forma sencilla
+        
+        Ejemplo:
+            MenuItemRol.crear_menu_raiz(
+                menu_item='gestion_proveedores',
+                nombre_mostrado='Gestión de Proveedores',
+                icono='fas fa-truck',
+                url_name='gestion_proveedores'
+            )
+        """
+        return cls.objects.create(
+            menu_item=menu_item,
+            nombre_mostrado=nombre_mostrado,
+            icono=icono,
+            url_name=url_name or menu_item,
+            orden=orden,
+            activo=True,
+            menu_padre=None
+        )
+    
+    @classmethod
+    def crear_submenu(cls, menu_item, nombre_mostrado, menu_padre, icono='fas fa-circle', url_name=None, orden=0):
+        """
+        Crea un submenú bajo un menú padre
+        
+        Ejemplo:
+            padre = MenuItemRol.objects.get(nombre_mostrado='Gestión de Proveedores')
+            MenuItemRol.crear_submenu(
+                menu_item='lista_proveedores',
+                nombre_mostrado='Listar Proveedores',
+                menu_padre=padre,
+                icono='fas fa-list',
+                url_name='lista_proveedores'
+            )
+        """
+        return cls.objects.create(
+            menu_item=menu_item,
+            nombre_mostrado=nombre_mostrado,
+            icono=icono,
+            url_name=url_name or menu_item,
+            orden=orden,
+            activo=True,
+            menu_padre=menu_padre
+        )
