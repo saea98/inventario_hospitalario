@@ -243,15 +243,24 @@ class UbicacionItemForm(forms.Form):
         })
     )
     
-    def __init__(self, *args, **kwargs):
+        def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, **kwargs)
         from django.apps import apps
         Almacen = apps.get_model('inventario', 'Almacen')
         UbicacionAlmacen = apps.get_model('inventario', 'UbicacionAlmacen')
-        
-        # Inicializar querysets
-        self.fields['almacen'].queryset = Almacen.objects.all().order_by('nombre')
-        self.fields['ubicacion'].queryset = UbicacionAlmacen.objects.all().order_by('codigo')
+
+        # Si se pasa un usuario y este tiene un almacén asignado, filtramos
+        # Asumo que el modelo de User tiene un campo ForeignKey 'almacen'
+        if user and hasattr(user, 'almacen') and user.almacen:
+            self.fields['almacen'].queryset = Almacen.objects.filter(id=user.almacen.id)
+            self.fields['almacen'].initial = user.almacen.id
+            self.fields['ubicacion'].queryset = UbicacionAlmacen.objects.filter(almacen=user.almacen).order_by('codigo')
+        else:
+            # Comportamiento por defecto: mostrar todos los almacenes
+            self.fields['almacen'].queryset = Almacen.objects.all().order_by('nombre')
+            # Las ubicaciones dependen del almacén, se podrían cargar con JS.
+            # Por ahora, si no hay usuario con almacén, no se muestran ubicaciones.
+            self.fields['ubicacion'].queryset = UbicacionAlmacen.objects.none()
 
 
 class UbicacionFormSet(BaseFormSet):
@@ -260,8 +269,9 @@ class UbicacionFormSet(BaseFormSet):
     Genera dinámicamente un formulario UbicacionItemForm por cada item.
     """
     
-    def __init__(self, data=None, files=None, llegada=None, **kwargs):
-        self.llegada = llegada
+        def __init__(self, data=None, files=None, llegada=None, user=None, **kwargs):
+                self.llegada = llegada
+        self.user = user
         self._forms_cache = None
         super().__init__(data=data, files=files, **kwargs)
     
@@ -284,10 +294,11 @@ class UbicacionFormSet(BaseFormSet):
                         }
                     
                     # Pasar self.data si existe (POST), None si es GET
-                    form = UbicacionItemForm(
+                                        form = UbicacionItemForm(
                         self.data if self.data else None,
                         prefix=prefix,
-                        initial=initial_data
+                        initial=initial_data,
+                        user=self.user
                     )
                     self._forms_cache.append(form)
         return self._forms_cache

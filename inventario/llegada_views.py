@@ -8,6 +8,8 @@ from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.db import transaction
 from django.utils import timezone
+from django.utils.decorators import method_decorator
+from .access_control import requiere_rol
 
 from .llegada_models import LlegadaProveedor, ItemLlegada, DocumentoLlegada
 from .llegada_forms import (
@@ -32,7 +34,6 @@ class ListaLlegadasView(LoginRequiredMixin, View):
 
 class CrearLlegadaView(LoginRequiredMixin, PermissionRequiredMixin, View):
     """Crea una nueva llegada de proveedor"""
-    permission_required = "inventario.add_llegadaproveedor"
     
     def get(self, request):
         form = LlegadaProveedorForm()
@@ -76,9 +77,9 @@ class DetalleLlegadaView(LoginRequiredMixin, View):
         return render(request, "inventario/llegadas/detalle_llegada.html", {"llegada": llegada})
 
 
-class ControlCalidadView(LoginRequiredMixin, PermissionRequiredMixin, View):
+@method_decorator(requiere_rol('Control de Calidad'), name='dispatch')
+class ControlCalidadView(LoginRequiredMixin, View):
     """Validación de Control de Calidad"""
-    permission_required = "inventario.change_llegadaproveedor"
     
     def get(self, request, pk):
         llegada = get_object_or_404(LlegadaProveedor, pk=pk)
@@ -103,9 +104,9 @@ class ControlCalidadView(LoginRequiredMixin, PermissionRequiredMixin, View):
         return render(request, "inventario/llegadas/control_calidad.html", {"llegada": llegada, "form": form})
 
 
-class FacturacionView(LoginRequiredMixin, PermissionRequiredMixin, View):
+@method_decorator(requiere_rol('Facturacion'), name='dispatch')
+class FacturacionView(LoginRequiredMixin, View):
     """Captura de datos de Facturación"""
-    permission_required = "inventario.change_llegadaproveedor"
     
     def get(self, request, pk):
         llegada = get_object_or_404(LlegadaProveedor, pk=pk)
@@ -134,9 +135,9 @@ class FacturacionView(LoginRequiredMixin, PermissionRequiredMixin, View):
         return render(request, "inventario/llegadas/facturacion.html", {"llegada": llegada, "form": form, "formset": formset})
 
 
-class SupervisionView(LoginRequiredMixin, PermissionRequiredMixin, View):
+@method_decorator(requiere_rol('Supervisor'), name='dispatch')
+class SupervisionView(LoginRequiredMixin, View):
     """Validación de Supervisión"""
-    permission_required = "inventario.change_llegadaproveedor"
     
     def get(self, request, pk):
         llegada = get_object_or_404(LlegadaProveedor, pk=pk)
@@ -161,13 +162,13 @@ class SupervisionView(LoginRequiredMixin, PermissionRequiredMixin, View):
         return render(request, "inventario/llegadas/supervision.html", {"llegada": llegada, "form": form})
 
 
-class UbicacionView(LoginRequiredMixin, PermissionRequiredMixin, View):
+@method_decorator(requiere_rol('Almacen'), name='dispatch')
+class UbicacionView(LoginRequiredMixin, View):
     """Asignación de ubicación en Almacén"""
-    permission_required = "inventario.add_lote"
     
     def get(self, request, pk):
         llegada = get_object_or_404(LlegadaProveedor, pk=pk)
-        formset = UbicacionFormSet(llegada=llegada)
+        formset = UbicacionFormSet(llegada=llegada, user=request.user)
         items = list(llegada.items.all())
         # Emparejar items con formularios
         items_forms = list(zip(items, formset.forms))
@@ -175,7 +176,7 @@ class UbicacionView(LoginRequiredMixin, PermissionRequiredMixin, View):
     
     def post(self, request, pk):
         llegada = get_object_or_404(LlegadaProveedor, pk=pk)
-        formset = UbicacionFormSet(request.POST, llegada=llegada)
+        formset = UbicacionFormSet(request.POST, llegada=llegada, user=request.user)
         
         if formset.is_valid():
             with transaction.atomic():
