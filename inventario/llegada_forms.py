@@ -243,7 +243,7 @@ class UbicacionItemForm(forms.Form):
         })
     )
     
-        def __init__(self, *args, user=None, **kwargs):
+    def __init__(self, *args, user=None, **kwargs):
         super().__init__(*args, **kwargs)
         from django.apps import apps
         Almacen = apps.get_model('inventario', 'Almacen')
@@ -269,8 +269,8 @@ class UbicacionFormSet(BaseFormSet):
     Genera dinámicamente un formulario UbicacionItemForm por cada item.
     """
     
-        def __init__(self, data=None, files=None, llegada=None, user=None, **kwargs):
-                self.llegada = llegada
+    def __init__(self, data=None, files=None, llegada=None, user=None, **kwargs):
+        self.llegada = llegada
         self.user = user
         self._forms_cache = None
         super().__init__(data=data, files=files, **kwargs)
@@ -294,7 +294,7 @@ class UbicacionFormSet(BaseFormSet):
                         }
                     
                     # Pasar self.data si existe (POST), None si es GET
-                                        form = UbicacionItemForm(
+                    form = UbicacionItemForm(
                         self.data if self.data else None,
                         prefix=prefix,
                         initial=initial_data,
