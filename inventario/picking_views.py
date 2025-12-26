@@ -102,17 +102,18 @@ def picking_propuesta(request, propuesta_id):
     
     for item in propuesta.items.all():
         for lote_asignado in item.lotes_asignados.filter(surtido=False):
-            lote = lote_asignado.lote
+            lote_ubicacion = lote_asignado.lote_ubicacion
+            lote = lote_ubicacion.lote
             items_picking.append({
                 'item_id': item.id,
                 'lote_asignado_id': lote_asignado.id,
                 'producto': lote.producto.descripcion,
                 'cantidad': lote_asignado.cantidad_asignada,
                 'lote_numero': lote.numero_lote,
-                'almacen': lote.almacen.nombre,
-                'almacen_id': lote.almacen_id,
-                'ubicacion': lote.ubicacion.codigo if lote.ubicacion else 'Sin ubicación',
-                'ubicacion_id': lote.ubicacion_id if lote.ubicacion else 0,
+                'almacen': lote_ubicacion.ubicacion.almacen.nombre,
+                'almacen_id': lote_ubicacion.ubicacion.almacen_id,
+                'ubicacion': lote_ubicacion.ubicacion.codigo,
+                'ubicacion_id': lote_ubicacion.ubicacion_id,
                 'clave_cnis': lote.producto.clave_cnis,
             })
     
