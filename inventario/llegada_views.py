@@ -35,6 +35,7 @@ class ListaLlegadasView(LoginRequiredMixin, View):
 
 class CrearLlegadaView(LoginRequiredMixin, PermissionRequiredMixin, View):
     """Crea una nueva llegada de proveedor"""
+    permission_required = 'inventario.add_llegadaproveedor'
     
     def get(self, request):
         form = LlegadaProveedorForm()
