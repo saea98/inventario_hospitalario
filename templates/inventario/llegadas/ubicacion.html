@@ -53,16 +53,15 @@
                                 
                                 <div class="form-group">
                                     <label><strong>Ubicaciones (Puedes asignar a múltiples ubicaciones)</strong></label>
-                                    <div class="ubicaciones-container">
+                                    <div class="ubicaciones-container" data-item-ubicaciones='{{ item.ubicaciones_asignadas|safe }}'>
                                         {% if item.ubicaciones_asignadas %}
                                             {% for ubi in item.ubicaciones_asignadas %}
-                                            <div class="ubicacion-row mb-3 p-3 border rounded" style="background-color: #f8f9fa;">
+                                            <div class="ubicacion-row mb-3 p-3 border rounded" style="background-color: #f8f9fa;" data-ubicacion-id="{{ ubi.ubicacion_id }}" data-cantidad="{{ ubi.cantidad }}">
                                                 <div class="row">
                                                     <div class="col-md-8">
                                                         <label>Ubicación</label>
-                                                        <select name="ubicacion-detalle-{{ forloop.counter0 }}-{{ forloop.counter0 }}-ubicacion" class="form-control select2-single ubicacion-select" required data-selected="{{ ubi.ubicacion_id }}">
+                                                        <select name="ubicacion-detalle-{{ forloop.counter0 }}-{{ forloop.counter0 }}-ubicacion" class="form-control select2-single ubicacion-select" required>
                                                             <option value="">-- Selecciona una ubicación --</option>
-                                                            <option value="{{ ubi.ubicacion_id }}" selected>Ubicación {{ ubi.ubicacion_id }}</option>
                                                         </select>
                                                     </div>
                                                     <div class="col-md-4">
@@ -214,6 +213,19 @@
                     .then(response => response.json())
                     .then(data => {
                         updateUbicacionesSelect(itemIndex, data.ubicaciones);
+                        // Establecer los valores previamente guardados
+                        const container = document.querySelector(`[data-item-index="${itemIndex}"]`);
+                        container.querySelectorAll('.ubicacion-row').forEach((row) => {
+                            const ubicacionId = row.dataset.ubicacionId;
+                            if (ubicacionId) {
+                                const select = row.querySelector('select.ubicacion-select');
+                                if (select) {
+                                    select.value = ubicacionId;
+                                    $(select).trigger('change');
+                                    console.log(`Estableciendo ubicacion ${ubicacionId} en select`);
+                                }
+                            }
+                        });
                     })
                     .catch(error => {
                         console.error('Error al cargar ubicaciones:', error);
