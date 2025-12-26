@@ -168,11 +168,17 @@ class UbicacionView(LoginRequiredMixin, View):
     """Asignación de ubicación en Almacén"""
     
     def get(self, request, pk):
+        import logging
+        logger = logging.getLogger(__name__)
+        
         llegada = get_object_or_404(LlegadaProveedor, pk=pk)
         items = list(llegada.items.all())
         
         # Obtener almacenes disponibles
         almacenes = Almacen.objects.all()
+        logger.warning(f'DEBUG: Total almacenes: {almacenes.count()}')
+        for a in almacenes:
+            logger.warning(f'DEBUG: Almacén - {a.nombre} ({a.id})')
         
         # Preparar datos para el template
         items_with_ubicaciones = []
