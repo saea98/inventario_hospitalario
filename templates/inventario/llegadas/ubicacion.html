@@ -128,8 +128,8 @@
         console.log(`📊 Se encontraron ${ubicacionSelects.length} selects de ubicación`);
         
         ubicacionSelects.forEach((select) => {
-            // Guardar el valor actual
-            const currentValue = select.value;
+            // Guardar el valor actual o el valor guardado en data-ubicacion-id
+            const currentValue = select.value || select.dataset.ubicacionId;
             
             // Limpiar opciones excepto la primera (vacía)
             while (select.options.length > 1) {
@@ -147,6 +147,7 @@
             // Restaurar el valor si existe en las nuevas opciones
             if (currentValue && Array.from(select.options).some(opt => opt.value === currentValue)) {
                 select.value = currentValue;
+                console.log('Establecido valor ' + currentValue + ' en select');
             }
             
             // Disparar evento change para que Select2 se actualice
