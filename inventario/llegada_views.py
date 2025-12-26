@@ -12,6 +12,7 @@ from django.utils.decorators import method_decorator
 from .access_control import requiere_rol
 
 from .llegada_models import LlegadaProveedor, ItemLlegada, DocumentoLlegada
+from .models import Almacen
 from .llegada_forms import (
     LlegadaProveedorForm,
     ItemLlegadaFormSet,
@@ -167,8 +168,6 @@ class UbicacionView(LoginRequiredMixin, View):
     """Asignación de ubicación en Almacén"""
     
     def get(self, request, pk):
-        from .models import Almacen
-        
         llegada = get_object_or_404(LlegadaProveedor, pk=pk)
         items = list(llegada.items.all())
         
