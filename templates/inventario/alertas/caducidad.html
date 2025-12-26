@@ -164,7 +164,7 @@
                         </td>
                         <td>
                             {% if dias < 0 %}
-                                <span class="text-danger fw-bold">{{ dias|abs }} días vencido</span>
+                                <span class="text-danger fw-bold">{{ dias|add:0|stringformat:"d"|slice:"1:" }} días vencido</span>
                             {% elif dias == 0 %}
                                 <span class="text-danger fw-bold">Vence hoy</span>
                             {% else %}
