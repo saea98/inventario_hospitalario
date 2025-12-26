@@ -28,6 +28,7 @@ urlpatterns = [
     path('lotes/crear/', views.crear_lote, name='crear_lote'),
     path('lotes/<int:pk>/', views.detalle_lote, name='detalle_lote'),
     path('lotes/<int:pk>/editar/', views.editar_lote, name='editar_lote'),
+    path('lotes/<int:pk>/editar-ubicaciones/', views.editar_ubicaciones_lote, name='editar_ubicaciones_lote'),
     path('lotes/<int:pk>/eliminar/', views.eliminar_lote, name='eliminar_lote'),
     path('lotes/<int:pk>/marcar-caducado/', views.marcar_lote_caducado, name='marcar_lote_caducado'),
     path('lotes/<int:pk>/crear-alerta/', views.crear_alerta_lote, name='crear_alerta_lote'),

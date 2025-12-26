@@ -1,0 +1,148 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1 class="h3 text-gray-800">Editar Ubicaciones del Lote</h1>
+        </div>
+        <div class="col-md-4 text-right">
+            <a href="{% url 'detalle_lote' lote.pk %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Volver
+            </a>
+        </div>
+    </div>
+
+    <!-- Información del Lote -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Información del Lote</h6>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-4">
+                    <p><strong>Número de Lote:</strong> {{ lote.numero_lote }}</p>
+                    <p><strong>Producto:</strong> {{ lote.producto.descripcion }}</p>
+                </div>
+                <div class="col-md-4">
+                    <p><strong>Almacén:</strong> {{ lote.almacen.nombre }}</p>
+                    <p><strong>Cantidad Total:</strong> {{ lote.cantidad_disponible }} unidades</p>
+                </div>
+                <div class="col-md-4">
+                    <p><strong>Fecha de Caducidad:</strong> {{ lote.fecha_caducidad|date:"d/m/Y" }}</p>
+                    <p><strong>Estado:</strong> <span class="badge badge-{{ lote.get_estado_display|lower|slugify }}">{{ lote.get_estado_display }}</span></p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <form method="post">
+        {% csrf_token %}
+
+        <!-- Ubicaciones Actuales -->
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Ubicaciones Asignadas</h6>
+            </div>
+            <div class="card-body">
+                {% if ubicaciones_actuales %}
+                    <div class="table-responsive">
+                        <table class="table table-bordered table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Código</th>
+                                    <th>Descripción</th>
+                                    <th>Cantidad</th>
+                                    <th>Acciones</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for ubicacion in ubicaciones_actuales %}
+                                    <tr>
+                                        <td><strong>{{ ubicacion.ubicacion.codigo }}</strong></td>
+                                        <td>{{ ubicacion.ubicacion.descripcion }}</td>
+                                        <td>
+                                            <input type="number" 
+                                                   name="ubicacion_{{ ubicacion.id }}_cantidad" 
+                                                   value="{{ ubicacion.cantidad }}" 
+                                                   min="1" 
+                                                   class="form-control form-control-sm"
+                                                   style="max-width: 100px;">
+                                        </td>
+                                        <td>
+                                            <label class="custom-control custom-checkbox">
+                                                <input type="checkbox" 
+                                                       name="eliminar_ubicacion" 
+                                                       value="{{ ubicacion.id }}" 
+                                                       class="custom-control-input">
+                                                <span class="custom-control-label">
+                                                    <i class="fas fa-trash text-danger"></i> Eliminar
+                                                </span>
+                                            </label>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <div class="alert alert-info mt-3">
+                        <strong>Total Asignado:</strong> {{ total_cantidad }} unidades
+                    </div>
+                {% else %}
+                    <div class="alert alert-warning">
+                        <i class="fas fa-exclamation-triangle"></i> 
+                        No hay ubicaciones asignadas a este lote.
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+
+        <!-- Agregar Nueva Ubicación -->
+        {% if ubicaciones_disponibles %}
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Agregar Nueva Ubicación</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="nueva_ubicacion"><strong>Ubicación</strong></label>
+                                <select name="nueva_ubicacion" id="nueva_ubicacion" class="form-control">
+                                    <option value="">-- Selecciona una ubicación --</option>
+                                    {% for ubicacion in ubicaciones_disponibles %}
+                                        <option value="{{ ubicacion.id }}">
+                                            {{ ubicacion.codigo }} - {{ ubicacion.descripcion }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="nueva_cantidad"><strong>Cantidad</strong></label>
+                                <input type="number" 
+                                       name="nueva_cantidad" 
+                                       id="nueva_cantidad" 
+                                       class="form-control" 
+                                       min="1" 
+                                       placeholder="Cantidad a asignar">
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        {% endif %}
+
+        <!-- Botones de Acción -->
+        <div class="mb-4">
+            <button type="submit" class="btn btn-primary btn-lg">
+                <i class="fas fa-save"></i> Guardar Cambios
+            </button>
+            <a href="{% url 'detalle_lote' lote.pk %}" class="btn btn-secondary btn-lg">
+                <i class="fas fa-times"></i> Cancelar
+            </a>
+        </div>
+    </form>
+</div>
+{% endblock %}

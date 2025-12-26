@@ -31,14 +31,15 @@ from .carga_datos import carga_lotes_desde_excel
 from .models import (
     Institucion, Producto, Proveedor, Lote, OrdenSuministro,
     CategoriaProducto, Alcaldia, TipoInstitucion, FuenteFinanciamiento,
-    MovimientoInventario, AlertaCaducidad, CargaInventario, SolicitudInventario, EstadoInsumo, User
+    MovimientoInventario, AlertaCaducidad, CargaInventario, SolicitudInventario, EstadoInsumo, User,
+    LoteUbicacion
 )
 
 # Formularios
 from .forms import (
     InstitucionForm, ProductoForm, ProveedorForm, LoteForm,
     MovimientoInventarioForm, CargaInventarioForm, FiltroInventarioForm,
-    CustomUserCreationForm
+    CustomUserCreationForm, LoteUbicacionForm, LoteUbicacionFormSet
 )
 
 # Utilidades
@@ -1760,3 +1761,97 @@ def carga_lotes_desde_excel_view(request):
         form = CargaLotesForm()
     
     return render(request, 'inventario/carga_lotes_excel.html', {'form': form})
+
+
+@login_required
+def editar_ubicaciones_lote(request, pk):
+    """
+    Vista para editar las ubicaciones asignadas a un lote.
+    Permite agregar, editar y eliminar ubicaciones.
+    """
+    lote = get_object_or_404(Lote, pk=pk)
+    ubicaciones_actuales = LoteUbicacion.objects.filter(lote=lote).order_by('ubicacion__codigo')
+    
+    if request.method == 'POST':
+        # Procesar formulario POST
+        try:
+            # Obtener las ubicaciones enviadas
+            ubicaciones_data = {}
+            for key, value in request.POST.items():
+                if key.startswith('ubicacion_'):
+                    parts = key.split('_')
+                    if len(parts) >= 3:
+                        ubicacion_id = parts[1]
+                        field_name = '_'.join(parts[2:])
+                        
+                        if ubicacion_id not in ubicaciones_data:
+                            ubicaciones_data[ubicacion_id] = {}
+                        ubicaciones_data[ubicacion_id][field_name] = value
+            
+            # Actualizar ubicaciones existentes
+            for ubicacion_id, data in ubicaciones_data.items():
+                try:
+                    ubicacion = LoteUbicacion.objects.get(id=ubicacion_id, lote=lote)
+                    if 'cantidad' in data and data['cantidad']:
+                        ubicacion.cantidad = int(data['cantidad'])
+                        ubicacion.save()
+                except (ValueError, LoteUbicacion.DoesNotExist):
+                    pass
+            
+            # Agregar nueva ubicación si se proporciona
+            nueva_ubicacion_id = request.POST.get('nueva_ubicacion')
+            nueva_cantidad = request.POST.get('nueva_cantidad')
+            
+            if nueva_ubicacion_id and nueva_cantidad:
+                try:
+                    nueva_cantidad = int(nueva_cantidad)
+                    if nueva_cantidad > 0:
+                        ubicacion_almacen = UbicacionAlmacen.objects.get(id=nueva_ubicacion_id)
+                        
+                        # Verificar que no exista ya
+                        if not LoteUbicacion.objects.filter(lote=lote, ubicacion=ubicacion_almacen).exists():
+                            LoteUbicacion.objects.create(
+                                lote=lote,
+                                ubicacion=ubicacion_almacen,
+                                cantidad=nueva_cantidad,
+                                usuario_asignacion=request.user
+                            )
+                            messages.success(request, f"✅ Ubicación {ubicacion_almacen.codigo} agregada correctamente.")
+                        else:
+                            messages.warning(request, f"⚠️ La ubicación {ubicacion_almacen.codigo} ya está asignada a este lote.")
+                except (ValueError, UbicacionAlmacen.DoesNotExist):
+                    messages.error(request, "❌ Error al agregar la ubicación.")
+            
+            # Eliminar ubicaciones marcadas
+            eliminar_ids = request.POST.getlist('eliminar_ubicacion')
+            for ubicacion_id in eliminar_ids:
+                try:
+                    ubicacion = LoteUbicacion.objects.get(id=ubicacion_id, lote=lote)
+                    ubicacion.delete()
+                    messages.success(request, f"✅ Ubicación eliminada correctamente.")
+                except LoteUbicacion.DoesNotExist:
+                    pass
+            
+            messages.success(request, "✅ Ubicaciones actualizadas correctamente.")
+            return redirect('editar_ubicaciones_lote', pk=lote.pk)
+        
+        except Exception as e:
+            messages.error(request, f"❌ Error al guardar: {str(e)}")
+    
+    # Obtener ubicaciones disponibles del almacén
+    from .models import UbicacionAlmacen, Almacen
+    ubicaciones_disponibles = UbicacionAlmacen.objects.filter(
+        almacen=lote.almacen,
+        activo=True
+    ).exclude(
+        id__in=ubicaciones_actuales.values_list('ubicacion_id', flat=True)
+    ).order_by('codigo')
+    
+    context = {
+        'lote': lote,
+        'ubicaciones_actuales': ubicaciones_actuales,
+        'ubicaciones_disponibles': ubicaciones_disponibles,
+        'total_cantidad': sum(u.cantidad for u in ubicaciones_actuales),
+    }
+    
+    return render(request, 'inventario/lotes/editar_ubicaciones_lote.html', context)

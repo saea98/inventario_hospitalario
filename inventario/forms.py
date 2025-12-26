@@ -781,3 +781,73 @@ from datetime import date, timedelta
 from .models import Almacen
 
 
+
+
+# Formularios para gestionar ubicaciones de lotes
+from .models import LoteUbicacion, Almacen
+
+class LoteUbicacionForm(forms.ModelForm):
+    """Formulario para editar una ubicación de un lote"""
+    
+    class Meta:
+        model = LoteUbicacion
+        fields = ['ubicacion', 'cantidad']
+        widgets = {
+            'ubicacion': forms.Select(attrs={'class': 'form-control'}),
+            'cantidad': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': '1',
+                'placeholder': 'Cantidad en esta ubicación'
+            }),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        almacen = kwargs.pop('almacen', None)
+        super().__init__(*args, **kwargs)
+        
+        if almacen:
+            self.fields['ubicacion'].queryset = UbicacionAlmacen.objects.filter(
+                almacen=almacen,
+                activo=True
+            ).order_by('codigo')
+        else:
+            self.fields['ubicacion'].queryset = UbicacionAlmacen.objects.filter(
+                activo=True
+            ).order_by('codigo')
+
+
+class LoteUbicacionFormSet:
+    """Gestiona múltiples ubicaciones para un lote"""
+    
+    def __init__(self, lote, data=None):
+        self.lote = lote
+        self.data = data
+        self.ubicaciones = LoteUbicacion.objects.filter(lote=lote).order_by('ubicacion__codigo')
+    
+    def get_forms(self):
+        """Retorna los formularios para cada ubicación"""
+        forms_list = []
+        for ubicacion in self.ubicaciones:
+            form = LoteUbicacionForm(
+                instance=ubicacion,
+                almacen=self.lote.almacen,
+                prefix=f'ubicacion_{ubicacion.id}'
+            )
+            forms_list.append({
+                'form': form,
+                'ubicacion': ubicacion,
+                'id': ubicacion.id
+            })
+        return forms_list
+    
+    def save(self, data):
+        """Guarda los cambios en las ubicaciones"""
+        for key, value in data.items():
+            if key.startswith('ubicacion_') and key.endswith('_cantidad'):
+                ubicacion_id = key.replace('ubicacion_', '').replace('_cantidad', '')
+                try:
+                    ubicacion = LoteUbicacion.objects.get(id=ubicacion_id, lote=self.lote)
+                    ubicacion.cantidad = int(value)
+                    ubicacion.save()
+                except (ValueError, LoteUbicacion.DoesNotExist):
+                    pass
