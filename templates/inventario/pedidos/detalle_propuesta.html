@@ -61,12 +61,15 @@
                                     <tr>
                                         <td>{{ lote_asignado.lote.numero_lote }}</td>
                                         <td>
-                                            {% if lote_asignado.ubicacion %}
-                                                <strong>{{ lote_asignado.ubicacion.codigo }}</strong><br>
-                                                <small class="text-muted">{{ lote_asignado.ubicacion.descripcion }}</small>
-                                            {% else %}
-                                                <span class="text-muted">Sin ubicacion</span>
-                                            {% endif %}
+                                            {% for detalle_ubicacion in lote_asignado.lote.ubicaciones_detalle.all %}
+                                                <div>
+                                                    <span class="badge bg-secondary">{{ detalle_ubicacion.cantidad }}</span>
+                                                    <strong>{{ detalle_ubicacion.ubicacion.codigo }}</strong>
+                                                    <small class="text-muted">({{ detalle_ubicacion.ubicacion.almacen.nombre }})</small>
+                                                </div>
+                                            {% empty %}
+                                                <span class="text-muted">Sin ubicación</span>
+                                            {% endfor %}
                                         </td>
                                         <td>{{ lote_asignado.fecha_caducidad_lote|date:"d/m/Y" }}</td>
                                         <td>{{ lote_asignado.cantidad_asignada }}</td>

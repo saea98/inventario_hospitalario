@@ -212,7 +212,7 @@ def detalle_propuesta(request, propuesta_id):
         PropuestaPedido.objects.select_related(
             'solicitud__institucion_solicitante',
             'solicitud__almacen_destino'
-        ).prefetch_related('items__lotes_asignados__lote'),
+        ).prefetch_related('items__lotes_asignados__lote__ubicaciones_detalle__ubicacion__almacen'),
         id=propuesta_id
     )
     
