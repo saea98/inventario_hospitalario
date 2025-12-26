@@ -166,7 +166,7 @@ def capturar_conteo_ubicacion(request, lote_ubicacion_id):
                 
                 
         
-        form = CapturarConteoForm(request.POST))
+        form = CapturarConteoForm(request.POST)
         if form.is_valid():
             cifra_primer_conteo = form.cleaned_data['cifra_primer_conteo']
             cifra_segundo_conteo = form.cleaned_data.get('cifra_segundo_conteo') or 0
