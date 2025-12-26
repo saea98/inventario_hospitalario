@@ -231,12 +231,14 @@ class UbicacionView(LoginRequiredMixin, View):
                     # Procesar ubicaciones desde POST
                     ubicacion_data = []
                     j = 0
+                    logger.warning(f'POST keys para item {i}: {[k for k in request.POST.keys() if f"ubicacion-detalle-{i}" in k]}')
                     while True:
                         ubicacion_id_key = f'ubicacion-detalle-{i}-{j}-ubicacion'
                         cantidad_key = f'ubicacion-detalle-{i}-{j}-cantidad'
                         
                         logger.warning(f'Buscando clave de ubicación: {ubicacion_id_key}')
                         if ubicacion_id_key not in request.POST:
+                            logger.warning(f'Clave no encontrada, deteniendo búsqueda en j={j}')
                             break
                         
                         ubicacion_id = request.POST.get(ubicacion_id_key)
@@ -246,12 +248,17 @@ class UbicacionView(LoginRequiredMixin, View):
                             try:
                                 cantidad = int(cantidad_str)
                                 if cantidad > 0:
+                                    logger.warning(f'Agregando ubicación {ubicacion_id} con cantidad {cantidad}')
                                     ubicacion_data.append({
                                         'ubicacion_id': ubicacion_id,
                                         'cantidad': cantidad
                                     })
-                            except ValueError:
-                                pass
+                                else:
+                                    logger.warning(f'Cantidad {cantidad_str} no es mayor a 0')
+                            except ValueError as e:
+                                logger.warning(f'Error al convertir cantidad {cantidad_str}: {e}')
+                        else:
+                            logger.warning(f'ubicacion_id={ubicacion_id}, cantidad_str={cantidad_str}')
                         j += 1
                     
                     # Validar que hay al menos una ubicación
