@@ -292,7 +292,7 @@ class LoteAsignado(models.Model):
     class Meta:
         verbose_name = "Lote Asignado"
         verbose_name_plural = "Lotes Asignados"
-        ordering = ['fecha_caducidad_lote']
+        ordering = ['lote_ubicacion__lote__fecha_caducidad']
 
     def __str__(self):
-        return f"{self.lote.numero_lote} - {self.cantidad_asignada} Unidades"
+        return f"{self.lote_ubicacion.lote.numero_lote} - {self.cantidad_asignada} Unidades"
