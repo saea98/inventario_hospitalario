@@ -51,7 +51,7 @@
             </div>
 
             <!-- Formulario de selección -->
-            <form method="post" action="{% url 'logistica:seleccionar_lote_conteo' producto_id=producto.id %}" class="needs-validation" novalidate>
+            <form method="post" action="{% url 'logistica:seleccionar_lote_conteo' %}" class="needs-validation" novalidate>
                 {% csrf_token %}
                 
                 <div class="card shadow-sm">
