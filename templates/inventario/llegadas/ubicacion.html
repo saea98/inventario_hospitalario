@@ -32,10 +32,13 @@
                                 
                                 <div class="form-group">
                                     <label><strong>Almacén</strong></label>
+                                    <!-- DEBUG: almacenes count = {{ almacenes|length }} -->
                                     <select name="ubicacion-detalle-{{ forloop.counter0 }}-0-almacen" class="form-control select2-single" required>
                                         <option value="">-- Selecciona un almacén --</option>
                                         {% for almacen in almacenes %}
                                         <option value="{{ almacen.id }}">Almacén {{ almacen.nombre }} ({{ almacen.codigo }})</option>
+                                        {% empty %}
+                                        <!-- No hay almacenes disponibles -->
                                         {% endfor %}
                                     </select>
                                 </div>
