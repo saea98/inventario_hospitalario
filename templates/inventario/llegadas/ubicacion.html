@@ -278,6 +278,14 @@
     
     function removeUbicacion(button) {
         const itemIndex = button.dataset.itemIndex;
+        const container = document.querySelector(`[data-item-index="${itemIndex}"]`);
+        const ubicacionRows = container.querySelectorAll('.ubicacion-row');
+        
+        if (ubicacionRows.length <= 1) {
+            alert('No puedes eliminar la ultima ubicacion. Cada producto debe tener al menos una ubicacion asignada.');
+            return;
+        }
+        
         button.closest('.ubicacion-row').remove();
         updateCantidadesTotales();
     }
