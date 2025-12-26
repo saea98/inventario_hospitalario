@@ -66,16 +66,27 @@
                     <!-- Ubicación -->
                     <div class="mb-0">
                         <label class="form-label small text-muted">UBICACIÓN</label>
-                        <ul class="list-unstyled">
-                            {% for lote_ubicacion in lote.ubicaciones_detalle.all %}
-                                <li>
-                                    <i class="fas fa-map-marker-alt"></i> 
-                                    <strong>{{ lote_ubicacion.ubicacion.codigo }}</strong> ({{ lote_ubicacion.cantidad }} unidades)
-                                </li>
-                            {% empty %}
-                                <li><span class="text-muted">No especificada</span></li>
+                        <form method="post">
+                            {% csrf_token %}
+                            {{ formset.management_form }}
+                            {% for form in formset %}
+                                <div class="form-row">
+                                    <div class="col-md-6">
+                                        {{ form.ubicacion.label_tag }}
+                                        {{ form.ubicacion }}
+                                    </div>
+                                    <div class="col-md-4">
+                                        {{ form.cantidad.label_tag }}
+                                        {{ form.cantidad }}
+                                    </div>
+                                    <div class="col-md-2">
+                                        {{ form.DELETE.label_tag }}
+                                        {{ form.DELETE }}
+                                    </div>
+                                </div>
                             {% endfor %}
-                        </ul>
+                            <button type="submit" name="update_locations" class="btn btn-primary mt-2">Actualizar Ubicaciones</button>
+                        </form>
                     </div>
                 </div>
             </div>
@@ -278,3 +289,35 @@ document.addEventListener('DOMContentLoaded', function() {
 <div class="mt-4">
     <a href="{% url 'logistica:editar_ubicaciones_conteo' lote.id %}" class="btn btn-secondary">Editar Ubicaciones</a>
 </div>
+
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+    const formsetContainer = document.querySelector("#formset-container");
+    const addFormButton = document.querySelector("#add-form");
+    const totalForms = document.querySelector("#id_ubicaciones-TOTAL_FORMS");
+    const formTemplate = document.querySelector("#form-template").innerHTML;
+
+    addFormButton.addEventListener("click", function() {
+        const newForm = formTemplate.replace(/__prefix__/g, totalForms.value);
+        formsetContainer.insertAdjacentHTML("beforeend", newForm);
+        totalForms.value = parseInt(totalForms.value) + 1;
+    });
+});
+</script>
+
+<template id="form-template">
+    <div class="form-row">
+        <div class="col-md-6">
+            {{ formset.empty_form.ubicacion.label_tag }}
+            {{ formset.empty_form.ubicacion }}
+        </div>
+        <div class="col-md-4">
+            {{ formset.empty_form.cantidad.label_tag }}
+            {{ formset.empty_form.cantidad }}
+        </div>
+        <div class="col-md-2">
+            {{ formset.empty_form.DELETE.label_tag }}
+            {{ formset.empty_form.DELETE }}
+        </div>
+    </div>
+</template>
