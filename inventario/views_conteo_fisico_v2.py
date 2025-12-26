@@ -138,7 +138,7 @@ def buscar_lote_conteo(request):
 
 
 @login_required
-def capturar_conteo_lote(request, lote_id):
+def capturar_conteo_lote(request, lote_id=None, lote_ubicacion_id=None):
     """
     Vista para capturar los tres conteos de un lote específico.
     
@@ -150,8 +150,15 @@ def capturar_conteo_lote(request, lote_id):
     POST: Guardar conteos y crear MovimientoInventario
     """
     
-    lote = get_object_or_404(Lote.objects.prefetch_related("ubicaciones_detalle__ubicacion__almacen"), id=lote_id)
-    ubicaciones = lote.ubicaciones_detalle.all()
+    # Determinar si se viene de seleccionar_lote_conteo (con lote_ubicacion_id) o directamente (con lote_id)
+    if lote_ubicacion_id:
+        lote_ubicacion = get_object_or_404(LoteUbicacion, id=lote_ubicacion_id)
+        lote = lote_ubicacion.lote
+        ubicaciones = [lote_ubicacion]  # Solo la ubicación seleccionada
+    else:
+        lote = get_object_or_404(Lote.objects.prefetch_related("ubicaciones_detalle__ubicacion__almacen"), id=lote_id)
+        ubicaciones = lote.ubicaciones_detalle.all()
+    
     producto = lote.producto
     
     if request.method == 'POST':
@@ -244,236 +251,13 @@ def capturar_conteo_lote(request, lote_id):
     contexto = {
         'lote': lote,
         'producto': producto,
+        'ubicaciones': ubicaciones,
         'form': form,
         'formset': formset,
         'cantidad_sistema': lote.cantidad_disponible,
-        'precio_unitario': lote.precio_unitario or 0,
-        'valor_sistema': (lote.cantidad_disponible or 0) * (lote.precio_unitario or 0),
     }
     
     return render(request, 'inventario/conteo_fisico/capturar_conteo.html', contexto)
-
-
-@login_required
-def crear_lote_conteo(request):
-    """
-    Vista para crear un nuevo lote si no existe en el sistema.
-    
-    Se utiliza cuando la búsqueda por CLAVE no encuentra resultados.
-    """
-    
-    clave_cnis = request.session.get('clave_cnis_busqueda')
-    almacen_id = request.session.get('almacen_id_busqueda')
-    
-    if not clave_cnis or not almacen_id:
-        messages.error(request, 'Datos de búsqueda no disponibles')
-        return redirect('logistica:buscar_lote_conteo')
-    
-    almacen = get_object_or_404(Almacen, id=almacen_id)
-    
-    # Buscar o crear producto por CLAVE
-    try:
-        producto = Producto.objects.get(clave_cnis=clave_cnis)
-    except Producto.DoesNotExist:
-        # Obtener categoría por defecto
-        categoria = CategoriaProducto.objects.first()
-        if not categoria:
-            messages.error(request, 'No hay categorías de producto disponibles')
-            return redirect('logistica:buscar_lote_conteo')
-        
-        # Crear producto con CLAVE
-        producto = Producto.objects.create(
-            clave_cnis=clave_cnis,
-            descripcion=f"Producto {clave_cnis} - Creado automáticamente durante conteo físico",
-            categoria=categoria
-        )
-    
-    if request.method == 'POST':
-        form = CrearLoteManualForm(request.POST)
-        
-        if form.is_valid():
-            lote = form.save(commit=False)
-            lote.producto = producto
-            lote.almacen = almacen
-            lote.save()
-            
-            messages.success(request, f'Lote {lote.numero_lote} creado exitosamente')
-            
-            # Limpiar sesión
-            del request.session['clave_cnis_busqueda']
-            del request.session['almacen_id_busqueda']
-            
-            # Redirigir a captura de conteos
-            return redirect(
-                'logistica:capturar_conteo_lote',
-                lote_id=lote.id
-            )
-    else:
-        form = CrearLoteManualForm()
-    
-    return render(request, 'inventario/conteo_fisico/crear.html', {
-        'form': form,
-        'clave_cnis': clave_cnis,
-        'almacen': almacen,
-        'producto': producto
-    })
-
-
-@requiere_rol('Almacenero', 'Administrador', 'Gestor de Inventario', 'Supervisión')
-def historial_conteos(request):
-    """
-    Vista para ver el historial de conteos realizados.
-    
-    Muestra:
-    - Lista de movimientos de tipo AJUSTE_CONTEO
-    - Filtros por almacén, fecha, búsqueda
-    - Estadísticas de conteos
-    """
-    
-    institucion = request.user.institucion if hasattr(request.user, 'institucion') else None
-    
-    # Obtener movimientos de conteo
-    # Filtrar por movimientos que contengan "Conteo Físico" en el motivo
-    movimientos = MovimientoInventario.objects.filter(
-        motivo__icontains='Conteo Físico'
-    ).select_related('lote', 'lote__producto', 'lote__almacen', 'usuario')
-    
-    if institucion:
-        movimientos = movimientos.filter(lote__almacen__institucion=institucion)
-    
-    # Aplicar filtros
-    form = FiltroConteosForm(institucion=institucion)
-    
-    if request.method == 'GET':
-        almacen_id = request.GET.get('almacen')
-        busqueda = request.GET.get('busqueda')
-        fecha_desde = request.GET.get('fecha_desde')
-        fecha_hasta = request.GET.get('fecha_hasta')
-        
-        if almacen_id:
-            movimientos = movimientos.filter(lote__almacen_id=almacen_id)
-        
-        if busqueda:
-            movimientos = movimientos.filter(
-                Q(lote__producto__clave_cnis__icontains=busqueda) |
-                Q(lote__numero_lote__icontains=busqueda) |
-                Q(folio__icontains=busqueda)
-            )
-        
-        if fecha_desde:
-            fecha_desde_obj = datetime.strptime(fecha_desde, '%Y-%m-%d').date()
-            movimientos = movimientos.filter(fecha_movimiento__date__gte=fecha_desde_obj)
-        
-        if fecha_hasta:
-            fecha_hasta_obj = datetime.strptime(fecha_hasta, '%Y-%m-%d').date()
-            movimientos = movimientos.filter(fecha_movimiento__date__lte=fecha_hasta_obj)
-    
-    # Ordenar por fecha descendente
-    movimientos = movimientos.order_by('-fecha_movimiento')
-    
-    # Estadísticas
-    total_conteos = movimientos.count()
-    total_diferencias = sum(abs((m.cantidad_nueva or 0) - (m.cantidad_anterior or 0)) for m in movimientos)
-    conteos_con_diferencia = sum(1 for m in movimientos if (m.cantidad_nueva or 0) != (m.cantidad_anterior or 0))
-    
-    contexto = {
-        'movimientos': movimientos,
-        'form': form,
-        'estadisticas': {
-            'total': total_conteos,
-            'con_diferencia': conteos_con_diferencia,
-            'total_diferencias': total_diferencias,
-        },
-    }
-    
-    return render(request, 'inventario/conteo_fisico/historial_conteos.html', contexto)
-
-
-@login_required
-def detalle_movimiento_conteo(request, movimiento_id):
-    """
-    Vista para ver el detalle de un movimiento de conteo.
-    
-    Muestra:
-    - Información del lote y producto
-    - Los tres conteos capturados
-    - Diferencias calculadas
-    - Importes
-    """
-    
-    movimiento = get_object_or_404(MovimientoInventario.objects.select_related("lote__producto", "lote__almacen"), id=movimiento_id)
-    lote = movimiento.lote
-    producto = lote.producto
-    
-    # Calcular importes
-    diferencia = (movimiento.cantidad_nueva or 0) - (movimiento.cantidad_anterior or 0)
-    importe_anterior = (movimiento.cantidad_anterior or 0) * (lote.precio_unitario or 0)
-    importe_nueva = (movimiento.cantidad_nueva or 0) * (lote.precio_unitario or 0)
-    importe_diferencia = diferencia * (lote.precio_unitario or 0)
-    
-    contexto = {
-        'movimiento': movimiento,
-        'lote': lote,
-        'producto': producto,
-        'diferencia': diferencia,
-        'importe_anterior': importe_anterior,
-        'importe_nueva': importe_nueva,
-        'importe_diferencia': importe_diferencia,
-    }
-    
-    return render(request, 'inventario/conteo_fisico/detalle_movimiento.html', contexto)
-
-
-@login_required
-def api_obtener_lote_info(request):
-    """
-    API AJAX para obtener información de un lote por CLAVE.
-    
-    Retorna JSON con:
-    - Información del lote
-    - Cantidad sistema
-    - Precio unitario
-    - Valor total
-    """
-    
-    clave_cnis = request.GET.get('clave_cnis', '').strip()
-    almacen_id = request.GET.get('almacen_id')
-    
-    if not clave_cnis or not almacen_id:
-        return JsonResponse({'error': 'Parámetros incompletos'}, status=400)
-    
-    try:
-        lote = Lote.objects.get(
-            producto__clave_cnis=clave_cnis,
-            almacen_id=almacen_id
-        )
-        
-        return JsonResponse({
-            'encontrado': True,
-            'lote_id': lote.id,
-            'numero_lote': lote.numero_lote,
-            'cantidad_sistema': lote.cantidad_disponible,
-            'precio_unitario': float(lote.precio_unitario or 0),
-            'valor_total': float(lote.valor_total or 0),
-            'fecha_caducidad': lote.fecha_caducidad.isoformat() if lote.fecha_caducidad else None,
-            'ubicacion': str(lote.ubicacion) if lote.ubicacion else 'No especificada',
-        })
-        
-    except Lote.DoesNotExist:
-        return JsonResponse({'encontrado': False})
-    
-    except Lote.MultipleObjectsReturned:
-        lotes = Lote.objects.filter(
-            producto__clave_cnis=clave_cnis,
-            almacen_id=almacen_id
-        ).values('id', 'numero_lote', 'cantidad_disponible')
-        
-        return JsonResponse({
-            'encontrado': False,
-            'multiples': True,
-            'lotes': list(lotes)
-        })
-
 
 
 @login_required
@@ -483,7 +267,7 @@ def seleccionar_lote_conteo(request):
     para la misma CLAVE en el almacén.
     
     GET: Mostrar lista de lotes disponibles
-    POST: Seleccionar lote y redirigir a captura de conteos
+    POST: Seleccionar lote y ubicación, redirigir a captura de conteos
     """
     
     clave_cnis = request.session.get('clave_cnis_busqueda')
@@ -497,32 +281,52 @@ def seleccionar_lote_conteo(request):
     lotes = Lote.objects.filter(
         producto__clave_cnis=clave_cnis,
         almacen_id=almacen_id
-    ).select_related('producto', 'almacen').prefetch_related('ubicaciones_detalle').order_by('numero_lote')
+    ).select_related('producto', 'almacen').prefetch_related('ubicaciones_detalle__ubicacion').order_by('numero_lote')
     
     if not lotes.exists():
         messages.error(request, f'No se encontraron lotes con CLAVE: {clave_cnis}')
         return redirect('logistica:buscar_lote_conteo')
     
     if request.method == 'POST':
-        lote_id = request.POST.get('lote_id')
+        lote_ubicacion_id = request.POST.get('lote_ubicacion_id')
         
-        if not lote_id:
-            messages.error(request, 'Por favor, seleccione un lote.')
-            return redirect('logistica:seleccionar_lote_conteo')
+        if not lote_ubicacion_id:
+            messages.error(request, 'Por favor, seleccione un lote y su ubicación.')
+            # Re-render the page with context
+            producto_descripcion = lotes.first().producto.descripcion if lotes.exists() else ''
+            contexto = {
+                'lotes': lotes,
+                'clave_cnis': clave_cnis,
+                'almacen': Almacen.objects.get(id=almacen_id),
+                'producto_descripcion': producto_descripcion,
+                'producto': lotes.first().producto if lotes.exists() else None
+            }
+            return render(request, 'inventario/conteo_fisico/seleccionar_lote.html', contexto)
         
         try:
-            lote = Lote.objects.get(id=lote_id, almacen_id=almacen_id)
+            lote_ubicacion = LoteUbicacion.objects.get(id=lote_ubicacion_id)
             # Limpiar sesión
-            del request.session['clave_cnis_busqueda']
-            del request.session['almacen_id_busqueda']
+            if 'clave_cnis_busqueda' in request.session:
+                del request.session['clave_cnis_busqueda']
+            if 'almacen_id_busqueda' in request.session:
+                del request.session['almacen_id_busqueda']
             
             return redirect(
                 'logistica:capturar_conteo_lote',
-                lote_id=lote.id
+                lote_ubicacion_id=lote_ubicacion.id
             )
-        except Lote.DoesNotExist:
-            messages.error(request, 'Lote no encontrado.')
-            return redirect('logistica:seleccionar_lote_conteo')
+        except LoteUbicacion.DoesNotExist:
+            messages.error(request, 'Ubicación del lote no encontrada.')
+            # Re-render the page with context
+            producto_descripcion = lotes.first().producto.descripcion if lotes.exists() else ''
+            contexto = {
+                'lotes': lotes,
+                'clave_cnis': clave_cnis,
+                'almacen': Almacen.objects.get(id=almacen_id),
+                'producto_descripcion': producto_descripcion,
+                'producto': lotes.first().producto if lotes.exists() else None
+            }
+            return render(request, 'inventario/conteo_fisico/seleccionar_lote.html', contexto)
     
     # Obtener la descripción del producto del primer lote
     producto_descripcion = lotes.first().producto.descripcion if lotes.exists() else ''
@@ -532,122 +336,85 @@ def seleccionar_lote_conteo(request):
         'clave_cnis': clave_cnis,
         'almacen': Almacen.objects.get(id=almacen_id),
         'producto_descripcion': producto_descripcion,
+        'producto': lotes.first().producto if lotes.exists() else None
     }
     
     return render(request, 'inventario/conteo_fisico/seleccionar_lote.html', contexto)
 
 
 @login_required
-def cambiar_ubicacion_conteo(request, lote_id):
-    lote = get_object_or_404(Lote.objects.prefetch_related("ubicaciones_detalle__ubicacion__almacen"), id=lote_id)
-    ubicaciones = lote.ubicaciones_detalle.all()
+def detalle_movimiento_conteo(request, movimiento_id):
+    """
+    Vista para mostrar el detalle de un movimiento de conteo.
+    """
+    movimiento = get_object_or_404(MovimientoInventario, id=movimiento_id)
+    
+    contexto = {
+        'movimiento': movimiento,
+        'lote': movimiento.lote,
+    }
+    
+    return render(request, 'inventario/conteo_fisico/detalle_movimiento.html', contexto)
+
+
+@login_required
+def crear_lote_conteo(request):
+    """
+    Vista para crear un nuevo lote cuando no se encuentra en la búsqueda.
+    """
+    clave_cnis = request.session.get('clave_cnis_busqueda')
+    numero_lote = request.session.get('numero_lote_busqueda')
+    almacen_id = request.session.get('almacen_id_busqueda')
+    
+    if not almacen_id:
+        messages.error(request, 'Sesión expirada. Por favor, realice la búsqueda nuevamente.')
+        return redirect('logistica:buscar_lote_conteo')
+    
+    almacen = get_object_or_404(Almacen, id=almacen_id)
+    
     if request.method == 'POST':
-        form = CambiarUbicacionForm(request.POST, almacen=lote.almacen)
+        form = CrearLoteManualForm(request.POST, almacen=almacen)
         if form.is_valid():
-            nueva_ubicacion = form.cleaned_data['nueva_ubicacion']
-            lote.ubicacion = nueva_ubicacion
+            lote = form.save(commit=False)
+            lote.almacen = almacen
             lote.save()
-            messages.success(request, f'Ubicación del lote {lote.numero_lote} cambiada a {nueva_ubicacion.codigo}')
+            
+            # Limpiar sesión
+            if 'clave_cnis_busqueda' in request.session:
+                del request.session['clave_cnis_busqueda']
+            if 'numero_lote_busqueda' in request.session:
+                del request.session['numero_lote_busqueda']
+            if 'almacen_id_busqueda' in request.session:
+                del request.session['almacen_id_busqueda']
+            
+            messages.success(request, f'Lote {lote.numero_lote} creado exitosamente.')
             return redirect('logistica:capturar_conteo_lote', lote_id=lote.id)
     else:
-        form = CambiarUbicacionForm(almacen=lote.almacen)
+        form = CrearLoteManualForm(almacen=almacen)
+        if clave_cnis:
+            form.fields['producto'].queryset = Producto.objects.filter(clave_cnis=clave_cnis)
     
-    context = {
-        'lote': lote,
+    contexto = {
         'form': form,
+        'almacen': almacen,
+        'clave_cnis': clave_cnis,
+        'numero_lote': numero_lote,
     }
-    return render(request, 'inventario/conteo_fisico/cambiar_ubicacion.html', context)
+    
+    return render(request, 'inventario/conteo_fisico/crear_lote.html', contexto)
 
 
 @login_required
-def fusionar_ubicaciones_conteo(request, lote_id):
-    lote_origen = get_object_or_404(Lote, id=lote_id)
-    if request.method == 'POST':
-        form = FusionarUbicacionForm(request.POST, lote_origen=lote_origen)
-        if form.is_valid():
-            lote_destino = form.cleaned_data['lote_destino']
-            # Realizar la fusión
-            with transaction.atomic():
-                # Crear movimiento de salida para el lote origen
-                MovimientoInventario.objects.create(
-                    lote=lote_origen,
-                    tipo_movimiento='AJUSTE_NEGATIVO',
-                    cantidad=lote_origen.cantidad_disponible,
-                    motivo=f'Fusión con lote {lote_destino.numero_lote}',
-                    usuario=request.user
-                )
-                # Crear movimiento de entrada para el lote destino
-                MovimientoInventario.objects.create(
-                    lote=lote_destino,
-                    tipo_movimiento='AJUSTE_POSITIVO',
-                    cantidad=lote_origen.cantidad_disponible,
-                    motivo=f'Fusión desde lote {lote_origen.numero_lote}',
-                    usuario=request.user
-                )
-                # Actualizar cantidades
-                lote_destino.cantidad_disponible += lote_origen.cantidad_disponible
-                lote_destino.save()
-                lote_origen.cantidad_disponible = 0
-                lote_origen.save()
-            messages.success(request, 'Fusión de lotes completada exitosamente.')
-            return redirect('logistica:capturar_conteo_lote', lote_id=lote_destino.id)
-    else:
-        form = FusionarUbicacionForm(lote_origen=lote_origen)
+def listar_conteos(request):
+    """
+    Vista para listar todos los conteos realizados.
+    """
+    movimientos = MovimientoInventario.objects.filter(
+        tipo_movimiento__in=['AJUSTE_POSITIVO', 'AJUSTE_NEGATIVO']
+    ).select_related('lote__producto', 'usuario').order_by('-fecha_creacion')
     
-    context = {
-        'lote_origen': lote_origen,
-        'form': form,
+    contexto = {
+        'movimientos': movimientos,
     }
-    return render(request, 'inventario/conteo_fisico/fusionar_ubicaciones.html', context)
-
-
-@login_required
-def asignar_ubicacion_conteo(request, lote_id):
-    lote = get_object_or_404(Lote, id=lote_id)
-    if request.method == 'POST':
-        form = AsignarUbicacionForm(request.POST, almacen=lote.almacen)
-        if form.is_valid():
-            ubicacion = form.cleaned_data['ubicacion']
-            cantidad = form.cleaned_data['cantidad']
-            # Crear o actualizar la ubicación del lote
-            lote_ubicacion, created = LoteUbicacion.objects.get_or_create(
-                lote=lote,
-                ubicacion=ubicacion,
-                defaults={'cantidad': cantidad}
-            )
-            if not created:
-                lote_ubicacion.cantidad += cantidad
-                lote_ubicacion.save()
-            messages.success(request, f'{cantidad} unidades del lote {lote.numero_lote} asignadas a la ubicación {ubicacion.codigo}')
-            return redirect('logistica:capturar_conteo_lote', lote_id=lote.id)
-    else:
-        form = AsignarUbicacionForm(almacen=lote.almacen)
     
-    context = {
-        'lote': lote,
-        'form': form,
-    }
-    return render(request, 'inventario/conteo_fisico/asignar_ubicacion.html', context)
-
-
-@login_required
-def editar_ubicaciones_conteo(request, lote_id):
-    lote = get_object_or_404(Lote, id=lote_id)
-    if request.method == 'POST':
-        formset = LoteUbicacionFormSet(request.POST, queryset=LoteUbicacion.objects.filter(lote=lote))
-        if formset.is_valid():
-            instances = formset.save(commit=False)
-            for instance in instances:
-                instance.lote = lote
-                instance.save()
-            formset.save_m2m()
-            messages.success(request, 'Ubicaciones actualizadas exitosamente.')
-            return redirect('logistica:capturar_conteo_lote', lote_id=lote.id)
-    else:
-        formset = LoteUbicacionFormSet(queryset=LoteUbicacion.objects.filter(lote=lote))
-    
-    context = {
-        'lote': lote,
-        'formset': formset,
-    }
-    return render(request, 'inventario/conteo_fisico/editar_ubicaciones.html', context)
+    return render(request, 'inventario/conteo_fisico/listar_conteos.html', contexto)
