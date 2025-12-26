@@ -170,9 +170,24 @@ class UbicacionView(LoginRequiredMixin, View):
         llegada = get_object_or_404(LlegadaProveedor, pk=pk)
         formset = UbicacionFormSet(llegada=llegada, user=request.user)
         items = list(llegada.items.all())
-        # Emparejar items con formularios
-        items_forms = list(zip(items, formset.forms))
-        return render(request, "inventario/llegadas/ubicacion.html", {"llegada": llegada, "formset": formset, "items": items, "items_forms": items_forms})
+        
+        # Preparar datos para el template
+        items_with_ubicaciones = []
+        for idx, item in enumerate(items):
+            ubicacion_forms = formset.get_ubicacion_forms(idx)
+            items_with_ubicaciones.append({
+                'item': item,
+                'form': formset.forms[idx],
+                'ubicacion_forms': ubicacion_forms,
+                'index': idx
+            })
+        
+        return render(request, "inventario/llegadas/ubicacion.html", {
+            "llegada": llegada,
+            "formset": formset,
+            "items": items,
+            "items_with_ubicaciones": items_with_ubicaciones
+        })
     
     def post(self, request, pk):
         llegada = get_object_or_404(LlegadaProveedor, pk=pk)

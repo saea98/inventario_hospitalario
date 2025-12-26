@@ -13,26 +13,26 @@
                 <h6 class="m-0 font-weight-bold text-primary">Asignar Ubicación a Lotes</h6>
             </div>
             <div class="card-body">
-                {% for item, form in items_forms %}
+                {% for item_data in items_with_ubicaciones %}
                     <div class="card mb-4 border-left-primary">
                         <div class="card-header bg-light">
                             <h6 class="m-0 font-weight-bold text-primary">
-                                {{ item.producto.descripcion }}
+                                {{ item_data.item.producto.descripcion }}
                             </h6>
                             <small class="text-muted">
-                                Lote: {{ item.numero_lote }} | 
-                                Cantidad Recibida: <strong>{{ item.cantidad_recibida }}</strong> unidades |
-                                Caducidad: {{ item.fecha_caducidad|date:"d/m/Y" }}
+                                Lote: {{ item_data.item.numero_lote }} | 
+                                Cantidad Recibida: <strong>{{ item_data.item.cantidad_recibida }}</strong> unidades |
+                                Caducidad: {{ item_data.item.fecha_caducidad|date:"d/m/Y" }}
                             </small>
                         </div>
                         <div class="card-body">
                             <!-- Seleccionar Almacén -->
                             <div class="form-group">
-                                <label for="{{ form.almacen.id_for_label }}" class="font-weight-bold">Almacén</label>
-                                {{ form.almacen }}
-                                {% if form.almacen.errors %}
+                                <label for="{{ item_data.form.almacen.id_for_label }}" class="font-weight-bold">Almacén</label>
+                                {{ item_data.form.almacen }}
+                                {% if item_data.form.almacen.errors %}
                                     <div class="alert alert-danger mt-2 small">
-                                        {{ form.almacen.errors }}
+                                        {{ item_data.form.almacen.errors }}
                                     </div>
                                 {% endif %}
                             </div>
@@ -40,39 +40,69 @@
                             <!-- Sección de Ubicaciones (Split) -->
                             <div class="form-group">
                                 <label class="font-weight-bold">Ubicaciones (Puedes asignar a múltiples ubicaciones)</label>
-                                <div class="ubicaciones-container" data-item-index="{{ forloop.counter0 }}">
-                                    <!-- Aquí irán los formularios de ubicación -->
-                                    <div class="ubicacion-row mb-3 p-3 border rounded" style="background-color: #f8f9fa;">
-                                        <div class="row">
-                                            <div class="col-md-8">
-                                                <label class="small font-weight-bold">Ubicación</label>
-                                                <select class="form-control select2-single ubicacion-select" name="ubicacion-detalle-{{ forloop.counter0 }}-0-ubicacion" required>
-                                                    <option value="">-- Selecciona una ubicación --</option>
-                                                </select>
-                                            </div>
-                                            <div class="col-md-3">
-                                                <label class="small font-weight-bold">Cantidad</label>
-                                                <input type="number" class="form-control cantidad-input" name="ubicacion-detalle-{{ forloop.counter0 }}-0-cantidad" min="1" value="{{item.cantidad_recibida}}" required>
-                                            </div>
-                                            <div class="col-md-1 d-flex align-items-end">
-                                                <button type="button" class="btn btn-sm btn-danger remove-ubicacion" title="Eliminar ubicación" style="visibility: hidden;">
-                                                    <i class="fas fa-trash"></i>
-                                                </button>
+                                <div class="ubicaciones-container" data-item-index="{{ item_data.index }}">
+                                    {% for ubicacion_form in item_data.ubicacion_forms %}
+                                        <div class="ubicacion-row mb-3 p-3 border rounded" style="background-color: #f8f9fa;">
+                                            <div class="row">
+                                                <div class="col-md-8">
+                                                    <label for="{{ ubicacion_form.ubicacion.id_for_label }}" class="small font-weight-bold">Ubicación</label>
+                                                    {{ ubicacion_form.ubicacion }}
+                                                    {% if ubicacion_form.ubicacion.errors %}
+                                                        <div class="alert alert-danger mt-2 small">
+                                                            {{ ubicacion_form.ubicacion.errors }}
+                                                        </div>
+                                                    {% endif %}
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <label for="{{ ubicacion_form.cantidad.id_for_label }}" class="small font-weight-bold">Cantidad</label>
+                                                    {{ ubicacion_form.cantidad }}
+                                                    {% if ubicacion_form.cantidad.errors %}
+                                                        <div class="alert alert-danger mt-2 small">
+                                                            {{ ubicacion_form.cantidad.errors }}
+                                                        </div>
+                                                    {% endif %}
+                                                </div>
+                                                <div class="col-md-1 d-flex align-items-end">
+                                                    <button type="button" class="btn btn-sm btn-danger remove-ubicacion" title="Eliminar ubicación">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
                                             </div>
                                         </div>
-                                    </div>
+                                    {% empty %}
+                                        <!-- Si no hay ubicaciones, mostrar un formulario vacío -->
+                                        <div class="ubicacion-row mb-3 p-3 border rounded" style="background-color: #f8f9fa;">
+                                            <div class="row">
+                                                <div class="col-md-8">
+                                                    <label class="small font-weight-bold">Ubicación</label>
+                                                    <select class="form-control select2-single ubicacion-select" name="ubicacion-detalle-{{ item_data.index }}-0-ubicacion" required>
+                                                        <option value="">-- Selecciona una ubicación --</option>
+                                                    </select>
+                                                </div>
+                                                <div class="col-md-3">
+                                                    <label class="small font-weight-bold">Cantidad</label>
+                                                    <input type="number" class="form-control cantidad-input" name="ubicacion-detalle-{{ item_data.index }}-0-cantidad" min="1" value="{{ item_data.item.cantidad_recibida }}" required>
+                                                </div>
+                                                <div class="col-md-1 d-flex align-items-end">
+                                                    <button type="button" class="btn btn-sm btn-danger remove-ubicacion" title="Eliminar ubicación" style="visibility: hidden;">
+                                                        <i class="fas fa-trash"></i>
+                                                    </button>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
                                 </div>
 
                                 <!-- Botón para agregar más ubicaciones -->
-                                <button type="button" class="btn btn-sm btn-success add-ubicacion mt-2" data-item-index="{{ forloop.counter0 }}">
+                                <button type="button" class="btn btn-sm btn-success add-ubicacion mt-2" data-item-index="{{ item_data.index }}">
                                     <i class="fas fa-plus"></i> Agregar otra ubicación
                                 </button>
 
                                 <!-- Resumen de cantidades -->
                                 <div class="alert alert-info mt-3">
                                     <small>
-                                        <strong>Cantidad Total Recibida:</strong> {{ item.cantidad_recibida }} unidades<br>
-                                        <strong>Cantidad Asignada:</strong> <span class="cantidad-total-{{ forloop.counter0 }}">{{ item.cantidad_recibida }}</span> unidades
+                                        <strong>Cantidad Total Recibida:</strong> {{ item_data.item.cantidad_recibida }} unidades<br>
+                                        <strong>Cantidad Asignada:</strong> <span class="cantidad-total-{{ item_data.index }}">{{ item_data.item.cantidad_recibida }}</span> unidades
                                     </small>
                                 </div>
                             </div>
