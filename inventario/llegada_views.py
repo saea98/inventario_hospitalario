@@ -312,3 +312,31 @@ def api_productos(request):
     
     productos = Producto.objects.all().values('id', 'descripcion', 'cns').order_by('descripcion')
     return JsonResponse(list(productos), safe=False)
+
+
+@require_GET
+def api_ubicaciones_por_almacen(request):
+    """
+    API que devuelve las ubicaciones disponibles para un almacén específico.
+    Parámetro GET: almacen_id
+    """
+    from django.apps import apps
+    UbicacionAlmacen = apps.get_model('inventario', 'UbicacionAlmacen')
+    
+    almacen_id = request.GET.get('almacen_id')
+    
+    if not almacen_id:
+        return JsonResponse({'error': 'almacen_id es requerido'}, status=400)
+    
+    try:
+        almacen_id = int(almacen_id)
+    except ValueError:
+        return JsonResponse({'error': 'almacen_id debe ser un número'}, status=400)
+    
+    ubicaciones = UbicacionAlmacen.objects.filter(
+        almacen_id=almacen_id
+    ).values('id', 'codigo', 'descripcion').order_by('codigo')
+    
+    return JsonResponse({
+        'ubicaciones': list(ubicaciones)
+    })

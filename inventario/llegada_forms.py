@@ -309,9 +309,8 @@ class UbicacionItemForm(forms.Form):
         else:
             # Comportamiento por defecto: mostrar todos los almacenes
             self.fields['almacen'].queryset = Almacen.objects.all().order_by('nombre')
-            # Las ubicaciones dependen del almacén, se podrían cargar con JS.
-            # Por ahora, si no hay usuario con almacén, no se muestran ubicaciones.
-            self.fields['ubicacion'].queryset = UbicacionAlmacen.objects.none()
+            # Cargar todas las ubicaciones inicialmente (se filtrarán con AJAX cuando se seleccione almacén)
+            self.fields['ubicacion'].queryset = UbicacionAlmacen.objects.all().order_by('codigo')
 
 
 class UbicacionFormSet(BaseFormSet):

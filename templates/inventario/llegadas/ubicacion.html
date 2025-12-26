@@ -133,6 +133,7 @@
         
         initializeSelect2();
         updateCantidadesTotales();
+        setupAlmacenChangeHandlers();
         
         document.addEventListener('click', function(e) {
             if (e.target.closest('.add-ubicacion')) {
@@ -158,6 +159,79 @@
             }
         });
     });
+    
+    function setupAlmacenChangeHandlers() {
+        console.log('⚙️ Configurando handlers para cambio de almacén...');
+        
+        // Encontrar todos los selects de almacén
+        document.querySelectorAll('select[name*="almacen"]').forEach((almacenSelect) => {
+            almacenSelect.addEventListener('change', function() {
+                const almacenId = this.value;
+                console.log(`🏭 Almacén seleccionado: ${almacenId}`);
+                
+                if (!almacenId) {
+                    console.log('⚠️ No se seleccionó almacén');
+                    return;
+                }
+                
+                // Obtener el índice del item
+                const itemIndex = this.closest('[data-item-index]').dataset.itemIndex;
+                console.log(`📍 Item index: ${itemIndex}`);
+                
+                // Cargar ubicaciones para este almacén
+                fetch(`/logistica/llegadas/api/ubicaciones-por-almacen/?almacen_id=${almacenId}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        console.log('📦 Ubicaciones cargadas:', data);
+                        updateUbicacionesSelect(itemIndex, data.ubicaciones);
+                    })
+                    .catch(error => {
+                        console.error('❌ Error al cargar ubicaciones:', error);
+                    });
+            });
+        });
+    }
+    
+    function updateUbicacionesSelect(itemIndex, ubicaciones) {
+        console.log(`🔄 Actualizando ubicaciones para item ${itemIndex}`);
+        
+        // Encontrar el select de ubicación para este item
+        const container = document.querySelector(`[data-item-index="${itemIndex}"]`);
+        if (!container) {
+            console.error(`❌ No se encontró contenedor para item ${itemIndex}`);
+            return;
+        }
+        
+        // Encontrar todos los selects de ubicación en este contenedor
+        const ubicacionSelects = container.querySelectorAll('select[name*="ubicacion"]');
+        console.log(`📊 Se encontraron ${ubicacionSelects.length} selects de ubicación`);
+        
+        ubicacionSelects.forEach((select) => {
+            // Guardar el valor actual
+            const currentValue = select.value;
+            
+            // Limpiar opciones excepto la primera (vacía)
+            while (select.options.length > 1) {
+                select.remove(1);
+            }
+            
+            // Agregar nuevas opciones
+            ubicaciones.forEach((ubicacion) => {
+                const option = document.createElement('option');
+                option.value = ubicacion.id;
+                option.textContent = `${ubicacion.codigo} - ${ubicacion.descripcion}`;
+                select.appendChild(option);
+            });
+            
+            // Restaurar el valor si existe en las nuevas opciones
+            if (currentValue && Array.from(select.options).some(opt => opt.value === currentValue)) {
+                select.value = currentValue;
+            }
+            
+            // Disparar evento change para que Select2 se actualice
+            $(select).trigger('change');
+        });
+    }
     
     function initializeSelect2() {
         console.log('🔍 Inicializando Select2...');
