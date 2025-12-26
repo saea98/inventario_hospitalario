@@ -8,7 +8,7 @@ Basado en el formato IMSS-Bienestar que captura:
 """
 
 from django import forms
-from .models import Lote, Producto, Almacen, UbicacionAlmacen
+from .models import Lote, Producto, Almacen, UbicacionAlmacen, LoteUbicacion
 
 
 class BuscarLoteForm(forms.Form):
