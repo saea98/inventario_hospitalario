@@ -1,164 +1,89 @@
 {% extends "base.html" %}
-{% load crispy_forms_tags %}
+{% load static %}
+
+{% block title %}Asignar Ubicación{% endblock %}
 
 {% block content %}
-<div class="container-fluid">
-    <h1 class="h3 mb-2 text-gray-800">Asignar Ubicación - {{ llegada.folio }}</h1>
-    <p class="mb-4">Asigna la ubicación física para cada lote recibido. Puedes distribuir un lote en múltiples ubicaciones.</p>
-    
-    <form method="post" id="ubicacion-form">
-        {% csrf_token %}
-        <div class="card shadow mb-4">
-            <div class="card-header py-3">
-                <h6 class="m-0 font-weight-bold text-primary">Asignar Ubicación a Lotes</h6>
-            </div>
-            <div class="card-body">
-                {% for item_data in items_with_ubicaciones %}
-                    <div class="card mb-4 border-left-primary">
-                        <div class="card-header bg-light">
-                            <h6 class="m-0 font-weight-bold text-primary">
-                                {{ item_data.item.producto.descripcion }}
-                            </h6>
-                            <small class="text-muted">
-                                Lote: {{ item_data.item.numero_lote }} | 
-                                Cantidad Recibida: <strong>{{ item_data.item.cantidad_recibida }}</strong> unidades |
-                                Caducidad: {{ item_data.item.fecha_caducidad|date:"d/m/Y" }}
-                            </small>
-                        </div>
-                        <div class="card-body">
-                            <!-- Seleccionar Almacén -->
-                            <div class="form-group">
-                                <label for="{{ item_data.form.almacen.id_for_label }}" class="font-weight-bold">Almacén</label>
-                                {{ item_data.form.almacen }}
-                                {% if item_data.form.almacen.errors %}
-                                    <div class="alert alert-danger mt-2 small">
-                                        {{ item_data.form.almacen.errors }}
-                                    </div>
-                                {% endif %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-md-12">
+            <h2>Asignar Ubicación - {{ llegada.folio }}</h2>
+            <p class="text-muted">Asigna la ubicación física para cada lote recibido. Puedes distribuir un lote en múltiples ubicaciones.</p>
+            
+            <form id="ubicacion-form" method="post">
+                {% csrf_token %}
+                
+                <div class="card">
+                    <div class="card-header bg-primary text-white">
+                        <h5 class="mb-0">Asignar Ubicación a Lotes</h5>
+                    </div>
+                    <div class="card-body">
+                        {% for item in items_with_ubicaciones %}
+                        <div class="card mb-4" data-item-index="{{ forloop.counter0 }}">
+                            <div class="card-header bg-light">
+                                <h6 class="mb-0">{{ item.producto.nombre }}</h6>
                             </div>
-
-                            <!-- Sección de Ubicaciones (Split) -->
-                            <div class="form-group">
-                                <label class="font-weight-bold">Ubicaciones (Puedes asignar a múltiples ubicaciones)</label>
-                                <div class="ubicaciones-container" data-item-index="{{ item_data.index }}">
-                                    {% for ubicacion_form in item_data.ubicacion_forms %}
+                            <div class="card-body">
+                                <p class="mb-2">
+                                    <strong>Lote:</strong> {{ item.lote.codigo }} | 
+                                    <strong>Cantidad Recibida:</strong> <span class="badge badge-info">{{ item.cantidad_recibida }}</span> unidades | 
+                                    <strong>Caducidad:</strong> {{ item.lote.fecha_caducidad|date:"d/m/Y" }}
+                                </p>
+                                
+                                <div class="form-group">
+                                    <label><strong>Almacén</strong></label>
+                                    <select name="ubicacion-detalle-{{ forloop.counter0 }}-0-almacen" class="form-control select2-single" required>
+                                        <option value="">-- Selecciona un almacén --</option>
+                                        {% for almacen in almacenes %}
+                                        <option value="{{ almacen.id }}">Almacén {{ almacen.nombre }} ({{ almacen.codigo }})</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                                
+                                <div class="form-group">
+                                    <label><strong>Ubicaciones (Puedes asignar a múltiples ubicaciones)</strong></label>
+                                    <div class="ubicaciones-container">
                                         <div class="ubicacion-row mb-3 p-3 border rounded" style="background-color: #f8f9fa;">
                                             <div class="row">
                                                 <div class="col-md-8">
-                                                    <label for="{{ ubicacion_form.ubicacion.id_for_label }}" class="small font-weight-bold">Ubicación</label>
-                                                    {{ ubicacion_form.ubicacion }}
-                                                    {% if ubicacion_form.ubicacion.errors %}
-                                                        <div class="alert alert-danger mt-2 small">
-                                                            {{ ubicacion_form.ubicacion.errors }}
-                                                        </div>
-                                                    {% endif %}
-                                                </div>
-                                                <div class="col-md-3">
-                                                    <label for="{{ ubicacion_form.cantidad.id_for_label }}" class="small font-weight-bold">Cantidad</label>
-                                                    {{ ubicacion_form.cantidad }}
-                                                    {% if ubicacion_form.cantidad.errors %}
-                                                        <div class="alert alert-danger mt-2 small">
-                                                            {{ ubicacion_form.cantidad.errors }}
-                                                        </div>
-                                                    {% endif %}
-                                                </div>
-                                                <div class="col-md-1 d-flex align-items-end">
-                                                    <button type="button" class="btn btn-sm btn-danger remove-ubicacion" title="Eliminar ubicación">
-                                                        <i class="fas fa-trash"></i>
-                                                    </button>
-                                                </div>
-                                            </div>
-                                        </div>
-                                    {% empty %}
-                                        <!-- Si no hay ubicaciones, mostrar un formulario vacío -->
-                                        <div class="ubicacion-row mb-3 p-3 border rounded" style="background-color: #f8f9fa;">
-                                            <div class="row">
-                                                <div class="col-md-8">
-                                                    <label class="small font-weight-bold">Ubicación</label>
-                                                    <select class="form-control select2-single ubicacion-select" name="ubicacion-detalle-{{ item_data.index }}-0-ubicacion" required>
+                                                    <label>Ubicación</label>
+                                                    <select name="ubicacion-detalle-{{ forloop.counter0 }}-0-ubicacion" class="form-control select2-single ubicacion-select" required>
                                                         <option value="">-- Selecciona una ubicación --</option>
                                                     </select>
                                                 </div>
-                                                <div class="col-md-3">
-                                                    <label class="small font-weight-bold">Cantidad</label>
-                                                    <input type="number" class="form-control cantidad-input" name="ubicacion-detalle-{{ item_data.index }}-0-cantidad" min="1" value="{{ item_data.item.cantidad_recibida }}" required>
-                                                </div>
-                                                <div class="col-md-1 d-flex align-items-end">
-                                                    <button type="button" class="btn btn-sm btn-danger remove-ubicacion" title="Eliminar ubicación" style="visibility: hidden;">
-                                                        <i class="fas fa-trash"></i>
-                                                    </button>
+                                                <div class="col-md-4">
+                                                    <label>Cantidad</label>
+                                                    <input type="number" name="ubicacion-detalle-{{ forloop.counter0 }}-0-cantidad" class="form-control cantidad-input" value="{{ item.cantidad_recibida }}" min="1" required>
                                                 </div>
                                             </div>
                                         </div>
-                                    {% endfor %}
+                                    </div>
+                                    <button type="button" class="btn btn-sm btn-success add-ubicacion" data-item-index="{{ forloop.counter0 }}">
+                                        <i class="fas fa-plus"></i> Agregar otra ubicación
+                                    </button>
                                 </div>
-
-                                <!-- Botón para agregar más ubicaciones -->
-                                <button type="button" class="btn btn-sm btn-success add-ubicacion mt-2" data-item-index="{{ item_data.index }}">
-                                    <i class="fas fa-plus"></i> Agregar otra ubicación
-                                </button>
-
-                                <!-- Resumen de cantidades -->
+                                
                                 <div class="alert alert-info mt-3">
-                                    <small>
-                                        <strong>Cantidad Total Recibida:</strong> {{ item_data.item.cantidad_recibida }} unidades<br>
-                                        <strong>Cantidad Asignada:</strong> <span class="cantidad-total-{{ item_data.index }}">{{ item_data.item.cantidad_recibida }}</span> unidades
-                                    </small>
+                                    <strong>Cantidad Total Recibida:</strong> {{ item.cantidad_recibida }} unidades<br>
+                                    <strong>Cantidad Asignada:</strong> <span class="cantidad-asignada" data-item-index="{{ forloop.counter0 }}">{{ item.cantidad_recibida }}</span> unidades
                                 </div>
                             </div>
                         </div>
+                        {% endfor %}
                     </div>
-                {% endfor %}
-            </div>
+                </div>
+                
+                <div class="mt-4">
+                    <button type="submit" class="btn btn-primary">Guardar Ubicaciones</button>
+                    <a href="{% url 'llegadas:detalle_llegada' llegada.pk %}" class="btn btn-secondary">Cancelar</a>
+                </div>
+            </form>
         </div>
-        
-        <div class="form-group">
-            <button type="submit" class="btn btn-primary btn-lg">
-                <i class="fas fa-save"></i> Guardar Ubicaciones
-            </button>
-            <a href="{% url 'logistica:llegadas:detalle_llegada' llegada.pk %}" class="btn btn-secondary btn-lg">
-                <i class="fas fa-times"></i> Cancelar
-            </a>
-        </div>
-    </form>
+    </div>
 </div>
 
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-
 <script>
-    document.addEventListener('DOMContentLoaded', function() {
-        console.log('🚀 DOM Cargado - Iniciando funciones...');
-        console.log('📋 items_with_ubicaciones:', document.querySelectorAll('[data-item-index]').length);
-        
-        initializeSelect2();
-        updateCantidadesTotales();
-        setupAlmacenChangeHandlers();
-        
-        document.addEventListener('click', function(e) {
-            if (e.target.closest('.add-ubicacion')) {
-                e.preventDefault();
-                addUbicacion(e.target.closest('.add-ubicacion'));
-            }
-            if (e.target.closest('.remove-ubicacion')) {
-                e.preventDefault();
-                removeUbicacion(e.target.closest('.remove-ubicacion'));
-            }
-        });
-        
-        document.addEventListener('change', function(e) {
-            if (e.target.classList.contains('cantidad-input')) {
-                updateCantidadesTotales();
-            }
-        });
-        
-        document.getElementById('ubicacion-form').addEventListener('submit', function(e) {
-            if (!validarCantidades()) {
-                e.preventDefault();
-                alert('Por favor, verifica que las cantidades sean correctas.');
-            }
-        });
-    });
+    // ===== DEFINICIÓN DE FUNCIONES (ANTES del DOMContentLoaded) =====
     
     function setupAlmacenChangeHandlers() {
         console.log('⚙️ Configurando handlers para cambio de almacén...');
@@ -264,25 +189,27 @@
         newRow.innerHTML = `
             <div class="row">
                 <div class="col-md-8">
-                    <label class="small font-weight-bold">Ubicación</label>
-                    <select class="form-control select2-single ubicacion-select" name="ubicacion-detalle-${itemIndex}-${rowCount}-ubicacion" required>
+                    <label>Ubicación</label>
+                    <select name="ubicacion-detalle-${itemIndex}-${rowCount}-ubicacion" class="form-control select2-single ubicacion-select" required>
                         <option value="">-- Selecciona una ubicación --</option>
                     </select>
                 </div>
                 <div class="col-md-3">
-                    <label class="small font-weight-bold">Cantidad</label>
-                    <input type="number" class="form-control cantidad-input" name="ubicacion-detalle-${itemIndex}-${rowCount}-cantidad" min="1" required>
+                    <label>Cantidad</label>
+                    <input type="number" name="ubicacion-detalle-${itemIndex}-${rowCount}-cantidad" class="form-control cantidad-input" value="0" min="0" required>
                 </div>
                 <div class="col-md-1 d-flex align-items-end">
-                    <button type="button" class="btn btn-sm btn-danger remove-ubicacion" title="Eliminar ubicación">
+                    <button type="button" class="btn btn-sm btn-danger remove-ubicacion" data-item-index="${itemIndex}">
                         <i class="fas fa-trash"></i>
                     </button>
                 </div>
             </div>
         `;
         
-        container.appendChild(newRow);
-        newRow.querySelector('.select2-single').select2({
+        container.querySelector('.ubicaciones-container').appendChild(newRow);
+        
+        // Inicializar Select2 en el nuevo select
+        $(newRow).find('.select2-single').select2({
             allowClear: true,
             placeholder: 'Selecciona una opción',
             width: '100%'
@@ -292,68 +219,99 @@
     }
     
     function removeUbicacion(button) {
-        const row = button.closest('.ubicacion-row');
-        row.remove();
+        const itemIndex = button.dataset.itemIndex;
+        button.closest('.ubicacion-row').remove();
         updateCantidadesTotales();
     }
     
     function updateCantidadesTotales() {
-        console.log('🔄 Actualizando cantidades totales...');
-        document.querySelectorAll('.ubicaciones-container').forEach((container, index) => {
-            const cantidades = Array.from(container.querySelectorAll('.cantidad-input'))
-                .map(input => parseInt(input.value) || 0)
-                .reduce((a, b) => a + b, 0);
+        console.log('📊 Actualizando cantidades totales...');
+        
+        document.querySelectorAll('[data-item-index]').forEach((container) => {
+            const itemIndex = container.dataset.itemIndex;
+            const cantidadInputs = container.querySelectorAll('.cantidad-input');
+            let total = 0;
             
-            const totalElement = document.querySelector(`.cantidad-total-${index}`);
-            console.log(`   Item ${index}: ${cantidades} unidades, elemento:`, totalElement);
+            cantidadInputs.forEach((input) => {
+                const value = parseInt(input.value) || 0;
+                total += value;
+            });
             
-            if (totalElement) {
-                totalElement.textContent = cantidades;
+            const cantidadAsignada = container.querySelector(`.cantidad-asignada[data-item-index="${itemIndex}"]`);
+            if (cantidadAsignada) {
+                cantidadAsignada.textContent = total;
             }
         });
     }
     
     function validarCantidades() {
-        let valido = true;
-        document.querySelectorAll('.ubicaciones-container').forEach((container, index) => {
-            const cantidadTotal = Array.from(container.querySelectorAll('.cantidad-input'))
-                .map(input => parseInt(input.value) || 0)
-                .reduce((a, b) => a + b, 0);
+        console.log('✔️ Validando cantidades...');
+        let isValid = true;
+        
+        document.querySelectorAll('[data-item-index]').forEach((container) => {
+            const itemIndex = container.dataset.itemIndex;
+            const cantidadRecibidaText = container.querySelector('.alert-info').textContent;
+            const match = cantidadRecibidaText.match(/Cantidad Total Recibida:\s*(\d+)/);
+            const cantidadRecibida = match ? parseInt(match[1]) : 0;
             
-            const cantidadRecibidaText = container.closest('.card').querySelector('.text-muted').textContent;
-            const match = cantidadRecibidaText.match(/\d+/);
-            const cantidadRecibida = match ? parseInt(match[0]) : 0;
+            const cantidadAsignada = container.querySelector(`.cantidad-asignada[data-item-index="${itemIndex}"]`);
+            const asignada = parseInt(cantidadAsignada.textContent) || 0;
             
-            if (cantidadTotal !== cantidadRecibida) {
-                valido = false;
-                console.warn(`Item ${index}: Cantidad asignada (${cantidadTotal}) no coincide con cantidad recibida (${cantidadRecibida})`);
+            if (asignada !== cantidadRecibida) {
+                console.warn(`❌ Item ${itemIndex}: Recibida ${cantidadRecibida}, Asignada ${asignada}`);
+                isValid = false;
             }
         });
-        return valido;
+        
+        return isValid;
     }
+    
+    // ===== DOMContentLoaded (DESPUÉS de definir funciones) =====
+    document.addEventListener('DOMContentLoaded', function() {
+        console.log('🚀 DOM Cargado - Iniciando funciones...');
+        console.log('📋 items_with_ubicaciones:', document.querySelectorAll('[data-item-index]').length);
+        
+        initializeSelect2();
+        updateCantidadesTotales();
+        setupAlmacenChangeHandlers();
+        
+        document.addEventListener('click', function(e) {
+            if (e.target.closest('.add-ubicacion')) {
+                e.preventDefault();
+                addUbicacion(e.target.closest('.add-ubicacion'));
+            }
+            if (e.target.closest('.remove-ubicacion')) {
+                e.preventDefault();
+                removeUbicacion(e.target.closest('.remove-ubicacion'));
+            }
+        });
+        
+        document.addEventListener('change', function(e) {
+            if (e.target.classList.contains('cantidad-input')) {
+                updateCantidadesTotales();
+            }
+        });
+        
+        document.getElementById('ubicacion-form').addEventListener('submit', function(e) {
+            if (!validarCantidades()) {
+                e.preventDefault();
+                alert('Por favor, verifica que las cantidades sean correctas.');
+            }
+        });
+    });
 </script>
 
 <style>
-    .border-left-primary {
-        border-left: 0.25rem solid #4e73df !important;
-    }
-    
     .ubicacion-row {
-        transition: background-color 0.2s ease;
+        transition: all 0.3s ease;
     }
     
     .ubicacion-row:hover {
-        background-color: #e8eef7 !important;
+        background-color: #e8f4f8 !important;
     }
     
-    .select2-container--default .select2-selection--single {
-        border: 1px solid #ced4da;
-        border-radius: 0.25rem;
-        height: 38px;
-    }
-    
-    .select2-container--default .select2-selection--single .select2-selection__rendered {
-        line-height: 36px;
+    .select2-container {
+        width: 100% !important;
     }
 </style>
 {% endblock %}
