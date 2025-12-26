@@ -469,7 +469,7 @@ def lista_lotes(request):
         'caducados': lotes.filter(caducado=True).count(),
     }
 
-    paginator = Paginator(lotes, 25)
+    paginator = Paginator(lotes, 10)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
 
