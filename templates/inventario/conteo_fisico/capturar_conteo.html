@@ -66,28 +66,28 @@
                     <!-- Ubicación -->
                     <div class="mb-0">
                         <label class="form-label small text-muted">UBICACIÓN</label>
-                        <form method="post">
-                            {% csrf_token %}
-                            {{ formset.management_form }}
-                            {% for form in formset %}
-                                <div class="form-row">
-                                    <div class="col-md-6">
-                                        {{ form.ubicacion.label_tag }}
-                                        {{ form.ubicacion }}
-                                    </div>
-                                    <div class="col-md-4">
-                                        {{ form.cantidad.label_tag }}
-                                        {{ form.cantidad }}
-                                    </div>
-                                    <div class="col-md-2">
-                                        {{ form.DELETE.label_tag }}
-                                        {{ form.DELETE }}
-                                    </div>
-                                </div>
-                            {% endfor %}
-                            <button type="submit" name="update_locations" class="btn btn-primary mt-2">Actualizar Ubicaciones</button>
-<button type="button" id="add-form" class="btn btn-secondary mt-2">Agregar Ubicación</button>
-                        </form>
+                        {% if lote.ubicaciones_detalle.all %}
+                            <div class="table-responsive">
+                                <table class="table table-sm table-bordered">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Ubicación</th>
+                                            <th>Cantidad</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for ubicacion in lote.ubicaciones_detalle.all %}
+                                            <tr>
+                                                <td>{{ ubicacion.ubicacion.codigo }} - {{ ubicacion.ubicacion.almacen.nombre }}</td>
+                                                <td>{{ ubicacion.cantidad }} unidades</td>
+                                            </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+                        {% else %}
+                            <p class="text-muted">Sin ubicación asignada</p>
+                        {% endif %}
                     </div>
                 </div>
             </div>
