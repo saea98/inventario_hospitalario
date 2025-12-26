@@ -1781,6 +1781,8 @@ def editar_ubicaciones_lote(request, pk):
     Vista para editar las ubicaciones asignadas a un lote.
     Permite agregar, editar y eliminar ubicaciones.
     """
+    from .models import UbicacionAlmacen, Almacen
+    
     lote = get_object_or_404(Lote, pk=pk)
     ubicaciones_actuales = LoteUbicacion.objects.filter(lote=lote).order_by('ubicacion__codigo')
     
@@ -1851,7 +1853,6 @@ def editar_ubicaciones_lote(request, pk):
             messages.error(request, f"❌ Error al guardar: {str(e)}")
     
     # Obtener ubicaciones disponibles del almacén
-    from .models import UbicacionAlmacen, Almacen
     ubicaciones_disponibles = UbicacionAlmacen.objects.filter(
         almacen=lote.almacen,
         activo=True
