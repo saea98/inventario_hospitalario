@@ -53,7 +53,7 @@
                                 
                                 <div class="form-group">
                                     <label><strong>Ubicaciones (Puedes asignar a múltiples ubicaciones)</strong></label>
-                                    <div class="ubicaciones-container" data-item-index="{{ forloop.counter0 }}" data-item-ubicaciones='{{ item.ubicaciones_asignadas|safe }}'>
+                                    <div class="ubicaciones-container" data-item-index="{{ forloop.counter0 }}" data-item-ubicaciones="{{ item.ubicaciones_asignadas|safe|escapejs }}">
                                         <!-- Las ubicaciones se cargarán dinámicamente con JavaScript -->
                                     </div>
                                     <button type="button" class="btn btn-sm btn-success add-ubicacion" data-item-index="{{ forloop.counter0 }}" style="display:none;">
