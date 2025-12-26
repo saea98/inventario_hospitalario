@@ -33,7 +33,7 @@
                             <th>Caducidad</th>
                             <th>Cantidad Recibida</th>
                             <th>Almacén</th>
-                            <th>Ubicación</th>
+                            <th>Ubicaciones Asignadas</th>
                         </tr>
                     </thead>
                     <tbody>
@@ -51,8 +51,15 @@
                                 {% endif %}
                             </td>
                             <td>
-                                {% if item.lote_creado %}
-                                    {{ item.lote_creado.ubicacion.codigo }}
+                                {% if item.lote_creado and item.lote_creado.ubicaciones_detalle.all %}
+                                    <ul class="list-unstyled mb-0">
+                                        {% for ubi in item.lote_creado.ubicaciones_detalle.all %}
+                                        <li>
+                                            <strong>{{ ubi.ubicacion.codigo }}</strong> - {{ ubi.ubicacion.descripcion }}
+                                            <br><small class="text-muted">Cantidad: {{ ubi.cantidad }} unidades</small>
+                                        </li>
+                                        {% endfor %}
+                                    </ul>
                                 {% else %}
                                     <span class="text-muted">No asignado</span>
                                 {% endif %}
