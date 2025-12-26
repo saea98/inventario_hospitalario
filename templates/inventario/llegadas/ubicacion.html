@@ -95,6 +95,7 @@
         document.querySelectorAll('select[name*="almacen"]').forEach((almacenSelect) => {
             almacenSelect.addEventListener('change', function() {
                 const almacenId = this.value;
+                alert(`🏭 Almacén seleccionado: ${almacenId}`);
                 console.log(`🏭 Almacén seleccionado: ${almacenId}`);
                 
                 if (!almacenId) {
