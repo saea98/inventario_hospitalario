@@ -181,8 +181,11 @@
                             <a href="{% url 'detalle_lote' lote.id %}" class="btn btn-sm btn-info" title="Ver detalle">
                                 <i class="bi bi-eye"></i>
                             </a>
+                            <a href="{% url 'editar_ubicaciones_lote' lote.id %}" class="btn btn-sm btn-warning" title="Editar ubicaciones">
+                                <i class="fas fa-map-marker-alt"></i>
+                            </a>
                             {% if lote.estado == 1 %}
-                            <a href="{% url 'registrar_salida' %}?lote={{ lote.id }}" class="btn btn-sm btn-warning" title="Registrar salida">
+                            <a href="{% url 'registrar_salida' %}?lote={{ lote.id }}" class="btn btn-sm btn-success" title="Registrar salida">
                                 <i class="bi bi-box-arrow-out"></i>
                             </a>
                             {% endif %}
@@ -198,6 +201,35 @@
                 </tbody>
             </table>
         </div>
+        
+        <!-- Paginación -->
+        {% if page_obj.has_other_pages %}
+        <nav aria-label="Paginación" class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1{% if busqueda_lote %}&busqueda_lote={{ busqueda_lote }}{% endif %}{% if busqueda_cnis %}&busqueda_cnis={{ busqueda_cnis }}{% endif %}{% if busqueda_producto %}&busqueda_producto={{ busqueda_producto }}{% endif %}{% if filtro_estado %}&estado={{ filtro_estado }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_producto %}&producto={{ filtro_producto }}{% endif %}">Primera</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if busqueda_lote %}&busqueda_lote={{ busqueda_lote }}{% endif %}{% if busqueda_cnis %}&busqueda_cnis={{ busqueda_cnis }}{% endif %}{% if busqueda_producto %}&busqueda_producto={{ busqueda_producto }}{% endif %}{% if filtro_estado %}&estado={{ filtro_estado }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_producto %}&producto={{ filtro_producto }}{% endif %}">Anterior</a>
+                    </li>
+                {% endif %}
+                
+                <li class="page-item active">
+                    <span class="page-link">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+                </li>
+                
+                {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if busqueda_lote %}&busqueda_lote={{ busqueda_lote }}{% endif %}{% if busqueda_cnis %}&busqueda_cnis={{ busqueda_cnis }}{% endif %}{% if busqueda_producto %}&busqueda_producto={{ busqueda_producto }}{% endif %}{% if filtro_estado %}&estado={{ filtro_estado }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_producto %}&producto={{ filtro_producto }}{% endif %}">Siguiente</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if busqueda_lote %}&busqueda_lote={{ busqueda_lote }}{% endif %}{% if busqueda_cnis %}&busqueda_cnis={{ busqueda_cnis }}{% endif %}{% if busqueda_producto %}&busqueda_producto={{ busqueda_producto }}{% endif %}{% if filtro_estado %}&estado={{ filtro_estado }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_producto %}&producto={{ filtro_producto }}{% endif %}">Última</a>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+        {% endif %}
     </div>
 
     <!-- Información Adicional -->
