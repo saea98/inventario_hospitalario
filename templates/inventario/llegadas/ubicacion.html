@@ -32,20 +32,47 @@
                                 
                                 <div class="form-group">
                                     <label><strong>Almacén</strong></label>
-                                    <!-- DEBUG: almacenes count = {{ almacenes|length }} -->
+                                    {% if item.ubicaciones_asignadas %}
+                                        {% with almacen_id=item.ubicaciones_asignadas.0.ubicacion__almacen_id %}
+                                        <select name="ubicacion-detalle-{{ forloop.counter0 }}-0-almacen" class="form-control select2-single" required data-selected="{{ almacen_id }}">
+                                            <option value="">-- Selecciona un almacén --</option>
+                                            {% for almacen in almacenes %}
+                                            <option value="{{ almacen.id }}" {% if almacen.id == almacen_id %}selected{% endif %}>Almacén {{ almacen.nombre }} ({{ almacen.codigo }})</option>
+                                            {% endfor %}
+                                        </select>
+                                        {% endwith %}
+                                    {% else %}
                                     <select name="ubicacion-detalle-{{ forloop.counter0 }}-0-almacen" class="form-control select2-single" required>
                                         <option value="">-- Selecciona un almacén --</option>
                                         {% for almacen in almacenes %}
                                         <option value="{{ almacen.id }}">Almacén {{ almacen.nombre }} ({{ almacen.codigo }})</option>
-                                        {% empty %}
-                                        <!-- No hay almacenes disponibles -->
                                         {% endfor %}
                                     </select>
+                                    {% endif %}
                                 </div>
                                 
                                 <div class="form-group">
                                     <label><strong>Ubicaciones (Puedes asignar a múltiples ubicaciones)</strong></label>
                                     <div class="ubicaciones-container">
+                                        {% if item.ubicaciones_asignadas %}
+                                            {% for ubi in item.ubicaciones_asignadas %}
+                                            <div class="ubicacion-row mb-3 p-3 border rounded" style="background-color: #f8f9fa;">
+                                                <div class="row">
+                                                    <div class="col-md-8">
+                                                        <label>Ubicación</label>
+                                                        <select name="ubicacion-detalle-{{ forloop.counter0 }}-{{ forloop.counter0 }}-ubicacion" class="form-control select2-single ubicacion-select" required data-selected="{{ ubi.ubicacion_id }}">
+                                                            <option value="">-- Selecciona una ubicación --</option>
+                                                            <option value="{{ ubi.ubicacion_id }}" selected>Ubicación {{ ubi.ubicacion_id }}</option>
+                                                        </select>
+                                                    </div>
+                                                    <div class="col-md-4">
+                                                        <label>Cantidad</label>
+                                                        <input type="number" name="ubicacion-detalle-{{ forloop.counter0 }}-{{ forloop.counter0 }}-cantidad" class="form-control cantidad-input" value="{{ ubi.cantidad }}" min="1" required>
+                                                    </div>
+                                                </div>
+                                            </div>
+                                            {% endfor %}
+                                        {% else %}
                                         <div class="ubicacion-row mb-3 p-3 border rounded" style="background-color: #f8f9fa;">
                                             <div class="row">
                                                 <div class="col-md-8">
@@ -60,6 +87,7 @@
                                                 </div>
                                             </div>
                                         </div>
+                                        {% endif %}
                                     </div>
                                     <button type="button" class="btn btn-sm btn-success add-ubicacion" data-item-index="{{ forloop.counter0 }}">
                                         <i class="fas fa-plus"></i> Agregar otra ubicación
@@ -94,7 +122,6 @@
         // Encontrar todos los selects de almacén
         $(document).on('change.select2', 'select[name*="almacen"]', function() {
             const almacenId = this.value;
-            alert('Almacén seleccionado: ' + almacenId);
             console.log('Almacén seleccionado: ' + almacenId);
             
             if (!almacenId) {
@@ -175,6 +202,23 @@
             allowClear: true,
             placeholder: 'Selecciona una opción',
             width: '100%'
+        });
+        
+        // Cargar ubicaciones para los almacenes previamente seleccionados
+        document.querySelectorAll('select[name*="almacen"]').forEach((select) => {
+            const almacenId = select.value;
+            if (almacenId) {
+                const itemIndex = $(select).closest('[data-item-index]').data('itemIndex');
+                console.log(`Cargando ubicaciones para almacen ${almacenId}, item ${itemIndex}`);
+                fetch('/logistica/llegadas/api/ubicaciones-por-almacen/?almacen_id=' + almacenId)
+                    .then(response => response.json())
+                    .then(data => {
+                        updateUbicacionesSelect(itemIndex, data.ubicaciones);
+                    })
+                    .catch(error => {
+                        console.error('Error al cargar ubicaciones:', error);
+                    });
+            }
         });
         
         console.log('✅ Select2 inicializado');
@@ -317,16 +361,3 @@
     }
 </style>
 {% endblock %}
-
-
-document.getElementById('ubicacion-form').addEventListener('submit', function(event) {
-    event.preventDefault(); // Prevenir el envío real para poder inspeccionar los datos
-    console.log('--- FormData a enviar ---');
-    const formData = new FormData(this);
-    for (let [key, value] of formData.entries()) {
-        console.log(`${key}: ${value}`);
-    }
-    alert('Datos del formulario registrados en la consola. Revisa la consola del desarrollador (F12) y luego puedes descomentar la línea this.submit() para enviarlos.');
-    // Descomenta la siguiente línea para enviar el formulario después de depurar
-    // this.submit();
-});

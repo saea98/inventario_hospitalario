@@ -181,13 +181,22 @@ class UbicacionView(LoginRequiredMixin, View):
             logger.warning(f'DEBUG: Almacén - {a.nombre} ({a.id})')
         
         # Preparar datos para el template
+        from .models import LoteUbicacion
         items_with_ubicaciones = []
         for idx, item in enumerate(items):
+            # Obtener ubicaciones previamente asignadas para este lote
+            ubicaciones_asignadas = []
+            if item.lote_creado:
+                ubicaciones_asignadas = list(LoteUbicacion.objects.filter(lote=item.lote_creado).values(
+                    'id', 'ubicacion_id', 'ubicacion__almacen_id', 'cantidad'
+                ))
+            
             items_with_ubicaciones.append({
                 'producto': item.producto,
                 'lote': item.lote_creado,
                 'cantidad_recibida': item.cantidad_recibida,
-                'index': idx
+                'index': idx,
+                'ubicaciones_asignadas': ubicaciones_asignadas
             })
         
         return render(request, "inventario/llegadas/ubicacion.html", {
