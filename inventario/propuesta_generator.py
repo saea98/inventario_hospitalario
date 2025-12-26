@@ -2,9 +2,9 @@
 Lógica de negocio para generar propuestas de pedido automáticamente.
 
 Este módulo contiene las funciones necesarias para:
-1. Verificar disponibilidad de inventario.
-2. Seleccionar lotes óptimos (considerando caducidad).
-3. Generar una propuesta de surtimiento.
+1. Verificar disponibilidad de inventario considerando ubicaciones.
+2. Seleccionar lotes óptimos (considerando caducidad y ubicaciones).
+3. Generar una propuesta de surtimiento con información de ubicaciones.
 """
 
 from datetime import date, timedelta
@@ -17,12 +17,13 @@ from .pedidos_models import (
     ItemPropuesta,
     LoteAsignado
 )
-from .models import Lote
+from .models import Lote, LoteUbicacion
 
 
 class PropuestaGenerator:
     """
     Clase que encapsula la lógica para generar una propuesta de pedido.
+    Ahora considera las ubicaciones de cada lote.
     """
     
     def __init__(self, solicitud_id, usuario):
@@ -61,7 +62,7 @@ class PropuestaGenerator:
 
     def _generate_item_propuesta(self, item_solicitud):
         """
-        Genera un item de la propuesta, buscando lotes disponibles.
+        Genera un item de la propuesta, buscando lotes disponibles con sus ubicaciones.
         """
         cantidad_requerida = item_solicitud.cantidad_aprobada
         producto = item_solicitud.producto
@@ -75,6 +76,7 @@ class PropuestaGenerator:
         )
 
         # Buscar lotes disponibles que no estén caducados
+        # Considerar que deben tener al menos 60 días de vida útil (preferiblemente 90)
         lotes_disponibles = Lote.objects.filter(
             producto=producto,
             cantidad_disponible__gt=0,
@@ -84,28 +86,73 @@ class PropuestaGenerator:
             'fecha_caducidad'  # Priorizar lotes que caducan antes
         )
 
-        cantidad_total_disponible = sum(lote.cantidad_disponible for lote in lotes_disponibles)
+        # Obtener ubicaciones para cada lote
+        ubicaciones_por_lote = {}
+        cantidad_total_disponible = 0
+        
+        for lote in lotes_disponibles:
+            # Obtener las ubicaciones del lote ordenadas por cantidad (menor primero)
+            ubicaciones = LoteUbicacion.objects.filter(
+                lote=lote
+            ).order_by('cantidad')
+            
+            if ubicaciones.exists():
+                ubicaciones_por_lote[lote.id] = list(ubicaciones)
+                cantidad_total_disponible += sum(ubi.cantidad for ubi in ubicaciones)
+            else:
+                # Si el lote no tiene ubicaciones registradas, usar la cantidad disponible del lote
+                ubicaciones_por_lote[lote.id] = None
+                cantidad_total_disponible += lote.cantidad_disponible
+
         item_propuesta.cantidad_disponible = cantidad_total_disponible
 
-        # Asignar lotes
+        # Asignar lotes y ubicaciones
         cantidad_asignada_total = 0
         for lote in lotes_disponibles:
             if cantidad_asignada_total >= cantidad_requerida:
                 break
 
-            cantidad_a_asignar = min(
-                lote.cantidad_disponible,
-                cantidad_requerida - cantidad_asignada_total
-            )
-
-            LoteAsignado.objects.create(
-                item_propuesta=item_propuesta,
-                lote=lote,
-                cantidad_asignada=cantidad_a_asignar,
-                fecha_caducidad_lote=lote.fecha_caducidad,
-                dias_para_caducar=(lote.fecha_caducidad - date.today()).days
-            )
-            cantidad_asignada_total += cantidad_a_asignar
+            ubicaciones = ubicaciones_por_lote.get(lote.id)
+            
+            if ubicaciones is None:
+                # Lote sin ubicaciones registradas (datos legacy)
+                cantidad_a_asignar = min(
+                    lote.cantidad_disponible,
+                    cantidad_requerida - cantidad_asignada_total
+                )
+                
+                LoteAsignado.objects.create(
+                    item_propuesta=item_propuesta,
+                    lote=lote,
+                    cantidad_asignada=cantidad_a_asignar,
+                    fecha_caducidad_lote=lote.fecha_caducidad,
+                    dias_para_caducar=(lote.fecha_caducidad - date.today()).days,
+                    ubicacion=None,
+                    cantidad_en_ubicacion=lote.cantidad_disponible
+                )
+                cantidad_asignada_total += cantidad_a_asignar
+            else:
+                # Lote con ubicaciones registradas
+                # Priorizar ubicaciones con menor cantidad
+                for ubicacion_lote in ubicaciones:
+                    if cantidad_asignada_total >= cantidad_requerida:
+                        break
+                    
+                    cantidad_a_asignar = min(
+                        ubicacion_lote.cantidad,
+                        cantidad_requerida - cantidad_asignada_total
+                    )
+                    
+                    LoteAsignado.objects.create(
+                        item_propuesta=item_propuesta,
+                        lote=lote,
+                        cantidad_asignada=cantidad_a_asignar,
+                        fecha_caducidad_lote=lote.fecha_caducidad,
+                        dias_para_caducar=(lote.fecha_caducidad - date.today()).days,
+                        ubicacion=ubicacion_lote.ubicacion,
+                        cantidad_en_ubicacion=ubicacion_lote.cantidad
+                    )
+                    cantidad_asignada_total += cantidad_a_asignar
 
         # Actualizar estado y cantidad propuesta
         item_propuesta.cantidad_propuesta = cantidad_asignada_total
