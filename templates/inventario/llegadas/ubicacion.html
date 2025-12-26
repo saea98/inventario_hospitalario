@@ -128,6 +128,9 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        console.log('🚀 DOM Cargado - Iniciando funciones...');
+        console.log('📋 items_with_ubicaciones:', document.querySelectorAll('[data-item-index]').length);
+        
         initializeSelect2();
         updateCantidadesTotales();
         
@@ -157,11 +160,23 @@
     });
     
     function initializeSelect2() {
+        console.log('🔍 Inicializando Select2...');
+        const selects = document.querySelectorAll('.select2-single');
+        console.log(`📊 Se encontraron ${selects.length} selects para inicializar`);
+        
+        selects.forEach((select, idx) => {
+            console.log(`📌 Select ${idx}:`, select);
+            console.log(`   - Nombre: ${select.name}`);
+            console.log(`   - Opciones: ${select.options.length}`);
+        });
+        
         $('.select2-single').select2({
             allowClear: true,
             placeholder: 'Selecciona una opción',
             width: '100%'
         });
+        
+        console.log('✅ Select2 inicializado');
     }
     
     function addUbicacion(button) {
@@ -209,12 +224,15 @@
     }
     
     function updateCantidadesTotales() {
+        console.log('🔄 Actualizando cantidades totales...');
         document.querySelectorAll('.ubicaciones-container').forEach((container, index) => {
             const cantidades = Array.from(container.querySelectorAll('.cantidad-input'))
                 .map(input => parseInt(input.value) || 0)
                 .reduce((a, b) => a + b, 0);
             
             const totalElement = document.querySelector(`.cantidad-total-${index}`);
+            console.log(`   Item ${index}: ${cantidades} unidades, elemento:`, totalElement);
+            
             if (totalElement) {
                 totalElement.textContent = cantidades;
             }
