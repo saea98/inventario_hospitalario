@@ -45,6 +45,7 @@ urlpatterns = [
     
     # Capturar conteos de un lote específico
     path('conteos/lotes/<int:lote_id>/capturar/', views_conteo_fisico_v2.capturar_conteo_lote, name='capturar_conteo_lote'),
+    path('conteos/ubicaciones/<int:lote_ubicacion_id>/capturar/', views_conteo_fisico_v2.capturar_conteo_lote, name='capturar_conteo_lote'),
     
     # Crear nuevo lote si no existe
     path('conteos/crear-lote/', views_conteo_fisico_v2.crear_lote_conteo, name='crear_lote_conteo'),
