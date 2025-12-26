@@ -475,6 +475,15 @@ def lista_lotes(request):
     paginator = Paginator(lotes, 10)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
+    
+    # DEBUG: Escribir en archivo
+    with open('/tmp/debug_lotes.log', 'w') as f:
+        f.write(f'Total lotes: {lotes.count()}\n')
+        f.write(f'Lotes en pagina: {len(page_obj)}\n')
+        f.write(f'Total paginas: {paginator.num_pages}\n')
+        f.write(f'page_obj type: {type(page_obj)}\n')
+        f.write(f'page_obj class: {page_obj.__class__.__name__}\n')
+        f.write(f'lotes type: {type(lotes)}\n')
 
     instituciones = Institucion.objects.filter(activo=True).order_by('clue')
     alertas_caducidad = resumen['proximos_caducar'] + resumen['caducados']
