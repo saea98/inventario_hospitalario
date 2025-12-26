@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <h1>Fusionar Lotes</h1>
+    <p>Lote Origen: {{ lote_origen.numero_lote }}</p>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn btn-primary">Fusionar</button>
+    </form>
+</div>
+{% endblock %}

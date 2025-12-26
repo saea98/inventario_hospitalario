@@ -254,3 +254,25 @@ class FiltroConteosForm(forms.Form):
             ).order_by('nombre')
         else:
             self.fields['almacen'].queryset = Almacen.objects.all().order_by('nombre')
+
+
+class CambiarUbicacionForm(forms.Form):
+    nueva_ubicacion = forms.ModelChoiceField(queryset=UbicacionAlmacen.objects.all(), label="Nueva Ubicación")
+
+    def __init__(self, *args, **kwargs):
+        almacen = kwargs.pop("almacen", None)
+        super().__init__(*args, **kwargs)
+        if almacen:
+            self.fields["nueva_ubicacion"].queryset = UbicacionAlmacen.objects.filter(almacen=almacen)
+
+
+class FusionarUbicacionForm(forms.Form):
+    lote_destino = forms.ModelChoiceField(queryset=Lote.objects.all(), label="Lote de Destino")
+
+    def __init__(self, *args, **kwargs):
+        lote_origen = kwargs.pop("lote_origen", None)
+        super().__init__(*args, **kwargs)
+        if lote_origen:
+            self.fields["lote_destino"].queryset = Lote.objects.filter(
+                producto=lote_origen.producto
+            ).exclude(id=lote_origen.id)

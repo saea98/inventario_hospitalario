@@ -258,3 +258,12 @@ document.addEventListener('DOMContentLoaded', function() {
     }
 </style>
 {% endblock %}
+
+<div class="mt-4">
+    <a href="{% url 'logistica:cambiar_ubicacion_conteo' lote.id %}" class="btn btn-info">Cambiar Ubicación</a>
+</div>
+</div>
+
+<div class="mt-4">
+    <a href="{% url 'logistica:fusionar_ubicaciones_conteo' lote.id %}" class="btn btn-warning">Fusionar Lotes</a>
+</div>

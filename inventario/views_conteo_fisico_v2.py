@@ -108,7 +108,7 @@ def buscar_lote_conteo(request):
                     lotes = Lote.objects.filter(
                         producto__clave_cnis=criterio_busqueda,
                         almacen=almacen
-                    ).select_related('producto').order_by('numero_lote')
+                    ).select_related("producto").prefetch_related("ubicaciones").order_by("numero_lote")
                     request.session['clave_cnis_busqueda'] = criterio_busqueda
                 else:
                     lotes = Lote.objects.filter(
@@ -522,3 +522,66 @@ def seleccionar_lote_conteo(request):
     }
     
     return render(request, 'inventario/conteo_fisico/seleccionar_lote.html', contexto)
+
+
+@login_required
+def cambiar_ubicacion_conteo(request, lote_id):
+    lote = get_object_or_404(Lote, id=lote_id)
+    if request.method == 'POST':
+        form = CambiarUbicacionForm(request.POST, almacen=lote.almacen)
+        if form.is_valid():
+            nueva_ubicacion = form.cleaned_data['nueva_ubicacion']
+            lote.ubicacion = nueva_ubicacion
+            lote.save()
+            messages.success(request, f'Ubicación del lote {lote.numero_lote} cambiada a {nueva_ubicacion.codigo}')
+            return redirect('logistica:capturar_conteo_lote', lote_id=lote.id)
+    else:
+        form = CambiarUbicacionForm(almacen=lote.almacen)
+    
+    context = {
+        'lote': lote,
+        'form': form,
+    }
+    return render(request, 'inventario/conteo_fisico/cambiar_ubicacion.html', context)
+
+
+@login_required
+def fusionar_ubicaciones_conteo(request, lote_id):
+    lote_origen = get_object_or_404(Lote, id=lote_id)
+    if request.method == 'POST':
+        form = FusionarUbicacionForm(request.POST, lote_origen=lote_origen)
+        if form.is_valid():
+            lote_destino = form.cleaned_data['lote_destino']
+            # Realizar la fusión
+            with transaction.atomic():
+                # Crear movimiento de salida para el lote origen
+                MovimientoInventario.objects.create(
+                    lote=lote_origen,
+                    tipo_movimiento='AJUSTE_NEGATIVO',
+                    cantidad=lote_origen.cantidad_disponible,
+                    motivo=f'Fusión con lote {lote_destino.numero_lote}',
+                    usuario=request.user
+                )
+                # Crear movimiento de entrada para el lote destino
+                MovimientoInventario.objects.create(
+                    lote=lote_destino,
+                    tipo_movimiento='AJUSTE_POSITIVO',
+                    cantidad=lote_origen.cantidad_disponible,
+                    motivo=f'Fusión desde lote {lote_origen.numero_lote}',
+                    usuario=request.user
+                )
+                # Actualizar cantidades
+                lote_destino.cantidad_disponible += lote_origen.cantidad_disponible
+                lote_destino.save()
+                lote_origen.cantidad_disponible = 0
+                lote_origen.save()
+            messages.success(request, 'Fusión de lotes completada exitosamente.')
+            return redirect('logistica:capturar_conteo_lote', lote_id=lote_destino.id)
+    else:
+        form = FusionarUbicacionForm(lote_origen=lote_origen)
+    
+    context = {
+        'lote_origen': lote_origen,
+        'form': form,
+    }
+    return render(request, 'inventario/conteo_fisico/fusionar_ubicaciones.html', context)

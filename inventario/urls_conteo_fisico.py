@@ -26,9 +26,16 @@ urlpatterns = [
     path('crear-lote/', views_conteo_fisico_v2.crear_lote_conteo, name='crear_lote'),
     
     # Historial de conteos realizados
-    path('historial/', views_conteo_fisico_v2.historial_conteos, name='historial'),
-    
-    # Detalle de un movimiento de conteo
+    path('historial/', views_conteo_fisico_v2.historial_conteospath(
+        "lotes/<int:lote_id>/cambiar-ubicacion/",
+        views_conteo_fisico_v2.cambiar_ubicacion_conteo,
+        name="cambiar_ubicacion_conteo",
+    ),
+    path(
+        "lotes/<int:lote_id>/fusionar/",
+        views_conteo_fisico_v2.fusionar_ubicaciones_conteo,
+        name="fusionar_ubicaciones_conteo",
+    ),    # Detalle de un movimiento de conteo
     path('movimientos/<int:movimiento_id>/', views_conteo_fisico_v2.detalle_movimiento_conteo, name='detalle_movimiento'),
     
     # API AJAX para obtener información del lote

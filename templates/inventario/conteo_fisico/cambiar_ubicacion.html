@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <h1>Cambiar Ubicación de Lote</h1>
+    <p>Lote: {{ lote.numero_lote }}</p>
+    <form method="post">
+        {% csrf_token %}
+        {{ form.as_p }}
+        <button type="submit" class="btn btn-primary">Cambiar Ubicación</button>
+    </form>
+</div>
+{% endblock %}

@@ -98,9 +98,16 @@
                                                             {% endif %}
                                                         </strong>
                                                     </div>
-                                                    <div class="col-md-6">
+                                                    <div class="col-md-12">
                                                         <i class="fas fa-map-marker-alt"></i> 
-                                                        Ubicación: <strong>{{ lote.ubicacion|default:"No especificada" }}</strong>
+                                                        Ubicaciones:
+                                                        <ul>
+                                                            {% for ubicacion in lote.ubicaciones.all %}
+                                                                <li><strong>{{ ubicacion.codigo }}</strong> ({{ ubicacion.almacen.nombre }})</li>
+                                                            {% empty %}
+                                                                <li>No especificada</li>
+                                                            {% endfor %}
+                                                        </ul>
                                                     </div>
                                                 </div>
                                             </div>
