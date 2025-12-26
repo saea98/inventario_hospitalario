@@ -294,7 +294,11 @@ from django.forms import modelformset_factory
 class EditLoteUbicacionForm(forms.ModelForm):
     class Meta:
         model = LoteUbicacion
-        fields = ['ubicacion', 'cantidad']
+        fields = ["ubicacion", "cantidad"]
+        widgets = {
+            "ubicacion": forms.Select(attrs={"class": "form-control"}),
+            "cantidad": forms.NumberInput(attrs={"class": "form-control", "min": 0}),
+        }
 
 LoteUbicacionFormSet = modelformset_factory(
     LoteUbicacion,

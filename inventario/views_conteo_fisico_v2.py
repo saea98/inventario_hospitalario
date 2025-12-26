@@ -154,7 +154,18 @@ def capturar_conteo_lote(request, lote_id):
     producto = lote.producto
     
     if request.method == 'POST':
-        form = CapturarConteosForm(request.POST)
+        if 'update_locations' in request.POST:
+            formset = LoteUbicacionFormSet(request.POST, queryset=LoteUbicacion.objects.filter(lote=lote), prefix='ubicaciones')
+            if formset.is_valid():
+                instances = formset.save(commit=False)
+                for instance in instances:
+                    instance.lote = lote
+                    instance.save()
+                formset.save_m2m()
+                messages.success(request, 'Ubicaciones actualizadas exitosamente.')
+                return redirect('logistica:capturar_conteo_lote', lote_id=lote.id)
+        else:
+            form = CapturarConteosForm(request.POST)
         
         if form.is_valid():
             cifra_primer_conteo = form.cleaned_data['cifra_primer_conteo']
@@ -227,12 +238,14 @@ def capturar_conteo_lote(request, lote_id):
                 messages.error(request, f'Error al guardar conteo: {str(e)}')
     else:
         form = CapturarConteosForm()
+        formset = LoteUbicacionFormSet(queryset=LoteUbicacion.objects.filter(lote=lote), prefix='ubicaciones')
     
     # Calcular valores para mostrar
     contexto = {
         'lote': lote,
         'producto': producto,
         'form': form,
+        'formset': formset,
         'cantidad_sistema': lote.cantidad_disponible,
         'precio_unitario': lote.precio_unitario or 0,
         'valor_sistema': (lote.cantidad_disponible or 0) * (lote.precio_unitario or 0),
