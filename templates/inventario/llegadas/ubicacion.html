@@ -92,32 +92,30 @@
         console.log('⚙️ Configurando handlers para cambio de almacén...');
         
         // Encontrar todos los selects de almacén
-        document.querySelectorAll('select[name*="almacen"]').forEach((almacenSelect) => {
-            almacenSelect.addEventListener('change', function() {
-                const almacenId = this.value;
-                alert(`🏭 Almacén seleccionado: ${almacenId}`);
-                console.log(`🏭 Almacén seleccionado: ${almacenId}`);
-                
-                if (!almacenId) {
-                    console.log('⚠️ No se seleccionó almacén');
-                    return;
-                }
-                
-                // Obtener el índice del item
-                const itemIndex = this.closest('[data-item-index]').dataset.itemIndex;
-                console.log(`📍 Item index: ${itemIndex}`);
-                
-                // Cargar ubicaciones para este almacén
-                fetch(`/logistica/llegadas/api/ubicaciones-por-almacen/?almacen_id=${almacenId}`)
-                    .then(response => response.json())
-                    .then(data => {
-                        console.log('📦 Ubicaciones cargadas:', data);
-                        updateUbicacionesSelect(itemIndex, data.ubicaciones);
-                    })
-                    .catch(error => {
-                        console.error('❌ Error al cargar ubicaciones:', error);
-                    });
-            });
+        $(document).on('change.select2', 'select[name*="almacen"]', function() {
+            const almacenId = this.value;
+            alert('Almacén seleccionado: ' + almacenId);
+            console.log('Almacén seleccionado: ' + almacenId);
+            
+            if (!almacenId) {
+                console.log('No se seleccionó almacén');
+                return;
+            }
+            
+            // Obtener el índice del item
+            const itemIndex = $(this).closest('[data-item-index]').data('itemIndex');
+            console.log('Item index: ' + itemIndex);
+            
+            // Cargar ubicaciones para este almacén
+            fetch('/logistica/llegadas/api/ubicaciones-por-almacen/?almacen_id=' + almacenId)
+                .then(response => response.json())
+                .then(data => {
+                    console.log('Ubicaciones cargadas:', data);
+                    updateUbicacionesSelect(itemIndex, data.ubicaciones);
+                })
+                .catch(error => {
+                    console.error('Error al cargar ubicaciones:', error);
+                });
         });
     }
     
