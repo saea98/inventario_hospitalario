@@ -305,7 +305,8 @@ def editar_propuesta(request, propuesta_id):
     Permite al personal de almacén editar los lotes y cantidades de la propuesta.
     Puede cambiar qué lotes se asignan y qué cantidades se proponen para cada item.
     """
-    from .pedidos_models import LoteAsignado, LoteUbicacion
+    from .pedidos_models import LoteAsignado
+    from .models import LoteUbicacion
     
     propuesta = get_object_or_404(PropuestaPedido, id=propuesta_id, estado='GENERADA')
     
