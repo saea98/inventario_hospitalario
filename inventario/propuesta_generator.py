@@ -77,70 +77,39 @@ class PropuestaGenerator:
 
         # Buscar lotes disponibles que no estén caducados
         # Considerar que deben tener al menos 60 días de vida útil (preferiblemente 90)
-        lotes_disponibles = Lote.objects.filter(
-            producto=producto,
-            cantidad_disponible__gt=0,
-            fecha_caducidad__gte=date.today() + timedelta(days=60),
-            estado=1  # Solo lotes disponibles
-        ).order_by(
-            'fecha_caducidad'  # Priorizar lotes que caducan antes
+        # Buscar ubicaciones de lote disponibles que no estén caducadas
+        # y que tengan al menos 60 días de vida útil
+        ubicaciones_disponibles = LoteUbicacion.objects.filter(
+            lote__producto=producto,
+            cantidad__gt=0,
+            lote__fecha_caducidad__gte=date.today() + timedelta(days=60),
+            lote__estado=1  # Solo lotes disponibles
+        ).select_related('lote', 'ubicacion').order_by(
+            'lote__fecha_caducidad'  # Priorizar lotes que caducan antes
         )
 
-        # Obtener ubicaciones para cada lote
-        ubicaciones_por_lote = {}
-        cantidad_total_disponible = 0
-        
-        for lote in lotes_disponibles:
-            # Obtener las ubicaciones del lote ordenadas por cantidad (menor primero)
-            ubicaciones = LoteUbicacion.objects.filter(
-                lote=lote
-            ).order_by('cantidad')
-            
-            if ubicaciones.exists():
-                ubicaciones_por_lote[lote.id] = list(ubicaciones)
-                cantidad_total_disponible += sum(ubi.cantidad for ubi in ubicaciones)
-            else:
-                # Si el lote no tiene ubicaciones registradas, usar la cantidad disponible del lote
-                ubicaciones_por_lote[lote.id] = None
-                cantidad_total_disponible += lote.cantidad_disponible
+        cantidad_total_disponible = sum(ubi.cantidad for ubi in ubicaciones_disponibles)
 
         item_propuesta.cantidad_disponible = cantidad_total_disponible
 
-        # Asignar lotes y ubicaciones
+        # Asignar ubicaciones de lote
         cantidad_asignada_total = 0
-        for lote in lotes_disponibles:
+        for ubicacion_lote in ubicaciones_disponibles:
             if cantidad_asignada_total >= cantidad_requerida:
                 break
 
-            ubicaciones = ubicaciones_por_lote.get(lote.id)
-            
-            if ubicaciones is None:
-                # Lote sin ubicaciones registradas (datos legacy)
-                cantidad_a_asignar = min(
-                    lote.cantidad_disponible,
-                    cantidad_requerida - cantidad_asignada_total
+            cantidad_a_asignar = min(
+                ubicacion_lote.cantidad,
+                cantidad_requerida - cantidad_asignada_total
+            )
+
+            if cantidad_a_asignar > 0:
+                LoteAsignado.objects.create(
+                    item_propuesta=item_propuesta,
+                    lote_ubicacion=ubicacion_lote,
+                    cantidad_asignada=cantidad_a_asignar
                 )
-                
-                # No se puede asignar un lote sin ubicación registrada
                 cantidad_asignada_total += cantidad_a_asignar
-            else:
-                # Lote con ubicaciones registradas
-                # Priorizar ubicaciones con menor cantidad
-                for ubicacion_lote in ubicaciones:
-                    if cantidad_asignada_total >= cantidad_requerida:
-                        break
-                    
-                    cantidad_a_asignar = min(
-                        ubicacion_lote.cantidad,
-                        cantidad_requerida - cantidad_asignada_total
-                    )
-                    
-                    LoteAsignado.objects.create(
-                        item_propuesta=item_propuesta,
-                        lote_ubicacion=ubicacion_lote,
-                        cantidad_asignada=cantidad_a_asignar
-                    )
-                    cantidad_asignada_total += cantidad_a_asignar
 
         # Actualizar estado y cantidad propuesta
         item_propuesta.cantidad_propuesta = cantidad_asignada_total
