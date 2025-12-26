@@ -12,7 +12,7 @@ from django.utils import timezone
 from datetime import datetime
 
 # Importaciones de modelos existentes
-from .models import Institucion, Almacen, Producto, Lote
+from .models import Institucion, Almacen, Producto, Lote, UbicacionAlmacen
 
 # ============================================================================
 # MODELOS PARA GESTIÓN DE PEDIDOS
@@ -287,6 +287,20 @@ class LoteAsignado(models.Model):
     # Información del lote al momento de la asignación
     fecha_caducidad_lote = models.DateField(verbose_name="Fecha de Caducidad del Lote")
     dias_para_caducar = models.PositiveIntegerField(verbose_name="Días para Caducar")
+    
+    # Información de ubicación
+    ubicacion = models.ForeignKey(
+        UbicacionAlmacen,
+        on_delete=models.PROTECT,
+        null=True,
+        blank=True,
+        related_name='lotes_asignados',
+        verbose_name="Ubicación del Lote"
+    )
+    cantidad_en_ubicacion = models.PositiveIntegerField(
+        default=0,
+        verbose_name="Cantidad Disponible en Ubicación"
+    )
     
     # Estado del surtimiento
     fecha_asignacion = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de Asignación")
