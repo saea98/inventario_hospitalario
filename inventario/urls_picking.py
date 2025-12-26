@@ -25,3 +25,4 @@ urlpatterns = [
         picking_views.imprimir_hoja_surtido,
         name="imprimir_hoja_surtido",
     ),
+]
