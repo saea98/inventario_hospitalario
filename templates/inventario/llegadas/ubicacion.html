@@ -317,3 +317,16 @@
     }
 </style>
 {% endblock %}
+
+
+document.getElementById('ubicacion-form').addEventListener('submit', function(event) {
+    event.preventDefault(); // Prevenir el envío real para poder inspeccionar los datos
+    console.log('--- FormData a enviar ---');
+    const formData = new FormData(this);
+    for (let [key, value] of formData.entries()) {
+        console.log(`${key}: ${value}`);
+    }
+    alert('Datos del formulario registrados en la consola. Revisa la consola del desarrollador (F12) y luego puedes descomentar la línea this.submit() para enviarlos.');
+    // Descomenta la siguiente línea para enviar el formulario después de depurar
+    // this.submit();
+});
