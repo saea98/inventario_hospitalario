@@ -1834,3 +1834,44 @@ class MenuItemRol(models.Model):
             activo=True,
             menu_padre=menu_padre
         )
+
+
+
+class LoteUbicacion(models.Model):
+    """
+    Modelo para almacenar la relación entre un lote y sus ubicaciones.
+    Permite que un lote sea distribuido en múltiples ubicaciones con diferentes cantidades.
+    """
+    lote = models.ForeignKey(
+        'Lote',
+        on_delete=models.CASCADE,
+        related_name='ubicaciones_detalle',
+        verbose_name='Lote'
+    )
+    ubicacion = models.ForeignKey(
+        'UbicacionAlmacen',
+        on_delete=models.PROTECT,
+        verbose_name='Ubicación'
+    )
+    cantidad = models.PositiveIntegerField(
+        verbose_name='Cantidad',
+        validators=[MinValueValidator(1)]
+    )
+    fecha_asignacion = models.DateTimeField(auto_now_add=True)
+    fecha_actualizacion = models.DateTimeField(auto_now=True)
+    usuario_asignacion = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='asignaciones_ubicacion'
+    )
+
+    class Meta:
+        verbose_name = "Ubicación de Lote"
+        verbose_name_plural = "Ubicaciones de Lotes"
+        unique_together = ('lote', 'ubicacion')
+        ordering = ['lote', 'ubicacion']
+
+    def __str__(self):
+        return f"Lote {self.lote.numero_lote} - {self.ubicacion.codigo} ({self.cantidad} unidades)"
