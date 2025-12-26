@@ -262,13 +262,17 @@ class UbicacionView(LoginRequiredMixin, View):
                         j += 1
                     
                     # Validar que hay al menos una ubicación
+                    logger.warning(f'Total ubicaciones encontradas para item {i}: {len(ubicacion_data)}')
                     if not ubicacion_data:
+                        logger.error(f"No hay ubicaciones para {item.producto.descripcion}")
                         messages.error(request, f"Debe asignar al menos una ubicación para {item.producto.descripcion}")
                         return redirect("logistica:llegadas:ubicacion", pk=llegada.pk)
                     
                     # Validar que la suma de cantidades sea igual a la cantidad recibida
                     total_cantidad = sum(u['cantidad'] for u in ubicacion_data)
+                    logger.warning(f'Item {i}: Total cantidad {total_cantidad}, Cantidad recibida {item.cantidad_recibida}')
                     if total_cantidad != item.cantidad_recibida:
+                        logger.error(f"Cantidad incorrecta para {item.producto.descripcion}")
                         messages.error(
                             request,
                             f"Para {item.producto.descripcion}: La suma de cantidades ({total_cantidad}) "
