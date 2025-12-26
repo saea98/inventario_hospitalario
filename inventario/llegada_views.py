@@ -182,6 +182,7 @@ class UbicacionView(LoginRequiredMixin, View):
         
         # Preparar datos para el template
         from .models import LoteUbicacion
+        import json
         items_with_ubicaciones = []
         for idx, item in enumerate(items):
             # Obtener ubicaciones previamente asignadas para este lote
@@ -196,7 +197,8 @@ class UbicacionView(LoginRequiredMixin, View):
                 'lote': item.lote_creado,
                 'cantidad_recibida': item.cantidad_recibida,
                 'index': idx,
-                'ubicaciones_asignadas': ubicaciones_asignadas
+                'ubicaciones_asignadas': ubicaciones_asignadas,
+                'ubicaciones_asignadas_json': json.dumps(ubicaciones_asignadas)
             })
         
         return render(request, "inventario/llegadas/ubicacion.html", {
