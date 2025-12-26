@@ -287,3 +287,18 @@ class AsignarUbicacionForm(forms.Form):
         super().__init__(*args, **kwargs)
         if almacen:
             self.fields["ubicacion"].queryset = UbicacionAlmacen.objects.filter(almacen=almacen)
+
+
+from django.forms import modelformset_factory
+
+class EditLoteUbicacionForm(forms.ModelForm):
+    class Meta:
+        model = LoteUbicacion
+        fields = ['ubicacion', 'cantidad']
+
+LoteUbicacionFormSet = modelformset_factory(
+    LoteUbicacion,
+    form=EditLoteUbicacionForm,
+    extra=1,
+    can_delete=True
+)

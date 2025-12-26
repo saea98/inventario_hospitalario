@@ -1,0 +1,29 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container">
+    <h1>Editar Ubicaciones de Lote</h1>
+    <p>Lote: {{ lote.numero_lote }}</p>
+    <form method="post">
+        {% csrf_token %}
+        {{ formset.management_form }}
+        {% for form in formset %}
+            <div class="form-row">
+                <div class="col-md-6">
+                    {{ form.ubicacion.label_tag }}
+                    {{ form.ubicacion }}
+                </div>
+                <div class="col-md-4">
+                    {{ form.cantidad.label_tag }}
+                    {{ form.cantidad }}
+                </div>
+                <div class="col-md-2">
+                    {{ form.DELETE.label_tag }}
+                    {{ form.DELETE }}
+                </div>
+            </div>
+        {% endfor %}
+        <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+    </form>
+</div>
+{% endblock %}

@@ -614,3 +614,26 @@ def asignar_ubicacion_conteo(request, lote_id):
         'form': form,
     }
     return render(request, 'inventario/conteo_fisico/asignar_ubicacion.html', context)
+
+
+@login_required
+def editar_ubicaciones_conteo(request, lote_id):
+    lote = get_object_or_404(Lote, id=lote_id)
+    if request.method == 'POST':
+        formset = LoteUbicacionFormSet(request.POST, queryset=LoteUbicacion.objects.filter(lote=lote))
+        if formset.is_valid():
+            instances = formset.save(commit=False)
+            for instance in instances:
+                instance.lote = lote
+                instance.save()
+            formset.save_m2m()
+            messages.success(request, 'Ubicaciones actualizadas exitosamente.')
+            return redirect('logistica:capturar_conteo_lote', lote_id=lote.id)
+    else:
+        formset = LoteUbicacionFormSet(queryset=LoteUbicacion.objects.filter(lote=lote))
+    
+    context = {
+        'lote': lote,
+        'formset': formset,
+    }
+    return render(request, 'inventario/conteo_fisico/editar_ubicaciones.html', context)
