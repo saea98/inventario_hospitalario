@@ -472,6 +472,18 @@ def lista_lotes(request):
     paginator = Paginator(lotes, 10)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
+    
+    # DEBUG LOGS
+    import logging
+    logger = logging.getLogger(__name__)
+    logger.warning(f'DEBUG PAGINACIÓN - Total lotes: {lotes.count()}')
+    logger.warning(f'DEBUG PAGINACIÓN - Lotes en página: {len(page_obj)}')
+    logger.warning(f'DEBUG PAGINACIÓN - Total páginas: {paginator.num_pages}')
+    logger.warning(f'DEBUG PAGINACIÓN - Página actual: {page_number}')
+    logger.warning(f'DEBUG PAGINACIÓN - page_obj type: {type(page_obj)}')
+    logger.warning(f'DEBUG PAGINACIÓN - page_obj length: {len(page_obj)}')
+    logger.warning(f'DEBUG PAGINACIÓN - lotes type: {type(lotes)}')
+    logger.warning(f'DEBUG PAGINACIÓN - lotes is list: {isinstance(lotes, list)}')
 
     instituciones = Institucion.objects.filter(activo=True).order_by('clue')
     alertas_caducidad = resumen['proximos_caducar'] + resumen['caducados']
