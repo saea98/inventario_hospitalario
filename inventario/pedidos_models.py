@@ -272,34 +272,16 @@ class LoteAsignado(models.Model):
         related_name='lotes_asignados',
         verbose_name="Item de Propuesta"
     )
-    lote = models.ForeignKey(
-        Lote,
+    lote_ubicacion = models.ForeignKey(
+        'LoteUbicacion',
         on_delete=models.PROTECT,
-        verbose_name="Lote"
+        related_name='asignaciones_propuesta',
+        verbose_name="Ubicación del Lote Asignado"
     )
-    
-    # Cantidad asignada de este lote
+
     cantidad_asignada = models.PositiveIntegerField(
         validators=[MinValueValidator(1)],
         verbose_name="Cantidad Asignada"
-    )
-    
-    # Información del lote al momento de la asignación
-    fecha_caducidad_lote = models.DateField(verbose_name="Fecha de Caducidad del Lote")
-    dias_para_caducar = models.PositiveIntegerField(verbose_name="Días para Caducar")
-    
-    # Información de ubicación
-    ubicacion = models.ForeignKey(
-        UbicacionAlmacen,
-        on_delete=models.PROTECT,
-        null=True,
-        blank=True,
-        related_name='lotes_asignados',
-        verbose_name="Ubicación del Lote"
-    )
-    cantidad_en_ubicacion = models.PositiveIntegerField(
-        default=0,
-        verbose_name="Cantidad Disponible en Ubicación"
     )
     
     # Estado del surtimiento

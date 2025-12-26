@@ -305,7 +305,7 @@ def editar_propuesta(request, propuesta_id):
     Permite al personal de almacén editar los lotes y cantidades de la propuesta.
     Puede cambiar qué lotes se asignan y qué cantidades se proponen para cada item.
     """
-    from .pedidos_models import LoteAsignado
+    from .pedidos_models import LoteAsignado, LoteUbicacion
     
     propuesta = get_object_or_404(PropuestaPedido, id=propuesta_id, estado='GENERADA')
     
@@ -319,7 +319,7 @@ def editar_propuesta(request, propuesta_id):
                 item.save()
             
             # Procesar cambios en lotes asignados
-            lotes_actuales = item.lotes_asignados.all()
+            lotes_actuales = item.lotes_asignados.select_related('lote_ubicacion__lote', 'lote_ubicacion__ubicacion').all()
             for lote_asignado in lotes_actuales:
                 nueva_cantidad_lote = request.POST.get(f'lote_{lote_asignado.id}_cantidad')
                 if nueva_cantidad_lote:
@@ -331,19 +331,16 @@ def editar_propuesta(request, propuesta_id):
                     lote_asignado.delete()
             
             # Agregar nuevos lotes si se seleccionan
-            nuevo_lote_id = request.POST.get(f'item_{item.id}_nuevo_lote')
-            if nuevo_lote_id:
-                from .models import Lote
-                lote = Lote.objects.get(id=nuevo_lote_id)
-                cantidad_nuevo = int(request.POST.get(f'item_{item.id}_cantidad_nuevo_lote', 0))
+            nueva_ubicacion_id = request.POST.get(f'item_{item.id}_nueva_ubicacion')
+            if nueva_ubicacion_id:
+                lote_ubicacion = LoteUbicacion.objects.get(id=nueva_ubicacion_id)
+                cantidad_nuevo = int(request.POST.get(f'item_{item.id}_cantidad_nueva_ubicacion', 0))
                 
                 if cantidad_nuevo > 0:
                     LoteAsignado.objects.create(
                         item_propuesta=item,
-                        lote=lote,
-                        cantidad_asignada=cantidad_nuevo,
-                        fecha_caducidad_lote=lote.fecha_caducidad,
-                        dias_para_caducar=(lote.fecha_caducidad - date.today()).days
+                        lote_ubicacion=lote_ubicacion,
+                        cantidad_asignada=cantidad_nuevo
                     )
         
         # Actualizar totales de la propuesta

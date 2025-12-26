@@ -40,6 +40,7 @@
                                 <thead>
                                     <tr>
                                         <th>Lote</th>
+                                        <th>Ubicación</th>
                                         <th>Fecha Caducidad</th>
                                         <th>Cantidad Asignada</th>
                                         <th>Acciones</th>
@@ -48,15 +49,16 @@
                                 <tbody>
                                     {% for lote_asignado in item.lotes_asignados.all %}
                                         <tr>
-                                            <td>{{ lote_asignado.lote.numero_lote }}</td>
-                                            <td>{{ lote_asignado.fecha_caducidad_lote|date:"d/m/Y" }}</td>
+                                            <td>{{ lote_asignado.lote_ubicacion.lote.numero_lote }}</td>
+                                            <td>{{ lote_asignado.lote_ubicacion.ubicacion.codigo }}</td>
+                                            <td>{{ lote_asignado.lote_ubicacion.lote.fecha_caducidad|date:"d/m/Y" }}</td>
                                             <td>
                                                 <input type="number"
                                                        name="lote_{{ lote_asignado.id }}_cantidad"
                                                        class="form-control form-control-sm"
                                                        value="{{ lote_asignado.cantidad_asignada }}"
                                                        min="0"
-                                                       max="{{ lote_asignado.lote.cantidad_disponible }}">
+                                                       max="{{ lote_asignado.lote_ubicacion.cantidad }}">
                                             </td>
                                             <td>
                                                 <label class="custom-control custom-checkbox">
@@ -69,7 +71,7 @@
                                         </tr>
                                     {% empty %}
                                         <tr>
-                                            <td colspan="4" class="text-center">No hay lotes asignados.</td>
+                                            <td colspan="5" class="text-center">No hay lotes asignados.</td>
                                         </tr>
                                     {% endfor %}
                                 </tbody>
@@ -78,28 +80,30 @@
 
                         <!-- Agregar Nuevo Lote -->
                         <div class="mt-4 p-3 bg-light rounded">
-                            <h6>Agregar Nuevo Lote</h6>
+                            <h6>Agregar Nueva Ubicación de Lote</h6>
                             <div class="row">
                                 <div class="col-md-8">
-                                    <label for="item_{{ item.id }}_nuevo_lote">Selecciona un lote</label>
-                                    <select id="item_{{ item.id }}_nuevo_lote"
-                                            name="item_{{ item.id }}_nuevo_lote"
+                                    <label for="item_{{ item.id }}_nueva_ubicacion">Selecciona una ubicación de lote</label>
+                                    <select id="item_{{ item.id }}_nueva_ubicacion"
+                                            name="item_{{ item.id }}_nueva_ubicacion"
                                             class="form-control select2-single">
-                                        <option value="">-- Selecciona un lote --</option>
+                                        <option value="">-- Selecciona una ubicación --</option>
                                         {% for lote in item.producto.lote_set.all %}
                                             {% if lote.cantidad_disponible > 0 and lote.estado == 1 %}
-                                                <option value="{{ lote.id }}">
-                                                    {{ lote.numero_lote }} ({{ lote.cantidad_disponible }} disponibles, vence: {{ lote.fecha_caducidad|date:"d/m/Y" }})
-                                                </option>
+                                                {% for ubicacion in lote.ubicaciones_detalle.all %}
+                                                    <option value="{{ ubicacion.id }}">
+                                                        {{ lote.numero_lote }} / {{ ubicacion.ubicacion.codigo }} ({{ ubicacion.cantidad }} disponibles, vence: {{ lote.fecha_caducidad|date:"d/m/Y" }})
+                                                    </option>
+                                                {% endfor %}
                                             {% endif %}
                                         {% endfor %}
                                     </select>
                                 </div>
                                 <div class="col-md-4">
-                                    <label for="item_{{ item.id }}_cantidad_nuevo_lote">Cantidad</label>
+                                    <label for="item_{{ item.id }}_cantidad_nueva_ubicacion">Cantidad</label>
                                     <input type="number"
-                                           id="item_{{ item.id }}_cantidad_nuevo_lote"
-                                           name="item_{{ item.id }}_cantidad_nuevo_lote"
+                                           id="item_{{ item.id }}_cantidad_nueva_ubicacion"
+                                           name="item_{{ item.id }}_cantidad_nueva_ubicacion"
                                            class="form-control"
                                            value="0"
                                            min="0">

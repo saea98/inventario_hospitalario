@@ -121,15 +121,7 @@ class PropuestaGenerator:
                     cantidad_requerida - cantidad_asignada_total
                 )
                 
-                LoteAsignado.objects.create(
-                    item_propuesta=item_propuesta,
-                    lote=lote,
-                    cantidad_asignada=cantidad_a_asignar,
-                    fecha_caducidad_lote=lote.fecha_caducidad,
-                    dias_para_caducar=(lote.fecha_caducidad - date.today()).days,
-                    ubicacion=None,
-                    cantidad_en_ubicacion=lote.cantidad_disponible
-                )
+                # No se puede asignar un lote sin ubicación registrada
                 cantidad_asignada_total += cantidad_a_asignar
             else:
                 # Lote con ubicaciones registradas
@@ -143,15 +135,11 @@ class PropuestaGenerator:
                         cantidad_requerida - cantidad_asignada_total
                     )
                     
-                    LoteAsignado.objects.create(
-                        item_propuesta=item_propuesta,
-                        lote=lote,
-                        cantidad_asignada=cantidad_a_asignar,
-                        fecha_caducidad_lote=lote.fecha_caducidad,
-                        dias_para_caducar=(lote.fecha_caducidad - date.today()).days,
-                        ubicacion=ubicacion_lote.ubicacion,
-                        cantidad_en_ubicacion=ubicacion_lote.cantidad
-                    )
+                LoteAsignado.objects.create(
+                    item_propuesta=item_propuesta,
+                    lote_ubicacion=ubicacion_lote,
+                    cantidad_asignada=cantidad_a_asignar
+                )
                     cantidad_asignada_total += cantidad_a_asignar
 
         # Actualizar estado y cantidad propuesta
