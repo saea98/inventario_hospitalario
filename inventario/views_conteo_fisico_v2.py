@@ -484,7 +484,7 @@ def seleccionar_lote_conteo(request):
     lotes = Lote.objects.filter(
         producto__clave_cnis=clave_cnis,
         almacen_id=almacen_id
-    ).select_related('producto', 'almacen', 'ubicacion').order_by('numero_lote')
+    ).select_related('producto', 'almacen').prefetch_related('ubicaciones_detalle').order_by('numero_lote')
     
     if not lotes.exists():
         messages.error(request, f'No se encontraron lotes con CLAVE: {clave_cnis}')
