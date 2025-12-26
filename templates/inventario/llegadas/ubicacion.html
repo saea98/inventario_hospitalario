@@ -129,8 +129,8 @@
             return;
         }
         
-        // Encontrar todos los selects de ubicación en este contenedor
-        const ubicacionSelects = container.querySelectorAll('select[name*="ubicacion"]');
+        // Encontrar todos los selects de ubicación en este contenedor (usar clase, no nombre)
+        const ubicacionSelects = container.querySelectorAll('select.ubicacion-select');
         console.log(`📊 Se encontraron ${ubicacionSelects.length} selects de ubicación`);
         
         ubicacionSelects.forEach((select) => {
