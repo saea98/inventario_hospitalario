@@ -150,7 +150,7 @@ def capturar_conteo_lote(request, lote_id):
     POST: Guardar conteos y crear MovimientoInventario
     """
     
-    lote = get_object_or_404(Lote, id=lote_id)
+    lote = get_object_or_404(Lote.objects.prefetch_related("ubicaciones"), id=lote_id)
     producto = lote.producto
     
     if request.method == 'POST':
@@ -526,7 +526,7 @@ def seleccionar_lote_conteo(request):
 
 @login_required
 def cambiar_ubicacion_conteo(request, lote_id):
-    lote = get_object_or_404(Lote, id=lote_id)
+    lote = get_object_or_404(Lote.objects.prefetch_related("ubicaciones"), id=lote_id)
     if request.method == 'POST':
         form = CambiarUbicacionForm(request.POST, almacen=lote.almacen)
         if form.is_valid():
@@ -585,3 +585,32 @@ def fusionar_ubicaciones_conteo(request, lote_id):
         'form': form,
     }
     return render(request, 'inventario/conteo_fisico/fusionar_ubicaciones.html', context)
+
+
+@login_required
+def asignar_ubicacion_conteo(request, lote_id):
+    lote = get_object_or_404(Lote, id=lote_id)
+    if request.method == 'POST':
+        form = AsignarUbicacionForm(request.POST, almacen=lote.almacen)
+        if form.is_valid():
+            ubicacion = form.cleaned_data['ubicacion']
+            cantidad = form.cleaned_data['cantidad']
+            # Crear o actualizar la ubicación del lote
+            lote_ubicacion, created = LoteUbicacion.objects.get_or_create(
+                lote=lote,
+                ubicacion=ubicacion,
+                defaults={'cantidad': cantidad}
+            )
+            if not created:
+                lote_ubicacion.cantidad += cantidad
+                lote_ubicacion.save()
+            messages.success(request, f'{cantidad} unidades del lote {lote.numero_lote} asignadas a la ubicación {ubicacion.codigo}')
+            return redirect('logistica:capturar_conteo_lote', lote_id=lote.id)
+    else:
+        form = AsignarUbicacionForm(almacen=lote.almacen)
+    
+    context = {
+        'lote': lote,
+        'form': form,
+    }
+    return render(request, 'inventario/conteo_fisico/asignar_ubicacion.html', context)

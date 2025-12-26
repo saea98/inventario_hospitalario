@@ -35,6 +35,11 @@ urlpatterns = [
         "lotes/<int:lote_id>/fusionar/",
         views_conteo_fisico_v2.fusionar_ubicaciones_conteo,
         name="fusionar_ubicaciones_conteo",
+    ),
+    path(
+        "lotes/<int:lote_id>/asignar-ubicacion/",
+        views_conteo_fisico_v2.asignar_ubicacion_conteo,
+        name="asignar_ubicacion_conteo",
     ),    # Detalle de un movimiento de conteo
     path('movimientos/<int:movimiento_id>/', views_conteo_fisico_v2.detalle_movimiento_conteo, name='detalle_movimiento'),
     

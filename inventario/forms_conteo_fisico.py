@@ -276,3 +276,14 @@ class FusionarUbicacionForm(forms.Form):
             self.fields["lote_destino"].queryset = Lote.objects.filter(
                 producto=lote_origen.producto
             ).exclude(id=lote_origen.id)
+
+
+class AsignarUbicacionForm(forms.Form):
+    ubicacion = forms.ModelChoiceField(queryset=UbicacionAlmacen.objects.all(), label="Ubicación")
+    cantidad = forms.IntegerField(label="Cantidad", min_value=1)
+
+    def __init__(self, *args, **kwargs):
+        almacen = kwargs.pop("almacen", None)
+        super().__init__(*args, **kwargs)
+        if almacen:
+            self.fields["ubicacion"].queryset = UbicacionAlmacen.objects.filter(almacen=almacen)

@@ -66,13 +66,16 @@
                     <!-- Ubicación -->
                     <div class="mb-0">
                         <label class="form-label small text-muted">UBICACIÓN</label>
-                        <p class="h6 mb-0">
-                            {% if lote.ubicacion %}
-                                {{ lote.ubicacion }}
-                            {% else %}
-                                <span class="text-muted">No especificada</span>
-                            {% endif %}
-                        </p>
+                        <ul class="list-unstyled">
+                            {% for lote_ubicacion in lote.loteubicacion_set.all %}
+                                <li>
+                                    <i class="fas fa-map-marker-alt"></i> 
+                                    <strong>{{ lote_ubicacion.ubicacion.codigo }}</strong> ({{ lote_ubicacion.cantidad }} unidades)
+                                </li>
+                            {% empty %}
+                                <li><span class="text-muted">No especificada</span></li>
+                            {% endfor %}
+                        </ul>
                     </div>
                 </div>
             </div>
@@ -266,4 +269,8 @@ document.addEventListener('DOMContentLoaded', function() {
 
 <div class="mt-4">
     <a href="{% url 'logistica:fusionar_ubicaciones_conteo' lote.id %}" class="btn btn-warning">Fusionar Lotes</a>
+</div>
+
+<div class="mt-4">
+    <a href="{% url 'logistica:asignar_ubicacion_conteo' lote.id %}" class="btn btn-primary">Asignar Ubicación</a>
 </div>
