@@ -150,7 +150,7 @@ def capturar_conteo_lote(request, lote_id):
     POST: Guardar conteos y crear MovimientoInventario
     """
     
-    lote = get_object_or_404(Lote.objects.prefetch_related("ubicaciones"), id=lote_id)
+    lote = get_object_or_404(Lote.objects.prefetch_related("ubicaciones_detalle"), id=lote_id)
     producto = lote.producto
     
     if request.method == 'POST':
@@ -526,7 +526,7 @@ def seleccionar_lote_conteo(request):
 
 @login_required
 def cambiar_ubicacion_conteo(request, lote_id):
-    lote = get_object_or_404(Lote.objects.prefetch_related("ubicaciones"), id=lote_id)
+    lote = get_object_or_404(Lote.objects.prefetch_related("ubicaciones_detalle"), id=lote_id)
     if request.method == 'POST':
         form = CambiarUbicacionForm(request.POST, almacen=lote.almacen)
         if form.is_valid():

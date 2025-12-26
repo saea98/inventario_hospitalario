@@ -67,7 +67,7 @@
                     <div class="mb-0">
                         <label class="form-label small text-muted">UBICACIÓN</label>
                         <ul class="list-unstyled">
-                            {% for lote_ubicacion in lote.loteubicacion_set.all %}
+                            {% for lote_ubicacion in lote.ubicaciones_detalle.all %}
                                 <li>
                                     <i class="fas fa-map-marker-alt"></i> 
                                     <strong>{{ lote_ubicacion.ubicacion.codigo }}</strong> ({{ lote_ubicacion.cantidad }} unidades)
