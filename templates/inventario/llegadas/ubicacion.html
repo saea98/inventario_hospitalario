@@ -53,42 +53,10 @@
                                 
                                 <div class="form-group">
                                     <label><strong>Ubicaciones (Puedes asignar a múltiples ubicaciones)</strong></label>
-                                    <div class="ubicaciones-container" data-item-ubicaciones='{{ item.ubicaciones_asignadas|safe }}'>
-                                        {% if item.ubicaciones_asignadas %}
-                                            {% for ubi in item.ubicaciones_asignadas %}
-                                            <div class="ubicacion-row mb-3 p-3 border rounded" style="background-color: #f8f9fa;" data-ubicacion-id="{{ ubi.ubicacion_id }}" data-cantidad="{{ ubi.cantidad }}">
-                                                <div class="row">
-                                                    <div class="col-md-8">
-                                                        <label>Ubicación</label>
-                                                        <select name="ubicacion-detalle-{{ forloop.counter0 }}-{{ forloop.counter0 }}-ubicacion" class="form-control select2-single ubicacion-select" required>
-                                                            <option value="">-- Selecciona una ubicación --</option>
-                                                        </select>
-                                                    </div>
-                                                    <div class="col-md-4">
-                                                        <label>Cantidad</label>
-                                                        <input type="number" name="ubicacion-detalle-{{ forloop.counter0 }}-{{ forloop.counter0 }}-cantidad" class="form-control cantidad-input" value="{{ ubi.cantidad }}" min="1" required>
-                                                    </div>
-                                                </div>
-                                            </div>
-                                            {% endfor %}
-                                        {% else %}
-                                        <div class="ubicacion-row mb-3 p-3 border rounded" style="background-color: #f8f9fa;">
-                                            <div class="row">
-                                                <div class="col-md-8">
-                                                    <label>Ubicación</label>
-                                                    <select name="ubicacion-detalle-{{ forloop.counter0 }}-0-ubicacion" class="form-control select2-single ubicacion-select" required>
-                                                        <option value="">-- Selecciona una ubicación --</option>
-                                                    </select>
-                                                </div>
-                                                <div class="col-md-4">
-                                                    <label>Cantidad</label>
-                                                    <input type="number" name="ubicacion-detalle-{{ forloop.counter0 }}-0-cantidad" class="form-control cantidad-input" value="{{ item.cantidad_recibida }}" min="1" required>
-                                                </div>
-                                            </div>
-                                        </div>
-                                        {% endif %}
+                                    <div class="ubicaciones-container" data-item-index="{{ forloop.counter0 }}" data-item-ubicaciones='{{ item.ubicaciones_asignadas|safe }}'>
+                                        <!-- Las ubicaciones se cargarán dinámicamente con JavaScript -->
                                     </div>
-                                    <button type="button" class="btn btn-sm btn-success add-ubicacion" data-item-index="{{ forloop.counter0 }}">
+                                    <button type="button" class="btn btn-sm btn-success add-ubicacion" data-item-index="{{ forloop.counter0 }}" style="display:none;">
                                         <i class="fas fa-plus"></i> Agregar otra ubicación
                                     </button>
                                 </div>
@@ -313,6 +281,37 @@
         updateCantidadesTotales();
     }
     
+    function crearFilasUbicacionesGuardadas() {
+        console.log('Creando filas de ubicaciones guardadas...');
+        document.querySelectorAll('.ubicaciones-container').forEach((container) => {
+            const itemIndex = container.dataset.itemIndex;
+            const ubicacionesJson = container.dataset.itemUbicaciones;
+            
+            if (ubicacionesJson && ubicacionesJson !== '[]') {
+                try {
+                    const ubicaciones = JSON.parse(ubicacionesJson);
+                    console.log('Item ' + itemIndex + ': ' + ubicaciones.length + ' ubicaciones guardadas');
+                    
+                    ubicaciones.forEach((ubi, idx) => {
+                        const newRow = document.createElement('div');
+                        newRow.className = 'ubicacion-row mb-3 p-3 border rounded';
+                        newRow.style.backgroundColor = '#f8f9fa';
+                        newRow.innerHTML = '<div class="row"><div class="col-md-8"><label>Ubicacion</label><select name="ubicacion-detalle-' + itemIndex + '-' + idx + '-ubicacion" class="form-control select2-single ubicacion-select" required data-ubicacion-id="' + ubi.ubicacion_id + '"><option value="">-- Selecciona una ubicacion --</option></select></div><div class="col-md-3"><label>Cantidad</label><input type="number" name="ubicacion-detalle-' + itemIndex + '-' + idx + '-cantidad" class="form-control cantidad-input" value="' + ubi.cantidad + '" min="1" required></div><div class="col-md-1 d-flex align-items-end"><button type="button" class="btn btn-sm btn-danger remove-ubicacion" data-item-index="' + itemIndex + '"><i class="fas fa-trash"></i></button></div></div>';
+                        container.appendChild(newRow);
+                    });
+                } catch (e) {
+                    console.error('Error al parsear ubicaciones:', e);
+                }
+            } else {
+                const newRow = document.createElement('div');
+                newRow.className = 'ubicacion-row mb-3 p-3 border rounded';
+                newRow.style.backgroundColor = '#f8f9fa';
+                newRow.innerHTML = '<div class="row"><div class="col-md-8"><label>Ubicacion</label><select name="ubicacion-detalle-' + itemIndex + '-0-ubicacion" class="form-control select2-single ubicacion-select" required><option value="">-- Selecciona una ubicacion --</option></select></div><div class="col-md-4"><label>Cantidad</label><input type="number" name="ubicacion-detalle-' + itemIndex + '-0-cantidad" class="form-control cantidad-input" value="0" min="0" required></div></div>';
+                container.appendChild(newRow);
+            }
+        });
+    }
+    
     function updateCantidadesTotales() {
         console.log('📊 Actualizando cantidades totales...');
         
@@ -360,6 +359,7 @@
         console.log('🚀 DOM Cargado - Iniciando funciones...');
         console.log('📋 items_with_ubicaciones:', document.querySelectorAll('[data-item-index]').length);
         
+        crearFilasUbicacionesGuardadas();
         initializeSelect2();
         updateCantidadesTotales();
         setupAlmacenChangeHandlers();
