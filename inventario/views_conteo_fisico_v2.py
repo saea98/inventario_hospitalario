@@ -53,7 +53,7 @@ def buscar_lote_conteo(request):
         form = BuscarLoteForm(institucion=institucion)
         if almacen_defecto:
             form.fields['almacen'].initial = almacen_defecto
-    else:
+    
         form = BuscarLoteForm(institucion=institucion)
     
     lote_encontrado = None
@@ -75,7 +75,7 @@ def buscar_lote_conteo(request):
                         producto__clave_cnis=criterio_busqueda,
                         almacen=almacen
                     )
-                else:
+                
                     # Búsqueda por NÚMERO DE LOTE
                     lote = Lote.objects.get(
                         numero_lote=criterio_busqueda,
@@ -96,7 +96,7 @@ def buscar_lote_conteo(request):
                 # Guardar datos en sesión para crear nuevo lote
                 if tipo_busqueda == 'clave':
                     request.session['clave_cnis_busqueda'] = criterio_busqueda
-                else:
+                
                     request.session['numero_lote_busqueda'] = criterio_busqueda
                 request.session['almacen_id_busqueda'] = almacen.id
                 
@@ -110,7 +110,7 @@ def buscar_lote_conteo(request):
                         almacen=almacen
                     ).select_related("producto").prefetch_related("ubicaciones").order_by("numero_lote")
                     request.session['clave_cnis_busqueda'] = criterio_busqueda
-                else:
+                
                     lotes = Lote.objects.filter(
                         numero_lote=criterio_busqueda,
                         almacen=almacen
@@ -121,12 +121,12 @@ def buscar_lote_conteo(request):
                     # Guardar datos en sesión y redirigir a selección de lote
                     request.session['almacen_id_busqueda'] = almacen.id
                     return redirect('logistica:seleccionar_lote_conteo')
-                else:
+                
                     tipo_busqueda_label = 'CLAVE' if tipo_busqueda == 'clave' else 'LOTE'
                     error = f"No se encontró lote con {tipo_busqueda_label}: {criterio_busqueda}"
                     if tipo_busqueda == 'clave':
                         request.session['clave_cnis_busqueda'] = criterio_busqueda
-                    else:
+                    
                         request.session['numero_lote_busqueda'] = criterio_busqueda
                     request.session['almacen_id_busqueda'] = almacen.id
                     return redirect('logistica:crear_lote_conteo')
@@ -138,7 +138,7 @@ def buscar_lote_conteo(request):
 
 
 @login_required
-def capturar_conteo_lote(request, lote_id):
+def capturar_conteo_ubicacion(request, lote_ubicacion_id):
     """
     Vista para capturar los tres conteos de un lote específico.
     
@@ -150,23 +150,23 @@ def capturar_conteo_lote(request, lote_id):
     POST: Guardar conteos y crear MovimientoInventario
     """
     
-    lote = get_object_or_404(Lote.objects.prefetch_related("ubicaciones_detalle__ubicacion__almacen"), id=lote_id)
+    lote_ubicacion = get_object_or_404(LoteUbicacion.objects.select_related("lote", "ubicacion"), id=lote_ubicacion_id)
+    lote = lote_ubicacion.lote
     ubicaciones = lote.ubicaciones_detalle.all()
     producto = lote.producto
     
     if request.method == 'POST':
-        if 'update_locations' in request.POST:
-            formset = LoteUbicacionFormSet(request.POST, queryset=LoteUbicacion.objects.filter(lote=lote), prefix='ubicaciones')
-            if formset.is_valid():
-                instances = formset.save(commit=False)
-                for instance in instances:
-                    instance.lote = lote
-                    instance.save()
-                formset.save_m2m()
-                messages.success(request, 'Ubicaciones actualizadas exitosamente.')
-                return redirect('logistica:capturar_conteo_lote', lote_id=lote.id)
+                   
+            
+                
+                
+                    
+                    
+                
+                
+                
         
-        form = CapturarConteosForm(request.POST)
+        form = CapturarConteoForm(request.POST))
         if form.is_valid():
             cifra_primer_conteo = form.cleaned_data['cifra_primer_conteo']
             cifra_segundo_conteo = form.cleaned_data.get('cifra_segundo_conteo') or 0
@@ -186,7 +186,7 @@ def capturar_conteo_lote(request, lote_id):
                         tipo_mov = 'AJUSTE_POSITIVO'
                     elif diferencia < 0:
                         tipo_mov = 'AJUSTE_NEGATIVO'
-                    else:
+                    
                         tipo_mov = 'AJUSTE_POSITIVO'
                     
                     motivo_conteo = f"""Conteo Físico IMSS-Bienestar:
@@ -208,9 +208,9 @@ def capturar_conteo_lote(request, lote_id):
                     )
                     
                     # Actualizar cantidad disponible en el lote
-                    lote.cantidad_disponible = cantidad_nueva
+                    lote_ubicacion.cantidad = cantidad_nueva
                     lote.valor_total = cantidad_nueva * (lote.precio_unitario or 0)
-                    lote.save()
+                    lote_ubicacion.save()
                     
                     # Notificar
                     try:
@@ -236,16 +236,17 @@ def capturar_conteo_lote(request, lote_id):
                     
             except Exception as e:
                 messages.error(request, f'Error al guardar conteo: {str(e)}')
-    else:
+    
         form = CapturarConteosForm()
         formset = LoteUbicacionFormSet(queryset=LoteUbicacion.objects.filter(lote=lote), prefix='ubicaciones')
     
     # Calcular valores para mostrar
     contexto = {
+        'lote_ubicacion': lote_ubicacion,
         'lote': lote,
         'producto': producto,
         'form': form,
-        'formset': formset,
+        
         'cantidad_sistema': lote.cantidad_disponible,
         'precio_unitario': lote.precio_unitario or 0,
         'valor_sistema': (lote.cantidad_disponible or 0) * (lote.precio_unitario or 0),
@@ -295,7 +296,7 @@ def crear_lote_conteo(request):
             lote = form.save(commit=False)
             lote.producto = producto
             lote.almacen = almacen
-            lote.save()
+            lote_ubicacion.save()
             
             messages.success(request, f'Lote {lote.numero_lote} creado exitosamente')
             
@@ -305,10 +306,10 @@ def crear_lote_conteo(request):
             
             # Redirigir a captura de conteos
             return redirect(
-                'logistica:capturar_conteo_lote',
-                lote_id=lote.id
+                'logistica:capturar_conteo_ubicacion',
+                lote_ubicacion_id=lote_ubicacion.id
             )
-    else:
+    
         form = CrearLoteManualForm()
     
     return render(request, 'inventario/conteo_fisico/crear.html', {
@@ -413,6 +414,7 @@ def detalle_movimiento_conteo(request, movimiento_id):
     
     contexto = {
         'movimiento': movimiento,
+        'lote_ubicacion': lote_ubicacion,
         'lote': lote,
         'producto': producto,
         'diferencia': diferencia,
@@ -504,21 +506,21 @@ def seleccionar_lote_conteo(request):
         return redirect('logistica:buscar_lote_conteo')
     
     if request.method == 'POST':
-        lote_id = request.POST.get('lote_id')
+        lote_ubicacion_id = request.POST.get('lote_ubicacion_id')
         
-        if not lote_id:
+        if not lote_ubicacion_id:
             messages.error(request, 'Por favor, seleccione un lote.')
             return redirect('logistica:seleccionar_lote_conteo')
         
         try:
-            lote = Lote.objects.get(id=lote_id, almacen_id=almacen_id)
+            lote_ubicacion = LoteUbicacion.objects.get(id=lote_ubicacion_id)
             # Limpiar sesión
             del request.session['clave_cnis_busqueda']
             del request.session['almacen_id_busqueda']
             
             return redirect(
-                'logistica:capturar_conteo_lote',
-                lote_id=lote.id
+                'logistica:capturar_conteo_ubicacion',
+                lote_ubicacion_id=lote_ubicacion.id
             )
         except Lote.DoesNotExist:
             messages.error(request, 'Lote no encontrado.')
@@ -539,20 +541,22 @@ def seleccionar_lote_conteo(request):
 
 @login_required
 def cambiar_ubicacion_conteo(request, lote_id):
-    lote = get_object_or_404(Lote.objects.prefetch_related("ubicaciones_detalle__ubicacion__almacen"), id=lote_id)
+    lote_ubicacion = get_object_or_404(LoteUbicacion.objects.select_related("lote", "ubicacion"), id=lote_ubicacion_id)
+    lote = lote_ubicacion.lote
     ubicaciones = lote.ubicaciones_detalle.all()
     if request.method == 'POST':
         form = CambiarUbicacionForm(request.POST, almacen=lote.almacen)
         if form.is_valid():
             nueva_ubicacion = form.cleaned_data['nueva_ubicacion']
             lote.ubicacion = nueva_ubicacion
-            lote.save()
+            lote_ubicacion.save()
             messages.success(request, f'Ubicación del lote {lote.numero_lote} cambiada a {nueva_ubicacion.codigo}')
-            return redirect('logistica:capturar_conteo_lote', lote_id=lote.id)
-    else:
+            
+    
         form = CambiarUbicacionForm(almacen=lote.almacen)
     
     context = {
+        'lote_ubicacion': lote_ubicacion,
         'lote': lote,
         'form': form,
     }
@@ -591,7 +595,7 @@ def fusionar_ubicaciones_conteo(request, lote_id):
                 lote_origen.save()
             messages.success(request, 'Fusión de lotes completada exitosamente.')
             return redirect('logistica:capturar_conteo_lote', lote_id=lote_destino.id)
-    else:
+    
         form = FusionarUbicacionForm(lote_origen=lote_origen)
     
     context = {
@@ -608,8 +612,7 @@ def asignar_ubicacion_conteo(request, lote_id):
         form = AsignarUbicacionForm(request.POST, almacen=lote.almacen)
         if form.is_valid():
             ubicacion = form.cleaned_data['ubicacion']
-            cantidad = form.cleaned_data['cantidad']
-            # Crear o actualizar la ubicación del lote
+         cantidad_nueva = form.cleaned_data['cantidad']          # Crear o actualizar la ubicación del lote
             lote_ubicacion, created = LoteUbicacion.objects.get_or_create(
                 lote=lote,
                 ubicacion=ubicacion,
@@ -619,11 +622,12 @@ def asignar_ubicacion_conteo(request, lote_id):
                 lote_ubicacion.cantidad += cantidad
                 lote_ubicacion.save()
             messages.success(request, f'{cantidad} unidades del lote {lote.numero_lote} asignadas a la ubicación {ubicacion.codigo}')
-            return redirect('logistica:capturar_conteo_lote', lote_id=lote.id)
-    else:
+            
+    
         form = AsignarUbicacionForm(almacen=lote.almacen)
     
     context = {
+        'lote_ubicacion': lote_ubicacion,
         'lote': lote,
         'form': form,
     }
@@ -635,19 +639,20 @@ def editar_ubicaciones_conteo(request, lote_id):
     lote = get_object_or_404(Lote, id=lote_id)
     if request.method == 'POST':
         formset = LoteUbicacionFormSet(request.POST, queryset=LoteUbicacion.objects.filter(lote=lote))
-        if formset.is_valid():
-            instances = formset.save(commit=False)
-            for instance in instances:
-                instance.lote = lote
-                instance.save()
-            formset.save_m2m()
-            messages.success(request, 'Ubicaciones actualizadas exitosamente.')
-            return redirect('logistica:capturar_conteo_lote', lote_id=lote.id)
-    else:
+        
+            
+            
+                
+                
+            
+            
+            
+    
         formset = LoteUbicacionFormSet(queryset=LoteUbicacion.objects.filter(lote=lote))
     
     context = {
+        'lote_ubicacion': lote_ubicacion,
         'lote': lote,
-        'formset': formset,
+        
     }
     return render(request, 'inventario/conteo_fisico/editar_ubicaciones.html', context)
