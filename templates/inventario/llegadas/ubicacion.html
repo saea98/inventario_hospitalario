@@ -229,6 +229,10 @@
         const container = document.querySelector(`[data-item-index="${itemIndex}"]`);
         const rowCount = container.querySelectorAll('.ubicacion-row').length;
         
+        // Obtener el almacén actualmente seleccionado
+        const almacenSelect = container.querySelector('select[name*="almacen"]');
+        const almacenId = almacenSelect ? almacenSelect.value : null;
+        
         const newRow = document.createElement('div');
         newRow.className = 'ubicacion-row mb-3 p-3 border rounded';
         newRow.style.backgroundColor = '#f8f9fa';
@@ -260,6 +264,33 @@
             placeholder: 'Selecciona una opción',
             width: '100%'
         });
+        
+        // Si hay un almacén seleccionado, cargar sus ubicaciones
+        if (almacenId) {
+            const ubicacionSelect = newRow.querySelector('select.ubicacion-select');
+            fetch('/logistica/llegadas/api/ubicaciones-por-almacen/?almacen_id=' + almacenId)
+                .then(response => response.json())
+                .then(data => {
+                    // Limpiar opciones excepto la primera (vacía)
+                    while (ubicacionSelect.options.length > 1) {
+                        ubicacionSelect.remove(1);
+                    }
+                    
+                    // Agregar nuevas opciones
+                    data.ubicaciones.forEach((ubicacion) => {
+                        const option = document.createElement('option');
+                        option.value = ubicacion.id;
+                        option.textContent = `${ubicacion.codigo} - ${ubicacion.descripcion}`;
+                        ubicacionSelect.appendChild(option);
+                    });
+                    
+                    // Actualizar Select2
+                    $(ubicacionSelect).trigger('change');
+                })
+                .catch(error => {
+                    console.error('Error al cargar ubicaciones:', error);
+                });
+        }
         
         updateCantidadesTotales();
     }
