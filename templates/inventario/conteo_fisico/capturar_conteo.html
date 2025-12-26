@@ -64,7 +64,7 @@
                     </div>
 
                     <!-- Ubicación -->
-                    <div class="mb-0">
+                    <div class="mb-3">
                         <label class="form-label small text-muted">UBICACIÓN</label>
                         {% if lote.ubicaciones_detalle.all %}
                             <div class="table-responsive">
@@ -88,6 +88,9 @@
                         {% else %}
                             <p class="text-muted">Sin ubicación asignada</p>
                         {% endif %}
+                        <a href="{% url 'inventario:editar_ubicaciones_lote' lote.id %}" class="btn btn-sm btn-secondary mt-2">
+                            <i class="fas fa-edit"></i> Editar Ubicaciones
+                        </a>
                     </div>
                 </div>
             </div>
@@ -323,5 +326,4 @@ document.addEventListener("DOMContentLoaded", function() {
     </div>
 </template>
 
-<a href="{% url 'inventario:editar_ubicaciones_lote' lote.id %}" class="btn btn-secondary mt-2">Editar Ubicaciones</a>
-    Ubicaciones</a>
+
