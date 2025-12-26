@@ -266,9 +266,9 @@
             <option value="cantidad" {% if orden_picking == 'cantidad' %}selected{% endif %}>Ordenar por Cantidad</option>
         </select>
         
-        <button class="btn-imprimir" onclick="window.print()">
-            <i class="fas fa-print"></i> Imprimir
-        </button>
+        <a href="{% url 'picking:imprimir_hoja_surtido' propuesta.id %}" class="btn btn-imprimir">
+            <i class="fas fa-print"></i> Imprimir Hoja de Surtido
+        </a>
         
         <button class="btn-volver" onclick="window.history.back()">
             <i class="fas fa-arrow-left"></i> Volver

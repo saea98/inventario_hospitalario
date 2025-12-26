@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8">
+    <title>Hoja de Surtido</title>
+    <style>
+        @page { size: letter landscape; margin: 1cm; }
+        body { font-family: Arial, sans-serif; font-size: 8px; }
+        table { width: 100%; border-collapse: collapse; }
+        th, td { border: 1px solid black; padding: 4px; text-align: left; }
+        th { background-color: #f2f2f2; }
+        .header { text-align: center; margin-bottom: 20px; }
+        .header h1 { margin: 0; }
+        .details { margin-bottom: 20px; }
+        .details p { margin: 0; }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <h1>Hoja de Surtido</h1>
+    </div>
+
+    <div class="details">
+        <p><strong>Fecha:</strong> {{ propuesta.fecha_generacion|date:"d/m/Y" }}</p>
+        <p><strong>Pedido:</strong> {{ propuesta.solicitud.folio }}</p>
+        <p><strong>Destino:</strong> {{ propuesta.solicitud.institucion_solicitante.denominacion }}</p>
+    </div>
+
+    <table>
+        <thead>
+            <tr>
+                <th>#</th>
+                <th>CLAVE</th>
+                <th>DESCRIPCION</th>
+                <th>LOTE</th>
+                <th>CADUCIDAD</th>
+                <th>UBICACIÓN</th>
+                <th>CANTIDAD SOLICITADA</th>
+                <th>CANTIDAD SURTIDA</th>
+                <th>Unidad de Medida</th>
+                <th>FOLIO VALE</th>
+                <th>RECURSO</th>
+                <th>SELLO</th>
+                <th>OBSERVACIONES</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in propuesta.items.all %}
+                {% for lote_asignado in item.lotes_asignados.all %}
+                    <tr>
+                        <td>{{ forloop.parentloop.counter }}</td>
+                        <td>{{ item.producto.clave_cnis }}</td>
+                        <td>{{ item.producto.descripcion }}</td>
+                        <td>{{ lote_asignado.lote_ubicacion.lote.numero_lote }}</td>
+                        <td>{{ lote_asignado.lote_ubicacion.lote.fecha_caducidad|date:"d/m/Y" }}</td>
+                        <td>{{ lote_asignado.lote_ubicacion.ubicacion.codigo }}</td>
+                        <td>{{ item.cantidad_solicitada }}</td>
+                        <td></td>
+                        <td>{{ item.producto.unidad_medida }}</td>
+                        <td>{{ propuesta.solicitud.folio }}</td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                {% endfor %}
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>
+</html>
+</html>

@@ -15,5 +15,13 @@ urlpatterns = [
     path('propuesta/<uuid:propuesta_id>/', picking_views.picking_propuesta, name='picking_propuesta'),
     
     # AJAX
-    path('marcar-recogido/<uuid:lote_asignado_id>/', picking_views.marcar_item_recogido, name='marcar_recogido'),
-]
+    path(
+        "marcar-recogido/<uuid:lote_asignado_id>/",
+        picking_views.marcar_item_recogido,
+        name="marcar_recogido",
+    ),
+    path(
+        "propuesta/<uuid:propuesta_id>/imprimir/",
+        picking_views.imprimir_hoja_surtido,
+        name="imprimir_hoja_surtido",
+    ),
