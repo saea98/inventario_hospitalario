@@ -135,11 +135,11 @@ class PropuestaGenerator:
                         cantidad_requerida - cantidad_asignada_total
                     )
                     
-                LoteAsignado.objects.create(
-                    item_propuesta=item_propuesta,
-                    lote_ubicacion=ubicacion_lote,
-                    cantidad_asignada=cantidad_a_asignar
-                )
+                    LoteAsignado.objects.create(
+                        item_propuesta=item_propuesta,
+                        lote_ubicacion=ubicacion_lote,
+                        cantidad_asignada=cantidad_a_asignar
+                    )
                     cantidad_asignada_total += cantidad_a_asignar
 
         # Actualizar estado y cantidad propuesta
