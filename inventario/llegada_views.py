@@ -210,11 +210,11 @@ class UbicacionView(LoginRequiredMixin, View):
         try:
             with transaction.atomic():
                 for i, item in enumerate(items):
-                    logger.warning(f'Procesando item #{i}: {item.producto.nombre}')
+                    logger.warning(f'Procesando item #{i}: {item.producto.descripcion}')
                     almacen_id = request.POST.get(f'ubicacion-detalle-{i}-0-almacen')
                     
                     if not almacen_id:
-                        messages.error(request, f"Debe seleccionar un almacén para {item.producto.nombre}")
+                        messages.error(request, f"Debe seleccionar un almacén para {item.producto.descripcion}")
                         return redirect("logistica:llegadas:ubicacion", pk=llegada.pk)
                     
                     almacen = get_object_or_404(Almacen, pk=almacen_id)
@@ -247,7 +247,7 @@ class UbicacionView(LoginRequiredMixin, View):
                     
                     # Validar que hay al menos una ubicación
                     if not ubicacion_data:
-                        messages.error(request, f"Debe asignar al menos una ubicación para {item.producto.nombre}")
+                        messages.error(request, f"Debe asignar al menos una ubicación para {item.producto.descripcion}")
                         return redirect("logistica:llegadas:ubicacion", pk=llegada.pk)
                     
                     # Validar que la suma de cantidades sea igual a la cantidad recibida
@@ -255,7 +255,7 @@ class UbicacionView(LoginRequiredMixin, View):
                     if total_cantidad != item.cantidad_recibida:
                         messages.error(
                             request,
-                            f"Para {item.producto.nombre}: La suma de cantidades ({total_cantidad}) "
+                            f"Para {item.producto.descripcion}: La suma de cantidades ({total_cantidad}) "
                             f"debe ser igual a la cantidad recibida ({item.cantidad_recibida})"
                         )
                         return redirect("logistica:llegadas:ubicacion", pk=llegada.pk)
