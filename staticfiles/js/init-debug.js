@@ -46,17 +46,8 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
-    // Interceptar redirecciones
-    const originalLocation = window.location;
-    Object.defineProperty(window, 'location', {
-        get: function() {
-            return originalLocation;
-        },
-        set: function(value) {
-            debugLogger.logNavigation(originalLocation.pathname, new URL(value).pathname);
-            originalLocation.href = value;
-        }
-    });
+    // Nota: No se redefine window.location para evitar conflictos con librerías como Select2
+    // que dependen de propiedades estándar del navegador
 });
 
 // Mostrar ayuda en consola cuando se carga
