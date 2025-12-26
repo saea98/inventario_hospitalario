@@ -13,7 +13,7 @@ from django.utils import timezone
 from datetime import datetime, timedelta
 from decimal import Decimal
 
-from .models import Lote, MovimientoInventario, Producto, Almacen, Institucion, UbicacionAlmacen
+from .models import Lote, MovimientoInventario, Producto, LoteUbicacion, Almacen, Institucion, UbicacionAlmacen
 from .forms_entrada_salida import ItemEntradaForm, ItemSalidaForm
 
 
@@ -192,6 +192,9 @@ def detalle_lote(request, lote_id):
         id=lote_id
     )
     
+    # Ubicaciones del lote
+    ubicaciones = LoteUbicacion.objects.filter(lote=lote).select_related('ubicacion', 'ubicacion__almacen')
+
     # Movimientos del lote
     movimientos = lote.movimientos.all().order_by('-fecha_movimiento')
     
@@ -202,6 +205,7 @@ def detalle_lote(request, lote_id):
     
     context = {
         'lote': lote,
+        'ubicaciones': ubicaciones,
         'movimientos': movimientos,
         'dias_para_caducidad': dias_para_caducidad,
         'esta_proximo_caducar': esta_proximo_caducar,

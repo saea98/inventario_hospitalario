@@ -37,16 +37,6 @@
                         </div>
                     </div>
 
-                    <div class="row mb-3">
-                        <div class="col-md-6">
-                            <label class="form-label text-muted">Almacén</label>
-                            <p class="fs-5"><strong>{{ lote.almacen.nombre }}</strong></p>
-                        </div>
-                        <div class="col-md-6">
-                            <label class="form-label text-muted">Ubicación</label>
-                            <p class="fs-5"><strong>{{ lote.ubicacion.codigo }}</strong></p>
-                        </div>
-                    </div>
 
                     <div class="row mb-3">
                         <div class="col-md-6">
@@ -292,3 +282,41 @@
 </div>
 
 {% endblock %}
+
+
+<!-- Ubicaciones del Lote -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card">
+            <div class="card-header bg-light">
+                <h5 class="mb-0">Ubicaciones del Lote</h5>
+            </div>
+            <div class="card-body">
+                {% if ubicaciones %}
+                <div class="table-responsive">
+                    <table class="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Almacén</th>
+                                <th>Ubicación</th>
+                                <th>Cantidad</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for ubicacion_lote in ubicaciones %}
+                            <tr>
+                                <td>{{ ubicacion_lote.ubicacion.almacen.nombre }}</td>
+                                <td>{{ ubicacion_lote.ubicacion.codigo }}</td>
+                                <td>{{ ubicacion_lote.cantidad }}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                {% else %}
+                <p class="text-muted">No hay ubicaciones asignadas para este lote.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
