@@ -229,7 +229,8 @@
                 .reduce((a, b) => a + b, 0);
             
             const cantidadRecibidaText = container.closest('.card').querySelector('.text-muted').textContent;
-            const cantidadRecibida = parseInt(cantidadRecibidaText.match(/\d+/)[0]);
+            const match = cantidadRecibidaText.match(/\d+/);
+            const cantidadRecibida = match ? parseInt(match[0]) : 0;
             
             if (cantidadTotal !== cantidadRecibida) {
                 valido = false;
