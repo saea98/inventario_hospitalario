@@ -294,7 +294,7 @@ class UbicacionView(LoginRequiredMixin, View):
                             lote=lote,
                             ubicacion=ubicacion,
                             cantidad=ubi_data['cantidad'],
-                            asignado_por=request.user,
+                            usuario_asignacion=request.user,
                             fecha_asignacion=timezone.now()
                         )
                 
