@@ -197,7 +197,12 @@ class UbicacionView(LoginRequiredMixin, View):
         })
     
     def post(self, request, pk):
+        import logging
+        logger = logging.getLogger(__name__)
         from .models import Almacen, Lote, LoteUbicacion, UbicacionAlmacen
+
+        logger.warning('--- INICIO PROCESO DE UBICACIÓN ---')
+        logger.warning(f'POST data: {request.POST}')
         
         llegada = get_object_or_404(LlegadaProveedor, pk=pk)
         items = list(llegada.items.all())
@@ -205,6 +210,7 @@ class UbicacionView(LoginRequiredMixin, View):
         try:
             with transaction.atomic():
                 for i, item in enumerate(items):
+                    logger.warning(f'Procesando item #{i}: {item.producto.nombre}')
                     almacen_id = request.POST.get(f'ubicacion-detalle-{i}-0-almacen')
                     
                     if not almacen_id:
@@ -220,6 +226,7 @@ class UbicacionView(LoginRequiredMixin, View):
                         ubicacion_id_key = f'ubicacion-detalle-{i}-{j}-ubicacion'
                         cantidad_key = f'ubicacion-detalle-{i}-{j}-cantidad'
                         
+                        logger.warning(f'Buscando clave de ubicación: {ubicacion_id_key}')
                         if ubicacion_id_key not in request.POST:
                             break
                         
@@ -282,6 +289,7 @@ class UbicacionView(LoginRequiredMixin, View):
                     # Crear registros de LoteUbicacion para cada ubicación
                     for ubi_data in ubicacion_data:
                         ubicacion = get_object_or_404(UbicacionAlmacen, pk=ubi_data['ubicacion_id'])
+                        logger.warning(f'Creando LoteUbicacion para lote {lote.id}, ubicacion {ubicacion.id}, cantidad {ubi_data["cantidad"]}')
                         LoteUbicacion.objects.create(
                             lote=lote,
                             ubicacion=ubicacion,
@@ -294,10 +302,12 @@ class UbicacionView(LoginRequiredMixin, View):
                 llegada.estado = 'ubicacion_asignada'
                 llegada.save()
                 
+                logger.warning('--- FIN PROCESO DE UBICACIÓN: ÉXITO ---')
                 messages.success(request, "Ubicaciones asignadas correctamente")
                 return redirect("logistica:llegadas:detalle_llegada", pk=llegada.pk)
         
         except Exception as e:
+            logger.error(f'Error en la vista de ubicación: {str(e)}', exc_info=True)
             messages.error(request, f"Error al asignar ubicaciones: {str(e)}")
             return redirect("logistica:llegadas:ubicacion", pk=llegada.pk)
 
