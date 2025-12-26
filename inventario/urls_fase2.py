@@ -50,13 +50,12 @@ urlpatterns = [
     path('conteos/crear-lote/', views_conteo_fisico_v2.crear_lote_conteo, name='crear_lote_conteo'),
     
     # Historial de conteos realizados
-    path('conteos/historial/', views_conteo_fisico_v2.historial_conteos, name='historial_conteos'),
+    path('conteos/historial/', views_conteo_fisico_v2.listar_conteos, name='historial_conteos'),
     
     # Detalle de un movimiento de conteo
     path('conteos/movimientos/<int:movimiento_id>/', views_conteo_fisico_v2.detalle_movimiento_conteo, name='detalle_movimiento_conteo'),
     
-    # API AJAX para obtener informacion del lote
-    path('api/conteos/lote-info/', views_conteo_fisico_v2.api_obtener_lote_info, name='api_lote_info'),
+
     
     # ========================================================================
     # FASE 2.2.1: GESTION DE PEDIDOS (RECONSTRUIDA)
