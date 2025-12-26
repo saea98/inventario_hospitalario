@@ -164,9 +164,8 @@ def capturar_conteo_lote(request, lote_id):
                 formset.save_m2m()
                 messages.success(request, 'Ubicaciones actualizadas exitosamente.')
                 return redirect('logistica:capturar_conteo_lote', lote_id=lote.id)
-        else:
-            form = CapturarConteosForm(request.POST)
         
+        form = CapturarConteosForm(request.POST)
         if form.is_valid():
             cifra_primer_conteo = form.cleaned_data['cifra_primer_conteo']
             cifra_segundo_conteo = form.cleaned_data.get('cifra_segundo_conteo') or 0
