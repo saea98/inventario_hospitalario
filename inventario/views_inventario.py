@@ -156,13 +156,19 @@ def lista_lotes(request):
     # Ordenar
     lotes = lotes.order_by('-fecha_recepcion')
     
+    # Paginación
+    from django.core.paginator import Paginator
+    paginator = Paginator(lotes, 10)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
     # Opciones para filtros
     almacenes = Almacen.objects.filter(activo=True)
     productos = Producto.objects.filter(activo=True)
     estados = Lote.ESTADOS_CHOICES
     
     context = {
-        'lotes': lotes,
+        'page_obj': page_obj,
         'almacenes': almacenes,
         'productos': productos,
         'estados': estados,
