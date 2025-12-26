@@ -400,7 +400,7 @@ def detalle_movimiento_conteo(request, movimiento_id):
     - Importes
     """
     
-    movimiento = get_object_or_404(MovimientoInventario, id=movimiento_id)
+    movimiento = get_object_or_404(MovimientoInventario.objects.select_related("lote__producto", "lote__almacen"), id=movimiento_id)
     lote = movimiento.lote
     producto = lote.producto
     

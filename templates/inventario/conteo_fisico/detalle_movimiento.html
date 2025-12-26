@@ -73,8 +73,10 @@
                         <div class="col-md-6">
                             <label class="form-label small text-muted">UBICACIÓN</label>
                             <p class="h6">
-                                {% if lote.ubicacion %}
-                                    {{ lote.ubicacion }}
+                                {% if lote.ubicaciones_detalle.all %}
+                                    {% for ubicacion in lote.ubicaciones_detalle.all %}
+                                        {{ ubicacion.ubicacion.codigo }} ({{ ubicacion.cantidad }} unidades)<br>
+                                    {% endfor %}
                                 {% else %}
                                     <span class="text-muted">No especificada</span>
                                 {% endif %}
