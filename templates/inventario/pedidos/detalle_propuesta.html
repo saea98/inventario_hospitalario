@@ -86,13 +86,65 @@
     <!-- Acciones -->
     <div class="mb-4">
         {% if propuesta.estado == 'GENERADA' %}
-            <a href="{% url 'logistica:editar_propuesta' propuesta.id %}" class="btn btn-info">Editar Propuesta</a>
-            <a href="{% url 'logistica:revisar_propuesta' propuesta.id %}" class="btn btn-warning">Revisar Propuesta</a>
+            <a href="{% url 'logistica:editar_propuesta' propuesta.id %}" class="btn btn-info">
+                <i class="fas fa-edit"></i> Editar Propuesta
+            </a>
+            <a href="{% url 'logistica:revisar_propuesta' propuesta.id %}" class="btn btn-warning">
+                <i class="fas fa-check-circle"></i> Revisar Propuesta
+            </a>
+            <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#modalCancelar">
+                <i class="fas fa-times-circle"></i> Cancelar Propuesta
+            </button>
         {% endif %}
         {% if propuesta.estado == 'REVISADA' %}
-            <a href="{% url 'logistica:surtir_propuesta' propuesta.id %}" class="btn btn-success">Surtir Propuesta</a>
+            <a href="{% url 'logistica:surtir_propuesta' propuesta.id %}" class="btn btn-success">
+                <i class="fas fa-truck"></i> Surtir Propuesta
+            </a>
+            <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#modalCancelar">
+                <i class="fas fa-times-circle"></i> Cancelar Propuesta
+            </button>
         {% endif %}
-        <a href="{% url 'logistica:lista_propuestas' %}" class="btn btn-secondary">Volver a la Lista</a>
+        {% if propuesta.estado == 'EN_SURTIMIENTO' %}
+            <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#modalCancelar">
+                <i class="fas fa-times-circle"></i> Cancelar Propuesta
+            </button>
+        {% endif %}
+        <a href="{% url 'logistica:lista_propuestas' %}" class="btn btn-secondary">
+            <i class="fas fa-arrow-left"></i> Volver a la Lista
+        </a>
+    </div>
+
+    <!-- Modal de Confirmacion de Cancelacion -->
+    <div class="modal fade" id="modalCancelar" tabindex="-1" aria-labelledby="modalCancelarLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title" id="modalCancelarLabel">
+                        <i class="fas fa-exclamation-triangle"></i> Cancelar Propuesta
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <p><strong>Estás seguro de que deseas cancelar esta propuesta?</strong></p>
+                    <p class="text-muted">Al cancelar:</p>
+                    <ul class="text-muted">
+                        <li>Se liberarán todas las cantidades reservadas en los lotes</li>
+                        <li>La propuesta pasará al estado Cancelada</li>
+                        <li>Podrás crear una nueva propuesta para esta solicitud</li>
+                    </ul>
+                    <p class="text-danger"><strong>Esta acción no se puede deshacer.</strong></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">No, Mantener Propuesta</button>
+                    <form method="POST" action="{% url 'logistica:cancelar_propuesta' propuesta.id %}" style="display: inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger">
+                            <i class="fas fa-times-circle"></i> Sí, Cancelar Propuesta
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
     </div>
 </div>
 {% endblock %}
