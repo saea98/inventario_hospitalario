@@ -413,7 +413,7 @@ def listar_conteos(request):
     """
     movimientos = MovimientoInventario.objects.filter(
         tipo_movimiento__in=['AJUSTE_POSITIVO', 'AJUSTE_NEGATIVO']
-    ).select_related('lote__producto', 'usuario').order_by('-fecha_creacion')
+    ).select_related('lote__producto', 'usuario').order_by('-fecha_movimiento')
     
     # Columnas disponibles para exportación
     columnas_disponibles = [
@@ -426,7 +426,7 @@ def listar_conteos(request):
         {'value': 'cantidad_nueva', 'label': 'Cantidad Nueva'},
         {'value': 'cantidad', 'label': 'Diferencia'},
         {'value': 'folio', 'label': 'Folio'},
-        {'value': 'fecha_creacion', 'label': 'Fecha de Creación'},
+        {'value': 'fecha_movimiento', 'label': 'Fecha de Movimiento'},
         {'value': 'usuario__username', 'label': 'Usuario'},
         {'value': 'motivo', 'label': 'Motivo'},
     ]
@@ -466,7 +466,7 @@ def exportar_conteos_personalizado(request):
                     tipo_movimiento__in=['AJUSTE_POSITIVO', 'AJUSTE_NEGATIVO']
                 ).select_related('lote__producto', 'usuario')
                 .values(*campos)
-                .order_by('-fecha_creacion')
+                .order_by('-fecha_movimiento')
             )
 
             datos_lista = list(datos)
