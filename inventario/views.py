@@ -1126,6 +1126,9 @@ def alertas_caducidad(request):
         lotes = lotes.filter(fecha_caducidad__gte=hoy + timedelta(days=31), fecha_caducidad__lte=hoy + timedelta(days=60))
     elif prioridad_selected == 'baja':
         lotes = lotes.filter(fecha_caducidad__gte=hoy + timedelta(days=61), fecha_caducidad__lte=hoy + timedelta(days=90))
+    else:
+        # Si no hay filtro de prioridad, mostrar todos los lótes próximos a caducar (próximos 90 días)
+        lotes = lotes.filter(fecha_caducidad__lte=hoy + timedelta(days=90))
 
     # Estadísticas generales para los cards
     stats = {
@@ -1137,8 +1140,14 @@ def alertas_caducidad(request):
 
     instituciones = Institucion.objects.filter(activo=True).order_by('denominacion')
 
+    # Paginación
+    from django.core.paginator import Paginator
+    paginator = Paginator(lotes.order_by('fecha_caducidad'), 50)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
     context = {
-        'lotes': lotes.order_by('fecha_caducidad')[:50],  # limitar a 50 por página
+        'page_obj': page_obj,
         'stats': stats,
         'instituciones': instituciones,
         'prioridad_selected': prioridad_selected,
