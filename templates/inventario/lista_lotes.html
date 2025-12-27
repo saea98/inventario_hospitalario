@@ -261,7 +261,7 @@
         <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
       </div>
       <div class="modal-body">
-        <form id="formReportePersonalizado" method="POST" action="{% url 'gestion-inventario:exportar_lotes_personalizado' %}">
+        <form id="formReportePersonalizado" method="POST" action="{% url 'exportar_lotes_personalizado' %}">
           {% csrf_token %}
           <div class="alert alert-info small">
             Selecciona los campos y <strong>arrastra</strong> para definir su orden en el Excel.
