@@ -183,17 +183,38 @@ def lista_lotes(request):
     
     # Columnas disponibles para exportación
     columnas_disponibles = [
-        {'value': 'id', 'label': 'ID'},
         {'value': 'numero_lote', 'label': 'Número de Lote'},
-        {'value': 'producto__clave_cnis', 'label': 'CLAVE CNIS'},
-        {'value': 'producto__descripcion', 'label': 'Descripción del Producto'},
-        {'value': 'almacen__nombre', 'label': 'Almacén'},
-        {'value': 'ubicacion__codigo', 'label': 'Ubicación'},
+        {'value': 'producto__descripcion', 'label': 'Producto'},
+        {'value': 'institucion__denominacion', 'label': 'Institución'},
+        {'value': 'cantidad_inicial', 'label': 'Cantidad Inicial'},
         {'value': 'cantidad_disponible', 'label': 'Cantidad Disponible'},
+        {'value': 'precio_unitario', 'label': 'Precio Unitario'},
+        {'value': 'valor_total', 'label': 'Valor Total'},
+        {'value': 'fecha_fabricacion', 'label': 'Fecha de Fabricación'},
         {'value': 'fecha_caducidad', 'label': 'Fecha de Caducidad'},
-        {'value': 'estado', 'label': 'Estado'},
         {'value': 'fecha_recepcion', 'label': 'Fecha de Recepción'},
-        {'value': 'institucion__nombre', 'label': 'Institución'},
+        {'value': 'estado', 'label': 'Estado'},
+        {'value': 'observaciones', 'label': 'Observaciones'},
+        {'value': 'proveedor__rfc', 'label': 'RFC Proveedor'},
+        {'value': 'proveedor__nombre', 'label': 'Proveedor'},
+        {'value': 'partida', 'label': 'Partida'},
+        {'value': 'clave_saica', 'label': 'Clave SAICA'},
+        {'value': 'descripcion_saica', 'label': 'Descripción SAICA'},
+        {'value': 'unidad_saica', 'label': 'Unidad SAICA'},
+        {'value': 'fuente_datos', 'label': 'Fuente de Datos'},
+        {'value': 'contrato', 'label': 'Contrato'},
+        {'value': 'folio', 'label': 'Folio'},
+        {'value': 'subtotal', 'label': 'Subtotal'},
+        {'value': 'iva', 'label': 'IVA'},
+        {'value': 'importe_total', 'label': 'Importe Total'},
+        {'value': 'licitacion', 'label': 'Licitación / Procedimiento'},
+        {'value': 'pedido', 'label': 'Pedido'},
+        {'value': 'remision', 'label': 'Remisión'},
+        {'value': 'responsable', 'label': 'Responsable'},
+        {'value': 'reviso', 'label': 'Revisó'},
+        {'value': 'tipo_entrega', 'label': 'Tipo de Entrega'},
+        {'value': 'tipo_red', 'label': 'Tipo de Red'},
+        {'value': 'epa', 'label': 'EPA'},
     ]
     
     context = {
@@ -539,10 +560,11 @@ def exportar_lotes_personalizado(request):
                     'producto', 'almacen', 'ubicacion', 'institucion'
                 )
             
-            # 4️⃣ Aplicar filtros (si vienen en la petición)
+            # 4✍⃣ Aplicar filtros (si vienen en la petición)
             filtro_estado = request.POST.get('filtro_estado', '')
             filtro_almacen = request.POST.get('filtro_almacen', '')
             filtro_producto = request.POST.get('filtro_producto', '')
+            filtro_caducidad = request.POST.get('filtro_caducidad', '')
             busqueda_lote = request.POST.get('busqueda_lote', '')
             busqueda_cnis = request.POST.get('busqueda_cnis', '')
             busqueda_producto = request.POST.get('busqueda_producto', '')
@@ -556,6 +578,18 @@ def exportar_lotes_personalizado(request):
             if filtro_producto:
                 lotes = lotes.filter(producto_id=int(filtro_producto))
             
+            # Filtro de caducidad
+            hoy = timezone.now().date()
+            if filtro_caducidad:
+                if filtro_caducidad == 'caducados':
+                    lotes = lotes.filter(fecha_caducidad__lt=hoy)
+                elif filtro_caducidad == 'menos_30':
+                    lotes = lotes.filter(fecha_caducidad__gte=hoy, fecha_caducidad__lte=hoy + timedelta(days=30))
+                elif filtro_caducidad == 'menos_60':
+                    lotes = lotes.filter(fecha_caducidad__gte=hoy, fecha_caducidad__lte=hoy + timedelta(days=60))
+                elif filtro_caducidad == 'menos_90':
+                    lotes = lotes.filter(fecha_caducidad__gte=hoy, fecha_caducidad__lte=hoy + timedelta(days=90))
+            
             if busqueda_lote:
                 lotes = lotes.filter(numero_lote__icontains=busqueda_lote)
             
@@ -565,9 +599,8 @@ def exportar_lotes_personalizado(request):
             if busqueda_producto:
                 lotes = lotes.filter(producto__descripcion__icontains=busqueda_producto)
             
-            # 5️⃣ Consultar los datos (solo esos campos)
+            # 5✍⃣ Consultar los datos (solo esos campos)
             datos = lotes.values(*campos).order_by('-fecha_recepcion')
-
             datos_lista = list(datos)
             if not datos_lista:
                 return JsonResponse({"error": "No hay datos para exportar"}, status=404)
