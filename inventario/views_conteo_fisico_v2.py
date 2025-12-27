@@ -436,7 +436,7 @@ def listar_conteos(request):
         'columnas_disponibles': columnas_disponibles,
     }
     
-    return render(request, 'inventario/conteo_fisico/listar_conteos.html', contexto)
+    return render(request, 'inventario/conteo_fisico/historial_conteos.html', contexto)
 
 
 @login_required
