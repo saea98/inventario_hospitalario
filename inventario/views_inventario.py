@@ -6,12 +6,13 @@ Dashboard, consulta de lotes, movimientos y reportes
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.db.models import Q, Sum, Count, F
 from django.views.decorators.http import require_http_methods
 from django.utils import timezone
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
 from decimal import Decimal
+import pandas as pd
 
 from .models import Lote, MovimientoInventario, Producto, LoteUbicacion, Almacen, Institucion, UbicacionAlmacen
 from .forms_entrada_salida import ItemEntradaForm, ItemSalidaForm
@@ -167,6 +168,21 @@ def lista_lotes(request):
     productos = Producto.objects.filter(activo=True)
     estados = Lote.ESTADOS_CHOICES
     
+    # Columnas disponibles para exportación
+    columnas_disponibles = [
+        {'value': 'id', 'label': 'ID'},
+        {'value': 'numero_lote', 'label': 'Número de Lote'},
+        {'value': 'producto__clave_cnis', 'label': 'CLAVE CNIS'},
+        {'value': 'producto__descripcion', 'label': 'Descripción del Producto'},
+        {'value': 'almacen__nombre', 'label': 'Almacén'},
+        {'value': 'ubicacion__codigo', 'label': 'Ubicación'},
+        {'value': 'cantidad_disponible', 'label': 'Cantidad Disponible'},
+        {'value': 'fecha_caducidad', 'label': 'Fecha de Caducidad'},
+        {'value': 'estado', 'label': 'Estado'},
+        {'value': 'fecha_recepcion', 'label': 'Fecha de Recepción'},
+        {'value': 'institucion__nombre', 'label': 'Institución'},
+    ]
+    
     context = {
         'page_obj': page_obj,
         'almacenes': almacenes,
@@ -178,6 +194,7 @@ def lista_lotes(request):
         'busqueda_lote': busqueda_lote,
         'busqueda_cnis': busqueda_cnis,
         'busqueda_producto': busqueda_producto,
+        'columnas_disponibles': columnas_disponibles,
     }
     
     return render(request, 'inventario/lista_lotes.html', context)
@@ -467,3 +484,115 @@ def cambiar_estado_lote(request, lote_id):
         messages.error(request, f'Error al cambiar estado: {str(e)}')
     
     return redirect('detalle_lote', lote_id=lote_id)
+
+
+
+# ============================================================
+# EXPORTACIÓN PERSONALIZADA DE LOTES
+# ============================================================
+
+@login_required
+def exportar_lotes_personalizado(request):
+    """
+    Vista para exportar lotes a Excel con campos personalizados.
+    Respeta los filtros aplicados en la lista.
+    """
+    if request.method == "POST":
+        try:
+            # 1️⃣ Recuperar campos seleccionados y ordenados
+            campos = request.POST.getlist("columnas")  # checkboxes seleccionados
+            orden_columnas = request.POST.get("orden_columnas", "")
+            
+            # Si hay un orden personalizado, lo respetamos
+            if orden_columnas:
+                orden = [c for c in orden_columnas.split(",") if c in campos]
+                if orden:
+                    campos = orden
+
+            if not campos:
+                return JsonResponse({"error": "No se seleccionaron columnas válidas"}, status=400)
+
+            # 2️⃣ Obtener institución del usuario
+            institucion = request.user.institucion if hasattr(request.user, 'institucion') else None
+            
+            # 3️⃣ Filtro base
+            if institucion:
+                lotes = Lote.objects.filter(institucion=institucion).select_related(
+                    'producto', 'almacen', 'ubicacion', 'institucion'
+                )
+            else:
+                lotes = Lote.objects.all().select_related(
+                    'producto', 'almacen', 'ubicacion', 'institucion'
+                )
+            
+            # 4️⃣ Aplicar filtros (si vienen en la petición)
+            filtro_estado = request.POST.get('filtro_estado', '')
+            filtro_almacen = request.POST.get('filtro_almacen', '')
+            filtro_producto = request.POST.get('filtro_producto', '')
+            busqueda_lote = request.POST.get('busqueda_lote', '')
+            busqueda_cnis = request.POST.get('busqueda_cnis', '')
+            busqueda_producto = request.POST.get('busqueda_producto', '')
+            
+            if filtro_estado:
+                lotes = lotes.filter(estado=int(filtro_estado))
+            
+            if filtro_almacen:
+                lotes = lotes.filter(almacen_id=int(filtro_almacen))
+            
+            if filtro_producto:
+                lotes = lotes.filter(producto_id=int(filtro_producto))
+            
+            if busqueda_lote:
+                lotes = lotes.filter(numero_lote__icontains=busqueda_lote)
+            
+            if busqueda_cnis:
+                lotes = lotes.filter(producto__clave_cnis__icontains=busqueda_cnis)
+            
+            if busqueda_producto:
+                lotes = lotes.filter(producto__descripcion__icontains=busqueda_producto)
+            
+            # 5️⃣ Consultar los datos (solo esos campos)
+            datos = lotes.values(*campos).order_by('-fecha_recepcion')
+
+            datos_lista = list(datos)
+            if not datos_lista:
+                return JsonResponse({"error": "No hay datos para exportar"}, status=404)
+
+            # 6️⃣ Procesar campos legibles
+            estado_map = dict(Lote.ESTADOS_CHOICES)
+            
+            for registro in datos_lista:
+                # Estado legible
+                if "estado" in registro:
+                    estado_val = registro["estado"]
+                    registro["estado"] = estado_map.get(estado_val, str(estado_val))
+
+                # Fechas legibles
+                for k, v in registro.items():
+                    if isinstance(v, Decimal):
+                        registro[k] = float(v)
+                    elif isinstance(v, (date, datetime)):
+                        registro[k] = v.strftime("%Y-%m-%d %H:%M") if isinstance(v, datetime) else v.strftime("%Y-%m-%d")
+                    elif v is None:
+                        registro[k] = ""
+
+            # 7️⃣ Exportar a Excel respetando el orden de columnas
+            df = pd.DataFrame(datos_lista)
+
+            # Si hay orden definido, reordenamos las columnas
+            columnas_finales = [col for col in campos if col in df.columns]
+            df = df[columnas_finales]
+
+            # Generar Excel
+            response = HttpResponse(
+                content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+            response["Content-Disposition"] = 'attachment; filename="lotes.xlsx"'
+            df.to_excel(response, index=False, sheet_name='Lotes')
+
+            return response
+
+        except Exception as e:
+            return JsonResponse({"error": f"Error generando el reporte: {str(e)}"}, status=500)
+
+    return JsonResponse({"error": "Método no permitido"}, status=405)

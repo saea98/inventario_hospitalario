@@ -20,4 +20,7 @@ urlpatterns = [
     
     # Cambio de estado
     path('lotes/<int:lote_id>/cambiar-estado/', views_inventario.cambiar_estado_lote, name='cambiar_estado_lote'),
+    
+    # Exportación personalizada de lotes
+    path('lotes/exportar-personalizado/', views_inventario.exportar_lotes_personalizado, name='exportar_lotes_personalizado'),
 ]
