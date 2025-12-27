@@ -17,6 +17,7 @@ from .pedidos_forms import (
     ValidarSolicitudPedidoForm
 )
 from .propuesta_generator import PropuestaGenerator
+from .propuesta_utils import cancelar_propuesta
 
 # ============================================================================
 # VISTAS DE GESTIÓN DE PEDIDOS
@@ -356,3 +357,36 @@ def editar_propuesta(request, propuesta_id):
         'page_title': f"Editar Propuesta {propuesta.solicitud.folio}"
     }
     return render(request, 'inventario/pedidos/editar_propuesta.html', context)
+
+
+
+@login_required
+@transaction.atomic
+def cancelar_propuesta_view(request, propuesta_id):
+    """
+    Cancela una propuesta de suministro y libera todas las cantidades reservadas.
+    Hace un rollback completo de la propuesta.
+    """
+    propuesta = get_object_or_404(PropuestaPedido, id=propuesta_id)
+    
+    # Verificar permisos (solo almacenero o administrador)
+    if not (request.user.is_staff or request.user.groups.filter(name='Almacenero').exists()):
+        messages.error(request, "No tienes permiso para cancelar propuestas.")
+        return redirect('logistica:detalle_propuesta', propuesta_id=propuesta.id)
+    
+    if request.method == 'POST':
+        resultado = cancelar_propuesta(propuesta_id, usuario=request.user)
+        
+        if resultado['exito']:
+            messages.success(request, resultado['mensaje'])
+            return redirect('logistica:lista_propuestas')
+        else:
+            messages.error(request, resultado['mensaje'])
+            return redirect('logistica:detalle_propuesta', propuesta_id=propuesta.id)
+    
+    # GET: mostrar confirmación
+    context = {
+        'propuesta': propuesta,
+        'page_title': f"Cancelar Propuesta {propuesta.solicitud.folio}"
+    }
+    return render(request, 'inventario/pedidos/cancelar_propuesta.html', context)

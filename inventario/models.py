@@ -397,6 +397,7 @@ class Lote(models.Model):
     # Información del lote
     cantidad_inicial = models.PositiveIntegerField(verbose_name="Cantidad Inicial")
     cantidad_disponible = models.PositiveIntegerField(verbose_name="Cantidad Disponible")
+    cantidad_reservada = models.PositiveIntegerField(default=0, verbose_name="Cantidad Reservada en Propuestas")
     precio_unitario = models.DecimalField(
         max_digits=10,
         decimal_places=2,
