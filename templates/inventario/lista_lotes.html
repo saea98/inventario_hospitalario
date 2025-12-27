@@ -87,12 +87,23 @@
                     </select>
                 </div>
 
-                <!-- Botones de Acción -->
-                <div class="col-md-3 d-flex align-items-end gap-2">
+                <div class="col-md-3">
+                    <label class="form-label">Caducidad</label>
+                    <select name="caducidad" class="form-select">
+                        <option value="">Todas las fechas</option>
+                        <option value="caducados" {% if filtro_caducidad == "caducados" %}selected{% endif %}>Caducados</option>
+                        <option value="menos_30" {% if filtro_caducidad == "menos_30" %}selected{% endif %}>Menos de 30 días</option>
+                        <option value="menos_60" {% if filtro_caducidad == "menos_60" %}selected{% endif %}>Menos de 60 días</option>
+                        <option value="menos_90" {% if filtro_caducidad == "menos_90" %}selected{% endif %}>Menos de 90 días</option>
+                    </select>
+                </div>
+
+                <!-- Botónes de Acción -->
+                <div class="col-md-2 d-flex align-items-end gap-2">
                     <button type="submit" class="btn btn-primary flex-grow-1">
                         <i class="bi bi-search"></i> Filtrar
                     </button>
-                    <a href="{% url 'lista_lotes' %}" class="btn btn-outline-secondary">
+                    <a href="{% url 'lista_lotes' %}" class="btn btn-outline-secondary flex-grow-1">
                         <i class="bi bi-arrow-clockwise"></i> Limpiar
                     </a>
                 </div>
@@ -101,7 +112,7 @@
     </div>
 
     <!-- Información de Búsqueda Activa -->
-    {% if busqueda_lote or busqueda_cnis or busqueda_producto or filtro_estado or filtro_almacen or filtro_producto %}
+    {% if busqueda_lote or busqueda_cnis or busqueda_producto or filtro_estado or filtro_almacen or filtro_producto or filtro_caducidad %}
     <div class="alert alert-info mb-4">
         <strong>Filtros Activos:</strong>
         {% if busqueda_lote %}<span class="badge bg-info">Lote: {{ busqueda_lote }}</span>{% endif %}
@@ -110,6 +121,10 @@
         {% if filtro_estado %}<span class="badge bg-info">Estado: {{ filtro_estado }}</span>{% endif %}
         {% if filtro_almacen %}<span class="badge bg-info">Almacén: {{ filtro_almacen }}</span>{% endif %}
         {% if filtro_producto %}<span class="badge bg-info">Producto ID: {{ filtro_producto }}</span>{% endif %}
+        {% if filtro_caducidad == "caducados" %}<span class="badge bg-danger">Caducados</span>{% endif %}
+        {% if filtro_caducidad == "menos_30" %}<span class="badge bg-warning">Menos de 30 días</span>{% endif %}
+        {% if filtro_caducidad == "menos_60" %}<span class="badge bg-info">Menos de 60 días</span>{% endif %}
+        {% if filtro_caducidad == "menos_90" %}<span class="badge bg-secondary">Menos de 90 días</span>{% endif %}
     </div>
     {% endif %}
 
@@ -284,6 +299,7 @@
           <input type="hidden" name="filtro_estado" value="{{ filtro_estado }}">
           <input type="hidden" name="filtro_almacen" value="{{ filtro_almacen }}">
           <input type="hidden" name="filtro_producto" value="{{ filtro_producto }}">
+          <input type="hidden" name="filtro_caducidad" value="{{ filtro_caducidad }}">
           <input type="hidden" name="busqueda_lote" value="{{ busqueda_lote }}">
           <input type="hidden" name="busqueda_cnis" value="{{ busqueda_cnis }}">
           <input type="hidden" name="busqueda_producto" value="{{ busqueda_producto }}">

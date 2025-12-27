@@ -130,6 +130,7 @@ def lista_lotes(request):
     filtro_estado = request.GET.get('estado', '')
     filtro_almacen = request.GET.get('almacen', '')
     filtro_producto = request.GET.get('producto', '')
+    filtro_caducidad = request.GET.get('caducidad', '')
     busqueda_lote = request.GET.get('busqueda_lote', '')
     busqueda_cnis = request.GET.get('busqueda_cnis', '')
     busqueda_producto = request.GET.get('busqueda_producto', '')
@@ -143,6 +144,18 @@ def lista_lotes(request):
     
     if filtro_producto:
         lotes = lotes.filter(producto_id=int(filtro_producto))
+    
+    # Filtro de caducidad
+    hoy = timezone.now().date()
+    if filtro_caducidad:
+        if filtro_caducidad == 'caducados':
+            lotes = lotes.filter(fecha_caducidad__lt=hoy)
+        elif filtro_caducidad == 'menos_30':
+            lotes = lotes.filter(fecha_caducidad__gte=hoy, fecha_caducidad__lte=hoy + timedelta(days=30))
+        elif filtro_caducidad == 'menos_60':
+            lotes = lotes.filter(fecha_caducidad__gte=hoy, fecha_caducidad__lte=hoy + timedelta(days=60))
+        elif filtro_caducidad == 'menos_90':
+            lotes = lotes.filter(fecha_caducidad__gte=hoy, fecha_caducidad__lte=hoy + timedelta(days=90))
     
     # Búsquedas separadas
     if busqueda_lote:
@@ -191,6 +204,7 @@ def lista_lotes(request):
         'filtro_estado': filtro_estado,
         'filtro_almacen': filtro_almacen,
         'filtro_producto': filtro_producto,
+        'filtro_caducidad': filtro_caducidad,
         'busqueda_lote': busqueda_lote,
         'busqueda_cnis': busqueda_cnis,
         'busqueda_producto': busqueda_producto,
