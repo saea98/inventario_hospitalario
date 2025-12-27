@@ -53,6 +53,9 @@ urlpatterns = [
     # Historial de conteos realizados
     path('conteos/historial/', views_conteo_fisico_v2.listar_conteos, name='historial_conteos'),
     
+    # Exportación personalizada de conteos
+    path('conteos/exportar-personalizado/', views_conteo_fisico_v2.exportar_conteos_personalizado, name='exportar_conteos_personalizado'),
+    
     # Detalle de un movimiento de conteo
     path('conteos/movimientos/<int:movimiento_id>/', views_conteo_fisico_v2.detalle_movimiento_conteo, name='detalle_movimiento_conteo'),
     

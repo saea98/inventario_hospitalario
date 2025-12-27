@@ -18,11 +18,13 @@ Flujo:
 from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
-from django.http import JsonResponse
+from django.http import JsonResponse, HttpResponse
 from django.db import transaction
 from django.utils import timezone
 from django.db.models import Q
-from datetime import datetime
+from datetime import datetime, date
+from decimal import Decimal
+import pandas as pd
 
 from .models import (
     Lote, Producto, Almacen, UbicacionAlmacen, 
@@ -413,8 +415,97 @@ def listar_conteos(request):
         tipo_movimiento__in=['AJUSTE_POSITIVO', 'AJUSTE_NEGATIVO']
     ).select_related('lote__producto', 'usuario').order_by('-fecha_creacion')
     
+    # Columnas disponibles para exportación
+    columnas_disponibles = [
+        {'value': 'id', 'label': 'ID'},
+        {'value': 'lote__numero_lote', 'label': 'Número de Lote'},
+        {'value': 'lote__producto__clave_cnis', 'label': 'CLAVE CNIS'},
+        {'value': 'lote__producto__descripcion', 'label': 'Descripción del Producto'},
+        {'value': 'tipo_movimiento', 'label': 'Tipo de Movimiento'},
+        {'value': 'cantidad_anterior', 'label': 'Cantidad Anterior'},
+        {'value': 'cantidad_nueva', 'label': 'Cantidad Nueva'},
+        {'value': 'cantidad', 'label': 'Diferencia'},
+        {'value': 'folio', 'label': 'Folio'},
+        {'value': 'fecha_creacion', 'label': 'Fecha de Creación'},
+        {'value': 'usuario__username', 'label': 'Usuario'},
+        {'value': 'motivo', 'label': 'Motivo'},
+    ]
+    
     contexto = {
         'movimientos': movimientos,
+        'columnas_disponibles': columnas_disponibles,
     }
     
     return render(request, 'inventario/conteo_fisico/listar_conteos.html', contexto)
+
+
+@login_required
+def exportar_conteos_personalizado(request):
+    """
+    Vista para exportar conteos a Excel con campos personalizados.
+    Respeta los filtros aplicados en la lista.
+    """
+    if request.method == "POST":
+        try:
+            # 1️⃣ Recuperar campos seleccionados y ordenados
+            campos = request.POST.getlist("columnas")  # checkboxes seleccionados
+            orden_columnas = request.POST.get("orden_columnas", "")
+            
+            # Si hay un orden personalizado, lo respetamos
+            if orden_columnas:
+                orden = [c for c in orden_columnas.split(",") if c in campos]
+                if orden:
+                    campos = orden
+
+            if not campos:
+                return JsonResponse({"error": "No se seleccionaron columnas válidas"}, status=400)
+
+            # 2️⃣ Consultar los datos (solo esos campos)
+            datos = (
+                MovimientoInventario.objects.filter(
+                    tipo_movimiento__in=['AJUSTE_POSITIVO', 'AJUSTE_NEGATIVO']
+                ).select_related('lote__producto', 'usuario')
+                .values(*campos)
+                .order_by('-fecha_creacion')
+            )
+
+            datos_lista = list(datos)
+            if not datos_lista:
+                return JsonResponse({"error": "No hay datos para exportar"}, status=404)
+
+            # 3️⃣ Procesar campos legibles
+            for registro in datos_lista:
+                # Tipo de movimiento legible
+                if "tipo_movimiento" in registro:
+                    tipo_mov = registro["tipo_movimiento"]
+                    registro["tipo_movimiento"] = "Ajuste Positivo" if tipo_mov == 'AJUSTE_POSITIVO' else "Ajuste Negativo"
+
+                # Fechas legibles
+                for k, v in registro.items():
+                    if isinstance(v, Decimal):
+                        registro[k] = float(v)
+                    elif isinstance(v, (date, datetime)):
+                        registro[k] = v.strftime("%Y-%m-%d %H:%M") if isinstance(v, datetime) else v.strftime("%Y-%m-%d")
+                    elif v is None:
+                        registro[k] = ""
+
+            # 4️⃣ Exportar a Excel respetando el orden de columnas
+            df = pd.DataFrame(datos_lista)
+
+            # Si hay orden definido, reordenamos las columnas
+            columnas_finales = [col for col in campos if col in df.columns]
+            df = df[columnas_finales]
+
+            # Generar Excel
+            response = HttpResponse(
+                content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+            )
+            response["Content-Disposition"] = 'attachment; filename="conteos_fisicos.xlsx"'
+            df.to_excel(response, index=False, sheet_name='Conteos')
+
+            return response
+
+        except Exception as e:
+            return JsonResponse({"error": f"Error generando el reporte: {str(e)}"}, status=500)
+
+    return JsonResponse({"error": "Método no permitido"}, status=405)
