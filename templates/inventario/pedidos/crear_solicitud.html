@@ -241,12 +241,13 @@
             });
         {% endfor %}
         
-        institucionSelect.addEventListener('change', function() {
-            const institucionId = this.value;
+        // Usar el evento de Select2 en lugar del evento change nativo
+        $(institucionSelect).on('select2:select', function() {
+            const institucionId = $(this).val();
             const almacenes = almacenesData[institucionId] || [];
             
             // Limpiar opciones actuales
-            almacenSelect.innerHTML = '<option value="">-- Selecciona un almacén --</option>';
+            almacenSelect.innerHTML = '<option value="">-- Selecciona un almacen --</option>';
             
             // Agregar nuevas opciones
             almacenes.forEach(function(almacen) {
