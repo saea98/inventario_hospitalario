@@ -6,7 +6,7 @@ Ejecutar con: python manage.py shell < crear_almacenes_farmacia.py
 from inventario.models import Institucion, Almacen
 
 # Obtener todas las instituciones excepto la de clave DFSSA004936
-instituciones = Institucion.objects.exclude(clave='DFSSA004936')
+instituciones = Institucion.objects.exclude(clue='DFSSA004936')
 
 almacenes_creados = 0
 almacenes_existentes = 0
@@ -25,7 +25,7 @@ for institucion in instituciones:
         # Crear el almacén Farmacia
         almacen = Almacen.objects.create(
             nombre='Farmacia',
-            codigo=f"FARM-{institucion.clave}",
+            codigo=f"FARM-{institucion.clue}",
             institucion=institucion,
             tipo='FARMACIA',
             estado=1
