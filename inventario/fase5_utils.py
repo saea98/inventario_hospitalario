@@ -37,7 +37,7 @@ def generar_movimientos_suministro(propuesta_id, usuario):
                 lotes_surtidos = item.lotes_asignados.filter(surtido=True)
                 logger.info(f"Lotes surtidos encontrados: {lotes_surtidos.count()}")
                 for lote_asignado in lotes_surtidos:
-                    lote = lote_asignado.lote
+                    lote = lote_asignado.lote_ubicacion.lote
                     cantidad_surtida = lote_asignado.cantidad_asignada
                     
                     # Obtener cantidad anterior
