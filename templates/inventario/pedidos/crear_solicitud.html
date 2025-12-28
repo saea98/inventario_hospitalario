@@ -225,6 +225,41 @@
             totalFormsInput.value = formCount + 1;
         });
 
+        // Filtrar almacenes cuando se selecciona una institución
+        const institucionSelect = document.getElementById('id_institucion_solicitante');
+        const almacenSelect = document.getElementById('id_almacen_destino');
+        
+        // Almacenar todos los almacenes disponibles
+        const almacenesData = {};
+        {% for almacen in form.almacen_destino.field.queryset %}
+            if (!almacenesData[{{ almacen.institucion.id }}]) {
+                almacenesData[{{ almacen.institucion.id }}] = [];
+            }
+            almacenesData[{{ almacen.institucion.id }}].push({
+                id: {{ almacen.id }},
+                nombre: '{{ almacen.nombre }}'
+            });
+        {% endfor %}
+        
+        institucionSelect.addEventListener('change', function() {
+            const institucionId = this.value;
+            const almacenes = almacenesData[institucionId] || [];
+            
+            // Limpiar opciones actuales
+            almacenSelect.innerHTML = '<option value="">-- Selecciona un almacén --</option>';
+            
+            // Agregar nuevas opciones
+            almacenes.forEach(function(almacen) {
+                const option = document.createElement('option');
+                option.value = almacen.id;
+                option.textContent = almacen.nombre;
+                almacenSelect.appendChild(option);
+            });
+            
+            // Reinicializar Select2
+            $(almacenSelect).val(null).trigger('change');
+        });
+        
         function initializeSelect2() {
             $('.select2-single').select2({
                 width: '100%',

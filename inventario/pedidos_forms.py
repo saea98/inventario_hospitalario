@@ -60,6 +60,19 @@ class SolicitudPedidoForm(forms.ModelForm):
         self.fields['almacen_destino'].required = True
         self.fields['fecha_entrega_programada'].required = True
         
+        # Filtrar almacenes por institución si está seleccionada
+        if self.instance.pk and self.instance.institucion_solicitante:
+            self.fields['almacen_destino'].queryset = Almacen.objects.filter(
+                institucion=self.instance.institucion_solicitante
+            ).order_by('nombre')
+        else:
+            # Mostrar todos los almacenes si no hay institución seleccionada
+            self.fields['almacen_destino'].queryset = Almacen.objects.all().order_by('nombre')
+        
+        # Agregar data-attribute para filtrado dinámico con JavaScript
+        self.fields['institucion_solicitante'].widget.attrs['data-almacen-filter'] = 'true'
+        self.fields['almacen_destino'].widget.attrs['data-filtered-select'] = 'true'
+        
         self.helper = FormHelper()
         self.helper.layout = Layout(
             Row(
