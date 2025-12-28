@@ -6,8 +6,11 @@ cuando se marca una propuesta como surtida.
 
 from django.db import transaction
 from django.utils import timezone
+import logging
 from .models import MovimientoInventario, Lote
 from .pedidos_models import PropuestaPedido
+
+logger = logging.getLogger(__name__)
 
 
 def generar_movimientos_suministro(propuesta_id, usuario):
@@ -22,14 +25,18 @@ def generar_movimientos_suministro(propuesta_id, usuario):
         dict: Información sobre los movimientos creados
     """
     try:
+        logger.info(f"Iniciando generación de movimientos para propuesta {propuesta_id}")
         propuesta = PropuestaPedido.objects.get(id=propuesta_id)
         movimientos_creados = 0
         
         with transaction.atomic():
             # Iterar sobre los items de la propuesta
             for item in propuesta.items.all():
+                logger.info(f"Procesando item {item.id} de propuesta {propuesta_id}")
                 # Iterar sobre los lotes asignados surtidos
-                for lote_asignado in item.lotes_asignados.filter(surtido=True):
+                lotes_surtidos = item.lotes_asignados.filter(surtido=True)
+                logger.info(f"Lotes surtidos encontrados: {lotes_surtidos.count()}")
+                for lote_asignado in lotes_surtidos:
                     lote = lote_asignado.lote
                     cantidad_surtida = lote_asignado.cantidad_asignada
                     
@@ -45,6 +52,7 @@ def generar_movimientos_suministro(propuesta_id, usuario):
                         )
                     
                     # Crear movimiento de inventario
+                    logger.info(f"Creando movimiento para lote {lote.numero_lote}: {cantidad_surtida} unidades")
                     movimiento = MovimientoInventario.objects.create(
                         lote=lote,
                         tipo_movimiento='SALIDA',
@@ -57,6 +65,7 @@ def generar_movimientos_suministro(propuesta_id, usuario):
                         folio=str(propuesta.id),
                         usuario=usuario
                     )
+                    logger.info(f"Movimiento creado: {movimiento.id}")
                     
                     # Actualizar cantidad disponible y reservada del lote
                     lote.cantidad_disponible = cantidad_nueva
@@ -77,6 +86,7 @@ def generar_movimientos_suministro(propuesta_id, usuario):
             'mensaje': f'Propuesta {propuesta_id} no encontrada'
         }
     except Exception as e:
+        logger.error(f"Error al generar movimientos para propuesta {propuesta_id}: {str(e)}", exc_info=True)
         return {
             'exito': False,
             'mensaje': f'Error al generar movimientos: {str(e)}'
