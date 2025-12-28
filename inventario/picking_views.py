@@ -94,7 +94,7 @@ def picking_propuesta(request, propuesta_id):
     # Validar que la propuesta esté en estado correcto
     if propuesta.estado not in ['REVISADA', 'EN_SURTIMIENTO']:
         messages.error(request, 'La propuesta no está lista para picking.')
-        return redirect('detalle_propuesta', pk=propuesta_id)
+        return redirect('logistica:detalle_propuesta', propuesta_id=propuesta_id)
     
     # Obtener orden de picking
     orden_picking = request.GET.get('orden', 'ubicacion')  # ubicacion, producto, cantidad
