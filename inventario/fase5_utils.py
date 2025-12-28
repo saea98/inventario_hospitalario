@@ -63,6 +63,7 @@ def generar_movimientos_suministro(propuesta_id, usuario):
                         documento_referencia=str(propuesta.solicitud.folio),
                         pedido=str(propuesta.solicitud.folio),
                         folio=str(propuesta.id),
+                        institucion_destino=propuesta.solicitud.institucion_destino,
                         usuario=usuario
                     )
                     logger.info(f"Movimiento creado: {movimiento.id}")
