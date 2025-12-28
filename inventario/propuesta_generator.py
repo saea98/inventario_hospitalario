@@ -63,7 +63,10 @@ class PropuestaGenerator:
     def _generate_item_propuesta(self, item_solicitud):
         """
         Genera un item de la propuesta, buscando lotes disponibles con sus ubicaciones.
+        Considera la cantidad reservada en otros lotes.
         """
+        from .propuesta_utils import reservar_cantidad_lote
+        
         cantidad_requerida = item_solicitud.cantidad_aprobada
         producto = item_solicitud.producto
         
@@ -76,40 +79,52 @@ class PropuestaGenerator:
         )
 
         # Buscar lotes disponibles que no estén caducados
-        # Considerar que deben tener al menos 60 días de vida útil (preferiblemente 90)
-        # Buscar ubicaciones de lote disponibles que no estén caducadas
-        # y que tengan al menos 60 días de vida útil
-        ubicaciones_disponibles = LoteUbicacion.objects.filter(
-            lote__producto=producto,
-            cantidad__gt=0,
-            lote__fecha_caducidad__gte=date.today() + timedelta(days=60),
-            lote__estado=1  # Solo lotes disponibles
-        ).select_related('lote', 'ubicacion').order_by(
-            'lote__fecha_caducidad'  # Priorizar lotes que caducan antes
+        # Considerar que deben tener al menos 60 días de vida útil
+        lotes_disponibles = Lote.objects.filter(
+            producto=producto,
+            fecha_caducidad__gte=date.today() + timedelta(days=60),
+            estado=1  # Solo lotes disponibles
+        ).select_related('producto').order_by(
+            'fecha_caducidad'  # Priorizar lotes que caducan antes
         )
 
-        cantidad_total_disponible = sum(ubi.cantidad for ubi in ubicaciones_disponibles)
+        # Calcular cantidad total disponible (considerando reservas)
+        cantidad_total_disponible = sum(
+            max(0, lote.cantidad_disponible - lote.cantidad_reservada) 
+            for lote in lotes_disponibles
+        )
 
         item_propuesta.cantidad_disponible = cantidad_total_disponible
 
-        # Asignar ubicaciones de lote
+        # Asignar lotes
         cantidad_asignada_total = 0
-        for ubicacion_lote in ubicaciones_disponibles:
+        for lote in lotes_disponibles:
             if cantidad_asignada_total >= cantidad_requerida:
                 break
 
+            # Calcular cantidad real disponible (sin reservas)
+            cantidad_real_disponible = max(0, lote.cantidad_disponible - lote.cantidad_reservada)
+            
+            if cantidad_real_disponible <= 0:
+                continue
+
             cantidad_a_asignar = min(
-                ubicacion_lote.cantidad,
+                cantidad_real_disponible,
                 cantidad_requerida - cantidad_asignada_total
             )
 
             if cantidad_a_asignar > 0:
-                LoteAsignado.objects.create(
-                    item_propuesta=item_propuesta,
-                    lote_ubicacion=ubicacion_lote,
-                    cantidad_asignada=cantidad_a_asignar
-                )
-                cantidad_asignada_total += cantidad_a_asignar
+                # Obtener la ubicación del lote (la primera con cantidad disponible)
+                lote_ubicacion = lote.ubicaciones_detalle.filter(cantidad__gt=0).first()
+                if lote_ubicacion:
+                    LoteAsignado.objects.create(
+                        item_propuesta=item_propuesta,
+                        lote_ubicacion=lote_ubicacion,
+                        cantidad_asignada=cantidad_a_asignar
+                    )
+                    # Reservar la cantidad en el lote
+                    reservar_cantidad_lote(lote.id, cantidad_a_asignar)
+                    cantidad_asignada_total += cantidad_a_asignar
 
         # Actualizar estado y cantidad propuesta
         item_propuesta.cantidad_propuesta = cantidad_asignada_total
