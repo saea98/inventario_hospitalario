@@ -37,19 +37,24 @@ def generar_movimientos_suministro(propuesta_id, usuario):
                 lotes_surtidos = item.lotes_asignados.filter(surtido=True)
                 logger.info(f"Lotes surtidos encontrados: {lotes_surtidos.count()}")
                 for lote_asignado in lotes_surtidos:
-                    lote = lote_asignado.lote_ubicacion.lote
+                    lote_ubicacion = lote_asignado.lote_ubicacion
+                    lote = lote_ubicacion.lote
                     cantidad_surtida = lote_asignado.cantidad_asignada
                     
-                    # Obtener cantidad anterior
-                    cantidad_anterior = lote.cantidad_disponible
-                    cantidad_nueva = cantidad_anterior - cantidad_surtida
+                    # Obtener cantidad anterior de la ubicación específica
+                    cantidad_anterior_ubicacion = lote_ubicacion.cantidad
+                    cantidad_nueva_ubicacion = cantidad_anterior_ubicacion - cantidad_surtida
                     
                     # Validar que no quede negativa
-                    if cantidad_nueva < 0:
+                    if cantidad_nueva_ubicacion < 0:
                         raise ValueError(
-                            f"Cantidad insuficiente en lote {lote.numero_lote}. "
-                            f"Disponible: {cantidad_anterior}, Solicitado: {cantidad_surtida}"
+                            f"Cantidad insuficiente en lote {lote.numero_lote} ubicación {lote_ubicacion.ubicacion.codigo}. "
+                            f"Disponible: {cantidad_anterior_ubicacion}, Solicitado: {cantidad_surtida}"
                         )
+                    
+                    # Obtener cantidad anterior del lote total
+                    cantidad_anterior_lote = lote.cantidad_disponible
+                    cantidad_nueva_lote = cantidad_anterior_lote - cantidad_surtida
                     
                     # Crear movimiento de inventario
                     logger.info(f"Creando movimiento para lote {lote.numero_lote}: {cantidad_surtida} unidades")
@@ -57,8 +62,8 @@ def generar_movimientos_suministro(propuesta_id, usuario):
                         lote=lote,
                         tipo_movimiento='SALIDA',
                         cantidad=cantidad_surtida,
-                        cantidad_anterior=cantidad_anterior,
-                        cantidad_nueva=cantidad_nueva,
+                        cantidad_anterior=cantidad_anterior_lote,
+                        cantidad_nueva=cantidad_nueva_lote,
                         motivo=f"Suministro de Pedido - Propuesta {propuesta.solicitud.folio}",
                         documento_referencia=str(propuesta.solicitud.folio),
                         pedido=str(propuesta.solicitud.folio),
@@ -68,8 +73,13 @@ def generar_movimientos_suministro(propuesta_id, usuario):
                     )
                     logger.info(f"Movimiento creado: {movimiento.id}")
                     
-                    # Actualizar cantidad disponible y reservada del lote
-                    lote.cantidad_disponible = cantidad_nueva
+                    # Actualizar cantidad en la ubicación específica
+                    lote_ubicacion.cantidad = cantidad_nueva_ubicacion
+                    lote_ubicacion.save()
+                    
+                    # Actualizar cantidad disponible y reservada del lote (recalcular desde ubicaciones)
+                    cantidad_total_ubicaciones = sum(lu.cantidad for lu in lote.ubicaciones.all())
+                    lote.cantidad_disponible = cantidad_total_ubicaciones
                     lote.cantidad_reservada = max(0, lote.cantidad_reservada - cantidad_surtida)
                     lote.save()
                     
