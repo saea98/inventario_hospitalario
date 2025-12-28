@@ -123,7 +123,7 @@ class PropuestaGenerator:
                         cantidad_asignada=cantidad_a_asignar
                     )
                     # Reservar la cantidad en el lote
-                    reservar_cantidad_lote(lote.id, cantidad_a_asignar)
+                    reservar_cantidad_lote(lote_ubicacion, cantidad_a_asignar)
                     cantidad_asignada_total += cantidad_a_asignar
 
         # Actualizar estado y cantidad propuesta
