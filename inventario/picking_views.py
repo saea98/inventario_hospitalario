@@ -190,6 +190,15 @@ def marcar_item_recogido(request, lote_asignado_id):
             # Generar movimientos de inventario
             resultado = generar_movimientos_suministro(propuesta.id, request.user)
             propuesta_completada = True
+            
+            return JsonResponse({
+                'exito': resultado['exito'],
+                'mensaje': f"Item marcado. {resultado['mensaje']}",
+                'propuesta_completada': propuesta_completada,
+                'lotes_recogidos': lotes_recogidos,
+                'total_lotes': total_lotes,
+                'movimientos_creados': resultado.get('movimientos_creados', 0)
+            })
         
         return JsonResponse({
             'exito': True,
