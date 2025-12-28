@@ -165,6 +165,7 @@ def marcar_item_recogido(request, lote_asignado_id):
         propuesta = lote_asignado.item_propuesta.propuesta
         
         lote_asignado.surtido = True
+        lote_asignado.fecha_surtimiento = timezone.now()
         lote_asignado.save()
         
         # Verificar si todos los items de la propuesta están recogidos

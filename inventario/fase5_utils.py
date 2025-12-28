@@ -58,8 +58,9 @@ def generar_movimientos_suministro(propuesta_id, usuario):
                         usuario=usuario
                     )
                     
-                    # Actualizar cantidad disponible del lote
+                    # Actualizar cantidad disponible y reservada del lote
                     lote.cantidad_disponible = cantidad_nueva
+                    lote.cantidad_reservada = max(0, lote.cantidad_reservada - cantidad_surtida)
                     lote.save()
                     
                     movimientos_creados += 1
