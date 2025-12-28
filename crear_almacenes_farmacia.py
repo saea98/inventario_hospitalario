@@ -27,8 +27,7 @@ for institucion in instituciones:
             nombre='Farmacia',
             codigo=f"FARM-{institucion.clue}",
             institucion=institucion,
-            tipo='FARMACIA',
-            estado=1
+            activo=True
         )
         print(f"✓ Almacén Farmacia creado para {institucion.nombre}")
         almacenes_creados += 1
