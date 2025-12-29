@@ -237,22 +237,21 @@ def completar_traslado(request, pk):
         orden.estado = 'completada'
         orden.save()
         
-        # Actualizar ubicaciones de los lotes trasladados
+        # Registrar movimientos de traslado completado
         for item in orden.items.all():
-            item.lote.ubicacion = item.ubicacion_destino
-            item.lote.save()
-            
-            # Registrar movimiento de actualización de ubicación
-            MovimientoInventario.objects.create(
-                lote=item.lote,
-                tipo_movimiento='TRANSFERENCIA_ENTRADA',
-                cantidad=item.cantidad,
-                cantidad_anterior=item.cantidad,
-                cantidad_nueva=item.cantidad,
-                motivo=f'Traslado completado: {orden.folio}',
-                folio=orden.folio,
-                usuario=request.user
-            )
+            if item.cantidad_recibida > 0:
+                MovimientoInventario.objects.create(
+                    lote=item.lote,
+                    tipo_movimiento='Salida por Traslado',
+                    cantidad_anterior=item.lote.cantidad_disponible,
+                    cantidad=item.cantidad_recibida,
+                    cantidad_nueva=max(0, item.lote.cantidad_disponible - item.cantidad_recibida),
+                    motivo=f'Traslado completado: {orden.folio}',
+                    folio=orden.folio,
+                    usuario=request.user,
+                    documento_referencia=orden.folio,
+                    institucion_destino=orden.almacen_destino.institucion
+                )
         
         # Enviar notificación
         notificaciones.notificar_traslado_completado(orden)

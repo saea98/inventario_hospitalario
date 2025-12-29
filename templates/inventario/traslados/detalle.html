@@ -133,8 +133,20 @@
                 <tbody>
                     {% for item in items %}
                     <tr>
-                        <td>{{ item.lote.producto.nombre }}</td>
-                        <td>{{ item.lote.numero_lote }}</td>
+                        <td>
+                            {% if item.lote %}
+                                {{ item.lote.producto.descripcion|default:item.lote.producto.nombre }}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if item.lote %}
+                                {{ item.lote.numero_lote }}
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
                         <td>{{ item.cantidad }}</td>
                         <td>
                             {% if item.estado == 'pendiente' %}
