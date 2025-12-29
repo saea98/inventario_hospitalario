@@ -325,6 +325,11 @@ class UbicacionView(LoginRequiredMixin, View):
                 llegada.estado = 'ubicacion_asignada'
                 llegada.save()
                 
+                # Generar movimientos de entrada
+                from .fase5_utils import generar_movimiento_entrada_llegada
+                resultado_movimientos = generar_movimiento_entrada_llegada(llegada.pk, request.user)
+                logger.warning(f'Resultado de generación de movimientos: {resultado_movimientos}')
+                
                 logger.warning('--- FIN PROCESO DE UBICACIÓN: ÉXITO ---')
                 messages.success(request, "Ubicaciones asignadas correctamente")
                 return redirect("logistica:llegadas:detalle_llegada", pk=llegada.pk)

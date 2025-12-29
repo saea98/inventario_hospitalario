@@ -102,3 +102,70 @@ def generar_movimientos_suministro(propuesta_id, usuario):
             'exito': False,
             'mensaje': f'Error al generar movimientos: {str(e)}'
         }
+
+
+
+def generar_movimiento_entrada_llegada(llegada_id, usuario):
+    """
+    Genera movimiento de inventario cuando se asignan ubicaciones en una llegada.
+    
+    Args:
+        llegada_id: UUID de la llegada
+        usuario: Usuario que realizó la asignación
+        
+    Returns:
+        dict: Información sobre los movimientos creados
+    """
+    try:
+        from .llegada_models import LlegadaProveedor
+        
+        logger.info(f"Iniciando generación de movimientos de entrada para llegada {llegada_id}")
+        llegada = LlegadaProveedor.objects.get(pk=llegada_id)
+        movimientos_creados = 0
+        
+        with transaction.atomic():
+            # Iterar sobre los items de la llegada
+            for item in llegada.items.all():
+                logger.info(f"Procesando item {item.id} de llegada {llegada_id}")
+                
+                if not item.lote_creado:
+                    logger.warning(f"Item {item.id} no tiene lote creado, saltando")
+                    continue
+                
+                lote = item.lote_creado
+                
+                # Obtener todas las ubicaciones asignadas para este lote
+                for lote_ubicacion in lote.ubicaciones_detalle.all():
+                    cantidad = lote_ubicacion.cantidad
+                    
+                    # Crear movimiento de entrada
+                    movimiento = MovimientoInventario.objects.create(
+                        lote=lote,
+                        tipo_movimiento='Entrada de Proveedor',
+                        cantidad_anterior=0,  # Es una entrada, no hay cantidad anterior
+                        cantidad=cantidad,
+                        cantidad_nueva=cantidad,
+                        usuario=usuario,
+                        documento_referencia=llegada.remision or f"LLEGADA-{llegada.id}",
+                        folio=llegada.remision,
+                        institucion_destino=lote.institucion,
+                        motivo='Recepción de mercancía del proveedor'
+                    )
+                    
+                    logger.info(f"Movimiento de entrada creado: {movimiento.id} para lote {lote.id}, cantidad {cantidad}")
+                    movimientos_creados += 1
+        
+        logger.info(f"Se generaron {movimientos_creados} movimientos de entrada para llegada {llegada_id}")
+        return {
+            'exito': True,
+            'movimientos_creados': movimientos_creados,
+            'mensaje': f'Se generaron {movimientos_creados} movimientos de inventario'
+        }
+    
+    except Exception as e:
+        logger.error(f"Error al generar movimientos para llegada {llegada_id}: {str(e)}", exc_info=True)
+        return {
+            'exito': False,
+            'movimientos_creados': 0,
+            'mensaje': f'Error al generar movimientos: {str(e)}'
+        }

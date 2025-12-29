@@ -162,11 +162,17 @@
                         </td>
                         <td>{{ lote.almacen.nombre }}</td>
                         <td>
-                            {% if lote.ubicacion %}
-                                <span class="badge bg-secondary">{{ lote.ubicacion.codigo }}</span>
-                            {% else %}
-                                <span class="badge bg-warning">Sin asignar</span>
-                            {% endif %}
+                            {% with ubicaciones=lote.ubicaciones_detalle.all %}
+                                {% if ubicaciones %}
+                                    {% for ubi in ubicaciones %}
+                                        <span class="badge bg-secondary" title="{{ ubi.ubicacion.descripcion }} - {{ ubi.cantidad }} unidades">
+                                            {{ ubi.ubicacion.codigo }}
+                                        </span>
+                                    {% endfor %}
+                                {% else %}
+                                    <span class="badge bg-warning">Sin asignar</span>
+                                {% endif %}
+                            {% endwith %}
                         </td>
                         <td>
                             <span class="badge bg-primary">{{ lote.cantidad_disponible }}</span>
