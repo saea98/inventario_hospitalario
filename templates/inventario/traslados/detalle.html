@@ -135,7 +135,8 @@
                     <tr>
                         <td>
                             {% if item.lote %}
-                                {{ item.lote.producto.descripcion|default:item.lote.producto.nombre }}
+                                <small>{{ item.lote.producto.clave_cnis }}</small><br>
+                                {{ item.lote.producto.descripcion|truncatewords:10 }}
                             {% else %}
                                 <span class="text-muted">-</span>
                             {% endif %}
