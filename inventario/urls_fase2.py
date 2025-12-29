@@ -32,6 +32,9 @@ urlpatterns = [
     path('traslados/<int:pk>/confirmar-recepcion/', views_traslados_completo.confirmar_recepcion_traslado, name='confirmar_recepcion_traslado'),
     path('traslados/<int:pk>/completar/', views_traslados_completo.completar_traslado, name='completar_traslado'),
     path('traslados/<int:pk>/cancelar/', views_traslados_completo.cancelar_traslado, name='cancelar_traslado'),
+    path('traslados/<int:pk>/agregar-item/', views_traslados_completo.agregar_item_traslado, name='agregar_item_traslado'),
+    path('traslados/<int:pk>/eliminar-item/<int:item_id>/', views_traslados_completo.eliminar_item_traslado, name='eliminar_item_traslado'),
+    path('traslados/<int:pk>/validar-llegada/', views_traslados_completo.validar_llegada_traslado, name='validar_llegada_traslado'),
     
     # ========================================================================
     # CONTEO FÍSICO - Validación de Existencias (NUEVA VERSIÓN)

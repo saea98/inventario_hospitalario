@@ -851,3 +851,90 @@ class LoteUbicacionFormSet:
                     ubicacion.save()
                 except (ValueError, LoteUbicacion.DoesNotExist):
                     pass
+
+
+
+# ============================================================================
+# Formularios para Items de Traslado
+# ============================================================================
+
+class ItemTrasladoForm(forms.ModelForm):
+    """Formulario para agregar un item a un traslado"""
+    
+    class Meta:
+        model = ItemTraslado
+        fields = ['lote', 'cantidad']
+        widgets = {
+            'lote': ModelSelect2Widget(
+                attrs={
+                    'class': 'form-control',
+                    'data-placeholder': 'Selecciona un lote',
+                },
+                search_fields=['numero_lote__icontains', 'producto__descripcion__icontains']
+            ),
+            'cantidad': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': '1',
+                'placeholder': 'Cantidad a trasladar',
+                'required': True
+            }),
+        }
+    
+    def __init__(self, *args, **kwargs):
+        almacen_origen = kwargs.pop('almacen_origen', None)
+        super().__init__(*args, **kwargs)
+        
+        # Filtrar lotes del almacén origen
+        if almacen_origen:
+            self.fields['lote'].queryset = Lote.objects.filter(
+                almacen=almacen_origen,
+                cantidad_disponible__gt=0,
+                estado=1
+            ).order_by('-fecha_recepcion')
+        else:
+            self.fields['lote'].queryset = Lote.objects.filter(
+                cantidad_disponible__gt=0,
+                estado=1
+            ).order_by('-fecha_recepcion')
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        lote = cleaned_data.get('lote')
+        cantidad = cleaned_data.get('cantidad')
+        
+        if lote and cantidad:
+            if cantidad > lote.cantidad_disponible:
+                raise forms.ValidationError(
+                    f"La cantidad solicitada ({cantidad}) no puede ser mayor a la disponible ({lote.cantidad_disponible})"
+                )
+        
+        return cleaned_data
+
+
+class ValidarItemTrasladoForm(forms.ModelForm):
+    """Formulario para validar items recibidos en un traslado"""
+    
+    class Meta:
+        model = ItemTraslado
+        fields = ['cantidad_recibida']
+        widgets = {
+            'cantidad_recibida': forms.NumberInput(attrs={
+                'class': 'form-control',
+                'min': '0',
+                'placeholder': 'Cantidad recibida',
+                'required': True
+            }),
+        }
+    
+    def clean(self):
+        cleaned_data = super().clean()
+        cantidad_recibida = cleaned_data.get('cantidad_recibida')
+        
+        if self.instance:
+            cantidad_esperada = self.instance.cantidad
+            if cantidad_recibida and cantidad_recibida > cantidad_esperada:
+                raise forms.ValidationError(
+                    f"La cantidad recibida ({cantidad_recibida}) no puede ser mayor a la esperada ({cantidad_esperada})"
+                )
+        
+        return cleaned_data

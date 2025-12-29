@@ -9,6 +9,7 @@ from django.contrib import messages
 from django.utils import timezone
 from django.db.models import Q
 from datetime import datetime
+import logging
 
 from .models import (
     OrdenTraslado, ItemTraslado, Almacen, Lote, 
@@ -16,6 +17,8 @@ from .models import (
 )
 from .forms import OrdenTrasladoForm, LogisticaTrasladoForm
 from .servicios_notificaciones import notificaciones
+
+logger = logging.getLogger(__name__)
 
 
 # ============================================================================
@@ -281,3 +284,173 @@ def cancelar_traslado(request, pk):
         return redirect('logistica:lista_traslados')
     
     return render(request, 'inventario/traslados/cancelar.html', {'orden': orden})
+
+
+
+# ============================================================================
+# VISTAS PARA ITEMS DE TRASLADO
+# ============================================================================
+
+@login_required
+def agregar_item_traslado(request, pk):
+    """Agregar un item a una orden de traslado"""
+    from .forms import ItemTrasladoForm
+    
+    orden = get_object_or_404(OrdenTraslado, pk=pk)
+    
+    # Solo se pueden agregar items en estado creada
+    if orden.estado != 'creada':
+        messages.warning(request, 'Solo se pueden agregar items a traslados en estado "Creada"')
+        return redirect('logistica:detalle_traslado', pk=pk)
+    
+    if request.method == 'POST':
+        form = ItemTrasladoForm(request.POST, almacen_origen=orden.almacen_origen)
+        if form.is_valid():
+            item = form.save(commit=False)
+            item.orden_traslado = orden
+            item.save()
+            
+            messages.success(request, f'✓ Item agregado: {item.lote.numero_lote} - {item.cantidad} unidades')
+            return redirect('logistica:detalle_traslado', pk=orden.pk)
+    else:
+        form = ItemTrasladoForm(almacen_origen=orden.almacen_origen)
+    
+    return render(request, 'inventario/traslados/agregar_item.html', {
+        'form': form,
+        'orden': orden
+    })
+
+
+@login_required
+def eliminar_item_traslado(request, pk, item_id):
+    """Eliminar un item de una orden de traslado"""
+    orden = get_object_or_404(OrdenTraslado, pk=pk)
+    item = get_object_or_404(ItemTraslado, id=item_id, orden_traslado=orden)
+    
+    # Solo se pueden eliminar items en estado creada
+    if orden.estado != 'creada':
+        messages.warning(request, 'Solo se pueden eliminar items de traslados en estado "Creada"')
+        return redirect('logistica:detalle_traslado', pk=pk)
+    
+    if request.method == 'POST':
+        numero_lote = item.lote.numero_lote
+        cantidad = item.cantidad
+        item.delete()
+        
+        messages.success(request, f'✓ Item eliminado: {numero_lote} - {cantidad} unidades')
+        return redirect('logistica:detalle_traslado', pk=orden.pk)
+    
+    return render(request, 'inventario/traslados/confirmar_eliminar_item.html', {
+        'orden': orden,
+        'item': item
+    })
+
+
+@login_required
+def validar_llegada_traslado(request, pk):
+    """Validar la llegada de items en un traslado"""
+    from .forms import ValidarItemTrasladoForm
+    
+    orden = get_object_or_404(OrdenTraslado, pk=pk)
+    
+    # Solo se pueden validar traslados en tránsito
+    if orden.estado != 'en_transito':
+        messages.warning(request, 'Solo se pueden validar traslados "En Tránsito"')
+        return redirect('logistica:detalle_traslado', pk=pk)
+    
+    items = orden.items.all()
+    
+    if request.method == 'POST':
+        # Procesar validación de todos los items
+        todos_validados = True
+        
+        for item in items:
+            cantidad_recibida = request.POST.get(f'item_{item.id}_cantidad_recibida')
+            
+            if cantidad_recibida is not None:
+                try:
+                    cantidad_recibida = int(cantidad_recibida)
+                    
+                    if cantidad_recibida > item.cantidad:
+                        messages.error(request, f'La cantidad recibida para {item.lote.numero_lote} no puede ser mayor a {item.cantidad}')
+                        todos_validados = False
+                    else:
+                        item.cantidad_recibida = cantidad_recibida
+                        item.estado = 'recibido'
+                        item.save()
+                        
+                        # Si la cantidad recibida es menor, registrar discrepancia
+                        if cantidad_recibida < item.cantidad:
+                            diferencia = item.cantidad - cantidad_recibida
+                            logger.warning(f'Discrepancia en traslado {orden.folio}: {item.lote.numero_lote} - Faltaron {diferencia} unidades')
+                
+                except ValueError:
+                    messages.error(request, f'Cantidad inválida para {item.lote.numero_lote}')
+                    todos_validados = False
+        
+        if todos_validados:
+            # Marcar la orden como recibida
+            orden.estado = 'recibida'
+            orden.fecha_llegada_real = timezone.now()
+            orden.save()
+            
+            # Generar movimientos de entrada en el almacén destino
+            for item in items:
+                if item.cantidad_recibida > 0:
+                    # Crear nuevo lote en el almacén destino o actualizar cantidad
+                    lote_destino = Lote.objects.filter(
+                        numero_lote=item.lote.numero_lote,
+                        almacen=orden.almacen_destino
+                    ).first()
+                    
+                    if lote_destino:
+                        # Actualizar cantidad del lote existente
+                        lote_destino.cantidad_disponible += item.cantidad_recibida
+                        lote_destino.save()
+                    else:
+                        # Crear nuevo lote en el almacén destino
+                        lote_destino = Lote.objects.create(
+                            numero_lote=item.lote.numero_lote,
+                            producto=item.lote.producto,
+                            almacen=orden.almacen_destino,
+                            institucion=item.lote.institucion,
+                            cantidad_disponible=item.cantidad_recibida,
+                            cantidad_inicial=item.cantidad_recibida,
+                            precio_unitario=item.lote.precio_unitario,
+                            fecha_fabricacion=item.lote.fecha_fabricacion,
+                            fecha_caducidad=item.lote.fecha_caducidad,
+                            fecha_recepcion=timezone.now(),
+                            estado=1
+                        )
+                    
+                    # Registrar movimiento de entrada
+                    MovimientoInventario.objects.create(
+                        lote=lote_destino,
+                        tipo_movimiento='Entrada por Traslado',
+                        cantidad_anterior=0,
+                        cantidad=item.cantidad_recibida,
+                        cantidad_nueva=lote_destino.cantidad_disponible,
+                        usuario=request.user,
+                        documento_referencia=orden.folio,
+                        folio=orden.folio,
+                        institucion_destino=orden.almacen_destino.institucion,
+                        motivo=f'Recepción de traslado desde {orden.almacen_origen.nombre}'
+                    )
+            
+            messages.success(request, '✓ Traslado validado y completado exitosamente')
+            return redirect('logistica:detalle_traslado', pk=orden.pk)
+    
+    # Preparar formularios para cada item
+    item_forms = []
+    for item in items:
+        form = ValidarItemTrasladoForm(instance=item)
+        item_forms.append({
+            'item': item,
+            'form': form
+        })
+    
+    return render(request, 'inventario/traslados/validar_llegada.html', {
+        'orden': orden,
+        'item_forms': item_forms,
+        'items': items
+    })
