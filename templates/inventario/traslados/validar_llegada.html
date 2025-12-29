@@ -1,0 +1,166 @@
+{% extends 'base.html' %}
+
+{% block title %}Validar Llegada de Traslado{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row mb-4">
+        <div class="col-md-10 offset-md-1">
+            <h2><i class="fas fa-check-circle"></i> Validar Llegada de Traslado</h2>
+            <p class="text-muted">Orden: <strong>{{ orden.folio }}</strong></p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-md-10 offset-md-1">
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-info-circle"></i> Información del Traslado</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <table class="table table-sm">
+                                <tr>
+                                    <td><strong>Almacén Origen:</strong></td>
+                                    <td>{{ orden.almacen_origen.nombre }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Almacén Destino:</strong></td>
+                                    <td>{{ orden.almacen_destino.nombre }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                        <div class="col-md-6">
+                            <table class="table table-sm">
+                                <tr>
+                                    <td><strong>Chofer:</strong></td>
+                                    <td>{{ orden.chofer_nombre|default:"-" }}</td>
+                                </tr>
+                                <tr>
+                                    <td><strong>Placa:</strong></td>
+                                    <td>{{ orden.vehiculo_placa|default:"-" }}</td>
+                                </tr>
+                            </table>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-boxes"></i> Items Recibidos</h5>
+                </div>
+                <div class="card-body">
+                    <form method="post" class="needs-validation" novalidate>
+                        {% csrf_token %}
+                        
+                        {% if items %}
+                            <div class="table-responsive">
+                                <table class="table table-hover">
+                                    <thead class="table-light">
+                                        <tr>
+                                            <th>Producto</th>
+                                            <th>Lote</th>
+                                            <th class="text-center">Cantidad Esperada</th>
+                                            <th class="text-center">Cantidad Recibida</th>
+                                            <th class="text-center">Diferencia</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody>
+                                        {% for item in items %}
+                                        <tr>
+                                            <td>{{ item.lote.producto.nombre }}</td>
+                                            <td>{{ item.lote.numero_lote }}</td>
+                                            <td class="text-center">
+                                                <strong>{{ item.cantidad }}</strong>
+                                            </td>
+                                            <td class="text-center">
+                                                <input type="number" 
+                                                       name="item_{{ item.id }}_cantidad_recibida" 
+                                                       class="form-control form-control-sm cantidad-input" 
+                                                       min="0" 
+                                                       max="{{ item.cantidad }}"
+                                                       value="{{ item.cantidad_recibida|default:item.cantidad }}"
+                                                       style="width: 100px; margin: 0 auto; display: block;"
+                                                       data-esperada="{{ item.cantidad }}"
+                                                       required>
+                                            </td>
+                                            <td class="text-center">
+                                                <span class="diferencia-badge badge bg-light text-dark">
+                                                    0
+                                                </span>
+                                            </td>
+                                        </tr>
+                                        {% endfor %}
+                                    </tbody>
+                                </table>
+                            </div>
+
+                            <div class="alert alert-info mt-3">
+                                <i class="fas fa-info-circle"></i>
+                                <strong>Instrucciones:</strong> Ingresa la cantidad de unidades recibidas para cada item. 
+                                Si la cantidad es menor a la esperada, se registrará una discrepancia.
+                            </div>
+
+                            <div class="d-flex gap-2 mt-4">
+                                <button type="submit" class="btn btn-success">
+                                    <i class="fas fa-check"></i> Confirmar Recepción
+                                </button>
+                                <a href="{% url 'logistica:detalle_traslado' orden.pk %}" class="btn btn-secondary">
+                                    <i class="fas fa-arrow-left"></i> Cancelar
+                                </a>
+                            </div>
+                        {% else %}
+                            <div class="alert alert-warning">
+                                <i class="fas fa-exclamation-triangle"></i>
+                                No hay items en este traslado para validar.
+                            </div>
+                            <a href="{% url 'logistica:detalle_traslado' orden.pk %}" class="btn btn-secondary">
+                                <i class="fas fa-arrow-left"></i> Volver
+                            </a>
+                        {% endif %}
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .card {
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    }
+    
+    .table-hover tbody tr:hover {
+        background-color: #f5f5f5;
+    }
+</style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Calcular diferencias cuando cambia la cantidad recibida
+        document.querySelectorAll('.cantidad-input').forEach(input => {
+            input.addEventListener('change', function() {
+                const esperada = parseInt(this.dataset.esperada);
+                const recibida = parseInt(this.value) || 0;
+                const diferencia = esperada - recibida;
+                
+                const badge = this.closest('tr').querySelector('.diferencia-badge');
+                badge.textContent = diferencia;
+                
+                if (diferencia > 0) {
+                    badge.classList.remove('bg-light', 'text-dark');
+                    badge.classList.add('bg-warning', 'text-dark');
+                } else if (diferencia < 0) {
+                    badge.classList.remove('bg-light', 'text-dark');
+                    badge.classList.add('bg-danger', 'text-white');
+                } else {
+                    badge.classList.remove('bg-warning', 'bg-danger', 'text-dark', 'text-white');
+                    badge.classList.add('bg-success', 'text-white');
+                }
+            });
+        });
+    });
+</script>
+{% endblock %}
