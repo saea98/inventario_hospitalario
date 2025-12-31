@@ -377,7 +377,15 @@ function calcularTotales(rowIndex) {
     document.querySelector(`[data-row="${rowIndex}"].importe-total`).value = total.toFixed(2);
     
     items[rowIndex].numero_lote = document.querySelector(`[data-row="${rowIndex}"].numero-lote`).value;
-    items[rowIndex].fecha_caducidad = document.querySelector(`[data-row="${rowIndex}"].fecha-caducidad`).value;
+    
+    // Manejar fecha_caducidad: solo enviar si tiene valor
+    const fechaCaducidad = document.querySelector(`[data-row="${rowIndex}"].fecha-caducidad`).value;
+    if (fechaCaducidad && fechaCaducidad.trim() !== '') {
+        items[rowIndex].fecha_caducidad = fechaCaducidad;
+    } else {
+        items[rowIndex].fecha_caducidad = null;
+    }
+    
     items[rowIndex].precio_unitario = precioUnitario;
     items[rowIndex].subtotal = subtotal;
     items[rowIndex].iva = iva;
@@ -422,6 +430,12 @@ document.getElementById('formItems').addEventListener('submit', function(e) {
         alert('Debes agregar al menos un item con cantidad recibida mayor a 0');
         return;
     }
+    
+    itemsValidos.forEach(item => {
+        if (item.fecha_caducidad === null || item.fecha_caducidad === '') {
+            delete item.fecha_caducidad;
+        }
+    });
     
     document.getElementById('itemsJson').value = JSON.stringify(itemsValidos);
     this.submit();

@@ -133,7 +133,7 @@ def entrada_almacen_confirmacion(request):
                             'cantidad_disponible': item['cantidad_recibida'],
                             'precio_unitario': item['precio_unitario'],
                             'valor_total': item['importe_total'],
-                            'fecha_caducidad': item.get('fecha_caducidad'),
+                            'fecha_caducidad': item.get('fecha_caducidad') or None,
                             'fecha_recepcion': date.today(),
                             'estado': 1,
                             'creado_por': request.user,
