@@ -19,8 +19,14 @@
             <!-- 🔍 Campo de búsqueda -->
             <div class="col-md-3">
                 <label for="search" class="form-label">Buscar</label>
-                <input type="text" class="form-control" id="search" name="search" 
-                    value="{{ search }}" placeholder="Lote, CNIS o producto">
+                <div class="input-group">
+                    <input type="text" class="form-control" id="search" name="search" 
+                        value="{{ search }}" placeholder="Lote, CNIS o producto">
+                    <button class="btn btn-outline-secondary" type="button" id="btnScanSearch" 
+                            title="Escanear código con cámara">
+                        <i class="fas fa-camera"></i>
+                    </button>
+                </div>
             </div>
 
             <!-- 🏥 Filtro por institución -->
@@ -475,5 +481,8 @@ document.addEventListener("DOMContentLoaded", function() {
   });
 });
 </script>
+
+<!-- Script de escaneo de códigos -->
+<script src="{% static 'js/barcode_scanner.js' %}"></script>
 
 {% endblock %}
