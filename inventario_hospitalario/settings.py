@@ -84,6 +84,10 @@ TEMPLATES = [
 CSRF_TRUSTED_ORIGINS = [
     'https://saea98.ddns.net',
 ]
+
+# Indica que confíe en los encabezados que manda Nginx Proxy Manager
+SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+
 WSGI_APPLICATION = 'inventario_hospitalario.wsgi.application'
 
 
