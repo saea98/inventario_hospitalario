@@ -27,7 +27,7 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-yebn)cs*pb6vhdah!3z3g
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=True, cast=bool)
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1').split(',')
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,18.222.165.78,saea98.ddns.net').split(',')
 
 
 # Application definition
@@ -80,6 +80,10 @@ TEMPLATES = [
     },
 ]
 
+
+CSRF_TRUSTED_ORIGINS = [
+    'https://saea98.ddns.net',
+]
 WSGI_APPLICATION = 'inventario_hospitalario.wsgi.application'
 
 

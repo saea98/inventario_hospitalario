@@ -309,7 +309,7 @@ def reporte_personalizado(request):
             return response
 
         except Exception as e:
-            print("❌ Error en reporte_personalizado:", str(e))
+            print("❌ Error en sonalizado:", str(e))
             return JsonResponse({"error": f"Error generando el reporte: {str(e)}"}, status=500)
 
     
