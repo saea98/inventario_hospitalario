@@ -1,0 +1,303 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Dashboard de Movimientos{% endblock %}
+
+{% block page_title %}
+<i class="fas fa-chart-line me-2"></i>Dashboard de Movimientos Diarios
+{% endblock %}
+
+{% block content %}
+
+<div class="container-fluid">
+    <!-- Tarjetas de estadísticas -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card stat-card">
+                <div class="card-body">
+                    <h6 class="card-title text-white-50">Total de Movimientos</h6>
+                    <h2 class="text-white">{{ estadisticas.total_movimientos }}</h2>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card stat-card-success">
+                <div class="card-body">
+                    <h6 class="card-title text-white-50">Tipos de Movimiento</h6>
+                    <h2 class="text-white">{{ estadisticas.por_tipo|length }}</h2>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card stat-card-warning">
+                <div class="card-body">
+                    <h6 class="card-title text-white-50">Usuarios Activos</h6>
+                    <h2 class="text-white">{{ estadisticas.por_usuario|length }}</h2>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-3">
+            <div class="card stat-card-info">
+                <div class="card-body">
+                    <h6 class="card-title text-white-50">Instituciones</h6>
+                    <h2 class="text-white">{{ estadisticas.por_institucion|length }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráficos -->
+    <div class="row mb-4">
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-pie-chart me-2"></i>Movimientos por Tipo</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="chartTipos" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+        
+        <div class="col-md-6">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0"><i class="fas fa-bar-chart me-2"></i>Movimientos por Usuario</h5>
+                </div>
+                <div class="card-body">
+                    <canvas id="chartUsuarios" height="300"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0"><i class="fas fa-filter me-2"></i>Filtros</h5>
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-2">
+                    <label for="fecha" class="form-label">Fecha</label>
+                    <input type="date" class="form-control" id="fecha" name="fecha" 
+                           value="{{ fecha_filtro|date:'Y-m-d' }}">
+                </div>
+                
+                <div class="col-md-2">
+                    <label for="usuario" class="form-label">Usuario</label>
+                    <select class="form-select select2" id="usuario" name="usuario">
+                        <option value="">Todos</option>
+                        {% for usuario in usuarios %}
+                        <option value="{{ usuario.id }}" {% if usuario.id|stringformat:"s" == usuario_seleccionado %}selected{% endif %}>
+                            {{ usuario.get_full_name|default:usuario.username }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-md-2">
+                    <label for="institucion" class="form-label">Institución</label>
+                    <select class="form-select select2" id="institucion" name="institucion">
+                        <option value="">Todas</option>
+                        {% for institucion in instituciones %}
+                        <option value="{{ institucion.id }}" {% if institucion.id|stringformat:"s" == institucion_seleccionada %}selected{% endif %}>
+                            {{ institucion.denominacion|truncatechars:40 }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-md-2">
+                    <label for="almacen" class="form-label">Almacén</label>
+                    <select class="form-select select2" id="almacen" name="almacen">
+                        <option value="">Todos</option>
+                        {% for almacen in almacenes %}
+                        <option value="{{ almacen.id }}" {% if almacen.id|stringformat:"s" == almacen_seleccionado %}selected{% endif %}>
+                            {{ almacen.nombre }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-md-4 d-flex align-items-end gap-2">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-search me-2"></i>Filtrar
+                    </button>
+                    <a href="{% url 'dashboard_movimientos' %}" class="btn btn-secondary">
+                        <i class="fas fa-redo me-2"></i>Limpiar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tabla de movimientos -->
+    <div class="card">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-list me-2"></i>Detalle de Movimientos</h5>
+            <button class="btn btn-sm btn-success" onclick="exportarExcel()">
+                <i class="fas fa-download me-1"></i>Descargar Excel
+            </button>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-hover table-striped mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Fecha/Hora</th>
+                            <th>Tipo de Movimiento</th>
+                            <th>Subtipo</th>
+                            <th>Producto</th>
+                            <th>Lote</th>
+                            <th>Cantidad</th>
+                            <th>Institución</th>
+                            <th>Usuario</th>
+                            <th>Motivo/Detalles</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for movimiento in movimientos %}
+                        <tr>
+                            <td>
+                                <small class="text-muted">
+                                    {{ movimiento.fecha|date:"d/m/Y H:i" }}
+                                </small>
+                            </td>
+                            <td>
+                                <span class="badge bg-primary">{{ movimiento.tipo }}</span>
+                            </td>
+                            <td>
+                                <span class="badge bg-info">{{ movimiento.subtipo }}</span>
+                            </td>
+                            <td>
+                                <small>
+                                    <strong>{{ movimiento.producto }}</strong><br>
+                                    {{ movimiento.descripcion_producto|truncatechars:30 }}
+                                </small>
+                            </td>
+                            <td>
+                                <code>{{ movimiento.lote }}</code>
+                            </td>
+                            <td>
+                                {% if movimiento.cantidad != '-' %}
+                                    <strong>{{ movimiento.cantidad }}</strong>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                <small>{{ movimiento.institucion|truncatechars:25 }}</small>
+                            </td>
+                            <td>
+                                <small>{{ movimiento.usuario }}</small>
+                            </td>
+                            <td>
+                                <small class="text-muted">{{ movimiento.motivo|truncatechars:50 }}</small>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="9" class="text-center text-muted py-4">
+                                <i class="fas fa-inbox me-2"></i>No hay movimientos para esta fecha
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+
+<script>
+// Datos para los gráficos
+const datosGraficos = {
+    tipos: {{ estadisticas.por_tipo|safe }},
+    usuarios: {{ estadisticas.por_usuario|safe }},
+};
+
+// Colores para los gráficos
+const colores = [
+    '#667eea', '#764ba2', '#f093fb', '#4facfe', '#00f2fe',
+    '#56ab2f', '#a8e6cf', '#f5576c', '#ffa500', '#ff6b6b'
+];
+
+// Gráfico de tipos de movimiento
+if (Object.keys(datosGraficos.tipos).length > 0) {
+    const ctxTipos = document.getElementById('chartTipos').getContext('2d');
+    new Chart(ctxTipos, {
+        type: 'doughnut',
+        data: {
+            labels: Object.keys(datosGraficos.tipos),
+            datasets: [{
+                data: Object.values(datosGraficos.tipos),
+                backgroundColor: colores,
+                borderColor: '#fff',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+}
+
+// Gráfico de usuarios
+if (Object.keys(datosGraficos.usuarios).length > 0) {
+    const ctxUsuarios = document.getElementById('chartUsuarios').getContext('2d');
+    new Chart(ctxUsuarios, {
+        type: 'bar',
+        data: {
+            labels: Object.keys(datosGraficos.usuarios),
+            datasets: [{
+                label: 'Movimientos',
+                data: Object.values(datosGraficos.usuarios),
+                backgroundColor: '#667eea',
+                borderColor: '#764ba2',
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            indexAxis: 'y',
+            plugins: {
+                legend: {
+                    display: false
+                }
+            },
+            scales: {
+                x: {
+                    beginAtZero: true,
+                    ticks: {
+                        stepSize: 1
+                    }
+                }
+            }
+        }
+    });
+}
+
+// Exportar a Excel
+function exportarExcel() {
+    const tabla = document.querySelector('table');
+    const wb = XLSX.utils.table_to_book(tabla);
+    const fecha = new Date().toISOString().split('T')[0];
+    XLSX.writeFile(wb, `movimientos_${fecha}.xlsx`);
+}
+</script>
+
+{% endblock %}

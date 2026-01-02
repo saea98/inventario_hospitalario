@@ -1,6 +1,7 @@
 from django.urls import path, include
 from . import views
 from . import urls_entrada_salida, urls_fase2, urls_inventario, urls_devoluciones, urls_reportes_devoluciones, urls_reportes_salidas, urls_picking
+from .views_dashboard_movimientos import dashboard_movimientos, api_estadisticas_movimientos
 #from inventario.admin import inventario_admin
 from django.contrib import admin as django_admin
 
@@ -46,6 +47,10 @@ urlpatterns = [
     path('cargas/nueva/', views.cargar_archivo_excel, name='cargar_archivo_excel'),
     path('cargas/<int:pk>/', views.detalle_carga, name='detalle_carga'),
 
+    # Dashboard de Movimientos
+    path('dashboard/movimientos/', dashboard_movimientos, name='dashboard_movimientos'),
+    path('api/movimientos/estadisticas/', api_estadisticas_movimientos, name='api_estadisticas_movimientos'),
+    
     # Reportes
     path('reportes/', views.reportes_dashboard, name='reportes_dashboard'),
     path('reportes/inventario/excel/', views.descargar_reporte_inventario, name='reporte_inventario_excel'),
