@@ -74,6 +74,50 @@
         </div>
     </div>
 
+    <!-- Control de Auto-Reload -->
+    <div class="card mb-4 border-info">
+        <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+            <h5 class="mb-0"><i class="fas fa-sync-alt me-2"></i>Auto-Reload</h5>
+            <div class="form-check form-switch">
+                <input class="form-check-input" type="checkbox" id="toggleAutoReload" style="cursor: pointer;">
+                <label class="form-check-label text-white" for="toggleAutoReload">Activar</label>
+            </div>
+        </div>
+        <div class="card-body">
+            <div class="row g-3">
+                <div class="col-md-3">
+                    <label for="reloadInterval" class="form-label">Intervalo de Recarga</label>
+                    <select class="form-select" id="reloadInterval">
+                        <option value="0">Desactivado</option>
+                        <option value="5">5 segundos</option>
+                        <option value="10">10 segundos</option>
+                        <option value="30">30 segundos</option>
+                        <option value="60">1 minuto</option>
+                        <option value="300">5 minutos</option>
+                        <option value="600">10 minutos</option>
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <div class="w-100">
+                        <small class="text-muted">Última actualización:</small>
+                        <div id="lastUpdate" class="text-success fw-bold">Ahora</div>
+                    </div>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <div class="w-100">
+                        <small class="text-muted">Próxima actualización:</small>
+                        <div id="nextUpdate" class="text-info fw-bold">-</div>
+                    </div>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="button" class="btn btn-warning w-100" id="btnReloadNow">
+                        <i class="fas fa-redo me-2"></i>Actualizar Ahora
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- Filtros -->
     <div class="card mb-4">
         <div class="card-header bg-light">
@@ -215,6 +259,7 @@
 
 <script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
 <script src="https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js"></script>
+<script src="{% static 'js/auto_reload_dashboard.js' %}"></script>
 
 <script>
 // Datos para los gráficos
