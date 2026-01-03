@@ -21,12 +21,15 @@ from .models import (
 def dashboard_movimientos(request):
     """Dashboard de movimientos diarios consolidado"""
     
-    # Obtener fecha actual o la especificada en el filtro
-    fecha_str = request.GET.get('fecha', timezone.now().date().isoformat())
+    # Obtener la fecha actual en la zona horaria configurada (UTC-6)
+    fecha_hoy = timezone.localtime(timezone.now()).date()
+    
+    # Obtener fecha del filtro o usar la actual
+    fecha_str = request.GET.get('fecha', fecha_hoy.isoformat())
     try:
         fecha_filtro = datetime.strptime(fecha_str, '%Y-%m-%d').date()
     except:
-        fecha_filtro = timezone.now().date()
+        fecha_filtro = fecha_hoy
     
     # Rango de fecha (desde las 00:00 hasta las 23:59)
     inicio_dia = timezone.make_aware(datetime.combine(fecha_filtro, datetime.min.time()))
