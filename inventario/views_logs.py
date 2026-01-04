@@ -7,7 +7,7 @@ from django.utils import timezone
 from datetime import timedelta
 import json
 
-from .models_logs import LogSistema
+from .models import LogSistema
 
 
 def es_admin_o_superuser(user):
