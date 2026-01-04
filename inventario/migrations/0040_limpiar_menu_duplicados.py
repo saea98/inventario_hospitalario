@@ -32,7 +32,7 @@ def revertir(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('inventario', '0039_logsistema'),
+        ('inventario', '0038_merge_20260103_2058'),
     ]
 
     operations = [
