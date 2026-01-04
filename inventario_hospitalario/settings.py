@@ -33,7 +33,21 @@ ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,18.222.165.
 CSRF_TRUSTED_ORIGINS = [
     'https://saea98.ddns.net',
     'https://inventarios.almacen.proyectosceib.com.mx',
+    'http://77.37.62.158:8700',
+    'http://localhost:8700',
+    'http://127.0.0.1:8700',
 ]
+
+# Confiar en headers de proxy (para Nginx reverse proxy)
+TRUSTED_PROXIES = [
+    '127.0.0.1',
+    'localhost',
+]
+
+# Usar X-Forwarded-For para obtener la IP real
+USE_X_FORWARDED_HOST = True
+USE_X_FORWARDED_PORT = True
+USE_X_FORWARDED_PROTO = True
 
 # Application definition
 
