@@ -3,11 +3,16 @@ from . import views
 from . import urls_entrada_salida, urls_fase2, urls_inventario, urls_devoluciones, urls_reportes_devoluciones, urls_reportes_salidas, urls_picking
 from .views_dashboard_movimientos import dashboard_movimientos, api_estadisticas_movimientos
 from .views_logs import lista_logs, detalle_log, marcar_resuelto, limpiar_logs, api_logs_recientes
+from .views_health import health_check, diagnostico_sistema
 #from inventario.admin import inventario_admin
 from django.contrib import admin as django_admin
 
 
 urlpatterns = [
+    # Health Check y Diagnóstico
+    path('health/', health_check, name='health_check'),
+    path('diagnostico/', diagnostico_sistema, name='diagnostico_sistema'),
+    
     # Dashboard
     path('', views.dashboard, name='dashboard'),
     path('api/estadisticas/', views.api_estadisticas_dashboard, name='api_estadisticas_dashboard'),

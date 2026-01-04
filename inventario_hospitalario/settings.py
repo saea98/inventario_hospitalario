@@ -59,6 +59,12 @@ MIDDLEWARE = [
     'django.contrib.auth.middleware.AuthenticationMiddleware',
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+    # Middlewares personalizados
+    'inventario.middleware.HealthCheckMiddleware',
+    'inventario.middleware.RequestLoggingMiddleware',
+    'inventario.middleware.ControlAccesoRolesMiddleware',
+    'inventario.middleware.AgregarContextoAccesoMiddleware',
+    'inventario.middleware.LoggingMiddleware',
 ]
 
 ROOT_URLCONF = 'inventario_hospitalario.urls'
@@ -226,18 +232,31 @@ LOGGING = {
     'disable_existing_loggers': False,
     'formatters': {
         'verbose': {
-            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
-            'style': '{',
+            'format': '[%(levelname)s] %(asctime)s %(name)s - %(message)s',
+            'datefmt': '%d/%m/%Y %H:%M:%S',
         },
     },
     'handlers': {
         'console': {
             'class': 'logging.StreamHandler',
             'formatter': 'verbose',
+            'level': 'DEBUG' if DEBUG else 'INFO',
+        },
+    },
+    'loggers': {
+        'django': {
+            'handlers': ['console'],
+            'level': 'DEBUG' if DEBUG else 'INFO',
+            'propagate': False,
+        },
+        'inventario': {
+            'handlers': ['console'],
+            'level': 'DEBUG' if DEBUG else 'INFO',
+            'propagate': False,
         },
     },
     'root': {
         'handlers': ['console'],
-        'level': 'INFO',
+        'level': 'DEBUG' if DEBUG else 'INFO',
     },
 }

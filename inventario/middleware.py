@@ -78,3 +78,117 @@ class AgregarContextoAccesoMiddleware:
         
         response = self.get_response(request)
         return response
+
+
+import logging
+import traceback
+from django.utils import timezone
+from django.http import JsonResponse
+from .models import LogSistema
+
+logger = logging.getLogger(__name__)
+
+
+def get_client_ip(request):
+    """Obtener la IP del cliente"""
+    x_forwarded_for = request.META.get('HTTP_X_FORWARDED_FOR')
+    if x_forwarded_for:
+        ip = x_forwarded_for.split(',')[0]
+    else:
+        ip = request.META.get('REMOTE_ADDR')
+    return ip
+
+
+class LoggingMiddleware:
+    """Middleware para registrar todas las solicitudes y errores"""
+    
+    def __init__(self, get_response):
+        self.get_response = get_response
+        logger.info("🚀 LoggingMiddleware inicializado")
+    
+    def __call__(self, request):
+        # Log de solicitud
+        logger.debug(f"📨 {request.method} {request.path}")
+        
+        try:
+            response = self.get_response(request)
+            
+            # Log de respuesta exitosa
+            if response.status_code >= 400:
+                logger.warning(f"⚠️ {request.method} {request.path} - Status: {response.status_code}")
+            else:
+                logger.debug(f"✅ {request.method} {request.path} - Status: {response.status_code}")
+            
+            return response
+        
+        except Exception as e:
+            # Registrar el error en logs
+            logger.error(f"❌ Error en {request.method} {request.path}")
+            logger.error(f"Error: {str(e)}")
+            logger.error(traceback.format_exc())
+            
+            # Intentar registrar en la base de datos
+            try:
+                LogSistema.crear_log(
+                    nivel='ERROR',
+                    tipo='SISTEMA',
+                    titulo=f'Error no manejado en {request.path}',
+                    mensaje=str(e),
+                    usuario=request.user if request.user.is_authenticated else None,
+                    url=request.path,
+                    ip_cliente=get_client_ip(request),
+                    user_agent=request.META.get('HTTP_USER_AGENT', ''),
+                    detalles={
+                        'metodo': request.method,
+                        'path': request.path,
+                        'traceback': traceback.format_exc()
+                    }
+                )
+            except Exception as db_error:
+                logger.error(f"No se pudo registrar el error en BD: {db_error}")
+            
+            # Re-lanzar la excepción para que Django la maneje
+            raise
+
+
+class HealthCheckMiddleware:
+    """Middleware para health checks sin logging excesivo"""
+    
+    def __init__(self, get_response):
+        self.get_response = get_response
+    
+    def __call__(self, request):
+        # Health check endpoint
+        if request.path == '/health/':
+            return JsonResponse({
+                'status': 'ok',
+                'timestamp': timezone.now().isoformat()
+            })
+        
+        return self.get_response(request)
+
+
+class RequestLoggingMiddleware:
+    """Middleware para registrar detalles de solicitudes en producción"""
+    
+    def __init__(self, get_response):
+        self.get_response = get_response
+    
+    def __call__(self, request):
+        # Rutas que no queremos loguear (para evitar ruido)
+        rutas_ignoradas = [
+            '/static/',
+            '/media/',
+            '/health/',
+            '/favicon.ico',
+        ]
+        
+        # Verificar si la ruta debe ser ignorada
+        debe_loguear = not any(request.path.startswith(ruta) for ruta in rutas_ignoradas)
+        
+        if debe_loguear:
+            logger.info(f"📍 {request.method} {request.path} - IP: {get_client_ip(request)}")
+        
+        response = self.get_response(request)
+        
+        return response
