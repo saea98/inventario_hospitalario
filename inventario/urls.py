@@ -53,10 +53,10 @@ urlpatterns = [
     path('api/movimientos/estadisticas/', api_estadisticas_movimientos, name='api_estadisticas_movimientos'),
     
     # Logs del Sistema
-    path('admin/logs/', lista_logs, name='lista_logs'),
-    path('admin/logs/<int:pk>/', detalle_log, name='detalle_log'),
-    path('admin/logs/<int:pk>/marcar-resuelto/', marcar_resuelto, name='marcar_resuelto'),
-    path('admin/logs/limpiar/', limpiar_logs, name='limpiar_logs'),
+    path('sistema/logs/', lista_logs, name='lista_logs'),
+    path('sistema/logs/<int:pk>/', detalle_log, name='detalle_log'),
+    path('sistema/logs/<int:pk>/marcar-resuelto/', marcar_resuelto, name='marcar_resuelto'),
+    path('sistema/logs/limpiar/', limpiar_logs, name='limpiar_logs'),
     path('api/logs/recientes/', api_logs_recientes, name='api_logs_recientes'),
     
     # Reportes
