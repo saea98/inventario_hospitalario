@@ -27,7 +27,7 @@ SECRET_KEY = config('SECRET_KEY', default='django-insecure-yebn)cs*pb6vhdah!3z3g
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = config('DEBUG', default=True, cast=bool)
 
-ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,18.222.165.78,saea98.ddns.net').split(',')
+ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,18.222.165.78,saea98.ddns.net,inventarios.almacen.proyectosceib.com.mx').split(',')
 
 
 # Application definition
@@ -173,3 +173,71 @@ USE_L10N = False  # Desactiva la localización para forzar formato consistente
 LOGIN_URL = '/login/'
 LOGIN_REDIRECT_URL = '/'
 LOGOUT_REDIRECT_URL = '/login/'
+
+# ============================================================================
+# CONFIGURACIÓN DE SEGURIDAD Y PRODUCCIÓN
+# ============================================================================
+
+# Detectar si estamos en producción
+IS_PRODUCTION = not DEBUG
+
+# Headers de seguridad
+if IS_PRODUCTION:
+    # HTTPS y seguridad
+    SECURE_SSL_REDIRECT = True
+    SESSION_COOKIE_SECURE = True
+    CSRF_COOKIE_SECURE = True
+    SECURE_BROWSER_XSS_FILTER = True
+    SECURE_CONTENT_SECURITY_POLICY = {
+        'default-src': ("'self'",),
+        'script-src': ("'self'", "'unsafe-inline'", "cdn.jsdelivr.net", "*.jsdelivr.net"),
+        'style-src': ("'self'", "'unsafe-inline'", "cdn.jsdelivr.net", "*.jsdelivr.net", "fonts.googleapis.com"),
+        'font-src': ("'self'", "fonts.gstatic.com", "cdn.jsdelivr.net"),
+        'img-src': ("'self'", "data:", "https:"),
+        'connect-src': ("'self'",),
+    }
+    
+    # Permitir que Nginx sirva los estáticos sin problemas
+    X_FRAME_OPTIONS = 'SAMEORIGIN'
+    SECURE_HSTS_SECONDS = 31536000
+    SECURE_HSTS_INCLUDE_SUBDOMAINS = True
+    SECURE_HSTS_PRELOAD = True
+
+# Configuración de archivos estáticos
+STATIC_URL = '/static/'
+STATIC_ROOT = BASE_DIR / 'staticfiles'
+
+# Tipos MIME para archivos estáticos
+# Esto asegura que los archivos se sirvan con los tipos MIME correctos
+MIMETYPES = {
+    '.css': 'text/css; charset=utf-8',
+    '.js': 'application/javascript; charset=utf-8',
+    '.json': 'application/json',
+    '.svg': 'image/svg+xml',
+    '.woff': 'font/woff',
+    '.woff2': 'font/woff2',
+    '.ttf': 'font/ttf',
+    '.eot': 'application/vnd.ms-fontobject',
+}
+
+# Configuración de logging para producción
+LOGGING = {
+    'version': 1,
+    'disable_existing_loggers': False,
+    'formatters': {
+        'verbose': {
+            'format': '{levelname} {asctime} {module} {process:d} {thread:d} {message}',
+            'style': '{',
+        },
+    },
+    'handlers': {
+        'console': {
+            'class': 'logging.StreamHandler',
+            'formatter': 'verbose',
+        },
+    },
+    'root': {
+        'handlers': ['console'],
+        'level': 'INFO',
+    },
+}
