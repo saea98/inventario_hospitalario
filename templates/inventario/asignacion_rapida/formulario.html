@@ -161,6 +161,8 @@ document.addEventListener('DOMContentLoaded', function() {
     let asignacionesRecientes = [];
     let timeoutBusqueda;
     
+    console.log('[AsignacionRapida] Inicializando...');
+    
     // Inicializar Select2 para ubicaciones
     $(ubicacionSelect).select2({
         theme: 'bootstrap-5',
@@ -173,56 +175,87 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     });
     
+    console.log('[AsignacionRapida] Select2 inicializado');
+    
     // Cargar ubicaciones cuando se selecciona almacén
     almacenSelect.addEventListener('change', function() {
-        console.log('[AsignacionRapida] Almacén seleccionado:', this.value);
+        const almacenId = this.value;
+        console.log('[AsignacionRapida] Almacén seleccionado:', almacenId);
         
-        if (!this.value) {
-            $(ubicacionSelect).prop('disabled', true).empty().append('<option value="">Selecciona ubicación...</option>').trigger('change');
+        if (!almacenId) {
+            console.log('[AsignacionRapida] Deshabilitando ubicaciones (sin almacén)');
+            ubicacionSelect.disabled = true;
+            ubicacionSelect.innerHTML = '<option value="">Selecciona ubicación...</option>';
+            $(ubicacionSelect).trigger('change');
             return;
         }
         
         // Mostrar cargando
-        $(ubicacionSelect).prop('disabled', true).empty().append('<option value="">Cargando ubicaciones...</option>').trigger('change');
+        console.log('[AsignacionRapida] Cargando ubicaciones para almacén:', almacenId);
+        ubicacionSelect.disabled = true;
+        ubicacionSelect.innerHTML = '<option value="">Cargando ubicaciones...</option>';
+        $(ubicacionSelect).trigger('change');
         
-        fetch('{% url "api_obtener_ubicaciones" %}', {
+        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+        const url = '{% url "api_obtener_ubicaciones" %}';
+        const payload = { almacen_id: almacenId };
+        
+        console.log('[AsignacionRapida] Enviando petición a:', url);
+        console.log('[AsignacionRapida] Payload:', payload);
+        
+        fetch(url, {
             method: 'POST',
             headers: {
                 'Content-Type': 'application/json',
-                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                'X-CSRFToken': csrfToken
             },
-            body: JSON.stringify({ almacen_id: this.value })
+            body: JSON.stringify(payload)
         })
-        .then(r => r.json())
+        .then(r => {
+            console.log('[AsignacionRapida] Status HTTP:', r.status);
+            return r.json();
+        })
         .then(data => {
-            console.log('[AsignacionRapida] Respuesta ubicaciones:', data);
+            console.log('[AsignacionRapida] Respuesta completa:', data);
             
             if (data.success) {
-                $(ubicacionSelect).prop('disabled', false).empty().append('<option value="">Selecciona ubicación...</option>');
+                console.log('[AsignacionRapida] Éxito. Ubicaciones recibidas:', data.ubicaciones.length);
+                
+                // Limpiar select
+                ubicacionSelect.innerHTML = '<option value="">Selecciona ubicación...</option>';
                 
                 if (data.ubicaciones && data.ubicaciones.length > 0) {
                     data.ubicaciones.forEach(u => {
                         const option = document.createElement('option');
                         option.value = u.id;
-                        option.textContent = `${u.codigo} - ${u.descripcion || ''}`;
+                        option.textContent = u.codigo + ' - ' + (u.descripcion || '');
                         ubicacionSelect.appendChild(option);
+                        console.log('[AsignacionRapida] Agregada ubicación:', u.codigo);
                     });
-                    console.log('[AsignacionRapida] Ubicaciones cargadas:', data.ubicaciones.length);
+                    console.log('[AsignacionRapida] Total ubicaciones cargadas:', data.ubicaciones.length);
+                    
+                    // Habilitar select
+                    ubicacionSelect.disabled = false;
                 } else {
-                    console.warn('[AsignacionRapida] No hay ubicaciones disponibles');
+                    console.warn('[AsignacionRapida] No hay ubicaciones disponibles para este almacén');
+                    ubicacionSelect.innerHTML += '<option value="">No hay ubicaciones disponibles</option>';
+                    ubicacionSelect.disabled = true;
                 }
                 
                 $(ubicacionSelect).trigger('change');
             } else {
-                console.error('[AsignacionRapida] Error:', data.error);
-                alert('Error al cargar ubicaciones: ' + (data.error || 'Error desconocido'));
-                $(ubicacionSelect).prop('disabled', true).empty().append('<option value="">Error al cargar</option>').trigger('change');
+                console.error('[AsignacionRapida] Error en respuesta:', data.error);
+                ubicacionSelect.innerHTML = '<option value="">Error: ' + (data.error || 'Error desconocido') + '</option>';
+                ubicacionSelect.disabled = true;
+                $(ubicacionSelect).trigger('change');
             }
         })
         .catch(e => {
             console.error('[AsignacionRapida] Error en fetch:', e);
-            alert('Error de conexión: ' + e.message);
-            $(ubicacionSelect).prop('disabled', true).empty().append('<option value="">Error de conexión</option>').trigger('change');
+            console.error('[AsignacionRapida] Stack:', e.stack);
+            ubicacionSelect.innerHTML = '<option value="">Error de conexión</option>';
+            ubicacionSelect.disabled = true;
+            $(ubicacionSelect).trigger('change');
         });
     });
     
@@ -265,12 +298,10 @@ document.addEventListener('DOMContentLoaded', function() {
                         data.lotes.forEach(lote => {
                             const div = document.createElement('div');
                             div.className = 'lote-item';
-                            div.innerHTML = `
-                                <strong>${lote.numero_lote}</strong><br>
-                                <small class="text-muted">CNIS: ${lote.producto__clave_cnis}</small><br>
-                                <small class="text-muted">${lote.producto__descripcion}</small><br>
-                                <small>Disponible: ${lote.cantidad_disponible}</small>
-                            `;
+                            div.innerHTML = '<strong>' + lote.numero_lote + '</strong><br>' +
+                                '<small class="text-muted">CNIS: ' + lote.producto__clave_cnis + '</small><br>' +
+                                '<small class="text-muted">' + lote.producto__descripcion + '</small><br>' +
+                                '<small>Disponible: ' + lote.cantidad_disponible + '</small>';
                             div.addEventListener('click', () => seleccionarLote(lote));
                             resultadosLotes.appendChild(div);
                         });
@@ -300,7 +331,7 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('loteSeleccionadoNombre').textContent = lote.numero_lote;
         document.getElementById('loteSeleccionadoCNIS').textContent = lote.producto__clave_cnis;
         document.getElementById('loteSeleccionadoDesc').textContent = lote.producto__descripcion;
-        document.getElementById('loteSeleccionadoCantidad').textContent = `${lote.cantidad_disponible} unidades`;
+        document.getElementById('loteSeleccionadoCantidad').textContent = lote.cantidad_disponible + ' unidades';
         
         loteSeleccionadoDiv.style.display = 'block';
         cantidadInput.max = lote.cantidad_disponible;
@@ -371,34 +402,32 @@ document.addEventListener('DOMContentLoaded', function() {
             return;
         }
         
-        historialDiv.innerHTML = asignacionesRecientes.map(a => `
-            <div class="list-group-item">
-                <div class="d-flex justify-content-between align-items-start">
-                    <div>
-                        <strong>${a.lote}</strong><br>
-                        <small class="text-muted">CNIS: ${a.clave_cnis}</small><br>
-                        <small class="text-muted">→ ${a.ubicacion}</small>
-                    </div>
-                    <span class="badge bg-success">${a.cantidad}</span>
-                </div>
-            </div>
-        `).join('');
+        historialDiv.innerHTML = asignacionesRecientes.map(a => {
+            return '<div class="list-group-item">' +
+                '<div class="d-flex justify-content-between align-items-start">' +
+                '<div>' +
+                '<strong>' + a.lote + '</strong><br>' +
+                '<small class="text-muted">CNIS: ' + a.clave_cnis + '</small><br>' +
+                '<small class="text-muted">→ ' + a.ubicacion + '</small>' +
+                '</div>' +
+                '<span class="badge bg-success">' + a.cantidad + '</span>' +
+                '</div>' +
+                '</div>';
+        }).join('');
     }
     
-    function mostrarNotificacion(mensaje, tipo = 'info') {
+    function mostrarNotificacion(mensaje, tipo) {
+        if (!tipo) tipo = 'info';
         const div = document.createElement('div');
-        div.className = `alert alert-${tipo} alert-dismissible fade show position-fixed top-0 end-0 m-3`;
+        div.className = 'alert alert-' + tipo + ' alert-dismissible fade show position-fixed top-0 end-0 m-3';
         div.style.zIndex = '9999';
-        div.innerHTML = `
-            ${mensaje}
-            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
-        `;
+        div.innerHTML = mensaje + '<button type="button" class="btn-close" data-bs-dismiss="alert"></button>';
         document.body.appendChild(div);
         
         setTimeout(() => div.remove(), 4000);
     }
     
-    console.log('[AsignacionRapida] Script inicializado');
+    console.log('[AsignacionRapida] Script inicializado correctamente');
 });
 </script>
 {% endblock %}
