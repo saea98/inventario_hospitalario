@@ -20,7 +20,7 @@
                 <!-- Almacén -->
                 <div class="mb-3">
                     <label for="almacen" class="form-label fw-bold">📦 Almacén</label>
-                    <select class="form-select form-select-lg" id="almacen" required>
+                    <select class="form-select form-select-lg" id="almacen" required onchange="cargarUbicaciones()">
                         <option value="">Selecciona almacén...</option>
                         {% for almacen in almacenes %}
                         <option value="{{ almacen.id }}">{{ almacen.nombre }}</option>
@@ -145,6 +145,96 @@
 
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
+// Variables globales
+let loteSeleccionado = null;
+let asignacionesRecientes = [];
+let timeoutBusqueda;
+
+// Función para cargar ubicaciones (llamada desde onchange del select)
+function cargarUbicaciones() {
+    const almacenSelect = document.getElementById('almacen');
+    const ubicacionSelect = document.getElementById('ubicacion');
+    const almacenId = almacenSelect.value;
+    
+    console.log('[AsignacionRapida] Almacén seleccionado:', almacenId);
+    
+    if (!almacenId) {
+        console.log('[AsignacionRapida] Deshabilitando ubicaciones (sin almacén)');
+        ubicacionSelect.disabled = true;
+        ubicacionSelect.innerHTML = '<option value="">Selecciona ubicación...</option>';
+        $(ubicacionSelect).trigger('change');
+        return;
+    }
+    
+    // Mostrar cargando
+    console.log('[AsignacionRapida] Cargando ubicaciones para almacén:', almacenId);
+    ubicacionSelect.disabled = true;
+    ubicacionSelect.innerHTML = '<option value="">Cargando ubicaciones...</option>';
+    $(ubicacionSelect).trigger('change');
+    
+    const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
+    const url = '{% url "api_obtener_ubicaciones" %}';
+    const payload = { almacen_id: almacenId };
+    
+    console.log('[AsignacionRapida] Enviando petición a:', url);
+    console.log('[AsignacionRapida] Payload:', payload);
+    
+    fetch(url, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+            'X-CSRFToken': csrfToken
+        },
+        body: JSON.stringify(payload)
+    })
+    .then(r => {
+        console.log('[AsignacionRapida] Status HTTP:', r.status);
+        return r.json();
+    })
+    .then(data => {
+        console.log('[AsignacionRapida] Respuesta completa:', data);
+        
+        if (data.success) {
+            console.log('[AsignacionRapida] Éxito. Ubicaciones recibidas:', data.ubicaciones.length);
+            
+            // Limpiar select
+            ubicacionSelect.innerHTML = '<option value="">Selecciona ubicación...</option>';
+            
+            if (data.ubicaciones && data.ubicaciones.length > 0) {
+                data.ubicaciones.forEach(u => {
+                    const option = document.createElement('option');
+                    option.value = u.id;
+                    option.textContent = u.codigo + ' - ' + (u.descripcion || '');
+                    ubicacionSelect.appendChild(option);
+                    console.log('[AsignacionRapida] Agregada ubicación:', u.codigo);
+                });
+                console.log('[AsignacionRapida] Total ubicaciones cargadas:', data.ubicaciones.length);
+                
+                // Habilitar select
+                ubicacionSelect.disabled = false;
+            } else {
+                console.warn('[AsignacionRapida] No hay ubicaciones disponibles para este almacén');
+                ubicacionSelect.innerHTML += '<option value="">No hay ubicaciones disponibles</option>';
+                ubicacionSelect.disabled = true;
+            }
+            
+            $(ubicacionSelect).trigger('change');
+        } else {
+            console.error('[AsignacionRapida] Error en respuesta:', data.error);
+            ubicacionSelect.innerHTML = '<option value="">Error: ' + (data.error || 'Error desconocido') + '</option>';
+            ubicacionSelect.disabled = true;
+            $(ubicacionSelect).trigger('change');
+        }
+    })
+    .catch(e => {
+        console.error('[AsignacionRapida] Error en fetch:', e);
+        console.error('[AsignacionRapida] Stack:', e.stack);
+        ubicacionSelect.innerHTML = '<option value="">Error de conexión</option>';
+        ubicacionSelect.disabled = true;
+        $(ubicacionSelect).trigger('change');
+    });
+}
+
 document.addEventListener('DOMContentLoaded', function() {
     const formulario = document.getElementById('formularioAsignacion');
     const almacenSelect = document.getElementById('almacen');
@@ -156,10 +246,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const cantidadInput = document.getElementById('cantidad');
     const btnGuardar = document.getElementById('btnGuardar');
     const historialDiv = document.getElementById('historialAsignaciones');
-    
-    let loteSeleccionado = null;
-    let asignacionesRecientes = [];
-    let timeoutBusqueda;
     
     console.log('[AsignacionRapida] Inicializando...');
     
@@ -176,88 +262,6 @@ document.addEventListener('DOMContentLoaded', function() {
     });
     
     console.log('[AsignacionRapida] Select2 inicializado');
-    
-    // Cargar ubicaciones cuando se selecciona almacén
-    almacenSelect.addEventListener('change', function() {
-        const almacenId = this.value;
-        console.log('[AsignacionRapida] Almacén seleccionado:', almacenId);
-        
-        if (!almacenId) {
-            console.log('[AsignacionRapida] Deshabilitando ubicaciones (sin almacén)');
-            ubicacionSelect.disabled = true;
-            ubicacionSelect.innerHTML = '<option value="">Selecciona ubicación...</option>';
-            $(ubicacionSelect).trigger('change');
-            return;
-        }
-        
-        // Mostrar cargando
-        console.log('[AsignacionRapida] Cargando ubicaciones para almacén:', almacenId);
-        ubicacionSelect.disabled = true;
-        ubicacionSelect.innerHTML = '<option value="">Cargando ubicaciones...</option>';
-        $(ubicacionSelect).trigger('change');
-        
-        const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]').value;
-        const url = '{% url "api_obtener_ubicaciones" %}';
-        const payload = { almacen_id: almacenId };
-        
-        console.log('[AsignacionRapida] Enviando petición a:', url);
-        console.log('[AsignacionRapida] Payload:', payload);
-        
-        fetch(url, {
-            method: 'POST',
-            headers: {
-                'Content-Type': 'application/json',
-                'X-CSRFToken': csrfToken
-            },
-            body: JSON.stringify(payload)
-        })
-        .then(r => {
-            console.log('[AsignacionRapida] Status HTTP:', r.status);
-            return r.json();
-        })
-        .then(data => {
-            console.log('[AsignacionRapida] Respuesta completa:', data);
-            
-            if (data.success) {
-                console.log('[AsignacionRapida] Éxito. Ubicaciones recibidas:', data.ubicaciones.length);
-                
-                // Limpiar select
-                ubicacionSelect.innerHTML = '<option value="">Selecciona ubicación...</option>';
-                
-                if (data.ubicaciones && data.ubicaciones.length > 0) {
-                    data.ubicaciones.forEach(u => {
-                        const option = document.createElement('option');
-                        option.value = u.id;
-                        option.textContent = u.codigo + ' - ' + (u.descripcion || '');
-                        ubicacionSelect.appendChild(option);
-                        console.log('[AsignacionRapida] Agregada ubicación:', u.codigo);
-                    });
-                    console.log('[AsignacionRapida] Total ubicaciones cargadas:', data.ubicaciones.length);
-                    
-                    // Habilitar select
-                    ubicacionSelect.disabled = false;
-                } else {
-                    console.warn('[AsignacionRapida] No hay ubicaciones disponibles para este almacén');
-                    ubicacionSelect.innerHTML += '<option value="">No hay ubicaciones disponibles</option>';
-                    ubicacionSelect.disabled = true;
-                }
-                
-                $(ubicacionSelect).trigger('change');
-            } else {
-                console.error('[AsignacionRapida] Error en respuesta:', data.error);
-                ubicacionSelect.innerHTML = '<option value="">Error: ' + (data.error || 'Error desconocido') + '</option>';
-                ubicacionSelect.disabled = true;
-                $(ubicacionSelect).trigger('change');
-            }
-        })
-        .catch(e => {
-            console.error('[AsignacionRapida] Error en fetch:', e);
-            console.error('[AsignacionRapida] Stack:', e.stack);
-            ubicacionSelect.innerHTML = '<option value="">Error de conexión</option>';
-            ubicacionSelect.disabled = true;
-            $(ubicacionSelect).trigger('change');
-        });
-    });
     
     // Buscar lotes por Lote Y CNIS simultáneamente
     function realizarBusqueda() {
