@@ -190,7 +190,7 @@ IS_PRODUCTION = not DEBUG
 # Headers de seguridad
 if IS_PRODUCTION:
     # HTTPS y seguridad
-    SECURE_SSL_REDIRECT = True
+    SECURE_SSL_REDIRECT = config("USE_HTTPS", default=False, cast=bool)
     SESSION_COOKIE_SECURE = True
     CSRF_COOKIE_SECURE = True
     SECURE_BROWSER_XSS_FILTER = True
