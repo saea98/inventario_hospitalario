@@ -2,6 +2,7 @@ from django.urls import path, include
 from . import views
 from . import urls_entrada_salida, urls_fase2, urls_inventario, urls_devoluciones, urls_reportes_devoluciones, urls_reportes_salidas, urls_picking
 from .views_dashboard_movimientos import dashboard_movimientos, api_estadisticas_movimientos
+from .views_logs import lista_logs, detalle_log, marcar_resuelto, limpiar_logs, api_logs_recientes
 #from inventario.admin import inventario_admin
 from django.contrib import admin as django_admin
 
@@ -50,6 +51,13 @@ urlpatterns = [
     # Dashboard de Movimientos
     path('dashboard/movimientos/', dashboard_movimientos, name='dashboard_movimientos'),
     path('api/movimientos/estadisticas/', api_estadisticas_movimientos, name='api_estadisticas_movimientos'),
+    
+    # Logs del Sistema
+    path('admin/logs/', lista_logs, name='lista_logs'),
+    path('admin/logs/<int:pk>/', detalle_log, name='detalle_log'),
+    path('admin/logs/<int:pk>/marcar-resuelto/', marcar_resuelto, name='marcar_resuelto'),
+    path('admin/logs/limpiar/', limpiar_logs, name='limpiar_logs'),
+    path('api/logs/recientes/', api_logs_recientes, name='api_logs_recientes'),
     
     # Reportes
     path('reportes/', views.reportes_dashboard, name='reportes_dashboard'),

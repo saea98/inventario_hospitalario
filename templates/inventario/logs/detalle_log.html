@@ -1,0 +1,192 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Detalle del Log{% endblock %}
+
+{% block page_title %}
+<i class="fas fa-bug me-2"></i>Detalle del Log
+{% endblock %}
+
+{% block content %}
+
+<div class="container">
+    <div class="row">
+        <div class="col-lg-8">
+            <!-- Información principal -->
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">
+                        {% if log.nivel == 'ERROR' or log.nivel == 'CRITICAL' %}
+                            <i class="fas fa-exclamation-circle text-danger me-2"></i>
+                        {% elif log.nivel == 'WARNING' %}
+                            <i class="fas fa-exclamation-triangle text-warning me-2"></i>
+                        {% else %}
+                            <i class="fas fa-info-circle text-info me-2"></i>
+                        {% endif %}
+                        {{ log.titulo }}
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <p><strong>Nivel:</strong></p>
+                            <p>
+                                {% if log.nivel == 'DEBUG' %}
+                                    <span class="badge bg-secondary">{{ log.nivel }}</span>
+                                {% elif log.nivel == 'INFO' %}
+                                    <span class="badge bg-info">{{ log.nivel }}</span>
+                                {% elif log.nivel == 'WARNING' %}
+                                    <span class="badge bg-warning">{{ log.nivel }}</span>
+                                {% elif log.nivel == 'ERROR' %}
+                                    <span class="badge bg-danger">{{ log.nivel }}</span>
+                                {% elif log.nivel == 'CRITICAL' %}
+                                    <span class="badge bg-dark">{{ log.nivel }}</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Tipo:</strong></p>
+                            <p><span class="badge bg-primary">{{ log.get_tipo_display }}</span></p>
+                        </div>
+                    </div>
+                    
+                    <div class="row mb-3">
+                        <div class="col-md-6">
+                            <p><strong>Fecha/Hora:</strong></p>
+                            <p>{{ log.fecha_creacion|date:"d/m/Y H:i:s" }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Estado:</strong></p>
+                            <p>
+                                {% if log.resuelto %}
+                                    <span class="badge bg-success">Resuelto</span>
+                                {% else %}
+                                    <span class="badge bg-warning">Pendiente</span>
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                    
+                    <hr>
+                    
+                    <p><strong>Mensaje:</strong></p>
+                    <div class="alert alert-light border">
+                        <code>{{ log.mensaje }}</code>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Detalles técnicos -->
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-cogs me-2"></i>Detalles Técnicos</h5>
+                </div>
+                <div class="card-body">
+                    {% if log.url %}
+                    <p><strong>URL:</strong></p>
+                    <p><code>{{ log.url }}</code></p>
+                    {% endif %}
+                    
+                    {% if log.ip_cliente %}
+                    <p><strong>IP del Cliente:</strong></p>
+                    <p><code>{{ log.ip_cliente }}</code></p>
+                    {% endif %}
+                    
+                    {% if log.user_agent %}
+                    <p><strong>User Agent:</strong></p>
+                    <p><code style="word-break: break-all;">{{ log.user_agent }}</code></p>
+                    {% endif %}
+                    
+                    {% if log.usuario %}
+                    <p><strong>Usuario:</strong></p>
+                    <p>{{ log.usuario.get_full_name|default:log.usuario.username }}</p>
+                    {% endif %}
+                    
+                    {% if log.detalles %}
+                    <p><strong>Detalles Adicionales:</strong></p>
+                    <pre class="bg-light p-3 rounded"><code>{{ log.detalles|safe }}</code></pre>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Resolución -->
+            {% if not log.resuelto %}
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-check-circle me-2"></i>Marcar como Resuelto</h5>
+                </div>
+                <div class="card-body">
+                    <form id="formResolucion">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="notas" class="form-label">Notas de Resolución</label>
+                            <textarea class="form-control" id="notas" name="notas" rows="4" placeholder="Describe cómo se resolvió el problema..."></textarea>
+                        </div>
+                        <button type="button" class="btn btn-success" onclick="marcarResuelto()">
+                            <i class="fas fa-check me-2"></i>Marcar como Resuelto
+                        </button>
+                    </form>
+                </div>
+            </div>
+            {% else %}
+            <div class="card mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-check-circle text-success me-2"></i>Resolución</h5>
+                </div>
+                <div class="card-body">
+                    <p><strong>Fecha de Resolución:</strong></p>
+                    <p>{{ log.fecha_resolucion|date:"d/m/Y H:i:s" }}</p>
+                    
+                    {% if log.notas_resolucion %}
+                    <p><strong>Notas:</strong></p>
+                    <div class="alert alert-light border">
+                        {{ log.notas_resolucion }}
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+        </div>
+
+        <!-- Sidebar -->
+        <div class="col-lg-4">
+            <div class="card">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-arrow-left me-2"></i>Volver</h5>
+                </div>
+                <div class="card-body">
+                    <a href="{% url 'lista_logs' %}" class="btn btn-primary w-100 mb-2">
+                        <i class="fas fa-list me-2"></i>Volver a Logs
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function marcarResuelto() {
+    const notas = document.getElementById('notas').value;
+    const formData = new FormData();
+    formData.append('notas', notas);
+    
+    fetch('{% url "marcar_resuelto" log.id %}', {
+        method: 'POST',
+        headers: {
+            'X-CSRFToken': '{{ csrf_token }}'
+        },
+        body: formData
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            alert(data.message);
+            location.reload();
+        } else {
+            alert('Error: ' + data.message);
+        }
+    });
+}
+</script>
+
+{% endblock %}
