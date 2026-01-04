@@ -80,7 +80,7 @@ def api_obtener_ubicaciones(request):
         
         ubicaciones = UbicacionAlmacen.objects.filter(
             almacen_id=almacen_id
-        ).values('id', 'codigo', 'descripcion', 'nivel', 'fila', 'columna').order_by('codigo')
+        ).values('id', 'codigo', 'descripcion', 'nivel', 'pasillo', 'rack', 'seccion').order_by('codigo')
         
         return JsonResponse({
             'success': True,
