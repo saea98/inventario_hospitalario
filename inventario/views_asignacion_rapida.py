@@ -2,6 +2,7 @@ from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
+from django.db.models import Q
 import json
 
 from .models import Lote, UbicacionAlmacen, LoteUbicacion, Almacen
@@ -23,7 +24,7 @@ def asignacion_rapida(request):
 @login_required
 @require_http_methods(["POST"])
 def api_buscar_lote(request):
-    """API para buscar lotes por número o clave"""
+    """API para buscar lotes por número, clave CNIS o descripción"""
     
     try:
         data = json.loads(request.body)
@@ -32,10 +33,14 @@ def api_buscar_lote(request):
         if len(busqueda) < 2:
             return JsonResponse({'error': 'Ingresa al menos 2 caracteres'}, status=400)
         
-        # Buscar en número de lote o clave del producto
+        # Buscar en número de lote, clave CNIS o descripción del producto
         lotes = Lote.objects.filter(
-            numero_lote__icontains=busqueda
-        ).values('id', 'numero_lote', 'producto__descripcion', 'cantidad_disponible')[:10]
+            Q(numero_lote__icontains=busqueda) |
+            Q(producto__clave_cnis__icontains=busqueda) |
+            Q(producto__descripcion__icontains=busqueda)
+        ).select_related('producto').values(
+            'id', 'numero_lote', 'producto__clave_cnis', 'producto__descripcion', 'cantidad_disponible'
+        )[:15]
         
         return JsonResponse({
             'success': True,
@@ -109,10 +114,11 @@ def api_asignar_ubicacion(request):
         
         return JsonResponse({
             'success': True,
-            'message': f'✓ {lote.numero_lote} asignado a {ubicacion.codigo}',
+            'message': f'✓ {lote.numero_lote} ({lote.producto.clave_cnis}) asignado a {ubicacion.codigo}',
             'lote_ubicacion': {
                 'id': lote_ubicacion.id,
                 'lote': lote.numero_lote,
+                'clave_cnis': lote.producto.clave_cnis,
                 'ubicacion': ubicacion.codigo,
                 'cantidad': lote_ubicacion.cantidad
             }
