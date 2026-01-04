@@ -1,0 +1,323 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Asignación Rápida de Ubicaciones{% endblock %}
+{% block page_title %}Asignación Rápida de Ubicaciones{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-2 p-md-4">
+    <!-- Formulario Principal -->
+    <div class="card shadow-sm">
+        <div class="card-body p-3">
+            <form id="formularioAsignacion">
+                {% csrf_token %}
+                
+                <!-- Almacén -->
+                <div class="mb-3">
+                    <label for="almacen" class="form-label fw-bold">📦 Almacén</label>
+                    <select class="form-select form-select-lg" id="almacen" required>
+                        <option value="">Selecciona almacén...</option>
+                        {% for almacen in almacenes %}
+                        <option value="{{ almacen.id }}">{{ almacen.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <!-- Búsqueda de Lote -->
+                <div class="mb-3">
+                    <label for="buscarLote" class="form-label fw-bold">🔍 Buscar Lote</label>
+                    <div class="input-group input-group-lg">
+                        <input type="text" class="form-control" id="buscarLote" 
+                               placeholder="Número de lote..." autocomplete="off">
+                        <button class="btn btn-primary" type="button" id="btnLimpiarBusqueda">
+                            <i class="fas fa-times"></i>
+                        </button>
+                    </div>
+                    <div id="resultadosLotes" class="mt-2"></div>
+                </div>
+
+                <!-- Lote Seleccionado -->
+                <div class="mb-3" id="loteSeleccionadoDiv" style="display: none;">
+                    <div class="alert alert-info">
+                        <strong>Lote:</strong> <span id="loteSeleccionadoNombre"></span><br>
+                        <strong>Disponible:</strong> <span id="loteSeleccionadoCantidad"></span>
+                    </div>
+                </div>
+
+                <!-- Ubicación -->
+                <div class="mb-3">
+                    <label for="ubicacion" class="form-label fw-bold">📍 Ubicación</label>
+                    <select class="form-select form-select-lg" id="ubicacion" required disabled>
+                        <option value="">Selecciona ubicación...</option>
+                    </select>
+                </div>
+
+                <!-- Cantidad -->
+                <div class="mb-3">
+                    <label for="cantidad" class="form-label fw-bold">📊 Cantidad</label>
+                    <input type="number" class="form-control form-control-lg" id="cantidad" 
+                           placeholder="Cantidad a asignar" min="1">
+                </div>
+
+                <!-- Botón Guardar -->
+                <button type="submit" class="btn btn-success btn-lg w-100" id="btnGuardar">
+                    <i class="fas fa-check"></i> Guardar Asignación
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Historial de Asignaciones -->
+    <div class="card shadow-sm mt-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">📋 Asignaciones Recientes</h5>
+        </div>
+        <div class="card-body p-0">
+            <div id="historialAsignaciones" class="list-group list-group-flush">
+                <div class="text-center text-muted p-3">
+                    <small>Las asignaciones aparecerán aquí</small>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    /* Optimización para móviles */
+    @media (max-width: 768px) {
+        .form-select-lg, .form-control-lg, .btn-lg {
+            font-size: 1.1rem;
+            padding: 0.75rem 1rem;
+            min-height: 50px;
+        }
+        
+        .container-fluid {
+            padding: 0.5rem !important;
+        }
+    }
+    
+    /* Estilos para resultados de búsqueda */
+    .lote-item {
+        padding: 1rem;
+        border-bottom: 1px solid #eee;
+        cursor: pointer;
+        transition: background-color 0.2s;
+    }
+    
+    .lote-item:hover {
+        background-color: #f8f9fa;
+    }
+    
+    .lote-item.selected {
+        background-color: #d1ecf1;
+        border-left: 4px solid #0c5460;
+    }
+    
+    /* Animación de carga */
+    .spinner-border-sm {
+        width: 1rem;
+        height: 1rem;
+    }
+</style>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const formulario = document.getElementById('formularioAsignacion');
+    const almacenSelect = document.getElementById('almacen');
+    const buscarLoteInput = document.getElementById('buscarLote');
+    const resultadosLotes = document.getElementById('resultadosLotes');
+    const loteSeleccionadoDiv = document.getElementById('loteSeleccionadoDiv');
+    const ubicacionSelect = document.getElementById('ubicacion');
+    const cantidadInput = document.getElementById('cantidad');
+    const btnGuardar = document.getElementById('btnGuardar');
+    const historialDiv = document.getElementById('historialAsignaciones');
+    
+    let loteSeleccionado = null;
+    let asignacionesRecientes = [];
+    
+    // Cargar ubicaciones cuando se selecciona almacén
+    almacenSelect.addEventListener('change', function() {
+        if (!this.value) {
+            ubicacionSelect.disabled = true;
+            ubicacionSelect.innerHTML = '<option value="">Selecciona ubicación...</option>';
+            return;
+        }
+        
+        fetch('{% url "api_obtener_ubicaciones" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify({ almacen_id: this.value })
+        })
+        .then(r => r.json())
+        .then(data => {
+            if (data.success) {
+                ubicacionSelect.disabled = false;
+                ubicacionSelect.innerHTML = '<option value="">Selecciona ubicación...</option>';
+                data.ubicaciones.forEach(u => {
+                    const option = document.createElement('option');
+                    option.value = u.id;
+                    option.textContent = `${u.codigo} - ${u.descripcion}`;
+                    ubicacionSelect.appendChild(option);
+                });
+            }
+        })
+        .catch(e => console.error('Error:', e));
+    });
+    
+    // Buscar lotes
+    let timeoutBusqueda;
+    buscarLoteInput.addEventListener('input', function() {
+        clearTimeout(timeoutBusqueda);
+        const busqueda = this.value.trim();
+        
+        if (busqueda.length < 2) {
+            resultadosLotes.innerHTML = '';
+            return;
+        }
+        
+        timeoutBusqueda = setTimeout(() => {
+            fetch('{% url "api_buscar_lote" %}', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+                },
+                body: JSON.stringify({ busqueda: busqueda })
+            })
+            .then(r => r.json())
+            .then(data => {
+                if (data.success) {
+                    resultadosLotes.innerHTML = '';
+                    data.lotes.forEach(lote => {
+                        const div = document.createElement('div');
+                        div.className = 'lote-item';
+                        div.innerHTML = `
+                            <strong>${lote.numero_lote}</strong><br>
+                            <small class="text-muted">${lote.producto__descripcion}</small><br>
+                            <small>Disponible: ${lote.cantidad_disponible}</small>
+                        `;
+                        div.addEventListener('click', () => seleccionarLote(lote));
+                        resultadosLotes.appendChild(div);
+                    });
+                }
+            });
+        }, 300);
+    });
+    
+    function seleccionarLote(lote) {
+        loteSeleccionado = lote;
+        buscarLoteInput.value = lote.numero_lote;
+        resultadosLotes.innerHTML = '';
+        
+        document.getElementById('loteSeleccionadoNombre').textContent = 
+            `${lote.numero_lote} - ${lote.producto__descripcion}`;
+        document.getElementById('loteSeleccionadoCantidad').textContent = 
+            `${lote.cantidad_disponible} unidades`;
+        
+        loteSeleccionadoDiv.style.display = 'block';
+        cantidadInput.max = lote.cantidad_disponible;
+        cantidadInput.value = lote.cantidad_disponible;
+        ubicacionSelect.focus();
+    }
+    
+    // Limpiar búsqueda
+    document.getElementById('btnLimpiarBusqueda').addEventListener('click', function() {
+        buscarLoteInput.value = '';
+        resultadosLotes.innerHTML = '';
+        loteSeleccionado = null;
+        loteSeleccionadoDiv.style.display = 'none';
+    });
+    
+    // Guardar asignación
+    formulario.addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        if (!loteSeleccionado || !ubicacionSelect.value || !cantidadInput.value) {
+            alert('Por favor completa todos los campos');
+            return;
+        }
+        
+        btnGuardar.disabled = true;
+        btnGuardar.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>Guardando...';
+        
+        fetch('{% url "api_asignar_ubicacion" %}', {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+                'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
+            },
+            body: JSON.stringify({
+                lote_id: loteSeleccionado.id,
+                ubicacion_id: ubicacionSelect.value,
+                cantidad: parseInt(cantidadInput.value)
+            })
+        })
+        .then(r => r.json())
+        .then(data => {
+            btnGuardar.disabled = false;
+            btnGuardar.innerHTML = '<i class="fas fa-check"></i> Guardar Asignación';
+            
+            if (data.success) {
+                // Agregar al historial
+                asignacionesRecientes.unshift(data.lote_ubicacion);
+                actualizarHistorial();
+                
+                // Mostrar notificación
+                mostrarNotificacion(data.message, 'success');
+                
+                // Limpiar formulario
+                buscarLoteInput.value = '';
+                resultadosLotes.innerHTML = '';
+                loteSeleccionado = null;
+                loteSeleccionadoDiv.style.display = 'none';
+                cantidadInput.value = '';
+                ubicacionSelect.value = '';
+                buscarLoteInput.focus();
+            } else {
+                mostrarNotificacion(data.error || 'Error al guardar', 'danger');
+            }
+        })
+        .catch(e => {
+            btnGuardar.disabled = false;
+            btnGuardar.innerHTML = '<i class="fas fa-check"></i> Guardar Asignación';
+            mostrarNotificacion('Error: ' + e.message, 'danger');
+        });
+    });
+    
+    function actualizarHistorial() {
+        if (asignacionesRecientes.length === 0) {
+            historialDiv.innerHTML = '<div class="text-center text-muted p-3"><small>Las asignaciones aparecerán aquí</small></div>';
+            return;
+        }
+        
+        historialDiv.innerHTML = asignacionesRecientes.map(a => `
+            <div class="list-group-item">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <strong>${a.lote}</strong><br>
+                        <small class="text-muted">→ ${a.ubicacion}</small>
+                    </div>
+                    <span class="badge bg-success">${a.cantidad}</span>
+                </div>
+            </div>
+        `).join('');
+    }
+    
+    function mostrarNotificacion(mensaje, tipo = 'info') {
+        const div = document.createElement('div');
+        div.className = `alert alert-${tipo} alert-dismissible fade show position-fixed top-0 end-0 m-3`;
+        div.style.zIndex = '9999';
+        div.innerHTML = `
+            ${mensaje}
+            <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
+        `;
+        document.body.appendChild(div);
+        
+        setTimeout(() => div.remove(), 4000);
+    }
+});
+</script>
+{% endblock %}
