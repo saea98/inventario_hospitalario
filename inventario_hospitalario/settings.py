@@ -29,6 +29,11 @@ DEBUG = config('DEBUG', default=True, cast=bool)
 
 ALLOWED_HOSTS = config('ALLOWED_HOSTS', default='localhost,127.0.0.1,18.222.165.78,saea98.ddns.net,inventarios.almacen.proyectosceib.com.mx').split(',')
 
+# CSRF Trusted Origins
+CSRF_TRUSTED_ORIGINS = [
+    'https://saea98.ddns.net',
+    'https://inventarios.almacen.proyectosceib.com.mx',
+]
 
 # Application definition
 
