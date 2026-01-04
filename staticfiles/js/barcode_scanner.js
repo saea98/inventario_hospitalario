@@ -13,13 +13,23 @@ class BarcodeScanner {
         this.isScanning = false;
         this.scannerReady = false;
 
+        console.log(`[BarcodeScanner] Inicializando para: ${inputFieldId}, botón: ${buttonId}`);
+        console.log(`[BarcodeScanner] Input field encontrado:`, !!this.inputField);
+        console.log(`[BarcodeScanner] Button encontrado:`, !!this.button);
+
+        if (!this.button || !this.inputField) {
+            console.warn(`[BarcodeScanner] No se encontraron elementos necesarios`);
+            return;
+        }
+
         // Cargar librerías necesarias
         this.loadLibraries();
 
         // Event listeners
-        if (this.button) {
-            this.button.addEventListener('click', () => this.toggleScanner());
-        }
+        this.button.addEventListener('click', (e) => {
+            e.preventDefault();
+            this.toggleScanner();
+        });
     }
 
     /**
@@ -34,6 +44,9 @@ class BarcodeScanner {
                 console.log('✓ ZXing cargado');
                 this.scannerReady = true;
             };
+            script1.onerror = () => {
+                console.warn('✗ Error cargando ZXing');
+            };
             document.head.appendChild(script1);
         }
 
@@ -43,6 +56,9 @@ class BarcodeScanner {
             script2.src = 'https://cdn.jsdelivr.net/npm/tesseract.js@4.1.1/dist/tesseract.min.js';
             script2.onload = () => {
                 console.log('✓ Tesseract cargado');
+            };
+            script2.onerror = () => {
+                console.warn('✗ Error cargando Tesseract');
             };
             document.head.appendChild(script2);
         }
@@ -64,6 +80,8 @@ class BarcodeScanner {
      */
     async startScanner() {
         try {
+            console.log('[BarcodeScanner] Iniciando escaneo...');
+            
             // Crear modal si no existe
             if (!document.getElementById('scannerModal')) {
                 this.createScannerModal();
@@ -88,16 +106,18 @@ class BarcodeScanner {
             this.video.srcObject = this.stream;
 
             this.isScanning = true;
-            this.button.innerHTML = '<i class="fas fa-stop-circle"></i> Detener escaneo';
-            this.button.classList.remove('btn-outline-secondary');
+            this.button.innerHTML = '<i class="fas fa-stop-circle"></i> Detener';
+            this.button.classList.remove('btn-primary');
             this.button.classList.add('btn-danger');
+
+            console.log('[BarcodeScanner] Cámara iniciada, comenzando escaneo...');
 
             // Iniciar bucle de escaneo
             this.scanFrame();
 
         } catch (error) {
-            console.error('Error al acceder a la cámara:', error);
-            alert('No se pudo acceder a la cámara. Verifica los permisos.');
+            console.error('[BarcodeScanner] Error al acceder a la cámara:', error);
+            alert('No se pudo acceder a la cámara. Verifica los permisos.\n\nError: ' + error.message);
             this.isScanning = false;
         }
     }
@@ -106,14 +126,16 @@ class BarcodeScanner {
      * Detener escaneo
      */
     stopScanner() {
+        console.log('[BarcodeScanner] Deteniendo escaneo...');
+        
         if (this.stream) {
             this.stream.getTracks().forEach(track => track.stop());
         }
 
         this.isScanning = false;
-        this.button.innerHTML = '<i class="fas fa-camera"></i> Escanear';
+        this.button.innerHTML = '<i class="fas fa-camera fa-lg"></i> Escanear';
         this.button.classList.remove('btn-danger');
-        this.button.classList.add('btn-outline-secondary');
+        this.button.classList.add('btn-primary');
 
         // Cerrar modal
         const modal = bootstrap.Modal.getInstance(document.getElementById('scannerModal'));
@@ -132,28 +154,32 @@ class BarcodeScanner {
         const context = canvas.getContext('2d');
 
         // Dibujar frame actual
-        context.drawImage(this.video, 0, 0, canvas.width, canvas.height);
+        if (this.video && this.video.readyState === this.video.HAVE_ENOUGH_DATA) {
+            context.drawImage(this.video, 0, 0, canvas.width, canvas.height);
 
-        try {
-            // Intentar leer código de barras/QR
-            const result = await this.decodeBarcode(canvas);
-            if (result) {
-                this.handleScanResult(result);
-                return;
+            try {
+                // Intentar leer código de barras/QR
+                const result = await this.decodeBarcode(canvas);
+                if (result) {
+                    console.log('[BarcodeScanner] Código detectado:', result);
+                    this.handleScanResult(result);
+                    return;
+                }
+            } catch (error) {
+                // No es un código válido, continuar
             }
-        } catch (error) {
-            // No es un código válido, continuar
-        }
 
-        // Intentar OCR si no se encontró código
-        try {
-            const ocrResult = await this.performOCR(canvas);
-            if (ocrResult && ocrResult.trim().length > 0) {
-                this.handleScanResult(ocrResult.trim());
-                return;
+            // Intentar OCR si no se encontró código
+            try {
+                const ocrResult = await this.performOCR(canvas);
+                if (ocrResult && ocrResult.trim().length > 0) {
+                    console.log('[BarcodeScanner] OCR detectado:', ocrResult);
+                    this.handleScanResult(ocrResult.trim());
+                    return;
+                }
+            } catch (error) {
+                // Error en OCR, continuar
             }
-        } catch (error) {
-            // Error en OCR, continuar
         }
 
         // Continuar escaneando
@@ -167,16 +193,7 @@ class BarcodeScanner {
         if (!window.ZXing) return null;
 
         try {
-            const imageData = canvas.getContext('2d').getImageData(
-                0, 0, canvas.width, canvas.height
-            );
-
             const codeReader = new ZXing.BrowserMultiFormatReader();
-            const luminanceSource = new ZXing.HTMLCanvasElementLuminanceSource(canvas);
-            const binaryBitmap = new ZXing.BinaryBitmap(
-                new ZXing.HybridBinarizer(luminanceSource)
-            );
-
             const result = codeReader.decodeFromCanvas(canvas);
             return result ? result.text : null;
 
@@ -199,7 +216,7 @@ class BarcodeScanner {
             return result.data.text;
 
         } catch (error) {
-            console.error('Error en OCR:', error);
+            console.error('[BarcodeScanner] Error en OCR:', error);
             return null;
         }
     }
@@ -208,7 +225,7 @@ class BarcodeScanner {
      * Manejar resultado del escaneo
      */
     handleScanResult(result) {
-        console.log('✓ Escaneo exitoso:', result);
+        console.log('[BarcodeScanner] Resultado procesado:', result);
 
         // Llenar el campo de entrada
         this.inputField.value = result;
@@ -219,7 +236,7 @@ class BarcodeScanner {
         // Detener escaneo
         this.stopScanner();
 
-        // Opcional: hacer focus en el campo
+        // Hacer focus en el campo
         this.inputField.focus();
     }
 
@@ -229,13 +246,18 @@ class BarcodeScanner {
     showNotification(message) {
         const alert = document.createElement('div');
         alert.className = 'alert alert-success alert-dismissible fade show';
+        alert.style.position = 'fixed';
+        alert.style.top = '20px';
+        alert.style.right = '20px';
+        alert.style.zIndex = '2000';
+        alert.style.minWidth = '300px';
         alert.innerHTML = `
+            <i class="fas fa-check-circle me-2"></i>
             ${message}
             <button type="button" class="btn-close" data-bs-dismiss="alert"></button>
         `;
 
-        const container = document.querySelector('.card-body') || document.body;
-        container.insertBefore(alert, container.firstChild);
+        document.body.appendChild(alert);
 
         setTimeout(() => alert.remove(), 3000);
     }
@@ -257,12 +279,12 @@ class BarcodeScanner {
                         <button type="button" class="btn-close" data-bs-dismiss="modal"></button>
                     </div>
                     <div class="modal-body p-0">
-                        <div style="position: relative; width: 100%; background: #000;">
+                        <div style="position: relative; width: 100%; background: #000; aspect-ratio: 16/9;">
                             <video id="scannerVideo" 
-                                   style="width: 100%; height: auto; display: block;"
-                                   playsinline></video>
+                                   style="width: 100%; height: 100%; display: block; object-fit: cover;"
+                                   playsinline autoplay></video>
                             <canvas id="scannerCanvas" 
-                                    style="display: none; width: 100%; height: auto;"></canvas>
+                                    style="display: none; width: 100%; height: 100%;"></canvas>
                             
                             <!-- Overlay con línea de escaneo -->
                             <div style="position: absolute; top: 0; left: 0; right: 0; bottom: 0; 
@@ -314,14 +336,30 @@ class BarcodeScanner {
 /**
  * Inicializar escaners cuando el DOM esté listo
  */
+console.log('[BarcodeScanner] Script cargado, esperando DOMContentLoaded...');
+
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('[BarcodeScanner] DOMContentLoaded disparado');
+    
     // Escanear para el campo de búsqueda general
     if (document.getElementById('search')) {
+        console.log('[BarcodeScanner] Inicializando scanner para campo "search"');
         new BarcodeScanner('search', 'btnScanSearch');
+    } else {
+        console.warn('[BarcodeScanner] Campo "search" no encontrado');
     }
 
     // Escanear para el campo de búsqueda por CNIS
     if (document.getElementById('search_cnis')) {
+        console.log('[BarcodeScanner] Inicializando scanner para campo "search_cnis"');
         new BarcodeScanner('search_cnis', 'btnScanCNIS');
     }
 });
+
+// Fallback si DOMContentLoaded ya se disparó
+if (document.readyState === 'loading') {
+    console.log('[BarcodeScanner] Documento aún cargando...');
+} else {
+    console.log('[BarcodeScanner] Documento ya cargado, inicializando directamente...');
+    document.dispatchEvent(new Event('DOMContentLoaded'));
+}

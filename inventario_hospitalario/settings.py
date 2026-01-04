@@ -89,6 +89,7 @@ TEMPLATES = [
 
 CSRF_TRUSTED_ORIGINS = [
     'https://saea98.ddns.net',
+    'https://inventarios.almacen.proyectosceib.com.mx/',
 ]
 
 # Indica que confíe en los encabezados que manda Nginx Proxy Manager
