@@ -24,23 +24,38 @@ def asignacion_rapida(request):
 @login_required
 @require_http_methods(["POST"])
 def api_buscar_lote(request):
-    """API para buscar lotes por número, clave CNIS o descripción"""
+    """API para buscar lotes por número de lote Y/O clave CNIS"""
     
     try:
         data = json.loads(request.body)
-        busqueda = data.get('busqueda', '').strip()
+        lote_busqueda = data.get('lote', '').strip()
+        cnis_busqueda = data.get('cnis', '').strip()
         
-        if len(busqueda) < 2:
-            return JsonResponse({'error': 'Ingresa al menos 2 caracteres'}, status=400)
+        # Compatibilidad con búsqueda antigua (campo 'busqueda')
+        busqueda_antigua = data.get('busqueda', '').strip()
+        if busqueda_antigua and not lote_busqueda and not cnis_busqueda:
+            lote_busqueda = busqueda_antigua
         
-        # Buscar en número de lote, clave CNIS o descripción del producto
-        lotes = Lote.objects.filter(
-            Q(numero_lote__icontains=busqueda) |
-            Q(producto__clave_cnis__icontains=busqueda) |
-            Q(producto__descripcion__icontains=busqueda)
-        ).select_related('producto').values(
+        # Necesita al menos 2 caracteres en alguno de los campos
+        if len(lote_busqueda) < 2 and len(cnis_busqueda) < 2:
+            return JsonResponse({'error': 'Ingresa al menos 2 caracteres en Lote o CNIS'}, status=400)
+        
+        # Construir filtro dinámico
+        filtro = Q()
+        
+        if len(lote_busqueda) >= 2:
+            filtro |= Q(numero_lote__icontains=lote_busqueda)
+        
+        if len(cnis_busqueda) >= 2:
+            filtro |= Q(producto__clave_cnis__icontains=cnis_busqueda)
+        
+        # Si ambos campos tienen búsqueda, hacer AND en lugar de OR
+        if len(lote_busqueda) >= 2 and len(cnis_busqueda) >= 2:
+            filtro = Q(numero_lote__icontains=lote_busqueda) & Q(producto__clave_cnis__icontains=cnis_busqueda)
+        
+        lotes = Lote.objects.filter(filtro).select_related('producto').values(
             'id', 'numero_lote', 'producto__clave_cnis', 'producto__descripcion', 'cantidad_disponible'
-        )[:15]
+        ).order_by('-id')[:15]
         
         return JsonResponse({
             'success': True,

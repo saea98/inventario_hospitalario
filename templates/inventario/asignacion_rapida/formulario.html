@@ -4,6 +4,11 @@
 {% block title %}Asignación Rápida de Ubicaciones{% endblock %}
 {% block page_title %}Asignación Rápida de Ubicaciones{% endblock %}
 
+{% block extra_css %}
+<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
+<link href="https://cdn.jsdelivr.net/npm/select2-bootstrap-5-theme@1.3.0/dist/select2-bootstrap-5-theme.min.css" rel="stylesheet" />
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid p-2 p-md-4">
     <!-- Formulario Principal -->
@@ -23,32 +28,37 @@
                     </select>
                 </div>
 
-                <!-- Búsqueda de Lote -->
-                <div class="mb-3">
-                    <label for="buscarLote" class="form-label fw-bold">🔍 Buscar Lote / CNIS</label>
-                    <div class="input-group input-group-lg">
-                        <input type="text" class="form-control" id="buscarLote" 
-                               placeholder="Número de lote, CNIS o descripción..." autocomplete="off">
-                        <button class="btn btn-primary" type="button" id="btnLimpiarBusqueda">
-                            <i class="fas fa-times"></i>
-                        </button>
+                <!-- Búsqueda de Lote y CNIS -->
+                <div class="row mb-3">
+                    <div class="col-md-6">
+                        <label for="buscarLote" class="form-label fw-bold">🔍 Número de Lote</label>
+                        <input type="text" class="form-control form-control-lg" id="buscarLote" 
+                               placeholder="Ej: 060.004" autocomplete="off">
                     </div>
-                    <div id="resultadosLotes" class="mt-2"></div>
+                    <div class="col-md-6">
+                        <label for="buscarCNIS" class="form-label fw-bold">🔍 CLAVE CNIS</label>
+                        <input type="text" class="form-control form-control-lg" id="buscarCNIS" 
+                               placeholder="Ej: 060.004" autocomplete="off">
+                    </div>
                 </div>
+
+                <!-- Resultados de búsqueda -->
+                <div id="resultadosLotes" class="mb-3"></div>
 
                 <!-- Lote Seleccionado -->
                 <div class="mb-3" id="loteSeleccionadoDiv" style="display: none;">
                     <div class="alert alert-info">
                         <strong>Lote:</strong> <span id="loteSeleccionadoNombre"></span><br>
                         <strong>CNIS:</strong> <span id="loteSeleccionadoCNIS"></span><br>
+                        <strong>Descripción:</strong> <span id="loteSeleccionadoDesc"></span><br>
                         <strong>Disponible:</strong> <span id="loteSeleccionadoCantidad"></span>
                     </div>
                 </div>
 
-                <!-- Ubicación -->
+                <!-- Ubicación con Select2 -->
                 <div class="mb-3">
-                    <label for="ubicacion" class="form-label fw-bold">📍 Ubicación</label>
-                    <select class="form-select form-select-lg" id="ubicacion" required disabled>
+                    <label for="ubicacion" class="form-label fw-bold">📍 Ubicación (Ej: C03.01.01)</label>
+                    <select class="form-select form-select-lg select2-ubicacion" id="ubicacion" required disabled>
                         <option value="">Selecciona ubicación...</option>
                     </select>
                 </div>
@@ -114,18 +124,32 @@
         border-left: 4px solid #0c5460;
     }
     
-    /* Animación de carga */
-    .spinner-border-sm {
-        width: 1rem;
-        height: 1rem;
+    /* Select2 customizado */
+    .select2-container--bootstrap-5 .select2-selection--single {
+        height: auto;
+        padding: 0.75rem 1rem;
+        font-size: 1.1rem;
+    }
+    
+    .select2-container--bootstrap-5 .select2-selection--single .select2-selection__rendered {
+        padding: 0;
+        line-height: 1.5;
+    }
+    
+    @media (max-width: 768px) {
+        .select2-container--bootstrap-5 .select2-selection--single {
+            min-height: 50px;
+        }
     }
 </style>
 
+<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
 document.addEventListener('DOMContentLoaded', function() {
     const formulario = document.getElementById('formularioAsignacion');
     const almacenSelect = document.getElementById('almacen');
     const buscarLoteInput = document.getElementById('buscarLote');
+    const buscarCNISInput = document.getElementById('buscarCNIS');
     const resultadosLotes = document.getElementById('resultadosLotes');
     const loteSeleccionadoDiv = document.getElementById('loteSeleccionadoDiv');
     const ubicacionSelect = document.getElementById('ubicacion');
@@ -135,20 +159,31 @@ document.addEventListener('DOMContentLoaded', function() {
     
     let loteSeleccionado = null;
     let asignacionesRecientes = [];
+    let timeoutBusqueda;
+    
+    // Inicializar Select2 para ubicaciones
+    $(ubicacionSelect).select2({
+        theme: 'bootstrap-5',
+        placeholder: 'Busca por código (C03.01.01)...',
+        allowClear: true,
+        language: {
+            noResults: function() {
+                return 'No hay ubicaciones disponibles';
+            }
+        }
+    });
     
     // Cargar ubicaciones cuando se selecciona almacén
     almacenSelect.addEventListener('change', function() {
         console.log('[AsignacionRapida] Almacén seleccionado:', this.value);
         
         if (!this.value) {
-            ubicacionSelect.disabled = true;
-            ubicacionSelect.innerHTML = '<option value="">Selecciona ubicación...</option>';
+            $(ubicacionSelect).prop('disabled', true).empty().append('<option value="">Selecciona ubicación...</option>').trigger('change');
             return;
         }
         
         // Mostrar cargando
-        ubicacionSelect.disabled = true;
-        ubicacionSelect.innerHTML = '<option value="">Cargando ubicaciones...</option>';
+        $(ubicacionSelect).prop('disabled', true).empty().append('<option value="">Cargando ubicaciones...</option>').trigger('change');
         
         fetch('{% url "api_obtener_ubicaciones" %}', {
             method: 'POST',
@@ -163,47 +198,48 @@ document.addEventListener('DOMContentLoaded', function() {
             console.log('[AsignacionRapida] Respuesta ubicaciones:', data);
             
             if (data.success) {
-                ubicacionSelect.disabled = false;
-                ubicacionSelect.innerHTML = '<option value="">Selecciona ubicación...</option>';
+                $(ubicacionSelect).prop('disabled', false).empty().append('<option value="">Selecciona ubicación...</option>');
                 
-                if (data.ubicaciones.length === 0) {
-                    ubicacionSelect.innerHTML += '<option value="">No hay ubicaciones disponibles</option>';
-                } else {
+                if (data.ubicaciones && data.ubicaciones.length > 0) {
                     data.ubicaciones.forEach(u => {
                         const option = document.createElement('option');
                         option.value = u.id;
-                        option.textContent = `${u.codigo} - ${u.descripcion}`;
+                        option.textContent = `${u.codigo} - ${u.descripcion || ''}`;
                         ubicacionSelect.appendChild(option);
                     });
+                    console.log('[AsignacionRapida] Ubicaciones cargadas:', data.ubicaciones.length);
+                } else {
+                    console.warn('[AsignacionRapida] No hay ubicaciones disponibles');
                 }
+                
+                $(ubicacionSelect).trigger('change');
             } else {
                 console.error('[AsignacionRapida] Error:', data.error);
                 alert('Error al cargar ubicaciones: ' + (data.error || 'Error desconocido'));
-                ubicacionSelect.disabled = true;
-                ubicacionSelect.innerHTML = '<option value="">Error al cargar</option>';
+                $(ubicacionSelect).prop('disabled', true).empty().append('<option value="">Error al cargar</option>').trigger('change');
             }
         })
         .catch(e => {
             console.error('[AsignacionRapida] Error en fetch:', e);
             alert('Error de conexión: ' + e.message);
-            ubicacionSelect.disabled = true;
-            ubicacionSelect.innerHTML = '<option value="">Error de conexión</option>';
+            $(ubicacionSelect).prop('disabled', true).empty().append('<option value="">Error de conexión</option>').trigger('change');
         });
     });
     
-    // Buscar lotes
-    let timeoutBusqueda;
-    buscarLoteInput.addEventListener('input', function() {
+    // Buscar lotes por Lote Y CNIS simultáneamente
+    function realizarBusqueda() {
         clearTimeout(timeoutBusqueda);
-        const busqueda = this.value.trim();
+        const busquedaLote = buscarLoteInput.value.trim();
+        const busquedaCNIS = buscarCNISInput.value.trim();
         
-        if (busqueda.length < 2) {
+        // Necesita al menos 2 caracteres en alguno de los campos
+        if (busquedaLote.length < 2 && busquedaCNIS.length < 2) {
             resultadosLotes.innerHTML = '';
             return;
         }
         
         timeoutBusqueda = setTimeout(() => {
-            console.log('[AsignacionRapida] Buscando:', busqueda);
+            console.log('[AsignacionRapida] Buscando - Lote:', busquedaLote, 'CNIS:', busquedaCNIS);
             
             fetch('{% url "api_buscar_lote" %}', {
                 method: 'POST',
@@ -211,7 +247,10 @@ document.addEventListener('DOMContentLoaded', function() {
                     'Content-Type': 'application/json',
                     'X-CSRFToken': document.querySelector('[name=csrfmiddlewaretoken]').value
                 },
-                body: JSON.stringify({ busqueda: busqueda })
+                body: JSON.stringify({ 
+                    lote: busquedaLote,
+                    cnis: busquedaCNIS
+                })
             })
             .then(r => r.json())
             .then(data => {
@@ -246,33 +285,28 @@ document.addEventListener('DOMContentLoaded', function() {
                 resultadosLotes.innerHTML = '<div class="alert alert-danger">Error de conexión</div>';
             });
         }, 300);
-    });
+    }
+    
+    // Event listeners para búsqueda
+    buscarLoteInput.addEventListener('input', realizarBusqueda);
+    buscarCNISInput.addEventListener('input', realizarBusqueda);
     
     function seleccionarLote(lote) {
         loteSeleccionado = lote;
         buscarLoteInput.value = lote.numero_lote;
+        buscarCNISInput.value = lote.producto__clave_cnis;
         resultadosLotes.innerHTML = '';
         
-        document.getElementById('loteSeleccionadoNombre').textContent = 
-            `${lote.numero_lote} - ${lote.producto__descripcion}`;
-        document.getElementById('loteSeleccionadoCNIS').textContent = 
-            lote.producto__clave_cnis;
-        document.getElementById('loteSeleccionadoCantidad').textContent = 
-            `${lote.cantidad_disponible} unidades`;
+        document.getElementById('loteSeleccionadoNombre').textContent = lote.numero_lote;
+        document.getElementById('loteSeleccionadoCNIS').textContent = lote.producto__clave_cnis;
+        document.getElementById('loteSeleccionadoDesc').textContent = lote.producto__descripcion;
+        document.getElementById('loteSeleccionadoCantidad').textContent = `${lote.cantidad_disponible} unidades`;
         
         loteSeleccionadoDiv.style.display = 'block';
         cantidadInput.max = lote.cantidad_disponible;
         cantidadInput.value = lote.cantidad_disponible;
-        ubicacionSelect.focus();
+        $(ubicacionSelect).focus();
     }
-    
-    // Limpiar búsqueda
-    document.getElementById('btnLimpiarBusqueda').addEventListener('click', function() {
-        buscarLoteInput.value = '';
-        resultadosLotes.innerHTML = '';
-        loteSeleccionado = null;
-        loteSeleccionadoDiv.style.display = 'none';
-    });
     
     // Guardar asignación
     formulario.addEventListener('submit', function(e) {
@@ -313,11 +347,12 @@ document.addEventListener('DOMContentLoaded', function() {
                 
                 // Limpiar formulario
                 buscarLoteInput.value = '';
+                buscarCNISInput.value = '';
                 resultadosLotes.innerHTML = '';
                 loteSeleccionado = null;
                 loteSeleccionadoDiv.style.display = 'none';
                 cantidadInput.value = '';
-                ubicacionSelect.value = '';
+                $(ubicacionSelect).val('').trigger('change');
                 buscarLoteInput.focus();
             } else {
                 mostrarNotificacion(data.error || 'Error al guardar', 'danger');
