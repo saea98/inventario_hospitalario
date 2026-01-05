@@ -336,22 +336,16 @@ document.addEventListener('DOMContentLoaded', function() {
         document.getElementById('loteSeleccionadoCNIS').textContent = lote.producto__clave_cnis;
         document.getElementById('loteSeleccionadoDesc').textContent = lote.producto__descripcion;
         
-        // Mostrar cantidad real disponible (total - ya asignado)
-        const cantidadDisponible = lote.cantidad_real_disponible || lote.cantidad_disponible;
-        const cantidadAsignada = lote.cantidad_asignada || 0;
-        let textoDisponible = cantidadDisponible + ' unidades disponibles';
-        if (cantidadAsignada > 0) {
-            textoDisponible += ` (Total: ${lote.cantidad_disponible}, Ya asignado: ${cantidadAsignada})`;
-        }
-        document.getElementById('loteSeleccionadoCantidad').textContent = textoDisponible;
+        // Mostrar cantidad total del lote (sin restricciones de validacion)
+        document.getElementById('loteSeleccionadoCantidad').textContent = lote.cantidad_disponible + ' unidades';
         
         loteSeleccionadoDiv.style.display = 'block';
-        cantidadInput.max = cantidadDisponible;
-        cantidadInput.value = cantidadDisponible;
-        cantidadInput.placeholder = `Máximo: ${cantidadDisponible}`;
+        cantidadInput.removeAttribute('max');
+        cantidadInput.value = '';
+        cantidadInput.placeholder = 'Ingresa la cantidad a asignar';
         $(ubicacionSelect).focus();
         
-        console.log('[AsignacionRapida] Lote seleccionado:', lote.numero_lote, 'Disponible:', cantidadDisponible);
+        console.log('[AsignacionRapida] Lote seleccionado:', lote.numero_lote, 'Total:', lote.cantidad_disponible);
     }
     
     // Guardar asignación

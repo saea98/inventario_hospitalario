@@ -122,17 +122,13 @@ def api_asignar_ubicacion(request):
         lote = Lote.objects.get(id=lote_id)
         ubicacion = UbicacionAlmacen.objects.get(id=ubicacion_id)
         
-        # Calcular cantidad realmente disponible (total - ya asignado en otras ubicaciones)
-        cantidad_asignada = LoteUbicacion.objects.filter(lote=lote).aggregate(
-            total=Sum('cantidad')
-        )['total'] or 0
-        cantidad_real_disponible = lote.cantidad_disponible - cantidad_asignada
+        # Procesar cantidad (sin validación restrictiva - se ajusta en conteo físico)
+        cantidad = int(cantidad) if cantidad else 0
         
-        # Validar cantidad
-        cantidad = int(cantidad) if cantidad else cantidad_real_disponible
-        if cantidad <= 0 or cantidad > cantidad_real_disponible:
+        # Validar que sea positiva
+        if cantidad <= 0:
             return JsonResponse({
-                'error': f'Cantidad inválida. Disponible: {max(0, cantidad_real_disponible)} (Total: {lote.cantidad_disponible}, Ya asignado: {cantidad_asignada})'
+                'error': 'La cantidad debe ser mayor a 0'
             }, status=400)
         
         # Crear o actualizar asignación
