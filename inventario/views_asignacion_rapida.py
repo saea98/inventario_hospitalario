@@ -135,11 +135,15 @@ def api_asignar_ubicacion(request):
         lote_ubicacion, created = LoteUbicacion.objects.get_or_create(
             lote=lote,
             ubicacion=ubicacion,
-            defaults={'cantidad': cantidad}
+            defaults={
+                'cantidad': cantidad,
+                'usuario_asignacion': request.user
+            }
         )
         
         if not created:
             lote_ubicacion.cantidad += cantidad
+            lote_ubicacion.usuario_asignacion = request.user
             lote_ubicacion.save()
         
         return JsonResponse({
