@@ -1,0 +1,157 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background-color: #F5F7FA; }
+        .slide-container {
+            width: 1280px;
+            min-height: 720px;
+            background-color: #F5F7FA;
+            padding: 60px 80px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            margin-bottom: 50px;
+            border-bottom: 2px solid #E0E0E0;
+            padding-bottom: 20px;
+        }
+        h2 {
+            font-size: 42px;
+            color: #1A3C34;
+            font-weight: 700;
+        }
+        .subtitle {
+            font-size: 18px;
+            color: #666;
+            font-weight: 500;
+        }
+        .process-wrapper {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 30px;
+            flex-grow: 1;
+            align-content: center;
+        }
+        .step-card {
+            background-color: white;
+            padding: 25px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            position: relative;
+            border-top: 5px solid #00BFA5;
+        }
+        .step-number {
+            position: absolute;
+            top: -20px;
+            left: 20px;
+            width: 40px;
+            height: 40px;
+            background-color: #1A3C34;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            font-size: 18px;
+            border: 3px solid white;
+        }
+        .step-icon {
+            font-size: 32px;
+            color: #00BFA5;
+            margin-bottom: 15px;
+            margin-top: 10px;
+        }
+        .step-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #1A3C34;
+            margin-bottom: 10px;
+        }
+        .step-desc {
+            font-size: 14px;
+            color: #666;
+            line-height: 1.4;
+        }
+        .arrow-next {
+            position: absolute;
+            right: -20px;
+            top: 50%;
+            transform: translateY(-50%);
+            color: #ccc;
+            font-size: 24px;
+            z-index: 1;
+        }
+        /* Ocultar flecha en el último de cada fila */
+        .step-card:nth-child(3) .arrow-next,
+        .step-card:nth-child(6) .arrow-next {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="header">
+            <h2>Las 6 Etapas del Proceso</h2>
+            <div class="subtitle">Flujo integral desde la llegada hasta la entrega</div>
+        </div>
+        
+        <div class="process-wrapper">
+            <!-- Fila 1 -->
+            <div class="step-card">
+                <div class="step-number">1</div>
+                <i class="fas fa-truck-loading step-icon"></i>
+                <div class="step-title">Recepción</div>
+                <div class="step-desc">Validación física contra factura y orden de compra. Inspección de calidad inicial.</div>
+                <i class="fas fa-chevron-right arrow-next"></i>
+            </div>
+            
+            <div class="step-card">
+                <div class="step-number">2</div>
+                <i class="fas fa-box-open step-icon"></i>
+                <div class="step-title">Carga e Ingreso</div>
+                <div class="step-desc">Registro en sistema, generación de etiquetas y alta de lotes con caducidad.</div>
+                <i class="fas fa-chevron-right arrow-next"></i>
+            </div>
+            
+            <div class="step-card">
+                <div class="step-number">3</div>
+                <i class="fas fa-map-marker-alt step-icon"></i>
+                <div class="step-title">Gestión de Ubicaciones</div>
+                <div class="step-desc">Asignación estratégica en racks (ABC) y control de almacenamiento.</div>
+            </div>
+            
+            <!-- Fila 2 -->
+            <div class="step-card">
+                <div class="step-number">4</div>
+                <i class="fas fa-clipboard-check step-icon"></i>
+                <div class="step-title">Conteo Físico</div>
+                <div class="step-desc">Auditorías cíclicas y validación de existencias para asegurar exactitud.</div>
+                <i class="fas fa-chevron-right arrow-next"></i>
+            </div>
+            
+            <div class="step-card">
+                <div class="step-number">5</div>
+                <i class="fas fa-dolly step-icon"></i>
+                <div class="step-title">Gestión de Salidas</div>
+                <div class="step-desc">Recepción de pedidos, picking validado y preparación de entregas.</div>
+                <i class="fas fa-chevron-right arrow-next"></i>
+            </div>
+            
+            <div class="step-card">
+                <div class="step-number">6</div>
+                <i class="fas fa-hand-holding-medical step-icon"></i>
+                <div class="step-title">Distribución</div>
+                <div class="step-desc">Entrega a áreas solicitantes con firma digital y cierre de ciclo.</div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

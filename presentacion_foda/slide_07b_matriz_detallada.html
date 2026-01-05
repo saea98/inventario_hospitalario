@@ -1,0 +1,282 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background-color: #F5F7FA; }
+        .slide-container {
+            width: 1280px;
+            min-height: 720px;
+            background-color: #F5F7FA;
+            padding: 60px 80px; /* mantener padding superior */
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            margin-bottom: 24px; /* antes 40 */
+            border-bottom: 2px solid #E0E0E0;
+            padding-bottom: 12px; /* antes 20 */
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+        h2 {
+            font-size: 42px;
+            color: #1A3C34;
+            font-weight: 700;
+        }
+        .subtitle {
+            font-size: 18px;
+            color: #666;
+            font-weight: 500;
+        }
+        .content-wrapper {
+            display: flex;
+            gap: 60px; /* separación horizontal */
+            flex-grow: 1;
+        }
+        .left-col {
+            width: 35%;
+            display: flex;
+            flex-direction: column;
+            gap: 12px; /* antes 20 */
+        }
+        .image-container {
+            width: 100%;
+            height: 220px; /* antes 300 */
+            background-color: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        .image-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .key-message {
+            background-color: #1A3C34;
+            color: white;
+            padding: 14px; /* antes 20 */
+            border-radius: 8px;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            /* eliminar crecimiento forzado */
+            flex: 0 0 auto;
+        }
+        .message-label {
+            font-size: 14px;
+            text-transform: uppercase;
+            color: #00BFA5;
+            margin-bottom: 6px; /* antes 10 */
+            font-weight: 700;
+        }
+        .message-text {
+            font-size: 18px;
+            line-height: 1.4;
+            font-weight: 600;
+        }
+        .right-col {
+            width: 65%;
+            display: flex;
+            flex-direction: column;
+            gap: 12px; /* antes 20 */
+        }
+        .kpi-section {
+            background-color: white;
+            border-radius: 8px;
+            padding: 10px; /* antes 15 */
+            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+            border-left: 4px solid;
+        }
+        .section-operational { border-left-color: #00BFA5; }
+        .section-efficiency { border-left-color: #FFC107; }
+        .section-strategic { border-left-color: #4CAF50; }
+        .section-header {
+            font-size: 16px;
+            font-weight: 700;
+            margin-bottom: 8px; /* antes 12 */
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .section-icon { font-size: 18px; }
+
+        /* Nueva disposición en dos columnas y sin fórmulas visibles */
+        .section-body {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            column-gap: 16px;
+            row-gap: 8px;
+        }
+        .kpi-item {
+            margin: 0; /* antes margin-bottom 10 */
+            padding: 0; /* antes padding-bottom 10 */
+            border: none; /* sin línea divisoria */
+            font-size: 13px;
+        }
+        .kpi-name {
+            font-weight: 600;
+            color: #1A3C34;
+            margin-bottom: 2px; /* antes 3 */
+        }
+        .kpi-formula { display: none; }
+        .kpi-meta-freq {
+            color: #555;
+            display: flex;
+            justify-content: space-between;
+        }
+        .meta-badge {
+            background-color: rgba(0, 191, 165, 0.1);
+            color: #00BFA5;
+            padding: 2px 8px;
+            border-radius: 12px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="header">
+            <h2>Matriz Detallada de KPIs</h2>
+            <div class="subtitle">Fórmulas y Responsables</div>
+        </div>
+        
+        <div class="content-wrapper">
+            <div class="left-col">
+                <div class="image-container">
+                    <img src="/home/ubuntu/upload/search_images/Ws8OIVGcvaGE.jpg" alt="Ejecución Operativa">
+                </div>
+                <div class="key-message">
+                    <div class="message-label">Enfoque de Medición</div>
+                    <div class="message-text">
+                        Indicadores con responsable, fórmula y frecuencia definidas.
+                    </div>
+                </div>
+            </div>
+            
+            <div class="right-col">
+                <!-- OPERACIONALES -->
+                <div class="kpi-section section-operational">
+                    <div class="section-header">
+                        <i class="fas fa-cogs section-icon"></i>
+                        Indicadores Operacionales
+                    </div>
+                    <div class="section-body">
+                        <div class="kpi-item" title="Fórmula: (1 - Σ|Sistema - Físico| / Σ Sistema) × 100">
+                            <div class="kpi-name">Exactitud de Inventario</div>
+                            <div class="kpi-meta-freq">
+                                <span>Meta: <strong>≥ 98%</strong></span>
+                                <span class="meta-badge">Mensual</span>
+                            </div>
+                        </div>
+                        <div class="kpi-item" title="Fórmula: (Items en Stock / Items Requeridos) × 100">
+                            <div class="kpi-name">Disponibilidad de Insumos</div>
+                            <div class="kpi-meta-freq">
+                                <span>Meta: <strong>≥ 95%</strong></span>
+                                <span class="meta-badge">Semanal</span>
+                            </div>
+                        </div>
+                        <div class="kpi-item" title="Fórmula: Fecha Entrega - Fecha Solicitud (días)">
+                            <div class="kpi-name">Tiempo del Ciclo de Salida</div>
+                            <div class="kpi-meta-freq">
+                                <span>Meta: <strong>≤ 2 días</strong></span>
+                                <span class="meta-badge">Por Salida</span>
+                            </div>
+                        </div>
+                        <div class="kpi-item" title="Fórmula: (Pedidos Completos / Pedidos Totales) × 100">
+                            <div class="kpi-name">Cumplimiento de Pedidos</div>
+                            <div class="kpi-meta-freq">
+                                <span>Meta: <strong>≥ 99%</strong></span>
+                                <span class="meta-badge">Diario</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- EFICIENCIA -->
+                <div class="kpi-section section-efficiency">
+                    <div class="section-header">
+                        <i class="fas fa-chart-line section-icon"></i>
+                        Indicadores de Eficiencia
+                    </div>
+                    <div class="section-body">
+                        <div class="kpi-item" title="Fórmula: Costo Total / Valor Promedio Inventario">
+                            <div class="kpi-name">Costo de Almacenamiento</div>
+                            <div class="kpi-meta-freq">
+                                <span>Meta: <strong>↓ 15% Anual</strong></span>
+                                <span class="meta-badge">Trimestral</span>
+                            </div>
+                        </div>
+                        <div class="kpi-item" title="Fórmula: (Items Devueltos / Items Entregados) × 100">
+                            <div class="kpi-name">Tasa de Devoluciones</div>
+                            <div class="kpi-meta-freq">
+                                <span>Meta: <strong>< 2%</strong></span>
+                                <span class="meta-badge">Mensual</span>
+                            </div>
+                        </div>
+                        <div class="kpi-item" title="Fórmula: (Espacio Ocupado / Espacio Total) × 100">
+                            <div class="kpi-name">Utilización del Espacio</div>
+                            <div class="kpi-meta-freq">
+                                <span>Meta: <strong>85%</strong></span>
+                                <span class="meta-badge">Mensual</span>
+                            </div>
+                        </div>
+                        <div class="kpi-item" title="Fórmula: Costo de Mercancía / Inventario Promedio">
+                            <div class="kpi-name">Rotación de Inventario</div>
+                            <div class="kpi-meta-freq">
+                                <span>Meta: <strong>> 6 veces/año</strong></span>
+                                <span class="meta-badge">Trimestral</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- ESTRATÉGICOS -->
+                <div class="kpi-section section-strategic">
+                    <div class="section-header">
+                        <i class="fas fa-star section-icon"></i>
+                        Indicadores Estratégicos
+                    </div>
+                    <div class="section-body">
+                        <div class="kpi-item" title="Fórmula: (Auditorías Exitosas / Auditorías Totales) × 100">
+                            <div class="kpi-name">Cumplimiento Normativo</div>
+                            <div class="kpi-meta-freq">
+                                <span>Meta: <strong>100%</strong></span>
+                                <span class="meta-badge">Por Auditoría</span>
+                            </div>
+                        </div>
+                        <div class="kpi-item" title="Fórmula: Calificación Promedio en Encuestas (escala 1-5)">
+                            <div class="kpi-name">Satisfacción de Áreas</div>
+                            <div class="kpi-meta-freq">
+                                <span>Meta: <strong>4.5 / 5</strong></span>
+                                <span class="meta-badge">Semestral</span>
+                            </div>
+                        </div>
+                        <div class="kpi-item" title="Fórmula: ((Ganancia - Inversión) / Inversión) × 100">
+                            <div class="kpi-name">ROI del Sistema</div>
+                            <div class="kpi-meta-freq">
+                                <span>Meta: <strong>> 150% (2 años)</strong></span>
+                                <span class="meta-badge">Anual</span>
+                            </div>
+                        </div>
+                        <div class="kpi-item" title="Fórmula: (Valor de Merma / Valor Total Inventario) × 100">
+                            <div class="kpi-name">Reducción de Mermas</div>
+                            <div class="kpi-meta-freq">
+                                <span>Meta: <strong>< 1%</strong></span>
+                                <span class="meta-badge">Mensual</span>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

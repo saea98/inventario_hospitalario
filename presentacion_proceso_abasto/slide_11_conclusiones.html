@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background-color: #F5F7FA; }
+        .slide-container {
+            width: 1280px;
+            min-height: 720px;
+            background-color: #1A3C34;
+            padding: 80px; /* mantener padding superior para consistencia del título */
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            color: white;
+        }
+        .bg-accent {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 40%;
+            height: 100%;
+            background-color: #00BFA5;
+            opacity: 0.1;
+            clip-path: polygon(20% 0, 100% 0, 100% 100%, 0% 100%);
+        }
+        .header {
+            margin-bottom: 30px; /* reducido de 50px a 30px */
+            position: relative;
+            z-index: 1;
+        }
+        h2 {
+            font-size: 48px;
+            color: white;
+            font-weight: 700;
+            margin-bottom: 10px;
+        }
+        .subtitle {
+            font-size: 24px;
+            color: #00BFA5;
+            font-weight: 400;
+        }
+        .content-wrapper {
+            display: flex;
+            gap: 60px;
+            flex-grow: 1;
+            position: relative;
+            z-index: 1;
+        }
+        .text-col {
+            width: 55%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            gap: 20px; /* reducido de 30px a 20px */
+        }
+        .conclusion-item {
+            display: flex;
+            gap: 20px;
+            align-items: flex-start;
+        }
+        .icon-box {
+            width: 60px;
+            height: 60px;
+            background-color: rgba(255, 255, 255, 0.1);
+            border-radius: 12px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+        }
+        .icon-box i {
+            font-size: 28px;
+            color: #00BFA5;
+        }
+        .item-content h3 {
+            font-size: 22px;
+            font-weight: 700;
+            margin-bottom: 8px;
+            color: white;
+        }
+        .item-content p {
+            font-size: 16px;
+            color: #E0E0E0;
+            line-height: 1.5;
+        }
+        .cta-box {
+            margin-top: 10px; /* reducido de 20px a 10px */
+            padding: 18px; /* reducido de 25px a 18px */
+            background-color: #00BFA5;
+            border-radius: 8px;
+            color: #1A3C34;
+        }
+        .cta-text {
+            font-size: 20px;
+            font-weight: 700;
+            text-align: center;
+        }
+        .image-col {
+            width: 45%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .image-container {
+            width: 100%;
+            height: 400px; /* mantiene imagen consistente pero ajusta el resto para encajar en 720px */
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.3);
+            border: 4px solid rgba(255, 255, 255, 0.1);
+        }
+        .image-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="bg-accent"></div>
+        
+        <div class="header">
+            <h2>El Proceso como Activo Institucional</h2>
+            <div class="subtitle">Más allá del software: Seguridad, Eficiencia y Control</div>
+        </div>
+        
+        <div class="content-wrapper">
+            <div class="text-col">
+                <div class="conclusion-item">
+                    <div class="icon-box"><i class="fas fa-heartbeat"></i></div>
+                    <div class="item-content">
+                        <h3>Seguridad del Paciente</h3>
+                        <p>El abasto oportuno y correcto no es solo logística, es la base de la atención médica de calidad.</p>
+                    </div>
+                </div>
+                
+                <div class="conclusion-item">
+                    <div class="icon-box"><i class="fas fa-chart-line"></i></div>
+                    <div class="item-content">
+                        <h3>Sostenibilidad Financiera</h3>
+                        <p>El control estricto reduce pérdidas, mermas y compras de pánico, optimizando el presupuesto institucional.</p>
+                    </div>
+                </div>
+                
+                <div class="conclusion-item">
+                    <div class="icon-box"><i class="fas fa-users-cog"></i></div>
+                    <div class="item-content">
+                        <h3>Cultura de Calidad</h3>
+                        <p>La estandarización profesionaliza la operación y reduce la dependencia del conocimiento tribal.</p>
+                    </div>
+                </div>
+                
+                <div class="cta-box">
+                    <div class="cta-text">
+                        "Proceder con la implementación para transformar el abasto en una ventaja estratégica."
+                    </div>
+                </div>
+            </div>
+            
+            <div class="image-col">
+                <div class="image-container">
+                    <img src="/home/ubuntu/upload/search_images/muMaAejxCORR.jpg" alt="Resiliencia en Cadena de Suministro">
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

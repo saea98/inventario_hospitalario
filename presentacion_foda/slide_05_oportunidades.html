@@ -1,0 +1,188 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background-color: #F5F7FA; }
+        .slide-container {
+            width: 1280px;
+            min-height: 720px;
+            background-color: #F5F7FA;
+            padding: 60px 80px 50px 80px; /* reduce bottom padding by 10px to fit exactly 720px */
+            position: relative;
+            overflow: hidden;
+        }
+        .header {
+            margin-bottom: 40px;
+            border-bottom: 2px solid #E0E0E0;
+            padding-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+        h2 {
+            font-size: 42px;
+            color: #1A3C34;
+            font-weight: 700;
+        }
+        .subtitle {
+            font-size: 18px;
+            color: #666;
+            font-weight: 500;
+        }
+        .content-wrapper {
+            display: flex;
+            gap: 60px;
+            height: 500px;
+        }
+        .opportunities-grid {
+            flex: 3;
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 20px;
+            align-content: start;
+        }
+        .opportunity-card {
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 4px solid #00BFA5;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            transition: transform 0.2s;
+        }
+        .opportunity-icon {
+            width: 40px;
+            height: 40px;
+            background-color: rgba(0, 191, 165, 0.1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #00BFA5;
+            font-size: 18px;
+            flex-shrink: 0;
+        }
+        .opportunity-text {
+            font-size: 16px;
+            color: #333;
+            font-weight: 600;
+            line-height: 1.3;
+        }
+        .right-column {
+            flex: 2;
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+        .image-container {
+            width: 100%;
+            height: 280px;
+            background-color: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .image-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+        }
+        .horizon-box {
+            background-color: #1A3C34;
+            color: white;
+            padding: 30px;
+            border-radius: 8px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .horizon-box::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 100px;
+            height: 100%;
+            background: linear-gradient(90deg, transparent, rgba(0,191,165,0.1));
+        }
+        .horizon-label {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: #00BFA5;
+            margin-bottom: 10px;
+            font-weight: 600;
+        }
+        .horizon-text {
+            font-size: 22px;
+            font-weight: 300;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="header">
+            <h2>Potencial de Expansión</h2>
+            <div class="subtitle">Oportunidades de Mejora</div>
+        </div>
+        
+        <div class="content-wrapper">
+            <div class="opportunities-grid">
+                <div class="opportunity-card">
+                    <div class="opportunity-icon"><i class="fas fa-network-wired"></i></div>
+                    <div class="opportunity-text">Integración EDI con Proveedores</div>
+                </div>
+                <div class="opportunity-card">
+                    <div class="opportunity-icon"><i class="fas fa-brain"></i></div>
+                    <div class="opportunity-text">Predicción de Demanda (ML)</div>
+                </div>
+                <div class="opportunity-card">
+                    <div class="opportunity-icon"><i class="fas fa-robot"></i></div>
+                    <div class="opportunity-text">Automatización de Picking</div>
+                </div>
+                <div class="opportunity-card">
+                    <div class="opportunity-icon"><i class="fas fa-chart-line"></i></div>
+                    <div class="opportunity-text">Análisis Predictivo Avanzado</div>
+                </div>
+                <div class="opportunity-card">
+                    <div class="opportunity-icon"><i class="fas fa-coins"></i></div>
+                    <div class="opportunity-text">Integración Financiera Total</div>
+                </div>
+                <div class="opportunity-card">
+                    <div class="opportunity-icon"><i class="fas fa-expand-arrows-alt"></i></div>
+                    <div class="opportunity-text">Expansión a Otras Áreas</div>
+                </div>
+                <div class="opportunity-card">
+                    <div class="opportunity-icon"><i class="fas fa-certificate"></i></div>
+                    <div class="opportunity-text">Certificación ISO / COFEPRIS</div>
+                </div>
+            </div>
+            
+            <div class="right-column">
+                <div class="image-container">
+                    <img src="/home/ubuntu/upload/search_images/RGLlz1k79CeU.jpg" alt="Futuro del Inventario">
+                </div>
+                <div class="horizon-box">
+                    <div class="horizon-label">Visión Estratégica</div>
+                    <div class="horizon-text">
+                        Transformación digital completa del abasto hospitalario hacia un modelo predictivo y automatizado.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

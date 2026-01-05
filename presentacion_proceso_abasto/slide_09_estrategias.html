@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background-color: #F5F7FA; }
+        .slide-container {
+            width: 1280px;
+            min-height: 720px;
+            background-color: #F5F7FA;
+            padding: 60px 80px; /* No se reduce el padding superior del título */
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            margin-bottom: 18px; /* antes: 30px (-12px) */
+            border-bottom: 2px solid #E0E0E0;
+            padding-bottom: 12px; /* antes: 20px (-8px) */
+        }
+        h2 {
+            font-size: 42px;
+            color: #1A3C34;
+            font-weight: 700;
+        }
+        .subtitle {
+            font-size: 18px;
+            color: #666;
+            font-weight: 500;
+        }
+        .matrix-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            grid-template-rows: auto auto; /* antes: 1fr 1fr (evita estirar filas) */
+            gap: 12px; /* antes: 20px (-8px) */
+            /* se elimina flex-grow para evitar que el grid se estire verticalmente */
+        }
+        .strategy-card {
+            background-color: white;
+            padding: 17px; /* antes: 25px (-8px arriba y -8px abajo) */
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            display: flex;
+            flex-direction: column;
+            border-top: 4px solid; /* antes: 6px (-2px) */
+        }
+        .card-fo { border-top-color: #00BFA5; } /* Teal - Growth */
+        .card-do { border-top-color: #FFC107; } /* Amber - Improvement */
+        .card-fa { border-top-color: #1A3C34; } /* Dark Green - Protection */
+        .card-da { border-top-color: #D32F2F; } /* Red - Mitigation */
+        
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px; /* antes: 15px (-5px) */
+            padding-bottom: 8px; /* antes: 10px (-2px) */
+            border-bottom: 1px solid #eee;
+        }
+        .card-title {
+            font-size: 20px;
+            font-weight: 700;
+            color: #333;
+        }
+        .card-type {
+            font-size: 12px;
+            font-weight: 700;
+            text-transform: uppercase;
+            padding: 4px 8px;
+            border-radius: 4px;
+        }
+        .type-fo { background-color: #E0F2F1; color: #00695C; }
+        .type-do { background-color: #FFF8E1; color: #FF8F00; }
+        .type-fa { background-color: #E8F5E9; color: #2E7D32; }
+        .type-da { background-color: #FFEBEE; color: #C62828; }
+        
+        .strategy-list {
+            list-style: none;
+            display: flex;
+            flex-direction: column;
+            gap: 10px; /* antes: 12px (-2px por espacio, -4px por lista) */
+        }
+        .strategy-item {
+            display: flex;
+            gap: 10px;
+            font-size: 14px; /* no se reduce tamaño de fuente */
+            color: #555;
+            line-height: 1.4;
+        }
+        .strategy-item i {
+            margin-top: 2px; /* antes: 3px (-1px) para alineación sin afectar texto */
+            font-size: 14px;
+        }
+        .icon-fo { color: #00BFA5; }
+        .icon-do { color: #FFC107; }
+        .icon-fa { color: #1A3C34; }
+        .icon-da { color: #D32F2F; }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="header">
+            <h2>Estrategias de Implementación</h2>
+            <div class="subtitle">Matriz de acción derivada del análisis FODA</div>
+        </div>
+        
+        <div class="matrix-grid">
+            <!-- FO: Ofensivas -->
+            <div class="strategy-card card-fo">
+                <div class="card-header">
+                    <div class="card-title">Estrategias Ofensivas (FO)</div>
+                    <div class="card-type type-fo">Fortalezas + Oportunidades</div>
+                </div>
+                <ul class="strategy-list">
+                    <li class="strategy-item">
+                        <i class="fas fa-check-circle icon-fo"></i>
+                        <span>Usar la <strong>trazabilidad completa</strong> para obtener certificaciones ISO/COFEPRIS y elevar el estándar institucional.</span>
+                    </li>
+                    <li class="strategy-item">
+                        <i class="fas fa-check-circle icon-fo"></i>
+                        <span>Aprovechar la <strong>escalabilidad del sistema</strong> para replicar el modelo en otros almacenes de la red.</span>
+                    </li>
+                    <li class="strategy-item">
+                        <i class="fas fa-check-circle icon-fo"></i>
+                        <span>Utilizar la <strong>automatización</strong> actual como base para implementar Machine Learning y análisis predictivo.</span>
+                    </li>
+                </ul>
+            </div>
+            
+            <!-- DO: Reorientación -->
+            <div class="strategy-card card-do">
+                <div class="card-header">
+                    <div class="card-title">Estrategias de Reorientación (DO)</div>
+                    <div class="card-type type-do">Debilidades + Oportunidades</div>
+                </div>
+                <ul class="strategy-list">
+                    <li class="strategy-item">
+                        <i class="fas fa-sync-alt icon-do"></i>
+                        <span>Acelerar la generación de <strong>datos históricos</strong> para habilitar herramientas de análisis predictivo.</span>
+                    </li>
+                    <li class="strategy-item">
+                        <i class="fas fa-sync-alt icon-do"></i>
+                        <span>Superar la <strong>resistencia al cambio</strong> demostrando mejoras tangibles en el nivel de servicio a las áreas usuarias.</span>
+                    </li>
+                    <li class="strategy-item">
+                        <i class="fas fa-sync-alt icon-do"></i>
+                        <span>Resolver la complejidad de <strong>integración</strong> para lograr una optimización real de recursos financieros.</span>
+                    </li>
+                </ul>
+            </div>
+            
+            <!-- FA: Defensivas -->
+            <div class="strategy-card card-fa">
+                <div class="card-header">
+                    <div class="card-title">Estrategias Defensivas (FA)</div>
+                    <div class="card-type type-fa">Fortalezas + Amenazas</div>
+                </div>
+                <ul class="strategy-list">
+                    <li class="strategy-item">
+                        <i class="fas fa-shield-alt icon-fa"></i>
+                        <span>Fortalecer el uso de <strong>firmas digitales</strong> y validaciones para mitigar riesgos de ciberseguridad y accesos no autorizados.</span>
+                    </li>
+                    <li class="strategy-item">
+                        <i class="fas fa-shield-alt icon-fa"></i>
+                        <span>Utilizar <strong>manuales de procedimientos (POEs)</strong> para reducir el impacto operativo ante la rotación de personal.</span>
+                    </li>
+                    <li class="strategy-item">
+                        <i class="fas fa-shield-alt icon-fa"></i>
+                        <span>Aprovechar el <strong>diseño modular</strong> para adaptarse ágilmente a cambios regulatorios sin reingeniería.</span>
+                    </li>
+                </ul>
+            </div>
+            
+            <!-- DA: Supervivencia -->
+            <div class="strategy-card card-da">
+                <div class="card-header">
+                    <div class="card-title">Estrategias de Supervivencia (DA)</div>
+                    <div class="card-type type-da">Debilidades + Amenazas</div>
+                </div>
+                <ul class="strategy-list">
+                    <li class="strategy-item">
+                        <i class="fas fa-exclamation-triangle icon-da"></i>
+                        <span>Implementar programas de <strong>capacitación intensiva</strong> y continua para mitigar los efectos de la rotación de personal.</span>
+                    </li>
+                    <li class="strategy-item">
+                        <i class="fas fa-exclamation-triangle icon-da"></i>
+                        <span>Fortalecer la <strong>infraestructura IT</strong> y planes de contingencia ante riesgos críticos de ciberseguridad.</span>
+                    </li>
+                    <li class="strategy-item">
+                        <i class="fas fa-exclamation-triangle icon-da"></i>
+                        <span>Establecer un plan de <strong>actualización continua</strong> para evitar la obsolescencia tecnológica prematura.</span>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

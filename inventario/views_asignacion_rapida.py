@@ -21,6 +21,8 @@ def asignacion_rapida(request):
     return render(request, 'inventario/asignacion_rapida/formulario.html', context)
 
 
+from django.db.models import Sum, F
+
 @login_required
 @require_http_methods(["POST"])
 def api_buscar_lote(request):
@@ -57,9 +59,20 @@ def api_buscar_lote(request):
             'id', 'numero_lote', 'producto__clave_cnis', 'producto__descripcion', 'cantidad_disponible'
         ).order_by('-id')[:15]
         
+        # Calcular cantidad realmente disponible (total - ya asignado)
+        lotes_con_disponible = []
+        for lote in lotes:
+            cantidad_asignada = LoteUbicacion.objects.filter(lote_id=lote['id']).aggregate(
+                total=Sum('cantidad')
+            )['total'] or 0
+            cantidad_real_disponible = lote['cantidad_disponible'] - cantidad_asignada
+            lote['cantidad_real_disponible'] = max(0, cantidad_real_disponible)
+            lote['cantidad_asignada'] = cantidad_asignada
+            lotes_con_disponible.append(lote)
+        
         return JsonResponse({
             'success': True,
-            'lotes': list(lotes)
+            'lotes': lotes_con_disponible
         })
     
     except Exception as e:
@@ -109,11 +122,17 @@ def api_asignar_ubicacion(request):
         lote = Lote.objects.get(id=lote_id)
         ubicacion = UbicacionAlmacen.objects.get(id=ubicacion_id)
         
+        # Calcular cantidad realmente disponible (total - ya asignado en otras ubicaciones)
+        cantidad_asignada = LoteUbicacion.objects.filter(lote=lote).aggregate(
+            total=Sum('cantidad')
+        )['total'] or 0
+        cantidad_real_disponible = lote.cantidad_disponible - cantidad_asignada
+        
         # Validar cantidad
-        cantidad = int(cantidad) if cantidad else lote.cantidad_disponible
-        if cantidad <= 0 or cantidad > lote.cantidad_disponible:
+        cantidad = int(cantidad) if cantidad else cantidad_real_disponible
+        if cantidad <= 0 or cantidad > cantidad_real_disponible:
             return JsonResponse({
-                'error': f'Cantidad inválida. Disponible: {lote.cantidad_disponible}'
+                'error': f'Cantidad inválida. Disponible: {max(0, cantidad_real_disponible)} (Total: {lote.cantidad_disponible}, Ya asignado: {cantidad_asignada})'
             }, status=400)
         
         # Crear o actualizar asignación

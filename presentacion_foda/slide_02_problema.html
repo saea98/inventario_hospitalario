@@ -1,0 +1,182 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background-color: #F5F7FA; }
+        .slide-container {
+            width: 1280px;
+            min-height: 720px;
+            background-color: #F5F7FA;
+            padding: 60px 80px;
+            position: relative;
+            overflow: hidden;
+        }
+        .header {
+            margin-bottom: 30px; /* reducido de 50px para ajustar la altura total */
+            border-bottom: 2px solid #E0E0E0;
+            padding-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+        h2 {
+            font-size: 42px;
+            color: #1A3C34;
+            font-weight: 700;
+        }
+        .subtitle {
+            font-size: 18px;
+            color: #666;
+            font-weight: 500;
+        }
+        .content-grid {
+            display: grid;
+            grid-template-columns: 400px 1fr;
+            gap: 60px;
+            height: 500px;
+        }
+        .image-container {
+            width: 100%;
+            height: 284px; /* reducido de 300px para que la columna izquierda encaje en 500px */
+            background-color: #fff;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            margin-bottom: 30px;
+        }
+        .image-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .context-box {
+            background-color: #1A3C34;
+            color: white;
+            padding: 25px;
+            border-radius: 8px;
+        }
+        .context-title {
+            font-size: 16px;
+            font-weight: 600;
+            color: #00BFA5;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+        }
+        .context-text {
+            font-size: 18px;
+            line-height: 1.5;
+        }
+        .challenges-list {
+            display: flex;
+            flex-direction: column;
+            gap: 25px;
+        }
+        .challenge-item {
+            display: flex;
+            align-items: flex-start;
+            gap: 20px;
+        }
+        .icon-box {
+            width: 50px;
+            height: 50px;
+            background-color: rgba(26, 60, 52, 0.1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+            color: #1A3C34;
+            font-size: 20px;
+        }
+        .challenge-content h3 {
+            font-size: 22px;
+            color: #333;
+            margin-bottom: 5px;
+            font-weight: 600;
+        }
+        .challenge-content p {
+            font-size: 18px;
+            color: #666;
+            line-height: 1.4;
+        }
+        .impact-alert {
+            margin-top: 30px;
+            background-color: rgba(220, 53, 69, 0.1);
+            border-left: 4px solid #dc3545;
+            padding: 20px;
+            border-radius: 0 8px 8px 0;
+        }
+        .impact-title {
+            color: #dc3545;
+            font-weight: 700;
+            font-size: 18px;
+            margin-bottom: 5px;
+        }
+        .impact-text {
+            color: #333;
+            font-size: 18px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="header">
+            <h2>Desafíos Actuales</h2>
+            <div class="subtitle">Situación Actual - El Problema</div>
+        </div>
+        
+        <div class="content-grid">
+            <div class="left-col">
+                <div class="image-container">
+                    <img src="/home/ubuntu/upload/search_images/n4kWhu9TPnY6.jpg" alt="Desafíos de Inventario">
+                </div>
+                <div class="context-box">
+                    <div class="context-title">Contexto Crítico</div>
+                    <div class="context-text">
+                        El control de abasto es fundamental para garantizar la disponibilidad de medicamentos y el cumplimiento de los objetivos institucionales de salud.
+                    </div>
+                </div>
+            </div>
+            
+            <div class="right-col">
+                <div class="challenges-list">
+                    <div class="challenge-item">
+                        <div class="icon-box"><i class="fas fa-eye-slash"></i></div>
+                        <div class="challenge-content">
+                            <h3>Falta de Visibilidad</h3>
+                            <p>Sin control en tiempo real del inventario, dificultando la toma de decisiones informadas.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="challenge-item">
+                        <div class="icon-box"><i class="fas fa-file-excel"></i></div>
+                        <div class="challenge-content">
+                            <h3>Procesos Manuales</h3>
+                            <p>Alta dependencia de registros en papel o Excel, generando duplicidad y errores humanos.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="challenge-item">
+                        <div class="icon-box"><i class="fas fa-search-location"></i></div>
+                        <div class="challenge-content">
+                            <h3>Auditoría Limitada</h3>
+                            <p>Dificultad para rastrear movimientos históricos y asignar responsabilidades claras.</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div class="impact-alert">
+                    <div class="impact-title">IMPACTO NEGATIVO</div>
+                    <div class="impact-text">
+                        Faltantes de medicamentos críticos, costos operativos ocultos e incumplimiento de normativas de salud.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

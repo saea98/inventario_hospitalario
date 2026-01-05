@@ -1,0 +1,197 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background-color: #F5F7FA; }
+        .slide-container {
+            width: 1280px;
+            min-height: 720px;
+            background-color: #F5F7FA;
+            padding: 60px 80px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            margin-bottom: 30px;
+            border-bottom: 2px solid #E0E0E0;
+            padding-bottom: 10px;
+        }
+        h2 {
+            font-size: 42px;
+            color: #1A3C34;
+            font-weight: 700;
+        }
+        .subtitle {
+            font-size: 18px;
+            color: #666;
+            font-weight: 500;
+        }
+        .content-wrapper {
+            display: flex;
+            gap: 50px;
+            flex-grow: 1;
+        }
+        .left-col {
+            width: 35%;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .image-container {
+            width: 100%;
+            height: 300px;
+            background-color: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+            position: relative;
+        }
+        .image-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .insight-box {
+            background-color: #FFF3E0;
+            padding: 20px;
+            border-radius: 8px;
+            border-left: 5px solid #FF9800;
+            color: #E65100;
+        }
+        .insight-title {
+            font-weight: 700;
+            margin-bottom: 10px;
+            font-size: 16px;
+            text-transform: uppercase;
+        }
+        .insight-text {
+            font-size: 15px;
+            line-height: 1.4;
+        }
+        .right-col {
+            width: 65%;
+            display: flex;
+            flex-direction: column;
+            gap: 10px; /* reduced from 11 to save 4px total across gaps */
+        }
+        .challenge-item {
+            background-color: white;
+            padding: 10px 25px; /* reduced vertical padding from 12 to 10 to save 10px total across 5 items */
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+            display: flex;
+            align-items: flex-start;
+            gap: 20px;
+            transition: transform 0.2s;
+        }
+        .challenge-icon-box {
+            width: 50px;
+            height: 50px;
+            background-color: #F5F7FA;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .challenge-icon {
+            font-size: 20px;
+            color: #546E7A;
+        }
+        .challenge-content {
+            flex-grow: 1;
+        }
+        .challenge-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1A3C34;
+            margin-bottom: 5px;
+        }
+        .challenge-desc {
+            font-size: 14px;
+            color: #666;
+            line-height: 1.4;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="header">
+            <h2>Desafíos Operacionales</h2>
+            <div class="subtitle">Factores internos a gestionar durante la implementación</div>
+        </div>
+        
+        <div class="content-wrapper">
+            <div class="left-col">
+                <div class="image-container">
+                    <img src="/home/ubuntu/upload/search_images/W4rRgeVDV8Iu.jpeg" alt="Complejidad de Almacén">
+                </div>
+                <div class="insight-box">
+                    <div class="insight-title">Enfoque de Gestión</div>
+                    <div class="insight-text">
+                        Estos desafíos no son fallas del sistema, sino condiciones inherentes a la transformación digital que requieren gestión activa del cambio.
+                    </div>
+                </div>
+            </div>
+            
+            <div class="right-col">
+                <div class="challenge-item">
+                    <div class="challenge-icon-box">
+                        <i class="fas fa-users challenge-icon"></i>
+                    </div>
+                    <div class="challenge-content">
+                        <div class="challenge-title">Factores Humanos</div>
+                        <div class="challenge-desc">Resistencia al cambio de procesos manuales a digitales y curva de aprendizaje inicial del personal operativo.</div>
+                    </div>
+                </div>
+                
+                <div class="challenge-item">
+                    <div class="challenge-icon-box">
+                        <i class="fas fa-network-wired challenge-icon"></i>
+                    </div>
+                    <div class="challenge-content">
+                        <div class="challenge-title">Infraestructura Tecnológica</div>
+                        <div class="challenge-desc">Dependencia crítica de la estabilidad de la red, servidores y conectividad para la operación en tiempo real.</div>
+                    </div>
+                </div>
+                
+                <div class="challenge-item">
+                    <div class="challenge-icon-box">
+                        <i class="fas fa-database challenge-icon"></i>
+                    </div>
+                    <div class="challenge-content">
+                        <div class="challenge-title">Datos e Información</div>
+                        <div class="challenge-desc">Ausencia inicial de datos históricos para comparativas inmediatas; se requiere tiempo de maduración.</div>
+                    </div>
+                </div>
+                
+                <div class="challenge-item">
+                    <div class="challenge-icon-box">
+                        <i class="fas fa-plug challenge-icon"></i>
+                    </div>
+                    <div class="challenge-content">
+                        <div class="challenge-title">Integración de Sistemas</div>
+                        <div class="challenge-desc">Complejidad técnica para sincronizar con sistemas legados de Finanzas y Compras sin interrumpir la operación.</div>
+                    </div>
+                </div>
+                
+                <div class="challenge-item">
+                    <div class="challenge-icon-box">
+                        <i class="fas fa-balance-scale challenge-icon"></i>
+                    </div>
+                    <div class="challenge-content">
+                        <div class="challenge-title">Rigor vs. Velocidad</div>
+                        <div class="challenge-desc">Percepción inicial de "lentitud" debido a las múltiples validaciones de seguridad que reemplazan la informalidad rápida.</div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

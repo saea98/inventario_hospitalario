@@ -1,0 +1,238 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background-color: #F5F7FA; }
+        .slide-container {
+            width: 1280px;
+            min-height: 720px;
+            background-color: #F5F7FA;
+            padding: 60px 80px; /* mantener padding superior consistente */
+            position: relative;
+            overflow: hidden;
+        }
+        .header {
+            margin-bottom: 40px; /* mantenemos la separación bajo el título */
+            border-bottom: 2px solid #E0E0E0;
+            padding-bottom: 10px; /* reducido de 20px a 10px para ahorrar 10px de alto total */
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+        h2 {
+            font-size: 42px;
+            color: #1A3C34;
+            font-weight: 700;
+        }
+        .subtitle {
+            font-size: 18px;
+            color: #666;
+            font-weight: 500;
+        }
+        .content-wrapper {
+            display: grid;
+            grid-template-columns: 400px 1fr;
+            gap: 60px;
+            height: 500px; /* contenedor fijo: ajustamos columnas a 500px exactos */
+        }
+        .visual-column {
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+        .image-container {
+            width: 100%;
+            height: 340px; /* reducido de 350px a 340px para que la columna visual sea 500px (340 + 30 + ~130) */
+            background-color: white;
+            overflow: hidden;
+            position: relative;
+        }
+        .image-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .image-overlay {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            width: 100%;
+            background: rgba(26, 60, 52, 0.9);
+            padding: 15px;
+            color: white;
+        }
+        .overlay-text {
+            font-size: 14px;
+            font-weight: 500;
+        }
+        .strategy-box {
+            background-color: #1A3C34;
+            color: white;
+            padding: 25px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            border-left: 5px solid #00BFA5;
+        }
+        .strategy-label {
+            font-size: 14px;
+            text-transform: uppercase;
+            color: #00BFA5;
+            margin-bottom: 8px;
+            font-weight: 700;
+        }
+        .strategy-text {
+            font-size: 20px;
+            line-height: 1.4;
+            font-weight: 600;
+        }
+        .text-column {
+            display: flex;
+            flex-direction: column;
+            gap: 30px; /* reducido de 40px a 30px para ajustar la columna de texto a 500px */
+        }
+        .section-title {
+            font-size: 24px;
+            color: #1A3C34;
+            margin-bottom: 20px;
+            font-weight: 700;
+            display: flex;
+            align-items: center;
+            gap: 15px;
+        }
+        .section-title i {
+            color: #00BFA5;
+        }
+        .weakness-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+        }
+        .item-card {
+            background-color: white;
+            padding: 20px;
+            border-left: 3px solid #E0E0E0;
+        }
+        .item-card.warning {
+            border-left-color: #FFC107;
+        }
+        .item-card.success {
+            border-left-color: #00BFA5;
+        }
+        .item-title {
+            font-size: 18px;
+            font-weight: 600;
+            color: #333;
+            margin-bottom: 8px;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .item-desc {
+            font-size: 15px;
+            color: #666;
+            line-height: 1.4;
+        }
+        .mitigation-list {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .mitigation-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            font-size: 18px;
+            color: #333;
+            background-color: white;
+            padding: 15px;
+        }
+        .mitigation-icon {
+            color: #00BFA5;
+            font-size: 20px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="header">
+            <h2>Factores Críticos a Gestionar</h2>
+            <div class="subtitle">Debilidades y Riesgos</div>
+        </div>
+        
+        <div class="content-wrapper">
+            <div class="visual-column">
+                <div class="image-container">
+                    <img src="/home/ubuntu/upload/search_images/W4rRgeVDV8Iu.jpeg" alt="Almacén Complejo">
+                    <div class="image-overlay">
+                        <div class="overlay-text">Gestión de complejidad operativa</div>
+                    </div>
+                </div>
+                <div class="strategy-box">
+                    <div class="strategy-label">Estrategia Central</div>
+                    <div class="strategy-text">Gestión activa de cambio y soporte continuo para mitigar riesgos.</div>
+                </div>
+            </div>
+            
+            <div class="text-column">
+                <!-- Debilidades -->
+                <div>
+                    <div class="section-title">
+                        <i class="fas fa-exclamation-triangle" style="color: #FFC107;"></i>
+                        Debilidades Identificadas
+                    </div>
+                    <div class="weakness-grid">
+                        <div class="item-card warning">
+                            <div class="item-title">Adopción de Usuarios</div>
+                            <div class="item-desc">Resistencia al cambio de procesos manuales a digitales.</div>
+                        </div>
+                        <div class="item-card warning">
+                            <div class="item-title">Dependencia IT</div>
+                            <div class="item-desc">Necesidad crítica de infraestructura estable y conectividad.</div>
+                        </div>
+                        <div class="item-card warning">
+                            <div class="item-title">Datos Históricos</div>
+                            <div class="item-desc">Ausencia de baseline inicial para comparativas inmediatas.</div>
+                        </div>
+                        <div class="item-card warning">
+                            <div class="item-title">Integración</div>
+                            <div class="item-desc">Sincronización compleja con sistemas legados existentes.</div>
+                        </div>
+                    </div>
+                </div>
+                
+                <!-- Mitigación -->
+                <div>
+                    <div class="section-title">
+                        <i class="fas fa-shield-alt"></i>
+                        Plan de Mitigación
+                    </div>
+                    <div class="mitigation-list">
+                        <div class="mitigation-item">
+                            <i class="fas fa-check-circle mitigation-icon"></i>
+                            <span>Capacitación Integral</span>
+                        </div>
+                        <div class="mitigation-item">
+                            <i class="fas fa-headset mitigation-icon"></i>
+                            <span>Soporte Técnico 24/7</span>
+                        </div>
+                        <div class="mitigation-item">
+                            <i class="fas fa-clipboard-check mitigation-icon"></i>
+                            <span>Auditorías Periódicas</span>
+                        </div>
+                        <div class="mitigation-item">
+                            <i class="fas fa-server mitigation-icon"></i>
+                            <span>Protocolos de Respaldo</span>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

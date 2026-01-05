@@ -1,0 +1,105 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background-color: #F5F7FA; }
+        .slide-container {
+            width: 1280px;
+            min-height: 720px;
+            background-color: #F5F7FA;
+            padding: 80px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .bg-shape-1 {
+            position: absolute;
+            top: 0;
+            right: 0;
+            width: 600px;
+            height: 100%;
+            background-color: #1A3C34;
+            clip-path: polygon(20% 0, 100% 0, 100% 100%, 0% 100%);
+            z-index: 0;
+        }
+        .bg-shape-2 {
+            position: absolute;
+            top: 0;
+            right: 480px;
+            width: 100px;
+            height: 100%;
+            background-color: #00BFA5;
+            opacity: 0.2;
+            transform: skewX(-12deg);
+            z-index: 0;
+        }
+        .content {
+            position: relative;
+            z-index: 1;
+            max-width: 700px;
+        }
+        .institution {
+            font-size: 24px;
+            color: #00BFA5;
+            font-weight: 700;
+            margin-bottom: 20px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        h1 {
+            font-size: 64px;
+            color: #1A3C34;
+            font-weight: 700;
+            line-height: 1.1;
+            margin-bottom: 30px;
+        }
+        .subtitle {
+            font-size: 32px;
+            color: #555;
+            font-weight: 300;
+            margin-bottom: 60px;
+            border-left: 4px solid #00BFA5;
+            padding-left: 20px;
+        }
+        .footer {
+            font-size: 18px;
+            color: #666;
+            display: flex;
+            gap: 40px;
+        }
+        .footer-item {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .dot {
+            width: 8px;
+            height: 8px;
+            background-color: #00BFA5;
+            border-radius: 50%;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="bg-shape-2"></div>
+        <div class="bg-shape-1"></div>
+        
+        <div class="content">
+            <div class="institution">IMSS Bienestar</div>
+            <h1>Proceso Integral de Control de Abasto</h1>
+            <div class="subtitle">Estandarización, Trazabilidad y Eficiencia Operativa</div>
+            
+            <div class="footer">
+                <div class="footer-item"><div class="dot"></div>Departamento de Control de Abasto</div>
+                <div class="footer-item"><div class="dot"></div>Enero 2026</div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

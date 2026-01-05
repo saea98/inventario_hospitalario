@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background-color: #F5F7FA; }
+        .slide-container {
+            width: 1280px;
+            min-height: 720px;
+            background-color: #F5F7FA;
+            /* Mantener padding superior de 60px para la consistencia del título */
+            padding: 60px 80px 40px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            margin-bottom: 24px; /* antes 40px */
+            border-bottom: 2px solid #E0E0E0;
+            padding-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+        h2 {
+            font-size: 42px;
+            color: #1A3C34;
+            font-weight: 700;
+        }
+        .subtitle {
+            font-size: 18px;
+            color: #666;
+            font-weight: 500;
+        }
+        .content-grid {
+            display: grid;
+            grid-template-columns: 1.2fr 1fr;
+            gap: 60px;
+            flex-grow: 1;
+        }
+        .rec-column {
+            display: flex;
+            flex-direction: column;
+            gap: 16px; /* antes 25px */
+        }
+        .section-title {
+            font-size: 24px;
+            color: #1A3C34;
+            font-weight: 700;
+            margin-bottom: 0; /* evitar acumulación con gap del contenedor */
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+        .section-title i { color: #00BFA5; }
+        .rec-item {
+            background-color: white;
+            padding: 10px; /* antes 20px */
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            border-left: 4px solid transparent;
+            transition: border-color 0.3s;
+        }
+        .rec-item:hover { border-left-color: #00BFA5; }
+        .rec-number {
+            font-size: 32px;
+            font-weight: 700;
+            color: #E0E0E0;
+            line-height: 1;
+        }
+        .rec-text {
+            font-size: 18px;
+            color: #333;
+            font-weight: 500;
+        }
+        .steps-column {
+            background-color: #1A3C34;
+            border-radius: 12px;
+            padding: 30px;
+            color: white;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .steps-title {
+            font-size: 20px;
+            font-weight: 600;
+            color: #00BFA5;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+        .step-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            padding-bottom: 15px;
+            border-bottom: 1px solid rgba(255,255,255,0.1);
+        }
+        .step-item:last-child {
+            border-bottom: none;
+            padding-bottom: 0;
+        }
+        .step-week {
+            background-color: rgba(0, 191, 165, 0.2);
+            color: #00BFA5;
+            padding: 5px 10px;
+            border-radius: 4px;
+            font-size: 14px;
+            font-weight: 700;
+            white-space: nowrap;
+            width: 100px;
+            text-align: center;
+        }
+        .step-desc {
+            font-size: 16px;
+            font-weight: 400;
+            line-height: 1.4;
+        }
+        .investment-box {
+            margin-top: 16px; /* antes 30px */
+            background-color: white;
+            border: 2px solid #00BFA5;
+            border-radius: 8px;
+            padding: 12px; /* antes 20px */
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 20px;
+        }
+        .inv-icon { font-size: 24px; color: #00BFA5; }
+        .inv-text { font-size: 20px; color: #1A3C34; font-weight: 600; }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="header">
+            <h2>Acciones Inmediatas</h2>
+            <div class="subtitle">Recomendaciones y Próximos Pasos</div>
+        </div>
+        
+        <div class="content-grid">
+            <div class="rec-column">
+                <div class="section-title">
+                    <i class="fas fa-check-double"></i>
+                    Recomendaciones Estratégicas
+                </div>
+                
+                <div class="rec-item">
+                    <div class="rec-number">01</div>
+                    <div class="rec-text">Aprobación formal del proyecto y asignación de presupuesto.</div>
+                </div>
+                
+                <div class="rec-item">
+                    <div class="rec-number">02</div>
+                    <div class="rec-text">Designación de patrocinador ejecutivo para impulsar el cambio.</div>
+                </div>
+                
+                <div class="rec-item">
+                    <div class="rec-number">03</div>
+                    <div class="rec-text">Conformación de equipo multidisciplinario (IT, Operaciones, Finanzas).</div>
+                </div>
+                
+                <div class="rec-item">
+                    <div class="rec-number">04</div>
+                    <div class="rec-text">Comunicación institucional sobre objetivos y beneficios.</div>
+                </div>
+                
+                <div class="rec-item">
+                    <div class="rec-number">05</div>
+                    <div class="rec-text">Establecimiento de governance con métricas y responsables claros.</div>
+                </div>
+            </div>
+            
+            <div class="steps-column">
+                <div class="steps-title">Cronograma de Arranque</div>
+                
+                <div class="step-item">
+                    <div class="step-week">Semana 1</div>
+                    <div class="step-desc">Presentar plan detallado a directiva</div>
+                </div>
+                
+                <div class="step-item">
+                    <div class="step-week">Semana 2</div>
+                    <div class="step-desc">Iniciar capacitación de usuarios piloto</div>
+                </div>
+                
+                <div class="step-item">
+                    <div class="step-week">Semana 3</div>
+                    <div class="step-desc">Validar datos en ambiente de prueba</div>
+                </div>
+                
+                <div class="step-item">
+                    <div class="step-week">Semana 4</div>
+                    <div class="step-desc">Lanzamiento oficial en producción</div>
+                </div>
+                
+                <div style="margin-top: auto; padding-top: 20px; border-top: 1px solid rgba(255,255,255,0.1);">
+                    <div style="font-size: 14px; opacity: 0.7; margin-bottom: 5px;">Resultado Esperado</div>
+                    <div style="font-size: 18px; font-weight: 600; color: #00BFA5;">Operación estabilizada en 30 días</div>
+                </div>
+            </div>
+        </div>
+        
+        <div class="investment-box">
+            <i class="fas fa-chart-line inv-icon"></i>
+            <div class="inv-text">Inversión controlada con retorno medible (ROI) en 6 meses.</div>
+        </div>
+    </div>
+</body>
+</html>

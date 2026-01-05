@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background-color: #F5F7FA; }
+        .slide-container {
+            width: 1280px;
+            min-height: 720px;
+            background-color: #F5F7FA;
+            padding: 60px 80px 16px 80px; /* mantener padding superior, reducir inferior */
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            margin-bottom: 8px; /* antes 30px */
+            border-bottom: 1px solid #E0E0E0; /* antes 2px */
+            padding-bottom: 6px; /* antes 20px */
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+        h2 {
+            font-size: 42px;
+            color: #1A3C34;
+            font-weight: 700;
+        }
+        .subtitle {
+            font-size: 18px;
+            color: #666;
+            font-weight: 500;
+        }
+        .matrix-wrapper {
+            flex-grow: 1;
+            overflow-y: auto;
+            background-color: white;
+            border-radius: 8px;
+            padding: 8px; /* antes 20px */
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 14px;
+        }
+        thead {
+            background-color: #1A3C34;
+            color: white;
+            position: sticky;
+            top: 0;
+        }
+        th {
+            padding: 8px; /* antes 15px */
+            text-align: left;
+            font-weight: 700;
+            border: none;
+            font-size: 15px;
+        }
+        td {
+            padding: 5px 10px; /* antes 12px 15px */
+            border-bottom: 1px solid #E0E0E0;
+        }
+        tbody tr:nth-child(odd) { background-color: #F9F9F9; }
+        tbody tr:nth-child(even) { background-color: white; }
+        tbody tr:hover { background-color: rgba(0, 191, 165, 0.05); }
+        .category-badge {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 2px 10px; /* antes 4px 12px */
+            border-radius: 20px;
+            font-weight: 600;
+            font-size: 13px;
+        }
+        .category-operational { background-color: rgba(0, 191, 165, 0.15); color: #00BFA5; }
+        .category-efficiency { background-color: rgba(255, 193, 7, 0.15); color: #FFC107; }
+        .category-strategic { background-color: rgba(76, 175, 80, 0.15); color: #4CAF50; }
+        .indicator-name { font-weight: 600; color: #1A3C34; }
+        .meta-value { font-weight: 700; color: #00BFA5; font-size: 15px; }
+        .frequency { color: #666; font-size: 13px; }
+        .responsible { color: #555; font-size: 13px; }
+        .summary-row { background-color: #1A3C34; color: white; font-weight: 700; }
+        .summary-row td { padding: 8px; border-bottom: none; color: white; } /* antes 15px */
+        .footer-info {
+            margin-top: 6px; /* antes 20px */
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 20px;
+            font-size: 13px;
+        }
+        .info-box {
+            background-color: #1A3C34;
+            color: white;
+            padding: 8px; /* antes 12px */
+            border-radius: 6px;
+            border-left: 3px solid #00BFA5;
+        }
+        .info-label { font-weight: 700; color: #00BFA5; margin-bottom: 3px; }
+        .info-value { font-size: 14px; }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="header">
+            <h2>Matriz de Indicadores</h2>
+            <div class="subtitle">KPIs Completos - Gestión de Abasto</div>
+        </div>
+        
+        <div class="matrix-wrapper">
+            <table>
+                <thead>
+                    <tr>
+                        <th style="width: 15%;">Categoría</th>
+                        <th style="width: 25%;">Indicador</th>
+                        <th style="width: 15%;">Meta</th>
+                        <th style="width: 20%;">Frecuencia</th>
+                        <th style="width: 25%;">Responsable</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <!-- OPERACIONALES -->
+                    <tr>
+                        <td><span class="category-badge category-operational"><i class="fas fa-cogs"></i> Operacional</span></td>
+                        <td class="indicator-name">Exactitud de Inventario</td>
+                        <td class="meta-value">≥ 98%</td>
+                        <td class="frequency">Mensual</td>
+                        <td class="responsible">Jefe de Almacén</td>
+                    </tr>
+                    <tr>
+                        <td><span class="category-badge category-operational"><i class="fas fa-cogs"></i> Operacional</span></td>
+                        <td class="indicator-name">Disponibilidad de Insumos</td>
+                        <td class="meta-value">≥ 95%</td>
+                        <td class="frequency">Semanal</td>
+                        <td class="responsible">Coordinador de Abasto</td>
+                    </tr>
+                    <tr>
+                        <td><span class="category-badge category-operational"><i class="fas fa-cogs"></i> Operacional</span></td>
+                        <td class="indicator-name">Tiempo del Ciclo de Salida</td>
+                        <td class="meta-value">≤ 2 días</td>
+                        <td class="frequency">Por Salida</td>
+                        <td class="responsible">Supervisor de Distribución</td>
+                    </tr>
+                    <tr>
+                        <td><span class="category-badge category-operational"><i class="fas fa-cogs"></i> Operacional</span></td>
+                        <td class="indicator-name">Cumplimiento de Pedidos</td>
+                        <td class="meta-value">≥ 99%</td>
+                        <td class="frequency">Diario</td>
+                        <td class="responsible">Jefe de Almacén</td>
+                    </tr>
+                    
+                    <!-- EFICIENCIA -->
+                    <tr>
+                        <td><span class="category-badge category-efficiency"><i class="fas fa-chart-line"></i> Eficiencia</span></td>
+                        <td class="indicator-name">Costo de Almacenamiento</td>
+                        <td class="meta-value">↓ 15% Anual</td>
+                        <td class="frequency">Trimestral</td>
+                        <td class="responsible">Analista Financiero</td>
+                    </tr>
+                    <tr>
+                        <td><span class="category-badge category-efficiency"><i class="fas fa-chart-line"></i> Eficiencia</span></td>
+                        <td class="indicator-name">Tasa de Devoluciones</td>
+                        <td class="meta-value">< 2%</td>
+                        <td class="frequency">Mensual</td>
+                        <td class="responsible">Jefe de Almacén</td>
+                    </tr>
+                    <tr>
+                        <td><span class="category-badge category-efficiency"><i class="fas fa-chart-line"></i> Eficiencia</span></td>
+                        <td class="indicator-name">Utilización del Espacio</td>
+                        <td class="meta-value">85%</td>
+                        <td class="frequency">Mensual</td>
+                        <td class="responsible">Supervisor de Almacén</td>
+                    </tr>
+                    <tr>
+                        <td><span class="category-badge category-efficiency"><i class="fas fa-chart-line"></i> Eficiencia</span></td>
+                        <td class="indicator-name">Rotación de Inventario</td>
+                        <td class="meta-value">> 6 veces/año</td>
+                        <td class="frequency">Trimestral</td>
+                        <td class="responsible">Analista de Inventario</td>
+                    </tr>
+                    
+                    <!-- ESTRATÉGICOS -->
+                    <tr>
+                        <td><span class="category-badge category-strategic"><i class="fas fa-star"></i> Estratégico</span></td>
+                        <td class="indicator-name">Cumplimiento Normativo</td>
+                        <td class="meta-value">100%</td>
+                        <td class="frequency">Por Auditoría</td>
+                        <td class="responsible">Oficial de Cumplimiento</td>
+                    </tr>
+                    <tr>
+                        <td><span class="category-badge category-strategic"><i class="fas fa-star"></i> Estratégico</span></td>
+                        <td class="indicator-name">Satisfacción de Áreas</td>
+                        <td class="meta-value">4.5 / 5</td>
+                        <td class="frequency">Semestral</td>
+                        <td class="responsible">Coordinador de Calidad</td>
+                    </tr>
+                    <tr>
+                        <td><span class="category-badge category-strategic"><i class="fas fa-star"></i> Estratégico</span></td>
+                        <td class="indicator-name">ROI del Sistema</td>
+                        <td class="meta-value">> 150% (2 años)</td>
+                        <td class="frequency">Anual</td>
+                        <td class="responsible">Director de Finanzas</td>
+                    </tr>
+                    <tr>
+                        <td><span class="category-badge category-strategic"><i class="fas fa-star"></i> Estratégico</span></td>
+                        <td class="indicator-name">Reducción de Mermas</td>
+                        <td class="meta-value">< 1%</td>
+                        <td class="frequency">Mensual</td>
+                        <td class="responsible">Jefe de Almacén</td>
+                    </tr>
+                    
+                    <!-- RESUMEN -->
+                    <tr class="summary-row">
+                        <td colspan="5">
+                            <i class="fas fa-check-circle" style="margin-right: 10px;"></i>
+                            <strong>TOTAL: 12 Indicadores | 3 Categorías | Medición Integral del Desempeño</strong>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+            
+            <div class="footer-info">
+                <div class="info-box">
+                    <div class="info-label"><i class="fas fa-cogs"></i> Operacionales</div>
+                    <div class="info-value">4 Indicadores - Foco en la operación diaria</div>
+                </div>
+                <div class="info-box">
+                    <div class="info-label"><i class="fas fa-chart-line"></i> Eficiencia</div>
+                    <div class="info-value">4 Indicadores - Optimización de recursos</div>
+                </div>
+                <div class="info-box">
+                    <div class="info-label"><i class="fas fa-star"></i> Estratégicos</div>
+                    <div class="info-value">4 Indicadores - Impacto institucional</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

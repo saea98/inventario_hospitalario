@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background-color: #F5F7FA; }
+        .slide-container {
+            width: 1280px;
+            min-height: 720px;
+            background-color: #F5F7FA;
+            padding: 60px 80px;
+            position: relative;
+            overflow: hidden;
+        }
+        .header {
+            margin-bottom: 40px;
+            border-bottom: 2px solid #E0E0E0;
+            padding-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+        h2 {
+            font-size: 42px;
+            color: #1A3C34;
+            font-weight: 700;
+        }
+        .subtitle {
+            font-size: 18px;
+            color: #666;
+            font-weight: 500;
+        }
+        .main-content {
+            display: flex;
+            gap: 50px;
+            height: 480px;
+        }
+        .flow-container {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .process-step {
+            display: flex;
+            align-items: center;
+            background-color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.05);
+            position: relative;
+            border-left: 5px solid #00BFA5;
+        }
+        .process-step:not(:last-child)::after {
+            content: '';
+            position: absolute;
+            left: 25px;
+            bottom: -25px;
+            width: 2px;
+            height: 25px;
+            background-color: #E0E0E0;
+            z-index: 0;
+        }
+        .step-number {
+            width: 30px;
+            height: 30px;
+            background-color: #1A3C34;
+            color: white;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-weight: 700;
+            margin-right: 15px;
+            z-index: 1;
+        }
+        .step-content h4 {
+            font-size: 18px;
+            color: #333;
+            margin-bottom: 2px;
+        }
+        .step-content p {
+            font-size: 14px;
+            color: #666;
+        }
+        .visual-container {
+            width: 500px;
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+        }
+        .image-wrapper {
+            width: 100%;
+            height: 300px;
+            background-color: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        .image-wrapper img {
+            width: 100%;
+            height: 100%;
+            object-fit: contain;
+            padding: 10px;
+        }
+        .benefit-box {
+            background-color: #00BFA5;
+            color: white;
+            padding: 30px;
+            border-radius: 8px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+        }
+        .benefit-title {
+            font-size: 20px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            text-transform: uppercase;
+            opacity: 0.9;
+        }
+        .benefit-text {
+            font-size: 24px;
+            line-height: 1.3;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="header">
+            <h2>Arquitectura del Sistema</h2>
+            <div class="subtitle">Solución Propuesta - Proceso Integral</div>
+        </div>
+        
+        <div class="main-content">
+            <div class="flow-container">
+                <div class="process-step">
+                    <div class="step-number">1</div>
+                    <div class="step-content">
+                        <h4>Recepción de Proveedores</h4>
+                        <p>Validación de llegadas y documentación</p>
+                    </div>
+                </div>
+                <div class="process-step">
+                    <div class="step-number">2</div>
+                    <div class="step-content">
+                        <h4>Carga al Almacén</h4>
+                        <p>Ingreso de existencias con trazabilidad</p>
+                    </div>
+                </div>
+                <div class="process-step">
+                    <div class="step-number">3</div>
+                    <div class="step-content">
+                        <h4>Gestión de Inventario</h4>
+                        <p>Control de disponibilidad y ubicaciones</p>
+                    </div>
+                </div>
+                <div class="process-step">
+                    <div class="step-number">4</div>
+                    <div class="step-content">
+                        <h4>Gestión de Salidas</h4>
+                        <p>Distribución autorizada a áreas</p>
+                    </div>
+                </div>
+                <div class="process-step">
+                    <div class="step-number">5</div>
+                    <div class="step-content">
+                        <h4>Reportes y Análisis</h4>
+                        <p>Indicadores para toma de decisiones</p>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="visual-container">
+                <div class="image-wrapper">
+                    <img src="/home/ubuntu/upload/search_images/Dr6meB9NlpSJ.png" alt="Arquitectura del Sistema">
+                </div>
+                <div class="benefit-box">
+                    <div class="benefit-title">Beneficio Principal</div>
+                    <div class="benefit-text">
+                        Proceso end-to-end con visibilidad, control y auditoría en cada etapa operativa.
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

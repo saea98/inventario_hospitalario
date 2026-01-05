@@ -1,0 +1,205 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background-color: #F5F7FA; }
+        .slide-container {
+            width: 1280px;
+            min-height: 720px;
+            background-color: #F5F7FA;
+            padding: 60px 80px 25px; /* reduce bottom padding from 60px to 25px to fit within 720px */
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            margin-bottom: 40px;
+            border-bottom: 2px solid #E0E0E0;
+            padding-bottom: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+        }
+        h2 {
+            font-size: 42px;
+            color: #1A3C34;
+            font-weight: 700;
+        }
+        .subtitle {
+            font-size: 18px;
+            color: #666;
+            font-weight: 500;
+        }
+        .content-wrapper {
+            display: flex;
+            gap: 60px;
+            flex-grow: 1;
+        }
+        .left-col {
+            width: 55%;
+            display: flex;
+            flex-direction: column;
+            justify-content: space-between;
+        }
+        .main-message {
+            font-size: 28px;
+            line-height: 1.4;
+            color: #333;
+            font-weight: 300;
+            margin-bottom: 40px;
+            border-left: 5px solid #00BFA5;
+            padding-left: 25px;
+        }
+        .main-message strong {
+            font-weight: 700;
+            color: #1A3C34;
+        }
+        .benefits-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 25px;
+        }
+        .benefit-item {
+            display: flex;
+            align-items: center;
+            gap: 15px;
+            background-color: white;
+            padding: 15px 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 6px rgba(0,0,0,0.03);
+        }
+        .benefit-icon {
+            color: #00BFA5;
+            font-size: 24px;
+        }
+        .benefit-text {
+            font-size: 16px;
+            font-weight: 600;
+            color: #1A3C34;
+        }
+        .right-col {
+            width: 45%;
+            display: flex;
+            flex-direction: column;
+            gap: 30px;
+        }
+        .image-container {
+            width: 100%;
+            height: 280px;
+            background-color: white;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+        }
+        .image-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .cta-box {
+            background-color: #1A3C34;
+            color: white;
+            padding: 30px;
+            border-radius: 8px;
+            flex-grow: 1;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            text-align: center;
+            position: relative;
+            overflow: hidden;
+        }
+        .cta-box::before {
+            content: '';
+            position: absolute;
+            top: -50%;
+            left: -50%;
+            width: 200%;
+            height: 200%;
+            background: radial-gradient(circle, rgba(0,191,165,0.1) 0%, transparent 70%);
+        }
+        .cta-label {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+            color: #00BFA5;
+            margin-bottom: 15px;
+            font-weight: 700;
+        }
+        .cta-text {
+            font-size: 22px;
+            line-height: 1.4;
+            font-weight: 600;
+            margin-bottom: 20px;
+        }
+        .cta-button {
+            background-color: #00BFA5;
+            color: white;
+            padding: 12px 30px;
+            border-radius: 30px;
+            font-size: 16px;
+            font-weight: 700;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="header">
+            <h2>Visión de Futuro</h2>
+            <div class="subtitle">Conclusiones</div>
+        </div>
+        
+        <div class="content-wrapper">
+            <div class="left-col">
+                <div class="main-message">
+                    El Sistema Integral de Control de Abasto no es solo una herramienta tecnológica, es una <strong>transformación operacional</strong> que garantiza la seguridad del paciente y la eficiencia institucional.
+                </div>
+                
+                <div class="benefits-grid">
+                    <div class="benefit-item">
+                        <i class="fas fa-pills benefit-icon"></i>
+                        <div class="benefit-text">Disponibilidad Garantizada</div>
+                    </div>
+                    <div class="benefit-item">
+                        <i class="fas fa-chart-line benefit-icon"></i>
+                        <div class="benefit-text">Eficiencia Operacional</div>
+                    </div>
+                    <div class="benefit-item">
+                        <i class="fas fa-clipboard-check benefit-icon"></i>
+                        <div class="benefit-text">Cumplimiento Normativo</div>
+                    </div>
+                    <div class="benefit-item">
+                        <i class="fas fa-database benefit-icon"></i>
+                        <div class="benefit-text">Decisiones con Datos</div>
+                    </div>
+                </div>
+            </div>
+            
+            <div class="right-col">
+                <div class="image-container">
+                    <img src="/home/ubuntu/upload/search_images/d0yDg4Y2dE8u.jpg" alt="Almacén Eficiente">
+                </div>
+                
+                <div class="cta-box">
+                    <div class="cta-label">Próximo Paso</div>
+                    <div class="cta-text">
+                        Aprobación para proceder con la siguiente fase de implementación
+                    </div>
+                    <div class="cta-button">
+                        AUTORIZAR FASE 5 <i class="fas fa-arrow-right"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

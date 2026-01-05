@@ -1,0 +1,176 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0-beta3/css/all.min.css" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; background-color: #F5F7FA; }
+        .slide-container {
+            width: 1280px;
+            min-height: 720px;
+            background-color: #F5F7FA;
+            padding: 60px 80px;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+        .header {
+            margin-bottom: 40px;
+            border-bottom: 2px solid #E0E0E0;
+            padding-bottom: 20px;
+        }
+        h2 {
+            font-size: 42px;
+            color: #1A3C34;
+            font-weight: 700;
+        }
+        .subtitle {
+            font-size: 18px;
+            color: #666;
+            font-weight: 500;
+        }
+        .content-wrapper {
+            display: flex;
+            gap: 50px;
+            flex-grow: 1;
+            align-items: center;
+        }
+        .image-col {
+            width: 40%;
+            height: 450px;
+            position: relative;
+        }
+        .image-container {
+            width: 100%;
+            height: 100%;
+            border-radius: 8px;
+            overflow: hidden;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.1);
+            background-color: white;
+        }
+        .image-container img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            object-position: center;
+        }
+        .list-col {
+            width: 60%;
+            display: flex;
+            flex-direction: column;
+            gap: 12px; /* reducido de 20px para compactar la columna */
+        }
+        .strength-item {
+            background-color: white;
+            padding: 9px 18px; /* reducido de 15px 20px para bajar altura por ítem */
+            border-radius: 8px;
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.03);
+            transition: transform 0.2s;
+            border-left: 4px solid #00BFA5;
+        }
+        .icon-box {
+            width: 50px;
+            height: 50px;
+            background-color: rgba(0, 191, 165, 0.1);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            flex-shrink: 0;
+        }
+        .icon-box i {
+            font-size: 24px;
+            color: #00BFA5;
+        }
+        .text-content { flex-grow: 1; }
+        .item-title {
+            font-size: 18px;
+            font-weight: 700;
+            color: #1A3C34;
+            margin-bottom: 3px; /* reducido de 4px */
+        }
+        .item-desc {
+            font-size: 14px;
+            color: #666;
+            line-height: 1.25; /* reducido de 1.3 para compactar texto sin cambiar tamaño */
+        }
+        .badge {
+            background-color: #1A3C34;
+            color: white;
+            padding: 4px 10px;
+            border-radius: 12px;
+            font-size: 12px;
+            font-weight: 600;
+        }
+    </style>
+</head>
+<body>
+    <div class="slide-container">
+        <div class="header">
+            <h2>Fortalezas del Proceso</h2>
+            <div class="subtitle">Valor generado mediante la estandarización y tecnología</div>
+        </div>
+        
+        <div class="content-wrapper">
+            <div class="image-col">
+                <div class="image-container">
+                    <img src="/home/ubuntu/upload/search_images/18hbGkA8aHqP.webp" alt="Beneficios del Sistema">
+                </div>
+            </div>
+            
+            <div class="list-col">
+                <div class="strength-item">
+                    <div class="icon-box"><i class="fas fa-fingerprint"></i></div>
+                    <div class="text-content">
+                        <div class="item-title">Trazabilidad Total</div>
+                        <div class="item-desc">Registro inmutable de cada movimiento: usuario, fecha, hora y motivo. Auditoría continua.</div>
+                    </div>
+                    <span class="badge">F1</span>
+                </div>
+                
+                <div class="strength-item">
+                    <div class="icon-box"><i class="fas fa-file-contract"></i></div>
+                    <div class="text-content">
+                        <div class="item-title">Estandarización Operativa</div>
+                        <div class="item-desc">Procesos regidos por POEs claros que eliminan la improvisación y reducen la variabilidad.</div>
+                    </div>
+                    <span class="badge">F2</span>
+                </div>
+                
+                <div class="strength-item">
+                    <div class="icon-box"><i class="fas fa-eye"></i></div>
+                    <div class="text-content">
+                        <div class="item-title">Control en Tiempo Real</div>
+                        <div class="item-desc">Visibilidad inmediata de existencias y ubicaciones exactas para toma de decisiones.</div>
+                    </div>
+                    <span class="badge">F1</span>
+                </div>
+                
+                <div class="strength-item">
+                    <div class="icon-box"><i class="fas fa-shield-alt"></i></div>
+                    <div class="text-content">
+                        <div class="item-title">Calidad y Seguridad</div>
+                        <div class="item-desc">Validación por múltiples roles, firmas digitales y gestión automática de caducidades (FIFO).</div>
+                    </div>
+                    <span class="badge">F3</span>
+                </div>
+                
+                <div class="strength-item">
+                    <div class="icon-box"><i class="fas fa-mobile-alt"></i></div>
+                    <div class="text-content">
+                        <div class="item-title">Movilidad y Eficiencia</div>
+                        <div class="item-desc">Operación directa en piso mediante dispositivos móviles, agilizando la carga y distribución.</div>
+                    </div>
+                    <span class="badge">F1</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

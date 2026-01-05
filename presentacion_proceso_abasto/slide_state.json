@@ -1,0 +1,100 @@
+{
+  "project_info": {
+    "title": "Proceso Integral de Control de Abasto",
+    "created": 1767577510.7590623,
+    "last_updated": 1767577792.4289308,
+    "total_slides": 11
+  },
+  "slides": {
+    "slide_01_portada": "edited",
+    "slide_02_contexto": "edited",
+    "slide_03_proceso_completo": "edited",
+    "slide_04_fortalezas_proceso": "edited",
+    "slide_05_oportunidades_proceso": "edited",
+    "slide_06_desafios_proceso": "edited",
+    "slide_07_amenazas_externas": "edited",
+    "slide_08_matriz_kpis": "edited",
+    "slide_09_estrategias": "edited",
+    "slide_10_roadmap": "edited",
+    "slide_11_conclusiones": "edited"
+  },
+  "outline": [
+    {
+      "id": "slide_01_portada",
+      "title": "Proceso Integral de Control de Abasto",
+      "summary": "Portada con el enfoque en el proceso operacional como eje central de la institución.",
+      "image_plan": "",
+      "slide_template_key": ""
+    },
+    {
+      "id": "slide_02_contexto",
+      "title": "El Desafío Operacional",
+      "summary": "Situación actual: falta de control, visibilidad y estandarización en el abasto hospitalario.",
+      "image_plan": "/home/ubuntu/upload/search_images/n4kWhu9TPnY6.jpg - Image 8 visually represents \"5 Challenges\" in Inventory Management, which aligns well with the \"Desafíos Actuales\" (Current Challenges) discussed in the slide.",
+      "slide_template_key": ""
+    },
+    {
+      "id": "slide_03_proceso_completo",
+      "title": "Las 6 Etapas del Proceso",
+      "summary": "Desglose del flujo completo: Recepción, Carga, Gestión de Inventario, Conteo Físico, Gestión de Salidas, Distribución.",
+      "image_plan": "/home/ubuntu/upload/search_images/Dr6meB9NlpSJ.png - Image 7 shows a diagram of integrated systems (EHR, Procurement, Drug Management, Mobile Apps) which fits the \"Arquitectura del Sistema de Control de Abasto\" and \"Proceso Integral\" theme.",
+      "slide_template_key": ""
+    },
+    {
+      "id": "slide_04_fortalezas_proceso",
+      "title": "Fortalezas del Proceso Estandarizado",
+      "summary": "Cómo el proceso genera valor: trazabilidad, control, automatización, calidad, escalabilidad.",
+      "image_plan": "/home/ubuntu/upload/search_images/18hbGkA8aHqP.webp - Image 2 highlights the \"Benefits of Implementing Pharma Inventory Management Software\" such as improved productivity and reduced cost, which supports the \"Fortalezas\" (Strengths) of the proposed system.",
+      "slide_template_key": ""
+    },
+    {
+      "id": "slide_05_oportunidades_proceso",
+      "title": "Evolución del Proceso",
+      "summary": "Mejoras futuras: integración EDI, machine learning, automatización de picking, análisis predictivo.",
+      "image_plan": "/home/ubuntu/upload/search_images/RGLlz1k79CeU.jpg - Image 1 details \"7 Features of a Pharmacy Inventory System,\" which aligns with the discussion of potential expansion and optimization features (Oportunidades).",
+      "slide_template_key": ""
+    },
+    {
+      "id": "slide_06_desafios_proceso",
+      "title": "Desafíos Operacionales",
+      "summary": "Debilidades internas: factores humanos, infraestructura, datos, integración, complejidad operacional.",
+      "image_plan": "/home/ubuntu/upload/search_images/W4rRgeVDV8Iu.jpeg - Image 5 shows a large, busy warehouse/storage area, which can visually represent the complexity and potential risks/weaknesses (Debilidades) associated with managing a large physical inventory system.",
+      "slide_template_key": ""
+    },
+    {
+      "id": "slide_07_amenazas_externas",
+      "title": "Amenazas Externas al Proceso",
+      "summary": "Riesgos externos: ciberseguridad, cambios regulatorios, gestión del talento, obsolescencia, factores institucionales.",
+      "image_plan": "/home/ubuntu/upload/search_images/IlILpLPlOoCa.jpg - Image 3 shows a dashboard/software interface with financial figures and inventory data, which is highly relevant to the \"Matriz de Indicadores\" (KPIs) and data-driven management.",
+      "slide_template_key": ""
+    },
+    {
+      "id": "slide_08_matriz_kpis",
+      "title": "Control del Proceso - Matriz de Indicadores",
+      "summary": "KPIs operacionales para medir desempeño del proceso: exactitud, disponibilidad, tiempos, costos, cumplimiento.",
+      "image_plan": "/home/ubuntu/upload/search_images/Ws8OIVGcvaGE.jpg - Image 6 shows a worker moving boxes in a warehouse, representing the operational execution and implementation phases discussed in the Roadmap.",
+      "slide_template_key": ""
+    },
+    {
+      "id": "slide_09_estrategias",
+      "title": "Estrategias de Implementación",
+      "summary": "Cuatro enfoques estratégicos: Ofensivas (FO), Defensivas (FA), Reorientación (DO), Supervivencia (DA).",
+      "image_plan": "",
+      "slide_template_key": ""
+    },
+    {
+      "id": "slide_10_roadmap",
+      "title": "Roadmap Operacional",
+      "summary": "Fases de implementación: Estabilización, Expansión, Optimización, Evolución con hitos y responsables.",
+      "image_plan": "/home/ubuntu/upload/search_images/d0yDg4Y2dE8u.jpg - Image 4 shows a clean, organized medical supply storage area, representing the desired end state and \"Visión de Futuro\" (Future Vision) of an efficient control system.",
+      "slide_template_key": ""
+    },
+    {
+      "id": "slide_11_conclusiones",
+      "title": "El Proceso como Base Institucional",
+      "summary": "Conclusiones: el proceso estandarizado es el activo fundamental para la seguridad del paciente y eficiencia operativa.",
+      "image_plan": "Use a suitable image if needed",
+      "slide_template_key": ""
+    }
+  ]
+}
