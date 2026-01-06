@@ -3,7 +3,7 @@ from django.db import transaction
 from django.utils import timezone
 from datetime import datetime
 import pandas as pd
-from inventario.models import Producto, Almacen, UbicacionAlmacen, Lote, LoteUbicacion
+from inventario.models import Producto, Almacen, UbicacionAlmacen, Lote, LoteUbicacion, CategoriaProducto
 from django.contrib.auth.models import User
 
 
@@ -94,11 +94,19 @@ class Command(BaseCommand):
                         continue
 
                     # 2. CREAR O OBTENER PRODUCTO
+                    # Obtener o crear categoría por defecto
+                    categoria, _ = CategoriaProducto.objects.get_or_create(
+                        nombre='Sin Categoría',
+                        defaults={'descripcion': 'Categoría por defecto para carga masiva'}
+                    )
+                    
                     producto, producto_creado = Producto.objects.get_or_create(
                         clave_cnis=clave,
                         defaults={
                             'descripcion': descripcion or f'Producto {clave}',
-                            'institucion_id': institucion_id,
+                            'categoria': categoria,
+                            'unidad_medida': 'PIEZA',
+                            'es_insumo_cpm': False,
                         }
                     )
                     if producto_creado:
