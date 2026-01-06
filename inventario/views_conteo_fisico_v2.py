@@ -184,10 +184,31 @@ def capturar_conteo_lote(request, lote_id=None, lote_ubicacion_id=None):
             
             try:
                 with transaction.atomic():
-                    # Calcular diferencia usando TERCER CONTEO
-                    cantidad_anterior = lote.cantidad_disponible
-                    cantidad_nueva = tercer_conteo
-                    diferencia = cantidad_nueva - cantidad_anterior
+                    # Si es conteo por ubicación específica, actualizar LoteUbicacion
+                    if lote_ubicacion_id:
+                        # Obtener la ubicación específica
+                        lote_ubicacion = LoteUbicacion.objects.get(id=lote_ubicacion_id)
+                        cantidad_anterior = lote_ubicacion.cantidad
+                        cantidad_nueva = tercer_conteo
+                        diferencia = cantidad_nueva - cantidad_anterior
+                        
+                        # Actualizar cantidad en LoteUbicacion
+                        lote_ubicacion.cantidad = cantidad_nueva
+                        lote_ubicacion.usuario_asignacion = request.user
+                        lote_ubicacion.save()
+                        
+                        # Sincronizar cantidad total del lote
+                        lote.sincronizar_cantidad_disponible()
+                    else:
+                        # Conteo del lote completo (todas las ubicaciones)
+                        cantidad_anterior = lote.cantidad_disponible
+                        cantidad_nueva = tercer_conteo
+                        diferencia = cantidad_nueva - cantidad_anterior
+                        
+                        # Actualizar cantidad disponible en el lote
+                        lote.cantidad_disponible = cantidad_nueva
+                        lote.valor_total = cantidad_nueva * (lote.precio_unitario or 0)
+                        lote.save()
                     
                     # Crear MovimientoInventario
                     # Determinar tipo de movimiento según la diferencia
@@ -215,11 +236,6 @@ def capturar_conteo_lote(request, lote_id=None, lote_ubicacion_id=None):
                         usuario=request.user,
                         folio=f"CONTEO-{timezone.now().strftime('%Y%m%d%H%M%S')}"
                     )
-                    
-                    # Actualizar cantidad disponible en el lote
-                    lote.cantidad_disponible = cantidad_nueva
-                    lote.valor_total = cantidad_nueva * (lote.precio_unitario or 0)
-                    lote.save()
                     
                     # Notificar
                     try:
