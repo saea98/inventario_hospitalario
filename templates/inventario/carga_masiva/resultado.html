@@ -1,0 +1,179 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Resultado de Carga Masiva{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-lg-10 mx-auto">
+            <!-- Encabezado de resultado -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="me-3">
+                            {% if stats.errores == 0 %}
+                                <i class="fas fa-check-circle fa-3x text-success"></i>
+                            {% else %}
+                                <i class="fas fa-exclamation-triangle fa-3x text-warning"></i>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <h1 class="card-title mb-0">
+                                {% if stats.errores == 0 %}
+                                    ✅ Carga Completada Exitosamente
+                                {% else %}
+                                    ⚠️ Carga Completada con Errores
+                                {% endif %}
+                            </h1>
+                            <p class="text-muted mb-0">
+                                {% if stats.dry_run %}
+                                    <i class="fas fa-binoculars"></i> Modo Previsualización (Dry-Run)
+                                {% else %}
+                                    Cambios aplicados al sistema
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Resumen principal -->
+            <div class="row mb-4">
+                <div class="col-md-6 mb-3">
+                    <div class="card bg-primary text-white">
+                        <div class="card-body text-center">
+                            <h3 class="card-title mb-0">{{ stats.procesados }}</h3>
+                            <p class="card-text mb-0">Registros Procesados</p>
+                            <small>{{ stats.porcentaje_procesados }}% del total</small>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-6 mb-3">
+                    <div class="card bg-danger text-white">
+                        <div class="card-body text-center">
+                            <h3 class="card-title mb-0">{{ stats.errores }}</h3>
+                            <p class="card-text mb-0">Errores</p>
+                            <small>{{ stats.porcentaje_errores }}% del total</small>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Estadísticas detalladas -->
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-bar"></i> Estadísticas Detalladas
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span>Total de Registros:</span>
+                                    <strong>{{ stats.total_registros }}</strong>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span>Registros Omitidos (S/CLAVE):</span>
+                                    <strong class="text-info">{{ stats.omitidos }}</strong>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span>Registros Procesados:</span>
+                                    <strong class="text-success">{{ stats.procesados }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="mb-3">
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span>Productos Creados:</span>
+                                    <strong class="text-success">{{ stats.productos_creados }}</strong>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span>Ubicaciones Creadas:</span>
+                                    <strong class="text-success">{{ stats.ubicaciones_creadas }}</strong>
+                                </div>
+                                <div class="d-flex justify-content-between align-items-center mb-2">
+                                    <span>Lotes Creados:</span>
+                                    <strong class="text-success">{{ stats.lotes_creados }}</strong>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="row">
+                        <div class="col-md-12">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span>Lotes Actualizados:</span>
+                                <strong class="text-info">{{ stats.lotes_actualizados }}</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Errores detallados -->
+            {% if stats.errores_detalle %}
+            <div class="card shadow-sm mb-4 border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-exclamation-circle"></i> Errores Encontrados
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group">
+                        {% for error in stats.errores_detalle %}
+                            <div class="list-group-item list-group-item-danger">
+                                <i class="fas fa-times-circle text-danger"></i> {{ error }}
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Información de dry-run -->
+            {% if stats.dry_run %}
+            <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                <h5 class="alert-heading">
+                    <i class="fas fa-binoculars"></i> Modo Previsualización Activo
+                </h5>
+                <p class="mb-0">
+                    Los cambios mostrados arriba <strong>NO han sido aplicados</strong> al sistema.
+                    Si los resultados son correctos, puedes ejecutar nuevamente sin el modo previsualización.
+                </p>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endif %}
+
+            <!-- Botones de acción -->
+            <div class="d-flex gap-2 justify-content-center mb-4">
+                <a href="{% url 'carga_masiva_lotes' %}" class="btn btn-primary btn-lg">
+                    <i class="fas fa-redo"></i> Nueva Carga
+                </a>
+                <a href="{% url 'dashboard' %}" class="btn btn-secondary btn-lg">
+                    <i class="fas fa-home"></i> Volver al Dashboard
+                </a>
+            </div>
+
+            <!-- Resumen de progreso -->
+            <div class="card bg-light border-0">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-info-circle"></i> Resumen
+                    </h5>
+                    <p class="mb-0">
+                        Se procesaron <strong>{{ stats.procesados }}</strong> de <strong>{{ stats.total_registros }}</strong> registros.
+                        {% if stats.errores > 0 %}
+                            Se encontraron <strong>{{ stats.errores }}</strong> errores que deben revisarse.
+                        {% else %}
+                            ¡Sin errores! La carga fue exitosa.
+                        {% endif %}
+                    </p>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

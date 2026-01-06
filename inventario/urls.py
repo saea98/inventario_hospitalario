@@ -5,6 +5,7 @@ from .views_dashboard_movimientos import dashboard_movimientos, api_estadisticas
 from .views_logs import lista_logs, detalle_log, marcar_resuelto, limpiar_logs, api_logs_recientes
 from .views_health import health_check, diagnostico_sistema
 from .views_asignacion_rapida import asignacion_rapida, api_buscar_lote, api_obtener_ubicaciones, api_asignar_ubicacion
+from .views_carga_masiva import carga_masiva_lotes, carga_masiva_resultado
 #from inventario.admin import inventario_admin
 from django.contrib import admin as django_admin
 
@@ -46,6 +47,10 @@ urlpatterns = [
     path('api/buscar-lote/', api_buscar_lote, name='api_buscar_lote'),
     path('api/obtener-ubicaciones/', api_obtener_ubicaciones, name='api_obtener_ubicaciones'),
     path('api/asignar-ubicacion/', api_asignar_ubicacion, name='api_asignar_ubicacion'),
+    
+    # Carga Masiva de Lotes
+    path('carga-masiva/', carga_masiva_lotes, name='carga_masiva_lotes'),
+    path('carga-masiva/resultado/', carga_masiva_resultado, name='carga_masiva_resultado'),
 
     # Movimientos
     path('movimientos/', views.lista_movimientos, name='lista_movimientos'),

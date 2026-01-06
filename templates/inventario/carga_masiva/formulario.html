@@ -1,0 +1,159 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Carga Masiva de Lotes{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <!-- Encabezado -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="me-3">
+                            <i class="fas fa-file-excel fa-3x text-success"></i>
+                        </div>
+                        <div>
+                            <h1 class="card-title mb-0">Carga Masiva de Lotes</h1>
+                            <p class="text-muted mb-0">Importa múltiples lotes desde un archivo Excel</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Instrucciones -->
+            <div class="alert alert-info alert-dismissible fade show" role="alert">
+                <h5 class="alert-heading">
+                    <i class="fas fa-info-circle"></i> Instrucciones
+                </h5>
+                <ul class="mb-0">
+                    <li>El archivo debe estar en formato <strong>.xlsx</strong> o <strong>.xls</strong></li>
+                    <li>Debe contener las columnas: almcen, CLAVE, DESCRIPCION, LOTE, CADUCIDAD, UBICACIÓN, INVENTARIO</li>
+                    <li>Se omitirán automáticamente registros con CLAVE='S/CLAVE'</li>
+                    <li>Se crearán productos y ubicaciones si no existen</li>
+                    <li>Se actualizarán lotes existentes</li>
+                    <li>Usa el modo "Previsualización" para ver cambios sin aplicarlos</li>
+                </ul>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+
+            <!-- Formulario -->
+            <form method="post" enctype="multipart/form-data" id="carga_form" class="card shadow-sm">
+                {% csrf_token %}
+                
+                <div class="card-body">
+                    <!-- Campo de archivo -->
+                    <div class="mb-4">
+                        <label for="archivo_input" class="form-label fw-bold">
+                            <i class="fas fa-file-upload"></i> Selecciona archivo Excel
+                        </label>
+                        <div class="input-group">
+                            <input type="file" 
+                                   class="form-control {% if form.archivo.errors %}is-invalid{% endif %}" 
+                                   id="archivo_input" 
+                                   name="archivo"
+                                   accept=".xlsx,.xls"
+                                   required>
+                            <label class="input-group-text" for="archivo_input">
+                                <i class="fas fa-folder-open"></i>
+                            </label>
+                        </div>
+                        {% if form.archivo.errors %}
+                            <div class="invalid-feedback d-block">
+                                {{ form.archivo.errors.0 }}
+                            </div>
+                        {% endif %}
+                        <small class="form-text text-muted d-block mt-2">
+                            Máximo 10MB. Formatos soportados: .xlsx, .xls
+                        </small>
+                        <div id="file_info" class="mt-2 d-none">
+                            <small class="text-success">
+                                <i class="fas fa-check-circle"></i> 
+                                <span id="file_name"></span> 
+                                (<span id="file_size"></span>)
+                            </small>
+                        </div>
+                    </div>
+
+                    <!-- Campo de institución -->
+                    <div class="mb-4">
+                        <label for="id_institucion" class="form-label fw-bold">
+                            <i class="fas fa-hospital"></i> Institución
+                        </label>
+                        {{ form.institucion }}
+                        <small class="form-text text-muted d-block mt-2">
+                            ID de la institución donde se cargarán los lotes
+                        </small>
+                    </div>
+
+                    <!-- Checkbox dry-run -->
+                    <div class="mb-4">
+                        <div class="form-check">
+                            <input type="checkbox" 
+                                   class="form-check-input" 
+                                   id="dry_run_check" 
+                                   name="dry_run"
+                                   value="on">
+                            <label class="form-check-label" for="dry_run_check">
+                                <strong>
+                                    <i class="fas fa-binoculars"></i> Modo Previsualización (Dry-Run)
+                                </strong>
+                                <br>
+                                <small class="text-muted">
+                                    Si está marcado, verás los cambios que se harían sin aplicarlos realmente
+                                </small>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Botones -->
+                <div class="card-footer bg-light d-flex gap-2">
+                    <button type="submit" class="btn btn-success btn-lg" id="submit_btn">
+                        <i class="fas fa-upload"></i> Procesar Archivo
+                    </button>
+                    <a href="{% url 'dashboard' %}" class="btn btn-secondary btn-lg">
+                        <i class="fas fa-times"></i> Cancelar
+                    </a>
+                </div>
+            </form>
+
+            <!-- Información adicional -->
+            <div class="card mt-4 bg-light border-0">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-lightbulb"></i> Consejos
+                    </h5>
+                    <ul class="mb-0">
+                        <li>Siempre prueba primero con el modo "Previsualización"</li>
+                        <li>Verifica que los almacenes existan en el sistema</li>
+                        <li>Las fechas deben estar en formato válido (ej: 2027-07-22)</li>
+                        <li>Si hay errores, se mostrarán en el reporte final</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Actualizar información del archivo seleccionado
+document.getElementById('archivo_input').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        const fileInfo = document.getElementById('file_info');
+        document.getElementById('file_name').textContent = file.name;
+        document.getElementById('file_size').textContent = (file.size / 1024).toFixed(2) + ' KB';
+        fileInfo.classList.remove('d-none');
+    }
+});
+
+// Deshabilitar botón durante envío
+document.getElementById('carga_form').addEventListener('submit', function() {
+    const submitBtn = document.getElementById('submit_btn');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
+});
+</script>
+{% endblock %}
