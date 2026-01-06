@@ -4,9 +4,10 @@ from django.views.decorators.http import require_http_methods
 from django.db import transaction
 from django.contrib import messages
 from django.utils import timezone
+from django.db.models import Sum
 from datetime import datetime
 
-from .models import ConteoFisico, ItemConteoFisico, Lote, Producto, MovimientoInventario, UbicacionAlmacen
+from .models import ConteoFisico, ItemConteoFisico, Lote, Producto, MovimientoInventario, UbicacionAlmacen, LoteUbicacion
 from .forms import ConteoFisicoForm
 from .servicios_notificaciones import notificaciones
 
@@ -164,41 +165,52 @@ def completar_conteo(request, pk):
     
     with transaction.atomic():
         items = ItemConteoFisico.objects.filter(conteo=conteo)
+        lotes_actualizados = set()
         
         for item in items:
             lote = item.lote
             
-            # Aplicar cambios de cantidad
-            if item.diferencia != 0:
-                # Crear movimiento de ajuste
-                MovimientoInventario.objects.create(
+            # Actualizar cantidad por ubicación (LoteUbicacion)
+            if item.ubicacion:
+                lote_ubicacion, created = LoteUbicacion.objects.get_or_create(
                     lote=lote,
-                    tipo_movimiento='ajuste',
-                    cantidad=item.diferencia,
-                    motivo=f'Ajuste por conteo físico {conteo.folio}',
-                    folio=conteo.folio,
-                    usuario=request.user,
+                    ubicacion=item.ubicacion,
+                    defaults={'cantidad': item.cantidad_fisica, 'usuario_asignacion': request.user}
                 )
                 
-                # Actualizar cantidad
-                lote.cantidad += item.diferencia
+                # Calcular diferencia en esta ubicación
+                diferencia_ubicacion = item.cantidad_fisica - item.cantidad_teorica
+                
+                if diferencia_ubicacion != 0:
+                    # Crear movimiento de ajuste por ubicación
+                    MovimientoInventario.objects.create(
+                        lote=lote,
+                        tipo_movimiento='ajuste',
+                        cantidad=diferencia_ubicacion,
+                        motivo=f'Ajuste por conteo físico {conteo.folio} en ubicacion {item.ubicacion.codigo}',
+                        folio=conteo.folio,
+                        usuario=request.user,
+                    )
+                    
+                    # Actualizar cantidad en LoteUbicacion
+                    lote_ubicacion.cantidad = item.cantidad_fisica
+                    lote_ubicacion.usuario_asignacion = request.user
+                    lote_ubicacion.save()
+                    
+                    lotes_actualizados.add(lote.id)
             
-            # Aplicar cambios de ubicación
-            if item.ubicacion_nueva_id != lote.ubicacion_id:
-                MovimientoInventario.objects.create(
-                    lote=lote,
-                    tipo_movimiento='traslado_interno',
-                    cantidad=lote.cantidad,
-                    motivo=f'Cambio de ubicación por conteo {conteo.folio}',
-                    folio=conteo.folio,
-                    usuario=request.user,
-                )
-                lote.ubicacion_id = item.ubicacion_nueva_id
-            
-            # Aplicar cambios de fecha de caducidad
+            # Aplicar cambios de fecha de caducidad si aplica
             if item.fecha_caducidad_nueva != lote.fecha_caducidad:
                 lote.fecha_caducidad = item.fecha_caducidad_nueva
-            
+                lote.save()
+        
+        # Recalcular cantidad total del Lote como suma de todas sus ubicaciones
+        for lote_id in lotes_actualizados:
+            lote = Lote.objects.get(id=lote_id)
+            cantidad_total = LoteUbicacion.objects.filter(lote=lote).aggregate(
+                total=Sum('cantidad')
+            )['total'] or 0
+            lote.cantidad = cantidad_total
             lote.save()
         
         # Marcar conteo como completado
@@ -213,8 +225,6 @@ def completar_conteo(request, pk):
         messages.success(request, f'Conteo {conteo.folio} completado y cambios aplicados')
     
     return redirect('logistica:detalle_conteo', pk=pk)
-
-
 @login_required
 @require_http_methods(["POST"])
 def cancelar_conteo(request, pk):
