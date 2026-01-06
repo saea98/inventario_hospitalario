@@ -116,24 +116,24 @@ def procesar_carga_masiva(archivo_path, institucion_id, usuario, dry_run=False):
                     )
                     continue
                 
-                    # 2. CREAR O OBTENER PRODUCTO
-                    # Obtener o crear categoría por defecto
-                    categoria, _ = CategoriaProducto.objects.get_or_create(
-                        nombre='Sin Categoría',
-                        defaults={'descripcion': 'Categoría por defecto para carga masiva'}
-                    )
-                    
-                    producto, producto_creado = Producto.objects.get_or_create(
-                        clave_cnis=clave,
-                        defaults={
-                            'descripcion': descripcion or f'Producto {clave}',
-                            'categoria': categoria,
-                            'unidad_medida': 'PIEZA',
-                            'es_insumo_cpm': False,
-                        }
-                    )
-                    if producto_creado:
-                        stats['productos_creados'] += 1
+                # 2. CREAR O OBTENER PRODUCTO
+                # Obtener o crear categoría por defecto
+                categoria, _ = CategoriaProducto.objects.get_or_create(
+                    nombre='Sin Categoría',
+                    defaults={'descripcion': 'Categoría por defecto para carga masiva'}
+                )
+                
+                producto, producto_creado = Producto.objects.get_or_create(
+                    clave_cnis=clave,
+                    defaults={
+                        'descripcion': descripcion or f'Producto {clave}',
+                        'categoria': categoria,
+                        'unidad_medida': 'PIEZA',
+                        'es_insumo_cpm': False,
+                    }
+                )
+                if producto_creado:
+                    stats['productos_creados'] += 1
                 
                 # 3. OBTENER ALMACÉN
                 try:
