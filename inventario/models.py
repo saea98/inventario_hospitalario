@@ -494,6 +494,25 @@ class Lote(models.Model):
         dias = self.dias_para_caducidad
         return dias is not None and dias < 0
 
+    def sincronizar_cantidad_disponible(self):
+        """
+        Sincroniza cantidad_disponible con la suma de todas las ubicaciones (LoteUbicacion).
+        Esto asegura que el total del lote sea consistente con sus ubicaciones.
+        """
+        from django.db.models import Sum
+        
+        # Calcular suma de todas las ubicaciones
+        cantidad_total = LoteUbicacion.objects.filter(lote=self).aggregate(
+            total=Sum('cantidad')
+        )['total'] or 0
+        
+        # Actualizar solo si hay diferencia
+        if self.cantidad_disponible != cantidad_total:
+            self.cantidad_disponible = cantidad_total
+            self.save(update_fields=['cantidad_disponible'])
+            return True
+        return False
+
     def save(self, *args, **kwargs):
         if self.cantidad_inicial and self.precio_unitario:
             self.valor_total = self.cantidad_inicial * self.precio_unitario

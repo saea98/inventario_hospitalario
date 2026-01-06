@@ -204,14 +204,10 @@ def completar_conteo(request, pk):
                 lote.fecha_caducidad = item.fecha_caducidad_nueva
                 lote.save()
         
-        # Recalcular cantidad total del Lote como suma de todas sus ubicaciones
+        # Sincronizar cantidad de lotes actualizados
         for lote_id in lotes_actualizados:
             lote = Lote.objects.get(id=lote_id)
-            cantidad_total = LoteUbicacion.objects.filter(lote=lote).aggregate(
-                total=Sum('cantidad')
-            )['total'] or 0
-            lote.cantidad = cantidad_total
-            lote.save()
+            lote.sincronizar_cantidad_disponible()
         
         # Marcar conteo como completado
         conteo.estado = 'completado'

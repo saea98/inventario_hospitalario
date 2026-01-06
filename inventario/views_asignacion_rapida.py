@@ -146,6 +146,9 @@ def api_asignar_ubicacion(request):
             lote_ubicacion.usuario_asignacion = request.user
             lote_ubicacion.save()
         
+        # Sincronizar cantidad del lote con suma de ubicaciones
+        lote.sincronizar_cantidad_disponible()
+        
         return JsonResponse({
             'success': True,
             'message': f'✓ {lote.numero_lote} ({lote.producto.clave_cnis}) asignado a {ubicacion.codigo}',
