@@ -1855,6 +1855,9 @@ def editar_ubicaciones_lote(request, pk):
                 except LoteUbicacion.DoesNotExist:
                     pass
             
+            # Sincronizar cantidad del lote después de cambios
+            lote.sincronizar_cantidad_disponible()
+            
             messages.success(request, "✅ Ubicaciones actualizadas correctamente.")
             return redirect('editar_ubicaciones_lote', pk=lote.pk)
         
