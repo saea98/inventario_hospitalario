@@ -2017,3 +2017,106 @@ class LogSistema(models.Model):
         self.fecha_resolucion = timezone.now()
         self.notas_resolucion = notas
         self.save()
+
+
+
+class RegistroConteoFisico(models.Model):
+    """
+    Registro de conteos físicos parciales.
+    
+    Permite guardar los conteos 1, 2 y 3 de forma independiente,
+    permitiendo que el usuario regrese y complete el conteo en múltiples sesiones.
+    
+    El MovimientoInventario solo se crea cuando se guarda el tercer conteo.
+    """
+    
+    lote_ubicacion = models.OneToOneField(
+        LoteUbicacion,
+        on_delete=models.CASCADE,
+        related_name='registro_conteo',
+        verbose_name="Lote Ubicación"
+    )
+    
+    # Conteos parciales
+    primer_conteo = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Primer Conteo"
+    )
+    
+    segundo_conteo = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Segundo Conteo"
+    )
+    
+    tercer_conteo = models.PositiveIntegerField(
+        null=True,
+        blank=True,
+        verbose_name="Tercer Conteo (Definitivo)"
+    )
+    
+    # Observaciones
+    observaciones = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name="Observaciones"
+    )
+    
+    # Control de estado
+    completado = models.BooleanField(
+        default=False,
+        verbose_name="Conteo Completado",
+        help_text="Se marca como completado cuando se guarda el tercer conteo"
+    )
+    
+    # Auditoría
+    usuario_creacion = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        related_name='registros_conteo_creados',
+        verbose_name="Usuario Creación"
+    )
+    
+    usuario_ultima_actualizacion = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='registros_conteo_actualizados',
+        verbose_name="Usuario Última Actualización"
+    )
+    
+    fecha_creacion = models.DateTimeField(
+        auto_now_add=True,
+        verbose_name="Fecha Creación"
+    )
+    
+    fecha_actualizacion = models.DateTimeField(
+        auto_now=True,
+        verbose_name="Fecha Actualización"
+    )
+    
+    class Meta:
+        verbose_name = "Registro de Conteo Físico"
+        verbose_name_plural = "Registros de Conteo Físico"
+        ordering = ['-fecha_actualizacion']
+    
+    def __str__(self):
+        return f"Conteo: {self.lote_ubicacion} - Completado: {self.completado}"
+    
+    @property
+    def conteo_definitivo(self):
+        """Retorna el tercer conteo (valor definitivo)"""
+        return self.tercer_conteo
+    
+    @property
+    def progreso(self):
+        """Retorna el porcentaje de progreso (1/3, 2/3, 3/3)"""
+        conteos_capturados = sum([
+            1 if self.primer_conteo is not None else 0,
+            1 if self.segundo_conteo is not None else 0,
+            1 if self.tercer_conteo is not None else 0,
+        ])
+        return f"{conteos_capturados}/3"
