@@ -85,7 +85,7 @@ class CapturarConteosForm(forms.Form):
     cifra_primer_conteo = forms.IntegerField(
         label="Primer Conteo",
         min_value=0,
-        required=True,
+        required=False,
         widget=forms.NumberInput(attrs={
             'class': 'form-control form-control-lg text-center',
             'placeholder': '0',

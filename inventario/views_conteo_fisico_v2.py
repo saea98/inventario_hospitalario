@@ -177,10 +177,20 @@ def capturar_conteo_lote(request, lote_id=None, lote_ubicacion_id=None):
         
         form = CapturarConteosForm(request.POST)
         if form.is_valid():
-            cifra_primer_conteo = form.cleaned_data['cifra_primer_conteo']
+            cifra_primer_conteo = form.cleaned_data.get('cifra_primer_conteo') or 0
             cifra_segundo_conteo = form.cleaned_data.get('cifra_segundo_conteo') or 0
-            tercer_conteo = form.cleaned_data['tercer_conteo']  # VALOR DEFINITIVO
+            tercer_conteo = form.cleaned_data.get('tercer_conteo') or 0
             observaciones = form.cleaned_data.get('observaciones', '')
+            
+            # Validar que al menos el tercer conteo tenga valor
+            if not tercer_conteo:
+                messages.error(request, 'El Tercer Conteo (Definitivo) es obligatorio')
+                return render(request, 'logistica/conteo_fisico/capturar_conteo.html', {
+                    'form': form,
+                    'lote': lote,
+                    'lote_ubicacion': lote_ubicacion,
+                    'ubicaciones': ubicaciones,
+                })
             
             try:
                 with transaction.atomic():
@@ -219,10 +229,16 @@ def capturar_conteo_lote(request, lote_id=None, lote_ubicacion_id=None):
                     else:
                         tipo_mov = 'AJUSTE_POSITIVO'
                     
+                    # Construir motivo dinamicamente segun que conteos se capturaron
+                    conteos_info = []
+                    if cifra_primer_conteo:
+                        conteos_info.append(f"Primer Conteo: {cifra_primer_conteo}")
+                    if cifra_segundo_conteo:
+                        conteos_info.append(f"Segundo Conteo: {cifra_segundo_conteo}")
+                    conteos_info.append(f"Tercer Conteo (Definitivo): {tercer_conteo}")
+                    
                     motivo_conteo = f"""Conteo Físico IMSS-Bienestar:
-- Primer Conteo: {cifra_primer_conteo}
-- Segundo Conteo: {cifra_segundo_conteo if cifra_segundo_conteo > 0 else 'No capturado'}
-- Tercer Conteo (Definitivo): {tercer_conteo}
+{chr(10).join('- ' + info for info in conteos_info)}
 - Diferencia: {diferencia:+d}
 {f'- Observaciones: {observaciones}' if observaciones else ''}"""
                     
