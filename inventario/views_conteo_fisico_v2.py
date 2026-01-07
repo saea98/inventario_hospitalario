@@ -28,7 +28,8 @@ import pandas as pd
 
 from .models import (
     Lote, Producto, Almacen, UbicacionAlmacen, 
-    MovimientoInventario, Institucion, CategoriaProducto, LoteUbicacion
+    MovimientoInventario, Institucion, CategoriaProducto, LoteUbicacion,
+    RegistroConteoFisico
 )
 from .forms_conteo_fisico import (
     BuscarLoteForm, CapturarConteosForm, 
@@ -163,6 +164,15 @@ def capturar_conteo_lote(request, lote_id=None, lote_ubicacion_id=None):
     
     producto = lote.producto
     
+    # Obtener o crear registro de conteo para esta ubicación
+    if lote_ubicacion_id:
+        registro_conteo, created = RegistroConteoFisico.objects.get_or_create(
+            lote_ubicacion_id=lote_ubicacion_id,
+            defaults={'usuario_creacion': request.user}
+        )
+    else:
+        registro_conteo = None
+    
     if request.method == 'POST':
         if 'update_locations' in request.POST:
             formset = LoteUbicacionFormSet(request.POST, queryset=LoteUbicacion.objects.filter(lote=lote), prefix='ubicaciones')
@@ -177,12 +187,88 @@ def capturar_conteo_lote(request, lote_id=None, lote_ubicacion_id=None):
         
         form = CapturarConteosForm(request.POST)
         if form.is_valid():
-            cifra_primer_conteo = form.cleaned_data.get('cifra_primer_conteo') or 0
-            cifra_segundo_conteo = form.cleaned_data.get('cifra_segundo_conteo') or 0
-            tercer_conteo = form.cleaned_data.get('tercer_conteo') or 0
+            cifra_primer_conteo = form.cleaned_data.get('cifra_primer_conteo')
+            cifra_segundo_conteo = form.cleaned_data.get('cifra_segundo_conteo')
+            tercer_conteo = form.cleaned_data.get('tercer_conteo')
             observaciones = form.cleaned_data.get('observaciones', '')
             
-            # Validar que al menos el tercer conteo tenga valor
+            # Validar que al menos uno de los conteos tenga valor
+            if not any([cifra_primer_conteo, cifra_segundo_conteo, tercer_conteo]):
+                messages.error(request, 'Debes ingresar al menos un conteo')
+                return render(request, 'logistica/conteo_fisico/capturar_conteo.html', {
+                    'form': form,
+                    'lote': lote,
+                    'lote_ubicacion': lote_ubicacion,
+                    'ubicaciones': ubicaciones,
+                    'registro_conteo': registro_conteo,
+                })
+            
+            # Si se proporciona registro_conteo, guardar parcialmente
+            if registro_conteo:
+                # Actualizar registro de conteo
+                if cifra_primer_conteo:
+                    registro_conteo.primer_conteo = cifra_primer_conteo
+                if cifra_segundo_conteo:
+                    registro_conteo.segundo_conteo = cifra_segundo_conteo
+                if tercer_conteo:
+                    registro_conteo.tercer_conteo = tercer_conteo
+                if observaciones:
+                    registro_conteo.observaciones = observaciones
+                
+                registro_conteo.usuario_ultima_actualizacion = request.user
+                registro_conteo.save()
+                
+                messages.success(request, f'Conteo guardado parcialmente. Progreso: {registro_conteo.progreso}')
+                
+                # Si se completó el tercer conteo, crear MovimientoInventario
+                if tercer_conteo:
+                    # Usar el tercer conteo como definitivo
+                    cantidad_anterior = lote_ubicacion.cantidad
+                    cantidad_nueva = tercer_conteo
+                    diferencia = cantidad_nueva - cantidad_anterior
+                    
+                    # Actualizar LoteUbicacion
+                    lote_ubicacion.cantidad = cantidad_nueva
+                    lote_ubicacion.usuario_asignacion = request.user
+                    lote_ubicacion.save()
+                    
+                    # Sincronizar cantidad del Lote
+                    lote.sincronizar_cantidad_disponible()
+                    
+                    # Crear MovimientoInventario solo si hay diferencia
+                    if diferencia != 0:
+                        tipo_mov = 'AJUSTE_NEGATIVO' if diferencia < 0 else 'AJUSTE_POSITIVO'
+                        
+                        # Construir motivo dinámico
+                        conteos_info = []
+                        if registro_conteo.primer_conteo:
+                            conteos_info.append(f"Primer Conteo: {registro_conteo.primer_conteo}")
+                        if registro_conteo.segundo_conteo:
+                            conteos_info.append(f"Segundo Conteo: {registro_conteo.segundo_conteo}")
+                        conteos_info.append(f"Tercer Conteo (Definitivo): {tercer_conteo}")
+                        
+                        motivo_conteo = f"""Conteo Físico IMSS-Bienestar:
+{chr(10).join('- ' + info for info in conteos_info)}
+- Diferencia: {diferencia:+d}
+{f'- Observaciones: {observaciones}' if observaciones else ''}"""
+                        
+                        MovimientoInventario.objects.create(
+                            lote=lote,
+                            tipo_movimiento=tipo_mov,
+                            cantidad=abs(diferencia),
+                            motivo=motivo_conteo,
+                            usuario=request.user,
+                            ubicacion=lote_ubicacion.ubicacion
+                        )
+                        
+                        registro_conteo.completado = True
+                        registro_conteo.save()
+                        
+                        messages.success(request, f'Conteo completado. Diferencia registrada: {diferencia:+d}')
+                
+                return redirect('logistica:capturar_conteo_lote', lote_ubicacion_id=lote_ubicacion_id)
+            
+            # Si no hay registro_conteo (conteo del lote completo), validar tercer conteo
             if not tercer_conteo:
                 messages.error(request, 'El Tercer Conteo (Definitivo) es obligatorio')
                 return render(request, 'logistica/conteo_fisico/capturar_conteo.html', {
@@ -190,7 +276,12 @@ def capturar_conteo_lote(request, lote_id=None, lote_ubicacion_id=None):
                     'lote': lote,
                     'lote_ubicacion': lote_ubicacion,
                     'ubicaciones': ubicaciones,
+                    'registro_conteo': registro_conteo,
                 })
+            
+            # Convertir a números
+            cifra_primer_conteo = cifra_primer_conteo or 0
+            cifra_segundo_conteo = cifra_segundo_conteo or 0
             
             try:
                 with transaction.atomic():
@@ -229,7 +320,7 @@ def capturar_conteo_lote(request, lote_id=None, lote_ubicacion_id=None):
                     else:
                         tipo_mov = 'AJUSTE_POSITIVO'
                     
-                    # Construir motivo dinamicamente segun que conteos se capturaron
+                    # Construir motivo dinámicamente según conteos capturados
                     conteos_info = []
                     if cifra_primer_conteo:
                         conteos_info.append(f"Primer Conteo: {cifra_primer_conteo}")
@@ -281,6 +372,22 @@ def capturar_conteo_lote(request, lote_id=None, lote_ubicacion_id=None):
         form = CapturarConteosForm()
         formset = LoteUbicacionFormSet(queryset=LoteUbicacion.objects.filter(lote=lote), prefix='ubicaciones')
     
+    # Cargar datos previos en el formulario si existen
+    initial_data = {}
+    if registro_conteo:
+        if registro_conteo.primer_conteo:
+            initial_data['cifra_primer_conteo'] = registro_conteo.primer_conteo
+        if registro_conteo.segundo_conteo:
+            initial_data['cifra_segundo_conteo'] = registro_conteo.segundo_conteo
+        if registro_conteo.tercer_conteo:
+            initial_data['tercer_conteo'] = registro_conteo.tercer_conteo
+        if registro_conteo.observaciones:
+            initial_data['observaciones'] = registro_conteo.observaciones
+        
+        # Si el formulario no fue enviado, crear uno con datos previos
+        if request.method != 'POST':
+            form = CapturarConteosForm(initial=initial_data)
+    
     # Calcular valores para mostrar
     contexto = {
         'lote': lote,
@@ -289,6 +396,8 @@ def capturar_conteo_lote(request, lote_id=None, lote_ubicacion_id=None):
         'form': form,
         'formset': formset,
         'cantidad_sistema': lote.cantidad_disponible,
+        'registro_conteo': registro_conteo,
+        'lote_ubicacion': lote_ubicacion,
     }
     
     return render(request, 'inventario/conteo_fisico/capturar_conteo.html', contexto)
