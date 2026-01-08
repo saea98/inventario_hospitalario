@@ -478,7 +478,7 @@ def exportar_conteos_pdf(request):
     for conteo in conteos[:50]:  # Limitar a 50 registros por PDF
         data.append([
             conteo.lote_ubicacion.lote.producto.clave_cnis[:12],
-            conteo.lote_ubicacion.lote.producto.nombre[:20],
+            conteo.lote_ubicacion.lote.producto.descripcion[:20],
             conteo.lote_ubicacion.lote.numero_lote[:12],
             f"{conteo.lote_ubicacion.ubicacion.codigo}",
             conteo.progreso,
