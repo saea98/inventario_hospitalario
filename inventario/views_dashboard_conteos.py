@@ -102,7 +102,7 @@ def dashboard_conteos(request):
     ).select_related(
         'lote__producto',
         'ubicacion__almacen'
-    ).order_by('-fecha_creacion')[:50]  # Limitar a 50
+    ).order_by('-fecha_asignacion')[:50]  # Limitar a 50
     
     # Calcular estadísticas
     total_conteos = conteos.count()
