@@ -256,9 +256,10 @@ def capturar_conteo_lote(request, lote_id=None, lote_ubicacion_id=None):
                             lote=lote,
                             tipo_movimiento=tipo_mov,
                             cantidad=abs(diferencia),
+                            cantidad_anterior=cantidad_anterior,
+                            cantidad_nueva=cantidad_nueva,
                             motivo=motivo_conteo,
-                            usuario=request.user,
-                            ubicacion=lote_ubicacion.ubicacion
+                            usuario=request.user
                         )
                         
                         registro_conteo.completado = True
