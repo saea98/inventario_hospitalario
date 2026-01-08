@@ -222,6 +222,12 @@ def exportar_conteos_excel(request):
     estado = request.GET.get('estado', 'todos')
     usuario_id = request.GET.get('usuario')
     
+    # Convertir 'None' string a None real
+    if almacen_id == 'None' or almacen_id == '':
+        almacen_id = None
+    if usuario_id == 'None' or usuario_id == '':
+        usuario_id = None
+    
     # Valores por defecto
     if not fecha_desde:
         fecha_desde = timezone.now().date()
@@ -245,16 +251,22 @@ def exportar_conteos_excel(request):
         fecha_creacion__date__lte=fecha_hasta
     )
     
-    if almacen_id:
-        query = query.filter(lote_ubicacion__ubicacion__almacen_id=almacen_id)
+    if almacen_id and almacen_id != 'None':
+        try:
+            query = query.filter(lote_ubicacion__ubicacion__almacen_id=int(almacen_id))
+        except (ValueError, TypeError):
+            pass
     
     if estado == 'completado':
         query = query.filter(completado=True)
     elif estado == 'en_progreso':
         query = query.filter(completado=False)
     
-    if usuario_id:
-        query = query.filter(usuario_creacion_id=usuario_id)
+    if usuario_id and usuario_id != 'None':
+        try:
+            query = query.filter(usuario_creacion_id=int(usuario_id))
+        except (ValueError, TypeError):
+            pass
     
     conteos = query.order_by('-fecha_actualizacion')
     
@@ -363,6 +375,12 @@ def exportar_conteos_pdf(request):
     estado = request.GET.get('estado', 'todos')
     usuario_id = request.GET.get('usuario')
     
+    # Convertir 'None' string a None real
+    if almacen_id == 'None' or almacen_id == '':
+        almacen_id = None
+    if usuario_id == 'None' or usuario_id == '':
+        usuario_id = None
+    
     # Valores por defecto
     if not fecha_desde:
         fecha_desde = timezone.now().date()
@@ -386,16 +404,22 @@ def exportar_conteos_pdf(request):
         fecha_creacion__date__lte=fecha_hasta
     )
     
-    if almacen_id:
-        query = query.filter(lote_ubicacion__ubicacion__almacen_id=almacen_id)
+    if almacen_id and almacen_id != 'None':
+        try:
+            query = query.filter(lote_ubicacion__ubicacion__almacen_id=int(almacen_id))
+        except (ValueError, TypeError):
+            pass
     
     if estado == 'completado':
         query = query.filter(completado=True)
     elif estado == 'en_progreso':
         query = query.filter(completado=False)
     
-    if usuario_id:
-        query = query.filter(usuario_creacion_id=usuario_id)
+    if usuario_id and usuario_id != 'None':
+        try:
+            query = query.filter(usuario_creacion_id=int(usuario_id))
+        except (ValueError, TypeError):
+            pass
     
     conteos = query.order_by('-fecha_actualizacion')
     
