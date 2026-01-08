@@ -292,7 +292,7 @@ def capturar_conteo_lote(request, lote_id=None, lote_ubicacion_id=None):
                 # Si se completó el tercer conteo, crear MovimientoInventario
                 if tercer_conteo:
                     # Usar el tercer conteo como definitivo
-                    cantidad_anterior = lote.cantidad_disponible
+                    cantidad_anterior = lote.cantidad_disponible or 0
                     cantidad_nueva = tercer_conteo
                     diferencia = cantidad_nueva - cantidad_anterior
                     
@@ -359,7 +359,7 @@ def capturar_conteo_lote(request, lote_id=None, lote_ubicacion_id=None):
                         lote.sincronizar_cantidad_disponible()
                     else:
                         # Conteo del lote completo (todas las ubicaciones)
-                        cantidad_anterior = lote.cantidad_disponible
+                        cantidad_anterior = lote.cantidad_disponible or 0
                         cantidad_nueva = tercer_conteo
                         diferencia = cantidad_nueva - cantidad_anterior
                         
