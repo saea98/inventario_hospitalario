@@ -370,7 +370,9 @@ def capturar_conteo_lote(request, lote_id=None, lote_ubicacion_id=None):
                 messages.error(request, f'Error al guardar conteo: {str(e)}')
     else:
         form = CapturarConteosForm()
-        formset = LoteUbicacionFormSet(queryset=LoteUbicacion.objects.filter(lote=lote), prefix='ubicaciones')
+    
+    # Siempre crear formset
+    formset = LoteUbicacionFormSet(queryset=LoteUbicacion.objects.filter(lote=lote), prefix='ubicaciones')
     
     # Cargar datos previos en el formulario si existen
     initial_data = {}
