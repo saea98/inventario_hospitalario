@@ -109,7 +109,7 @@ class CapturarConteosForm(forms.Form):
     tercer_conteo = forms.IntegerField(
         label="Tercer Conteo (DEFINITIVO)",
         min_value=0,
-        required=True,
+        required=False,
         widget=forms.NumberInput(attrs={
             'class': 'form-control form-control-lg text-center',
             'placeholder': '0',
