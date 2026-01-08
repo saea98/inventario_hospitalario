@@ -196,7 +196,7 @@ def capturar_conteo_lote(request, lote_id=None, lote_ubicacion_id=None):
             # Validar que al menos uno de los conteos tenga valor
             if not any([cifra_primer_conteo, cifra_segundo_conteo, tercer_conteo]):
                 messages.error(request, 'Debes ingresar al menos un conteo')
-                return render(request, 'logistica/conteo_fisico/capturar_conteo.html', {
+                return render(request, 'inventario/conteo_fisico/capturar_conteo.html', {
                     'form': form,
                     'lote': lote,
                     'lote_ubicacion': lote_ubicacion,
@@ -273,7 +273,7 @@ def capturar_conteo_lote(request, lote_id=None, lote_ubicacion_id=None):
             # Si no hay registro_conteo (conteo del lote completo), validar tercer conteo
             if not tercer_conteo:
                 messages.error(request, 'El Tercer Conteo (Definitivo) es obligatorio')
-                return render(request, 'logistica/conteo_fisico/capturar_conteo.html', {
+                return render(request, 'inventario/conteo_fisico/capturar_conteo.html', {
                     'form': form,
                     'lote': lote,
                     'lote_ubicacion': lote_ubicacion,
