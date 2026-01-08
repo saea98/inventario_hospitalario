@@ -1784,13 +1784,17 @@ def carga_lotes_desde_excel_view(request):
     return render(request, 'inventario/carga_lotes_excel.html', {'form': form})
 
 
+# Función mejorada para editar_ubicaciones_lote
+# Reemplazar la función existente en views.py (líneas 1788-1882)
+
 @login_required
 def editar_ubicaciones_lote(request, pk):
     """
     Vista para editar las ubicaciones asignadas a un lote.
     Permite agregar, editar y eliminar ubicaciones.
+    Registra movimientos de inventario para cada cambio.
     """
-    from .models import UbicacionAlmacen, Almacen
+    from .models import UbicacionAlmacen, Almacen, MovimientoInventario
     
     lote = get_object_or_404(Lote, pk=pk)
     ubicaciones_actuales = LoteUbicacion.objects.filter(lote=lote).order_by('ubicacion__codigo')
@@ -1816,7 +1820,25 @@ def editar_ubicaciones_lote(request, pk):
                 try:
                     ubicacion = LoteUbicacion.objects.get(id=ubicacion_id, lote=lote)
                     if 'cantidad' in data and data['cantidad']:
-                        ubicacion.cantidad = int(data['cantidad'])
+                        cantidad_anterior = ubicacion.cantidad
+                        cantidad_nueva = int(data['cantidad'])
+                        
+                        # Registrar movimiento si hay cambio
+                        if cantidad_anterior != cantidad_nueva:
+                            diferencia = cantidad_nueva - cantidad_anterior
+                            tipo_movimiento = 'AJUSTE_POSITIVO' if diferencia > 0 else 'AJUSTE_NEGATIVO'
+                            
+                            MovimientoInventario.objects.create(
+                                lote=lote,
+                                tipo_movimiento=tipo_movimiento,
+                                cantidad=abs(diferencia),
+                                cantidad_anterior=cantidad_anterior,
+                                cantidad_nueva=cantidad_nueva,
+                                motivo=f'Ajuste de cantidad en ubicación {ubicacion.ubicacion.codigo} (Edición de ubicaciones)',
+                                usuario=request.user
+                            )
+                        
+                        ubicacion.cantidad = cantidad_nueva
                         ubicacion.save()
                 except (ValueError, LoteUbicacion.DoesNotExist):
                     pass
@@ -1833,12 +1855,24 @@ def editar_ubicaciones_lote(request, pk):
                         
                         # Verificar que no exista ya
                         if not LoteUbicacion.objects.filter(lote=lote, ubicacion=ubicacion_almacen).exists():
-                            LoteUbicacion.objects.create(
+                            lote_ubicacion = LoteUbicacion.objects.create(
                                 lote=lote,
                                 ubicacion=ubicacion_almacen,
                                 cantidad=nueva_cantidad,
                                 usuario_asignacion=request.user
                             )
+                            
+                            # Registrar movimiento de entrada
+                            MovimientoInventario.objects.create(
+                                lote=lote,
+                                tipo_movimiento='AJUSTE_POSITIVO',
+                                cantidad=nueva_cantidad,
+                                cantidad_anterior=0,
+                                cantidad_nueva=nueva_cantidad,
+                                motivo=f'Nueva ubicación {ubicacion_almacen.codigo} agregada (Edición de ubicaciones)',
+                                usuario=request.user
+                            )
+                            
                             messages.success(request, f"✅ Ubicación {ubicacion_almacen.codigo} agregada correctamente.")
                         else:
                             messages.warning(request, f"⚠️ La ubicación {ubicacion_almacen.codigo} ya está asignada a este lote.")
@@ -1850,6 +1884,19 @@ def editar_ubicaciones_lote(request, pk):
             for ubicacion_id in eliminar_ids:
                 try:
                     ubicacion = LoteUbicacion.objects.get(id=ubicacion_id, lote=lote)
+                    cantidad_eliminada = ubicacion.cantidad
+                    
+                    # Registrar movimiento de eliminación
+                    MovimientoInventario.objects.create(
+                        lote=lote,
+                        tipo_movimiento='AJUSTE_NEGATIVO',
+                        cantidad=cantidad_eliminada,
+                        cantidad_anterior=cantidad_eliminada,
+                        cantidad_nueva=0,
+                        motivo=f'Ubicación {ubicacion.ubicacion.codigo} eliminada (Edición de ubicaciones)',
+                        usuario=request.user
+                    )
+                    
                     ubicacion.delete()
                     messages.success(request, f"✅ Ubicación eliminada correctamente.")
                 except LoteUbicacion.DoesNotExist:
@@ -1880,3 +1927,5 @@ def editar_ubicaciones_lote(request, pk):
     }
     
     return render(request, 'inventario/lotes/editar_ubicaciones_lote.html', context)
+
+
