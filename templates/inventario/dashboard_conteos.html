@@ -71,7 +71,7 @@
                         </div>
 
                         <!-- Usuario -->
-                        <div class="col-md-2">
+                        <div class="col-md-1">
                             <label for="usuario" class="form-label">Usuario</label>
                             <select class="form-select" id="usuario" name="usuario">
                                 <option value="">Todos</option>
@@ -83,8 +83,20 @@
                             </select>
                         </div>
 
+                        <!-- CLAVE -->
+                        <div class="col-md-1">
+                            <label for="clave" class="form-label">CLAVE</label>
+                            <input type="text" class="form-control" id="clave" name="clave" placeholder="CLAVE" value="{{ clave_busqueda }}">
+                        </div>
+
+                        <!-- LOTE -->
+                        <div class="col-md-1">
+                            <label for="lote" class="form-label">LOTE</label>
+                            <input type="text" class="form-control" id="lote" name="lote" placeholder="LOTE" value="{{ lote_busqueda }}">
+                        </div>
+
                         <!-- Botones -->
-                        <div class="col-md-2 d-flex align-items-end">
+                        <div class="col-md-1 d-flex align-items-end">
                             <button type="submit" class="btn btn-primary w-100">
                                 <i class="fas fa-search"></i> Filtrar
                             </button>
@@ -241,6 +253,53 @@
             </div>
         </div>
     </div>
+
+    <!-- Insumos Sin Conteo (Pendientes) -->
+    {% if insumos_sin_conteo %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-exclamation-circle"></i> Insumos Pendientes de Conteo ({{ insumos_sin_conteo|length }})
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>CLAVE (CNIS)</th>
+                                    <th>PRODUCTO</th>
+                                    <th>LOTE</th>
+                                    <th>UBICACIÓN</th>
+                                    <th>CANTIDAD</th>
+                                    <th>ACCIÓN</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for insumo in insumos_sin_conteo %}
+                                    <tr>
+                                        <td><strong>{{ insumo.lote.producto.clave_cnis }}</strong></td>
+                                        <td>{{ insumo.lote.producto.descripcion|truncatewords:3 }}</td>
+                                        <td>{{ insumo.lote.numero_lote }}</td>
+                                        <td>{{ insumo.ubicacion.codigo }} - {{ insumo.ubicacion.almacen.nombre }}</td>
+                                        <td>{{ insumo.cantidad }}</td>
+                                        <td>
+                                            <a href="{% url 'logistica:capturar_conteo_lote' lote_ubicacion_id=insumo.id %}" class="btn btn-sm btn-warning">
+                                                <i class="fas fa-plus"></i> Contar
+                                            </a>
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
 
     <!-- Tabla de Detalle -->
     <div class="row">

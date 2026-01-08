@@ -38,6 +38,8 @@ def dashboard_conteos(request):
     almacen_id = request.GET.get('almacen')
     estado = request.GET.get('estado')  # 'completado', 'en_progreso', 'todos'
     usuario_id = request.GET.get('usuario')
+    clave_busqueda = request.GET.get('clave', '').strip()
+    lote_busqueda = request.GET.get('lote', '').strip()
     
     # Valores por defecto
     if not fecha_desde:
@@ -80,8 +82,27 @@ def dashboard_conteos(request):
     if usuario_id:
         query = query.filter(usuario_creacion_id=usuario_id)
     
+    # Filtrar por CLAVE (CNIS)
+    if clave_busqueda:
+        query = query.filter(lote_ubicacion__lote__producto__clave_cnis__icontains=clave_busqueda)
+    
+    # Filtrar por LOTE
+    if lote_busqueda:
+        query = query.filter(lote_ubicacion__lote__numero_lote__icontains=lote_busqueda)
+    
     # Obtener conteos
     conteos = query.order_by('-fecha_actualizacion')
+    
+    # Obtener insumos SIN conteo (pendientes)
+    lotes_con_conteo = set(conteos.values_list('lote_ubicacion__lote_id', flat=True))
+    insumos_sin_conteo = LoteUbicacion.objects.filter(
+        ubicacion__almacen_id=almacen_id if almacen_id else None
+    ).exclude(
+        lote_id__in=lotes_con_conteo
+    ).select_related(
+        'lote__producto',
+        'ubicacion__almacen'
+    ).order_by('-fecha_creacion')[:50]  # Limitar a 50
     
     # Calcular estadísticas
     total_conteos = conteos.count()
@@ -175,6 +196,9 @@ def dashboard_conteos(request):
         'almacen_id': almacen_id,
         'estado': estado,
         'usuario_id': usuario_id,
+        'clave_busqueda': clave_busqueda,
+        'lote_busqueda': lote_busqueda,
+        'insumos_sin_conteo': insumos_sin_conteo,
     }
     
     return render(request, 'inventario/dashboard_conteos.html', contexto)
