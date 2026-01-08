@@ -13,10 +13,10 @@
                     <i class="fas fa-chart-bar"></i> Dashboard de Conteos Físicos
                 </h1>
                 <div class="btn-group" role="group">
-                    <a href="{% url 'conteo_fisico:exportar_excel' %}?fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}&almacen={{ almacen_id }}&estado={{ estado }}&usuario={{ usuario_id }}" class="btn btn-success">
+                    <a href="{% url 'logistica:exportar_conteos_excel' %}?fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}&almacen={{ almacen_id }}&estado={{ estado }}&usuario={{ usuario_id }}" class="btn btn-success">
                         <i class="fas fa-file-excel"></i> Exportar Excel
                     </a>
-                    <a href="{% url 'conteo_fisico:exportar_pdf' %}?fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}&almacen={{ almacen_id }}&estado={{ estado }}&usuario={{ usuario_id }}" class="btn btn-danger">
+                    <a href="{% url 'logistica:exportar_conteos_pdf' %}?fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}&almacen={{ almacen_id }}&estado={{ estado }}&usuario={{ usuario_id }}" class="btn btn-danger">
                         <i class="fas fa-file-pdf"></i> Exportar PDF
                     </a>
                 </div>
