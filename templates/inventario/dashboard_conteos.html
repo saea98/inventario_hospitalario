@@ -157,7 +157,7 @@
                             <h6 class="text-muted mb-2">% Completado</h6>
                             <h2 class="text-info mb-0">
                                 {% if total_conteos > 0 %}
-                                    {{ conteos_completados|add:0|mul:100|div:total_conteos|floatformat:0 }}%
+                                    {% widthratio conteos_completados total_conteos 100 %}%
                                 {% else %}
                                     0%
                                 {% endif %}
