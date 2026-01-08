@@ -154,6 +154,7 @@ def capturar_conteo_lote(request, lote_id=None, lote_ubicacion_id=None):
     """
     
     # Determinar si se viene de seleccionar_lote_conteo (con lote_ubicacion_id) o directamente (con lote_id)
+    lote_ubicacion = None  # Inicializar como None
     if lote_ubicacion_id:
         lote_ubicacion = get_object_or_404(LoteUbicacion, id=lote_ubicacion_id)
         lote = lote_ubicacion.lote
