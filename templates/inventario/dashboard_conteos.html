@@ -1,0 +1,455 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Dashboard de Conteos Físicos{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Encabezado -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="d-flex justify-content-between align-items-center">
+                <h1 class="mb-0">
+                    <i class="fas fa-chart-bar"></i> Dashboard de Conteos Físicos
+                </h1>
+                <div class="btn-group" role="group">
+                    <a href="{% url 'conteo_fisico:exportar_excel' %}?fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}&almacen={{ almacen_id }}&estado={{ estado }}&usuario={{ usuario_id }}" class="btn btn-success">
+                        <i class="fas fa-file-excel"></i> Exportar Excel
+                    </a>
+                    <a href="{% url 'conteo_fisico:exportar_pdf' %}?fecha_desde={{ fecha_desde }}&fecha_hasta={{ fecha_hasta }}&almacen={{ almacen_id }}&estado={{ estado }}&usuario={{ usuario_id }}" class="btn btn-danger">
+                        <i class="fas fa-file-pdf"></i> Exportar PDF
+                    </a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card border-info shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-filter"></i> Filtros
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <form method="get" class="row g-3">
+                        <!-- Fecha Desde -->
+                        <div class="col-md-2">
+                            <label for="fecha_desde" class="form-label">Desde</label>
+                            <input type="date" class="form-control" id="fecha_desde" name="fecha_desde" value="{{ fecha_desde }}">
+                        </div>
+
+                        <!-- Fecha Hasta -->
+                        <div class="col-md-2">
+                            <label for="fecha_hasta" class="form-label">Hasta</label>
+                            <input type="date" class="form-control" id="fecha_hasta" name="fecha_hasta" value="{{ fecha_hasta }}">
+                        </div>
+
+                        <!-- Almacén -->
+                        <div class="col-md-2">
+                            <label for="almacen" class="form-label">Almacén</label>
+                            <select class="form-select" id="almacen" name="almacen">
+                                <option value="">Todos</option>
+                                {% for almacen in almacenes %}
+                                    <option value="{{ almacen.id }}" {% if almacen.id|stringformat:"s" == almacen_id %}selected{% endif %}>
+                                        {{ almacen.nombre }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Estado -->
+                        <div class="col-md-2">
+                            <label for="estado" class="form-label">Estado</label>
+                            <select class="form-select" id="estado" name="estado">
+                                <option value="todos" {% if estado == 'todos' %}selected{% endif %}>Todos</option>
+                                <option value="completado" {% if estado == 'completado' %}selected{% endif %}>Completados</option>
+                                <option value="en_progreso" {% if estado == 'en_progreso' %}selected{% endif %}>En Progreso</option>
+                            </select>
+                        </div>
+
+                        <!-- Usuario -->
+                        <div class="col-md-2">
+                            <label for="usuario" class="form-label">Usuario</label>
+                            <select class="form-select" id="usuario" name="usuario">
+                                <option value="">Todos</option>
+                                {% for usuario in usuarios %}
+                                    <option value="{{ usuario.id }}" {% if usuario.id|stringformat:"s" == usuario_id %}selected{% endif %}>
+                                        {{ usuario.first_name }} {{ usuario.last_name }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+
+                        <!-- Botones -->
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="submit" class="btn btn-primary w-100">
+                                <i class="fas fa-search"></i> Filtrar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tarjetas de Resumen -->
+    <div class="row mb-4">
+        <!-- Total de Conteos -->
+        <div class="col-md-3">
+            <div class="card border-primary shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">Total de Conteos</h6>
+                            <h2 class="text-primary mb-0">{{ total_conteos }}</h2>
+                        </div>
+                        <div class="text-primary" style="font-size: 2.5rem; opacity: 0.3;">
+                            <i class="fas fa-list"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Completados -->
+        <div class="col-md-3">
+            <div class="card border-success shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">Completados (3/3)</h6>
+                            <h2 class="text-success mb-0">{{ conteos_completados }}</h2>
+                        </div>
+                        <div class="text-success" style="font-size: 2.5rem; opacity: 0.3;">
+                            <i class="fas fa-check-circle"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- En Progreso -->
+        <div class="col-md-3">
+            <div class="card border-warning shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">En Progreso (1/3 o 2/3)</h6>
+                            <h2 class="text-warning mb-0">{{ conteos_en_progreso }}</h2>
+                        </div>
+                        <div class="text-warning" style="font-size: 2.5rem; opacity: 0.3;">
+                            <i class="fas fa-hourglass-half"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Porcentaje Completado -->
+        <div class="col-md-3">
+            <div class="card border-info shadow-sm">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-2">% Completado</h6>
+                            <h2 class="text-info mb-0">
+                                {% if total_conteos > 0 %}
+                                    {{ conteos_completados|add:0|mul:100|div:total_conteos|floatformat:0 }}%
+                                {% else %}
+                                    0%
+                                {% endif %}
+                            </h2>
+                        </div>
+                        <div class="text-info" style="font-size: 2.5rem; opacity: 0.3;">
+                            <i class="fas fa-percentage"></i>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráficos -->
+    <div class="row mb-4">
+        <!-- Gráfico de Progreso (Pie) -->
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-chart-pie"></i> Distribución por Progreso
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div style="height: 300px;">
+                        <canvas id="chartProgreso"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gráfico de Estado (Donut) -->
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-success text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-chart-doughnut"></i> Estado de Conteos
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div style="height: 300px;">
+                        <canvas id="chartEstado"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Gráficos por Almacén y Usuario -->
+    <div class="row mb-4">
+        <!-- Gráfico por Almacén -->
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-info text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-chart-bar"></i> Conteos por Almacén
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div style="height: 300px;">
+                        <canvas id="chartAlmacen"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Gráfico por Usuario -->
+        <div class="col-md-6">
+            <div class="card shadow-sm">
+                <div class="card-header bg-warning text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-chart-bar"></i> Conteos por Usuario
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div style="height: 300px;">
+                        <canvas id="chartUsuario"></canvas>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de Detalle -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-header bg-secondary text-white">
+                    <h6 class="mb-0">
+                        <i class="fas fa-table"></i> Detalle de Conteos
+                    </h6>
+                </div>
+                <div class="card-body">
+                    <div class="table-responsive">
+                        <table class="table table-hover table-sm">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>CLAVE (CNIS)</th>
+                                    <th>PRODUCTO</th>
+                                    <th>LOTE</th>
+                                    <th>UBICACIÓN</th>
+                                    <th>PROGRESO</th>
+                                    <th>COMPLETADO</th>
+                                    <th>USUARIO</th>
+                                    <th>FECHA</th>
+                                    <th>1ER CONTEO</th>
+                                    <th>2DO CONTEO</th>
+                                    <th>3ER CONTEO</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for conteo in tabla_conteos %}
+                                    <tr>
+                                        <td><strong>{{ conteo.clave }}</strong></td>
+                                        <td>{{ conteo.producto|truncatewords:3 }}</td>
+                                        <td>{{ conteo.lote }}</td>
+                                        <td>{{ conteo.ubicacion }}</td>
+                                        <td>
+                                            <span class="badge bg-info">{{ conteo.progreso }}</span>
+                                        </td>
+                                        <td>
+                                            {% if conteo.completado == 'Sí' %}
+                                                <span class="badge bg-success">✓ Completado</span>
+                                            {% else %}
+                                                <span class="badge bg-warning">En Progreso</span>
+                                            {% endif %}
+                                        </td>
+                                        <td>{{ conteo.usuario }}</td>
+                                        <td><small>{{ conteo.fecha }}</small></td>
+                                        <td>{{ conteo.primer_conteo }}</td>
+                                        <td>{{ conteo.segundo_conteo }}</td>
+                                        <td><strong>{{ conteo.tercer_conteo }}</strong></td>
+                                    </tr>
+                                {% empty %}
+                                    <tr>
+                                        <td colspan="11" class="text-center text-muted">
+                                            No hay conteos registrados con los filtros seleccionados
+                                        </td>
+                                    </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Chart.js -->
+<script src="https://cdn.jsdelivr.net/npm/chart.js@3.9.1/dist/chart.min.js"></script>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Datos de gráficos
+    const datosGrafico = {{ datos_grafico|safe }};
+    const conteosPorAlmacen = {{ conteos_por_almacen|safe }};
+    const conteosPorUsuario = {{ conteos_por_usuario|safe }};
+
+    // Colores
+    const colores = ['#4472C4', '#70AD47', '#FFC000', '#5B9BD5', '#ED7D31'];
+    const coloresProgreso = ['#FF6B6B', '#FFA500', '#FFD700', '#90EE90'];
+
+    // Gráfico de Progreso (Pie)
+    const ctxProgreso = document.getElementById('chartProgreso').getContext('2d');
+    new Chart(ctxProgreso, {
+        type: 'pie',
+        data: {
+            labels: ['1/3', '2/3', '3/3 (Completados)'],
+            datasets: [{
+                data: [datosGrafico['1_3'], datosGrafico['2_3'], datosGrafico['3_3']],
+                backgroundColor: coloresProgreso,
+                borderColor: '#fff',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+
+    // Gráfico de Estado (Donut)
+    const ctxEstado = document.getElementById('chartEstado').getContext('2d');
+    new Chart(ctxEstado, {
+        type: 'doughnut',
+        data: {
+            labels: ['Completados', 'En Progreso'],
+            datasets: [{
+                data: [datosGrafico['completados'], datosGrafico['en_progreso']],
+                backgroundColor: ['#28a745', '#ffc107'],
+                borderColor: '#fff',
+                borderWidth: 2
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: {
+                    position: 'bottom'
+                }
+            }
+        }
+    });
+
+    // Gráfico por Almacén (Bar)
+    const ctxAlmacen = document.getElementById('chartAlmacen').getContext('2d');
+    new Chart(ctxAlmacen, {
+        type: 'bar',
+        data: {
+            labels: Object.keys(conteosPorAlmacen),
+            datasets: [{
+                label: 'Conteos',
+                data: Object.values(conteosPorAlmacen),
+                backgroundColor: colores[0],
+                borderColor: colores[0],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+                y: {
+                    beginAtZero: true
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+
+    // Gráfico por Usuario (Bar)
+    const ctxUsuario = document.getElementById('chartUsuario').getContext('2d');
+    new Chart(ctxUsuario, {
+        type: 'bar',
+        data: {
+            labels: Object.keys(conteosPorUsuario),
+            datasets: [{
+                label: 'Conteos',
+                data: Object.values(conteosPorUsuario),
+                backgroundColor: colores[1],
+                borderColor: colores[1],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y',
+            scales: {
+                x: {
+                    beginAtZero: true
+                }
+            },
+            plugins: {
+                legend: {
+                    display: false
+                }
+            }
+        }
+    });
+});
+</script>
+
+<style>
+    .card {
+        border-radius: 8px;
+        transition: transform 0.2s;
+    }
+
+    .card:hover {
+        transform: translateY(-2px);
+    }
+
+    .table-hover tbody tr:hover {
+        background-color: #f5f5f5;
+    }
+
+    .badge {
+        padding: 0.5rem 0.75rem;
+        font-size: 0.85rem;
+    }
+</style>
+{% endblock %}

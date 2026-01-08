@@ -8,7 +8,7 @@ Basado en el formato IMSS-Bienestar que captura tres conteos:
 """
 
 from django.urls import path
-from . import views_conteo_fisico_v2
+from . import views_conteo_fisico_v2, views_dashboard_conteos
 
 app_name = 'conteo_fisico'
 
@@ -50,4 +50,9 @@ urlpatterns = [
     
     # API AJAX para obtener información del lote
     path('api/lote-info/', views_conteo_fisico_v2.api_obtener_lote_info, name='api_lote_info'),
+    
+    # Dashboard de reportes
+    path('dashboard/', views_dashboard_conteos.dashboard_conteos, name='dashboard'),
+    path('dashboard/exportar/excel/', views_dashboard_conteos.exportar_conteos_excel, name='exportar_excel'),
+    path('dashboard/exportar/pdf/', views_dashboard_conteos.exportar_conteos_pdf, name='exportar_pdf'),
 ]
