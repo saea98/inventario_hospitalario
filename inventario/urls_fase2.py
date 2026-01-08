@@ -4,7 +4,7 @@ Incluye: Citas, Traslados y Conteo Físico
 """
 
 from django.urls import path, include
-from . import views_fase2, views_telegram_test, views_traslados_completo, views_conteo_fisico_v2, pedidos_views
+from . import views_fase2, views_telegram_test, views_traslados_completo, views_conteo_fisico_v2, pedidos_views, views_dashboard_conteos
 from . import llegada_urls
 
 app_name = 'logistica'
@@ -62,7 +62,10 @@ urlpatterns = [
     # Detalle de un movimiento de conteo
     path('conteos/movimientos/<int:movimiento_id>/', views_conteo_fisico_v2.detalle_movimiento_conteo, name='detalle_movimiento_conteo'),
     
-
+    # Dashboard de Reportes de Conteos
+    path('conteos/dashboard/', views_dashboard_conteos.dashboard_conteos, name='dashboard_conteos'),
+    path('conteos/dashboard/exportar/excel/', views_dashboard_conteos.exportar_conteos_excel, name='exportar_conteos_excel'),
+    path('conteos/dashboard/exportar/pdf/', views_dashboard_conteos.exportar_conteos_pdf, name='exportar_conteos_pdf'),
     
     # ========================================================================
     # FASE 2.2.1: GESTION DE PEDIDOS (RECONSTRUIDA)
