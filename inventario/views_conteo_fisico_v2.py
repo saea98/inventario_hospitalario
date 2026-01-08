@@ -270,16 +270,78 @@ def capturar_conteo_lote(request, lote_id=None, lote_ubicacion_id=None):
                 
                 return redirect('logistica:capturar_conteo_lote', lote_ubicacion_id=lote_ubicacion_id)
             
-            # Si no hay registro_conteo (conteo del lote completo), validar tercer conteo
-            if not tercer_conteo:
-                messages.error(request, 'El Tercer Conteo (Definitivo) es obligatorio')
-                return render(request, 'inventario/conteo_fisico/capturar_conteo.html', {
-                    'form': form,
-                    'lote': lote,
-                    'lote_ubicacion': lote_ubicacion,
-                    'ubicaciones': ubicaciones,
-                    'registro_conteo': registro_conteo,
-                })
+            # Permitir guardado parcial si hay al menos un conteo
+            # Solo crear MovimientoInventario si se completa el tercer conteo
+            
+            # Si no hay registro_conteo y no hay tercer_conteo, crear uno para guardado parcial
+            if not registro_conteo and not tercer_conteo:
+                registro_conteo = RegistroConteoFisico.objects.create(
+                    lote_ubicacion=None,  # No hay ubicación específica
+                    usuario_creacion=request.user
+                )
+            
+            # Si hay registro_conteo, guardar parcialmente
+            if registro_conteo:
+                if cifra_primer_conteo:
+                    registro_conteo.primer_conteo = cifra_primer_conteo
+                if cifra_segundo_conteo:
+                    registro_conteo.segundo_conteo = cifra_segundo_conteo
+                if tercer_conteo:
+                    registro_conteo.tercer_conteo = tercer_conteo
+                if observaciones:
+                    registro_conteo.observaciones = observaciones
+                
+                registro_conteo.usuario_ultima_actualizacion = request.user
+                registro_conteo.save()
+                
+                messages.success(request, f'Conteo guardado parcialmente. Progreso: {registro_conteo.progreso}')
+                
+                # Si se completó el tercer conteo, crear MovimientoInventario
+                if tercer_conteo:
+                    # Usar el tercer conteo como definitivo
+                    cantidad_anterior = lote.cantidad_disponible
+                    cantidad_nueva = tercer_conteo
+                    diferencia = cantidad_nueva - cantidad_anterior
+                    
+                    # Actualizar Lote
+                    lote.cantidad_disponible = cantidad_nueva
+                    lote.valor_total = cantidad_nueva * (lote.precio_unitario or 0)
+                    lote.save()
+                    
+                    # Crear MovimientoInventario solo si hay diferencia
+                    if diferencia != 0:
+                        tipo_mov = 'AJUSTE_NEGATIVO' if diferencia < 0 else 'AJUSTE_POSITIVO'
+                        
+                        # Construir motivo dinámico
+                        conteos_info = []
+                        if registro_conteo.primer_conteo:
+                            conteos_info.append(f"Primer Conteo: {registro_conteo.primer_conteo}")
+                        if registro_conteo.segundo_conteo:
+                            conteos_info.append(f"Segundo Conteo: {registro_conteo.segundo_conteo}")
+                        conteos_info.append(f"Tercer Conteo (Definitivo): {tercer_conteo}")
+                        
+                        motivo_conteo = f"""Conteo Físico IMSS-Bienestar:
+{chr(10).join('- ' + info for info in conteos_info)}
+- Diferencia: {diferencia:+d}
+{f'- Observaciones: {observaciones}' if observaciones else ''}"""
+                        
+                        MovimientoInventario.objects.create(
+                            lote=lote,
+                            tipo_movimiento=tipo_mov,
+                            cantidad=abs(diferencia),
+                            cantidad_anterior=cantidad_anterior,
+                            cantidad_nueva=cantidad_nueva,
+                            motivo=motivo_conteo,
+                            usuario=request.user
+                        )
+                        
+                        registro_conteo.completado = True
+                        registro_conteo.save()
+                        
+                        messages.success(request, f'Conteo completado. Diferencia registrada: {diferencia:+d}')
+                
+                return redirect('logistica:capturar_conteo_lote', lote_id=lote.id)
+            
             
             # Convertir a números
             cifra_primer_conteo = cifra_primer_conteo or 0
