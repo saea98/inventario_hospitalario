@@ -273,14 +273,7 @@ def capturar_conteo_lote(request, lote_id=None, lote_ubicacion_id=None):
             # Permitir guardado parcial si hay al menos un conteo
             # Solo crear MovimientoInventario si se completa el tercer conteo
             
-            # Si no hay registro_conteo y no hay tercer_conteo, crear uno para guardado parcial
-            if not registro_conteo and not tercer_conteo:
-                registro_conteo = RegistroConteoFisico.objects.create(
-                    lote_ubicacion=None,  # No hay ubicación específica
-                    usuario_creacion=request.user
-                )
-            
-            # Si hay registro_conteo, guardar parcialmente
+            # Si hay registro_conteo (conteo de ubicación específica), guardar parcialmente
             if registro_conteo:
                 if cifra_primer_conteo:
                     registro_conteo.primer_conteo = cifra_primer_conteo
