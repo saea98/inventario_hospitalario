@@ -145,7 +145,7 @@ def dashboard_conteos(request):
         tabla_conteos.append({
             'id': conteo.id,
             'clave': conteo.lote_ubicacion.lote.producto.clave_cnis,
-            'producto': conteo.lote_ubicacion.lote.producto.nombre,
+            'producto': conteo.lote_ubicacion.lote.producto.descripcion,
             'lote': conteo.lote_ubicacion.lote.numero_lote,
             'ubicacion': f"{conteo.lote_ubicacion.ubicacion.codigo} - {conteo.lote_ubicacion.ubicacion.almacen.nombre}",
             'progreso': conteo.progreso,
@@ -276,7 +276,7 @@ def exportar_conteos_excel(request):
     for row, conteo in enumerate(conteos, 2):
         datos = [
             conteo.lote_ubicacion.lote.producto.clave_cnis,
-            conteo.lote_ubicacion.lote.producto.nombre,
+            conteo.lote_ubicacion.lote.producto.descripcion,
             conteo.lote_ubicacion.lote.numero_lote,
             f"{conteo.lote_ubicacion.ubicacion.codigo} - {conteo.lote_ubicacion.ubicacion.almacen.nombre}",
             conteo.progreso,
