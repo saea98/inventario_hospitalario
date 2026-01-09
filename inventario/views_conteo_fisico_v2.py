@@ -448,13 +448,18 @@ def capturar_conteo_lote(request, lote_id=None, lote_ubicacion_id=None):
             form = CapturarConteosForm(initial=initial_data)
     
     # Calcular valores para mostrar
+    precio_unitario = lote.precio_unitario or 0
+    valor_sistema = (lote.cantidad_disponible or 0) * precio_unitario
+    
     contexto = {
         'lote': lote,
         'producto': producto,
         'ubicaciones': ubicaciones,
         'form': form,
         'formset': formset,
-        'cantidad_sistema': lote.cantidad_disponible,
+        'cantidad_sistema': lote.cantidad_disponible or 0,
+        'precio_unitario': precio_unitario,
+        'valor_sistema': valor_sistema,
         'registro_conteo': registro_conteo,
         'lote_ubicacion': lote_ubicacion,
     }
