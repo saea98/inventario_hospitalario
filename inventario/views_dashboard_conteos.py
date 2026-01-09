@@ -16,9 +16,22 @@ from django.utils import timezone
 from datetime import datetime, timedelta
 from decimal import Decimal
 import json
+import pytz
 
 from .models import RegistroConteoFisico, LoteUbicacion, Lote, Almacen, Producto
 from .access_control import requiere_rol
+
+
+def convertir_a_utc_6(dt):
+    """Convierte un datetime a UTC-6 (zona horaria de México)"""
+    if dt is None:
+        return None
+    if dt.tzinfo is None:
+        # Si no tiene zona horaria, asumir UTC
+        dt = pytz.UTC.localize(dt)
+    # Convertir a UTC-6
+    tz_mx = pytz.timezone('America/Mexico_City')
+    return dt.astimezone(tz_mx)
 
 
 @requiere_rol('Almacenero', 'Administrador', 'Gestor de Inventario', 'Supervisión')
@@ -172,7 +185,7 @@ def dashboard_conteos(request):
             'progreso': conteo.progreso,
             'completado': 'Sí' if conteo.completado else 'No',
             'usuario': f"{conteo.usuario_creacion.first_name} {conteo.usuario_creacion.last_name}".strip() or conteo.usuario_creacion.username,
-            'fecha': conteo.fecha_actualizacion.strftime('%d/%m/%Y %H:%M'),
+            'fecha': convertir_a_utc_6(conteo.fecha_actualizacion).strftime('%d/%m/%Y %H:%M'),
             'primer_conteo': conteo.primer_conteo or '-',
             'segundo_conteo': conteo.segundo_conteo or '-',
             'tercer_conteo': conteo.tercer_conteo or '-',
