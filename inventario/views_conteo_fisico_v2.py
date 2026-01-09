@@ -356,6 +356,24 @@ def capturar_conteo_lote(request, lote_id=None, lote_ubicacion_id=None):
             cifra_primer_conteo = cifra_primer_conteo or 0
             cifra_segundo_conteo = cifra_segundo_conteo or 0
             
+            # Validar que tercer_conteo tenga valor si queremos crear MovimientoInventario
+            if not tercer_conteo:
+                logger.info(f"⚠️ Tercer conteo no ingresado, guardando parcialmente")
+                if lote_ubicacion_id:
+                    # Guardar en RegistroConteoFisico
+                    if registro_conteo:
+                        if cifra_primer_conteo and not registro_conteo.primer_conteo:
+                            registro_conteo.primer_conteo = cifra_primer_conteo
+                        if cifra_segundo_conteo and not registro_conteo.segundo_conteo:
+                            registro_conteo.segundo_conteo = cifra_segundo_conteo
+                        if observaciones:
+                            registro_conteo.observaciones = observaciones
+                        registro_conteo.usuario_ultima_actualizacion = request.user
+                        registro_conteo.save()
+                        logger.info(f"💾 Conteo guardado parcialmente - Progreso: {registro_conteo.progreso}")
+                        messages.success(request, f'Conteo guardado parcialmente. Progreso: {registro_conteo.progreso}')
+                return redirect('logistica:capturar_conteo_lote', lote_id=lote.id, lote_ubicacion_id=lote_ubicacion_id)
+            
             try:
                 with transaction.atomic():
                     # Si es conteo por ubicación específica, actualizar LoteUbicacion
