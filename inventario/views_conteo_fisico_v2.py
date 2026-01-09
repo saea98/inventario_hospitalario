@@ -26,6 +26,10 @@ from datetime import datetime, date
 from decimal import Decimal
 import pandas as pd
 
+import logging
+
+logger = logging.getLogger(__name__)
+
 from .models import (
     Lote, Producto, Almacen, UbicacionAlmacen, 
     MovimientoInventario, Institucion, CategoriaProducto, LoteUbicacion,
@@ -154,16 +158,21 @@ def capturar_conteo_lote(request, lote_id=None, lote_ubicacion_id=None):
     """
     
     # Determinar si se viene de seleccionar_lote_conteo (con lote_ubicacion_id) o directamente (con lote_id)
+    logger.info(f"🔍 Iniciando capturar_conteo_lote - lote_id={lote_id}, lote_ubicacion_id={lote_ubicacion_id}")
+    
     lote_ubicacion = None  # Inicializar como None
     if lote_ubicacion_id:
+        logger.info(f"📍 Conteo por ubicación específica: {lote_ubicacion_id}")
         lote_ubicacion = get_object_or_404(LoteUbicacion, id=lote_ubicacion_id)
         lote = lote_ubicacion.lote
         ubicaciones = [lote_ubicacion]  # Solo la ubicación seleccionada
     else:
+        logger.info(f"📦 Conteo del lote completo: {lote_id}")
         lote = get_object_or_404(Lote.objects.prefetch_related("ubicaciones_detalle__ubicacion__almacen"), id=lote_id)
         ubicaciones = lote.ubicaciones_detalle.all()
     
     producto = lote.producto
+    logger.info(f"✅ Lote cargado: {lote.numero_lote}, Producto: {producto.clave_cnis}, Cantidad disponible: {lote.cantidad_disponible}")
     
     # Obtener o crear registro de conteo para esta ubicación
     if lote_ubicacion_id:
@@ -175,6 +184,7 @@ def capturar_conteo_lote(request, lote_id=None, lote_ubicacion_id=None):
         registro_conteo = None
     
     if request.method == 'POST':
+        logger.info(f"📝 POST recibido - Guardando conteo para lote {lote.numero_lote}")
         if 'update_locations' in request.POST:
             formset = LoteUbicacionFormSet(request.POST, queryset=LoteUbicacion.objects.filter(lote=lote), prefix='ubicaciones')
             if formset.is_valid():
@@ -188,9 +198,11 @@ def capturar_conteo_lote(request, lote_id=None, lote_ubicacion_id=None):
         
         form = CapturarConteosForm(request.POST)
         if form.is_valid():
+            logger.info(f"✅ Formulario válido")
             cifra_primer_conteo = form.cleaned_data.get('cifra_primer_conteo')
             cifra_segundo_conteo = form.cleaned_data.get('cifra_segundo_conteo')
             tercer_conteo = form.cleaned_data.get('tercer_conteo')
+            logger.info(f"📊 Conteos: 1er={cifra_primer_conteo}, 2do={cifra_segundo_conteo}, 3er={tercer_conteo}")
             observaciones = form.cleaned_data.get('observaciones', '')
             
             # Validar que al menos uno de los conteos tenga valor
@@ -219,6 +231,7 @@ def capturar_conteo_lote(request, lote_id=None, lote_ubicacion_id=None):
                 registro_conteo.usuario_ultima_actualizacion = request.user
                 registro_conteo.save()
                 
+                logger.info(f"💾 Conteo guardado parcialmente - Progreso: {registro_conteo.progreso}")
                 messages.success(request, f'Conteo guardado parcialmente. Progreso: {registro_conteo.progreso}')
                 
                 # Si se completó el tercer conteo, crear MovimientoInventario
@@ -237,6 +250,7 @@ def capturar_conteo_lote(request, lote_id=None, lote_ubicacion_id=None):
                     lote.sincronizar_cantidad_disponible()
                     
                     # Crear MovimientoInventario solo si hay diferencia
+                    logger.info(f"🔄 Tercer conteo completado - Diferencia: {diferencia}")
                     if diferencia != 0:
                         tipo_mov = 'AJUSTE_NEGATIVO' if diferencia < 0 else 'AJUSTE_POSITIVO'
                         
@@ -287,6 +301,7 @@ def capturar_conteo_lote(request, lote_id=None, lote_ubicacion_id=None):
                 registro_conteo.usuario_ultima_actualizacion = request.user
                 registro_conteo.save()
                 
+                logger.info(f"💾 Conteo guardado parcialmente - Progreso: {registro_conteo.progreso}")
                 messages.success(request, f'Conteo guardado parcialmente. Progreso: {registro_conteo.progreso}')
                 
                 # Si se completó el tercer conteo, crear MovimientoInventario
@@ -302,6 +317,7 @@ def capturar_conteo_lote(request, lote_id=None, lote_ubicacion_id=None):
                     lote.save()
                     
                     # Crear MovimientoInventario solo si hay diferencia
+                    logger.info(f"🔄 Tercer conteo completado - Diferencia: {diferencia}")
                     if diferencia != 0:
                         tipo_mov = 'AJUSTE_NEGATIVO' if diferencia < 0 else 'AJUSTE_POSITIVO'
                         
@@ -424,6 +440,7 @@ def capturar_conteo_lote(request, lote_id=None, lote_ubicacion_id=None):
                     )
                     
             except Exception as e:
+                logger.error(f"❌ Error al guardar conteo: {str(e)}", exc_info=True)
                 messages.error(request, f'Error al guardar conteo: {str(e)}')
     else:
         form = CapturarConteosForm()
