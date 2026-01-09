@@ -154,6 +154,13 @@ class CrearLoteManualForm(forms.ModelForm):
     Se utiliza cuando la búsqueda por CLAVE no encuentra resultados.
     """
     
+    def __init__(self, *args, **kwargs):
+        almacen = kwargs.pop('almacen', None)
+        super().__init__(*args, **kwargs)
+        # Hacer cantidad_disponible obligatorio
+        self.fields['cantidad_disponible'].required = True
+        self.fields['cantidad_disponible'].initial = 0.01
+    
     class Meta:
         model = Lote
         fields = [

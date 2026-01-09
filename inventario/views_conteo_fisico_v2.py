@@ -579,6 +579,9 @@ def crear_lote_conteo(request):
         if form.is_valid():
             lote = form.save(commit=False)
             lote.almacen = almacen
+            # Asegurar que cantidad_disponible tenga un valor
+            if not lote.cantidad_disponible:
+                lote.cantidad_disponible = 0.01
             lote.save()
             
             # Limpiar sesión
