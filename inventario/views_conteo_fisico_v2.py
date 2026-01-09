@@ -255,37 +255,45 @@ def capturar_conteo_lote(request, lote_id=None, lote_ubicacion_id=None):
                     # Sincronizar cantidad del Lote
                     lote.sincronizar_cantidad_disponible()
                     
-                    # Crear MovimientoInventario solo si hay diferencia
+                    # Crear MovimientoInventario SIEMPRE (incluso sin diferencia)
                     logger.info(f"🔄 Tercer conteo completado - Diferencia: {diferencia}")
-                    if diferencia != 0:
-                        tipo_mov = 'AJUSTE_NEGATIVO' if diferencia < 0 else 'AJUSTE_POSITIVO'
-                        
-                        # Construir motivo dinámico
-                        conteos_info = []
-                        if registro_conteo.primer_conteo:
-                            conteos_info.append(f"Primer Conteo: {registro_conteo.primer_conteo}")
-                        if registro_conteo.segundo_conteo:
-                            conteos_info.append(f"Segundo Conteo: {registro_conteo.segundo_conteo}")
-                        conteos_info.append(f"Tercer Conteo (Definitivo): {tercer_conteo}")
-                        
-                        motivo_conteo = f"""Conteo Físico IMSS-Bienestar:
+                    # Determinar tipo de movimiento
+                    if diferencia > 0:
+                        tipo_mov = 'AJUSTE_POSITIVO'
+                    elif diferencia < 0:
+                        tipo_mov = 'AJUSTE_NEGATIVO'
+                    else:
+                        tipo_mov = 'CONTEO_VERIFICADO'  # Sin diferencia, solo verificación
+                    
+                    # Construir motivo dinámico
+                    conteos_info = []
+                    if registro_conteo.primer_conteo:
+                        conteos_info.append(f"Primer Conteo: {registro_conteo.primer_conteo}")
+                    if registro_conteo.segundo_conteo:
+                        conteos_info.append(f"Segundo Conteo: {registro_conteo.segundo_conteo}")
+                    conteos_info.append(f"Tercer Conteo (Definitivo): {tercer_conteo}")
+                    
+                    motivo_conteo = f"""Conteo Físico IMSS-Bienestar:
 {chr(10).join('- ' + info for info in conteos_info)}
 - Diferencia: {diferencia:+d}
 {f'- Observaciones: {observaciones}' if observaciones else ''}"""
-                        
-                        MovimientoInventario.objects.create(
-                            lote=lote,
-                            tipo_movimiento=tipo_mov,
-                            cantidad=abs(diferencia),
-                            cantidad_anterior=cantidad_anterior,
-                            cantidad_nueva=cantidad_nueva,
-                            motivo=motivo_conteo,
-                            usuario=request.user
-                        )
-                        
-                        registro_conteo.completado = True
-                        registro_conteo.save()
-                        
+                    
+                    MovimientoInventario.objects.create(
+                        lote=lote,
+                        tipo_movimiento=tipo_mov,
+                        cantidad=abs(diferencia),
+                        cantidad_anterior=cantidad_anterior,
+                        cantidad_nueva=cantidad_nueva,
+                        motivo=motivo_conteo,
+                        usuario=request.user
+                    )
+                    
+                    registro_conteo.completado = True
+                    registro_conteo.save()
+                    
+                    if diferencia == 0:
+                        messages.success(request, f'Conteo completado. Cantidad verificada correctamente.')
+                    else:
                         messages.success(request, f'Conteo completado. Diferencia registrada: {diferencia:+d}')
                 
                 return redirect('logistica:capturar_conteo_lote', lote_ubicacion_id=lote_ubicacion_id)
@@ -322,37 +330,45 @@ def capturar_conteo_lote(request, lote_id=None, lote_ubicacion_id=None):
                     lote.valor_total = cantidad_nueva * (lote.precio_unitario or 0)
                     lote.save()
                     
-                    # Crear MovimientoInventario solo si hay diferencia
+                    # Crear MovimientoInventario SIEMPRE (incluso sin diferencia)
                     logger.info(f"🔄 Tercer conteo completado - Diferencia: {diferencia}")
-                    if diferencia != 0:
-                        tipo_mov = 'AJUSTE_NEGATIVO' if diferencia < 0 else 'AJUSTE_POSITIVO'
-                        
-                        # Construir motivo dinámico
-                        conteos_info = []
-                        if registro_conteo.primer_conteo:
-                            conteos_info.append(f"Primer Conteo: {registro_conteo.primer_conteo}")
-                        if registro_conteo.segundo_conteo:
-                            conteos_info.append(f"Segundo Conteo: {registro_conteo.segundo_conteo}")
-                        conteos_info.append(f"Tercer Conteo (Definitivo): {tercer_conteo}")
-                        
-                        motivo_conteo = f"""Conteo Físico IMSS-Bienestar:
+                    # Determinar tipo de movimiento
+                    if diferencia > 0:
+                        tipo_mov = 'AJUSTE_POSITIVO'
+                    elif diferencia < 0:
+                        tipo_mov = 'AJUSTE_NEGATIVO'
+                    else:
+                        tipo_mov = 'CONTEO_VERIFICADO'  # Sin diferencia, solo verificación
+                    
+                    # Construir motivo dinámico
+                    conteos_info = []
+                    if registro_conteo.primer_conteo:
+                        conteos_info.append(f"Primer Conteo: {registro_conteo.primer_conteo}")
+                    if registro_conteo.segundo_conteo:
+                        conteos_info.append(f"Segundo Conteo: {registro_conteo.segundo_conteo}")
+                    conteos_info.append(f"Tercer Conteo (Definitivo): {tercer_conteo}")
+                    
+                    motivo_conteo = f"""Conteo Físico IMSS-Bienestar:
 {chr(10).join('- ' + info for info in conteos_info)}
 - Diferencia: {diferencia:+d}
 {f'- Observaciones: {observaciones}' if observaciones else ''}"""
-                        
-                        MovimientoInventario.objects.create(
-                            lote=lote,
-                            tipo_movimiento=tipo_mov,
-                            cantidad=abs(diferencia),
-                            cantidad_anterior=cantidad_anterior,
-                            cantidad_nueva=cantidad_nueva,
-                            motivo=motivo_conteo,
-                            usuario=request.user
-                        )
-                        
-                        registro_conteo.completado = True
-                        registro_conteo.save()
-                        
+                    
+                    MovimientoInventario.objects.create(
+                        lote=lote,
+                        tipo_movimiento=tipo_mov,
+                        cantidad=abs(diferencia),
+                        cantidad_anterior=cantidad_anterior,
+                        cantidad_nueva=cantidad_nueva,
+                        motivo=motivo_conteo,
+                        usuario=request.user
+                    )
+                    
+                    registro_conteo.completado = True
+                    registro_conteo.save()
+                    
+                    if diferencia == 0:
+                        messages.success(request, f'Conteo completado. Cantidad verificada correctamente.')
+                    else:
                         messages.success(request, f'Conteo completado. Diferencia registrada: {diferencia:+d}')
                 
                 return redirect('logistica:capturar_conteo_lote', lote_id=lote.id)
