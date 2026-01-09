@@ -164,6 +164,7 @@ class CrearLoteManualForm(forms.ModelForm):
     class Meta:
         model = Lote
         fields = [
+            'producto',
             'numero_lote',
             'cantidad_inicial',
             'cantidad_disponible',
@@ -174,6 +175,9 @@ class CrearLoteManualForm(forms.ModelForm):
             'fecha_recepcion',
         ]
         widgets = {
+            'producto': forms.Select(attrs={
+                'class': 'form-select'
+            }),
             'numero_lote': forms.TextInput(attrs={
                 'class': 'form-control',
                 'placeholder': 'Número de lote'

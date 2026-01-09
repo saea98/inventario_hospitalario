@@ -596,7 +596,7 @@ def crear_lote_conteo(request):
             return redirect('logistica:capturar_conteo_lote', lote_id=lote.id)
     else:
         form = CrearLoteManualForm(almacen=almacen)
-        if clave_cnis:
+        if clave_cnis and 'producto' in form.fields:
             form.fields['producto'].queryset = Producto.objects.filter(clave_cnis=clave_cnis)
     
     contexto = {
