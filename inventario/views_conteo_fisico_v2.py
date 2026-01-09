@@ -372,7 +372,10 @@ def capturar_conteo_lote(request, lote_id=None, lote_ubicacion_id=None):
                         registro_conteo.save()
                         logger.info(f"💾 Conteo guardado parcialmente - Progreso: {registro_conteo.progreso}")
                         messages.success(request, f'Conteo guardado parcialmente. Progreso: {registro_conteo.progreso}')
-                return redirect('logistica:capturar_conteo_lote', lote_id=lote.id, lote_ubicacion_id=lote_ubicacion_id)
+                if lote_ubicacion_id:
+                    return redirect('logistica:capturar_conteo_lote', lote_ubicacion_id=lote_ubicacion_id)
+                else:
+                    return redirect('logistica:capturar_conteo_lote', lote_id=lote.id)
             
             try:
                 with transaction.atomic():
