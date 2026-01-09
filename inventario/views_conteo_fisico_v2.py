@@ -170,6 +170,12 @@ def capturar_conteo_lote(request, lote_id=None, lote_ubicacion_id=None):
         logger.info(f"📦 Conteo del lote completo: {lote_id}")
         lote = get_object_or_404(Lote.objects.prefetch_related("ubicaciones_detalle__ubicacion__almacen"), id=lote_id)
         ubicaciones = lote.ubicaciones_detalle.all()
+        
+        # Si el lote tiene solo UNA ubicación, usar esa automáticamente
+        if ubicaciones.count() == 1:
+            logger.info(f"📍 Lote tiene solo una ubicación, usando automáticamente")
+            lote_ubicacion = ubicaciones.first()
+            lote_ubicacion_id = lote_ubicacion.id
     
     producto = lote.producto
     logger.info(f"✅ Lote cargado: {lote.numero_lote}, Producto: {producto.clave_cnis}, Cantidad disponible: {lote.cantidad_disponible}")
