@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ('inventario', '0040_limpiar_menu_duplicados'),
+        ('inventario', '0041_merge_0039_logsistema_0040_limpiar_menu_duplicados'),
     ]
 
     operations = [
