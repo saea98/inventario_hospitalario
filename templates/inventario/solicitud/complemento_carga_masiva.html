@@ -18,6 +18,43 @@
         </div>
     {% endif %}
 
+    <!-- Reporte de Carga -->
+    {% if reporte_carga %}
+        <div class="card shadow-sm border-0 rounded-3 mb-4 bg-light">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0"><i class="bi bi-file-earmark-check"></i> Reporte de Carga Masiva</h5>
+            </div>
+            <div class="card-body">
+                <div class="row mb-3">
+                    <div class="col-md-4">
+                        <div class="card text-center border-success">
+                            <div class="card-body">
+                                <h4 class="text-success">{{ reporte_carga.registros_creados }}</h4>
+                                <small class="text-muted">Registros Creados</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card text-center border-info">
+                            <div class="card-body">
+                                <h4 class="text-info">{{ reporte_carga.registros_actualizados }}</h4>
+                                <small class="text-muted">Registros Actualizados</small>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="col-md-4">
+                        <div class="card text-center border-danger">
+                            <div class="card-body">
+                                <h4 class="text-danger">{{ reporte_carga.total_errores }}</h4>
+                                <small class="text-muted">Errores Encontrados</small>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    {% endif %}
+
     <!-- Card principal -->
     <div class="card shadow-sm border-0 rounded-3">
         <div class="card-body">
@@ -44,28 +81,35 @@
             <hr>
 
             <!-- Resumen de resultados -->
-            {% if errores %}
+            {% if reporte_carga.errores %}
                 <div class="mt-4">
                     <h5 class="text-danger mb-3">
-                        ⚠️ Errores encontrados ({{ errores|length }})
+                        <i class="bi bi-exclamation-triangle"></i> Detalles de Errores ({{ reporte_carga.total_errores }})
                     </h5>
                     <div class="table-responsive">
                         <table class="table table-sm table-bordered align-middle">
                             <thead class="table-light">
                                 <tr>
-                                    <th>#</th>
+                                    <th style="width: 50px;">#</th>
                                     <th>Detalle del Error</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for error in errores %}
+                                {% for error in reporte_carga.errores %}
                                     <tr>
-                                        <td>{{ forloop.counter }}</td>
-                                        <td>{{ error }}</td>
+                                        <td class="text-center">{{ forloop.counter }}</td>
+                                        <td>
+                                            <small><pre style="margin: 0; white-space: pre-wrap; word-wrap: break-word;">{{ error }}</pre></small>
+                                        </td>
                                     </tr>
                                 {% endfor %}
                             </tbody>
                         </table>
+                    </div>
+                    <div class="mt-3">
+                        <button class="btn btn-sm btn-outline-danger" onclick="descargarErrores()">
+                            <i class="bi bi-download"></i> Descargar Errores (CSV)
+                        </button>
                     </div>
                 </div>
             {% endif %}
@@ -95,4 +139,29 @@
         border-radius: 4px;
     }
 </style>
+
+<script>
+function descargarErrores() {
+    const errores = [
+        ['#', 'Detalle del Error']
+    ];
+    {% for error in reporte_carga.errores %}
+    errores.push([{{ forloop.counter }}, `{{ error|escapejs }}`]);
+    {% endfor %}
+    
+    let csv = errores.map(row => 
+        row.map(cell => `"${cell}"`).join(',')
+    ).join('\n');
+    
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'errores_carga_masiva.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+}
+</script>
 {% endblock %}

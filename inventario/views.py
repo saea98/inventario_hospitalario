@@ -1566,20 +1566,34 @@ def complemento_carga_masiva(request):
                 import traceback
                 errores.append(f"Fila {index + 2}: {str(e)}\nValores: {row.to_dict()}\n{traceback.format_exc()}")
 
+        # --- Guardar reporte en sesión ---
+        request.session['reporte_carga'] = {
+            'registros_creados': registros_creados,
+            'registros_actualizados': registros_actualizados,
+            'errores': errores,
+            'total_errores': len(errores),
+        }
+        
         # --- Mensajes finales ---
-        for err in errores:
-            messages.warning(request, err)
-
-        messages.success(
-            request,
-            f"✅ Complemento de carga completado: {registros_creados} creados, {registros_actualizados} actualizados."
-        )
+        if errores:
+            messages.warning(
+                request,
+                f"Carga completada con {len(errores)} error(es). Se crearon {registros_creados} y se actualizaron {registros_actualizados} registros."
+            )
+        else:
+            messages.success(
+                request,
+                f"Carga completada exitosamente: {registros_creados} creados, {registros_actualizados} actualizados."
+            )
+        
         return redirect('complemento_carga_masiva')
 
     # GET
+    reporte_carga = request.session.pop('reporte_carga', None)
     contexto = {
         'fecha_actual': fecha_actual,
         'errores': errores,
+        'reporte_carga': reporte_carga,
     }
     return render(request, 'inventario/solicitud/complemento_carga_masiva.html', contexto)
 
