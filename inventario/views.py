@@ -452,6 +452,15 @@ def lista_lotes(request):
             dias = int(caducidad)
             lotes = lotes.filter(fecha_caducidad__gte=hoy, fecha_caducidad__lte=hoy + timedelta(days=dias))
 
+    # 🔹 Filtro de productos NO procesados en última carga
+    no_procesados = request.GET.get('no_procesados', '')
+    if no_procesados == 'si':
+        from .models import CargaInventario
+        ultima_carga = CargaInventario.objects.filter(estado='COMPLETADA').order_by('-fecha_carga').first()
+        if ultima_carga and ultima_carga.productos_no_procesados:
+            claves_no_procesadas = ultima_carga.productos_no_procesados
+            lotes = lotes.filter(producto__clave_cnis__in=claves_no_procesadas)
+    
     # 🔹 Filtro de búsqueda libre (lote, CNIS o producto)
     search = request.GET.get('search', '').strip()
     if search:
@@ -524,6 +533,10 @@ def lista_lotes(request):
         {"value": "epa", "label": "EPA"},
     ]
 
+    # Obtener información de última carga
+    from .models import CargaInventario
+    ultima_carga = CargaInventario.objects.filter(estado='COMPLETADA').order_by('-fecha_carga').first()
+    
     context = {
         'form': form,
         'lotes': lotes,
@@ -536,6 +549,8 @@ def lista_lotes(request):
         'page_obj': page_obj,
         'alertas_caducidad': alertas_caducidad,
         "columnas_disponibles": columnas_disponibles,
+        'no_procesados_selected': no_procesados,
+        'ultima_carga': ultima_carga,
     }
     return render(request, 'inventario/lotes/lista_lotes.html', context)
 

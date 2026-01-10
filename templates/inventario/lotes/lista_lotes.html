@@ -54,17 +54,30 @@
                 </select>
             </div>
 
-            <!-- ⏳ Filtro por caducidad -->
+            <!-- Filtro por caducidad -->
             <div class="col-md-2">
                 <label for="caducidad" class="form-label">Caducidad</label>
                 <select class="form-select select2" id="caducidad" name="caducidad">
                     <option value="">Todas</option>
-                    <option value="30" {% if caducidad_selected == "30" %}selected{% endif %}>Menos de 30 días</option>
-                    <option value="60" {% if caducidad_selected == "60" %}selected{% endif %}>Menos de 60 días</option>
-                    <option value="90" {% if caducidad_selected == "90" %}selected{% endif %}>Menos de 90 días</option>
+                    <option value="30" {% if caducidad_selected == "30" %}selected{% endif %}>Menos de 30 dias</option>
+                    <option value="60" {% if caducidad_selected == "60" %}selected{% endif %}>Menos de 60 dias</option>
+                    <option value="90" {% if caducidad_selected == "90" %}selected{% endif %}>Menos de 90 dias</option>
                     <option value="caducados" {% if caducidad_selected == "caducados" %}selected{% endif %}>Caducados</option>
                 </select>
             </div>
+            
+            <!-- Filtro de productos NO procesados -->
+            {% if ultima_carga %}
+            <div class="col-md-2">
+                <label for="no_procesados" class="form-label">Estado de Carga</label>
+                <select class="form-select select2" id="no_procesados" name="no_procesados">
+                    <option value="">Todos</option>
+                    <option value="si" {% if no_procesados_selected == "si" %}selected{% endif %}>
+                        NO Procesados ({{ ultima_carga.total_no_procesados }})
+                    </option>
+                </select>
+            </div>
+            {% endif %}
 
             <!-- 🔘 Botón de filtrado -->
             <div class="col-md-2 d-flex align-items-end">
