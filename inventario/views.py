@@ -1398,6 +1398,7 @@ def complemento_carga_masiva(request):
     errores = []
     registros_creados = 0
     registros_actualizados = 0
+    claves_procesadas = set()  # Registrar las claves que se procesaron
 
     if request.method == 'POST' and request.FILES.get('archivo_csv'):
         archivo_csv = request.FILES['archivo_csv']
@@ -1475,6 +1476,9 @@ def complemento_carga_masiva(request):
                 if not clave or not descripcion:
                     errores.append(f"Fila {index + 2}: Falta CLAVE o DESCRIPCIÓN.")
                     continue
+                
+                # Registrar que esta clave fue procesada
+                claves_procesadas.add(clave)
 
                 with transaction.atomic():
                     # === Proveedor ===
@@ -1566,24 +1570,31 @@ def complemento_carga_masiva(request):
                 import traceback
                 errores.append(f"Fila {index + 2}: {str(e)}\nValores: {row.to_dict()}\n{traceback.format_exc()}")
 
+        # --- Encontrar productos NO procesados ---
+        todos_los_productos = Producto.objects.all().values_list('clave_cnis', flat=True)
+        claves_no_procesadas = [clave for clave in todos_los_productos if clave not in claves_procesadas]
+        
         # --- Guardar reporte en sesión ---
         request.session['reporte_carga'] = {
             'registros_creados': registros_creados,
             'registros_actualizados': registros_actualizados,
             'errores': errores,
             'total_errores': len(errores),
+            'claves_no_procesadas': claves_no_procesadas,
+            'total_no_procesadas': len(claves_no_procesadas),
+            'total_productos_sistema': len(list(todos_los_productos)),
         }
         
         # --- Mensajes finales ---
         if errores:
             messages.warning(
                 request,
-                f"Carga completada con {len(errores)} error(es). Se crearon {registros_creados} y se actualizaron {registros_actualizados} registros."
+                f"Carga completada con {len(errores)} error(es). Se crearon {registros_creados}, se actualizaron {registros_actualizados} y {len(claves_no_procesadas)} no fueron procesados."
             )
         else:
             messages.success(
                 request,
-                f"Carga completada exitosamente: {registros_creados} creados, {registros_actualizados} actualizados."
+                f"Carga completada: {registros_creados} creados, {registros_actualizados} actualizados. {len(claves_no_procesadas)} productos no fueron procesados."
             )
         
         return redirect('complemento_carga_masiva')
