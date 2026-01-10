@@ -650,6 +650,11 @@ class CargaInventario(models.Model):
 
     # JSON para guardar errores fila por fila
     log_errores = models.JSONField(blank=True, null=True)
+    
+    # Productos no procesados en esta carga
+    productos_no_procesados = models.JSONField(blank=True, null=True, default=list, help_text="Lista de claves CNIS no procesadas")
+    total_no_procesados = models.PositiveIntegerField(default=0)
+    total_productos_sistema = models.PositiveIntegerField(default=0)
 
     fecha_carga = models.DateTimeField(auto_now_add=True)
     usuario = models.ForeignKey(User, on_delete=models.CASCADE)

@@ -1571,8 +1571,25 @@ def complemento_carga_masiva(request):
                 errores.append(f"Fila {index + 2}: {str(e)}\nValores: {row.to_dict()}\n{traceback.format_exc()}")
 
         # --- Encontrar productos NO procesados ---
-        todos_los_productos = Producto.objects.all().values_list('clave_cnis', flat=True)
+        todos_los_productos = list(Producto.objects.all().values_list('clave_cnis', flat=True))
         claves_no_procesadas = [clave for clave in todos_los_productos if clave not in claves_procesadas]
+        
+        # --- Guardar registro de carga en BD ---
+        from .models import CargaInventario
+        carga_registro = CargaInventario.objects.create(
+            nombre_archivo=archivo_csv.name if hasattr(archivo_csv, 'name') else 'carga_masiva',
+            estado='COMPLETADA',
+            total_registros=len(claves_procesadas),
+            registros_procesados=len(claves_procesadas),
+            registros_exitosos=registros_creados + registros_actualizados,
+            registros_con_error=len(errores),
+            log_errores=errores if errores else None,
+            productos_no_procesados=claves_no_procesadas,
+            total_no_procesados=len(claves_no_procesadas),
+            total_productos_sistema=len(todos_los_productos),
+            usuario=request.user,
+            fecha_procesamiento=timezone.now()
+        )
         
         # --- Guardar reporte en sesión ---
         request.session['reporte_carga'] = {
@@ -1580,9 +1597,9 @@ def complemento_carga_masiva(request):
             'registros_actualizados': registros_actualizados,
             'errores': errores,
             'total_errores': len(errores),
-            'claves_no_procesadas': claves_no_procesadas,
             'total_no_procesadas': len(claves_no_procesadas),
-            'total_productos_sistema': len(list(todos_los_productos)),
+            'total_productos_sistema': len(todos_los_productos),
+            'carga_id': carga_registro.id,
         }
         
         # --- Mensajes finales ---

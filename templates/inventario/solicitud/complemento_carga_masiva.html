@@ -131,9 +131,14 @@
                         </table>
                     </div>
                     <div class="mt-3">
-                        <button class="btn btn-sm btn-outline-warning" onclick="descargarNoProcessados()">
-                            <i class="bi bi-download"></i> Descargar Productos NO Procesados (CSV)
-                        </button>
+                        <p class="text-muted small mb-2">
+                            <i class="bi bi-info-circle"></i> Estos productos han sido registrados en el historial de cargas. Puedes acceder a ellos desde el panel de administración para desactivarlos de forma masiva.
+                        </p>
+                        {% if reporte_carga.carga_id %}
+                        <a href="{% url 'admin:inventario_cargainventario_change' %}?id={{ reporte_carga.carga_id }}" class="btn btn-sm btn-outline-warning" target="_blank">
+                            <i class="bi bi-eye"></i> Ver Registro de Carga
+                        </a>
+                        {% endif %}
                     </div>
                 </div>
             {% endif %}
