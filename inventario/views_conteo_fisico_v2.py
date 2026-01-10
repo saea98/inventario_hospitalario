@@ -314,14 +314,15 @@ def capturar_conteo_lote(request, lote_id=None, lote_ubicacion_id=None):
 - Diferencia: {diferencia:+d}
 {f'- Observaciones: {observaciones}' if observaciones else ''}"""
                     
-                    MovimientoInventario.objects.create(
+                    movimiento = MovimientoInventario.objects.create(
                         lote=lote,
                         tipo_movimiento=tipo_mov,
                         cantidad=abs(diferencia),
                         cantidad_anterior=cantidad_anterior,
                         cantidad_nueva=cantidad_nueva,
                         motivo=motivo_conteo,
-                        usuario=request.user
+                        usuario=request.user,
+                        folio=f"CONTEO-{timezone.now().strftime('%Y%m%d%H%M%S')}"
                     )
                     
                     registro_conteo.completado = True
@@ -389,14 +390,15 @@ def capturar_conteo_lote(request, lote_id=None, lote_ubicacion_id=None):
 - Diferencia: {diferencia:+d}
 {f'- Observaciones: {observaciones}' if observaciones else ''}"""
                     
-                    MovimientoInventario.objects.create(
+                    movimiento = MovimientoInventario.objects.create(
                         lote=lote,
                         tipo_movimiento=tipo_mov,
                         cantidad=abs(diferencia),
                         cantidad_anterior=cantidad_anterior,
                         cantidad_nueva=cantidad_nueva,
                         motivo=motivo_conteo,
-                        usuario=request.user
+                        usuario=request.user,
+                        folio=f"CONTEO-{timezone.now().strftime('%Y%m%d%H%M%S')}"
                     )
                     
                     registro_conteo.completado = True
