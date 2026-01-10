@@ -1,0 +1,146 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Crear Nuevo Lote - Conteo Físico{% endblock %}
+
+{% block content %}
+<div class="container mt-5">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <div class="card">
+                <div class="card-header bg-warning text-dark">
+                    <h4 class="mb-0">⚠️ Lote No Encontrado</h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-info mb-4">
+                        <i class="fas fa-info-circle"></i>
+                        <strong>El lote no existe en el sistema.</strong> Puedes crear uno nuevo completando el formulario a continuación.
+                    </div>
+
+                    {% if clave_cnis %}
+                        <p class="text-muted">
+                            <strong>CLAVE CNIS buscada:</strong> {{ clave_cnis }}
+                        </p>
+                    {% endif %}
+
+                    {% if numero_lote %}
+                        <p class="text-muted">
+                            <strong>Número de Lote buscado:</strong> {{ numero_lote }}
+                        </p>
+                    {% endif %}
+
+                    <hr>
+
+                    <form method="POST" class="mt-4">
+                        {% csrf_token %}
+                        
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.producto.id_for_label }}" class="form-label">
+                                        <strong>{{ form.producto.label }}</strong>
+                                        {% if form.producto.field.required %}<span class="text-danger">*</span>{% endif %}
+                                    </label>
+                                    {{ form.producto }}
+                                    {% if form.producto.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ form.producto.errors.0 }}
+                                        </div>
+                                    {% endif %}
+                                    <small class="form-text text-muted">
+                                        Selecciona el producto o busca por CLAVE CNIS
+                                    </small>
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.numero_lote.id_for_label }}" class="form-label">
+                                        <strong>{{ form.numero_lote.label }}</strong>
+                                        {% if form.numero_lote.field.required %}<span class="text-danger">*</span>{% endif %}
+                                    </label>
+                                    {{ form.numero_lote }}
+                                    {% if form.numero_lote.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ form.numero_lote.errors.0 }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        <div class="row">
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.fecha_vencimiento.id_for_label }}" class="form-label">
+                                        <strong>{{ form.fecha_vencimiento.label }}</strong>
+                                        {% if form.fecha_vencimiento.field.required %}<span class="text-danger">*</span>{% endif %}
+                                    </label>
+                                    {{ form.fecha_vencimiento }}
+                                    {% if form.fecha_vencimiento.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ form.fecha_vencimiento.errors.0 }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+
+                            <div class="col-md-6">
+                                <div class="form-group mb-3">
+                                    <label for="{{ form.cantidad_disponible.id_for_label }}" class="form-label">
+                                        <strong>{{ form.cantidad_disponible.label }}</strong>
+                                        {% if form.cantidad_disponible.field.required %}<span class="text-danger">*</span>{% endif %}
+                                    </label>
+                                    {{ form.cantidad_disponible }}
+                                    {% if form.cantidad_disponible.errors %}
+                                        <div class="invalid-feedback d-block">
+                                            {{ form.cantidad_disponible.errors.0 }}
+                                        </div>
+                                    {% endif %}
+                                </div>
+                            </div>
+                        </div>
+
+                        {% if form.non_field_errors %}
+                            <div class="alert alert-danger mt-3">
+                                <strong>Error al crear el lote:</strong>
+                                <ul class="mb-0">
+                                    {% for error in form.non_field_errors %}
+                                        <li>{{ error }}</li>
+                                    {% endfor %}
+                                </ul>
+                            </div>
+                        {% endif %}
+
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="fas fa-plus"></i> Crear Lote
+                            </button>
+                            <a href="{% url 'logistica:buscar_lote_conteo' %}" class="btn btn-secondary btn-lg">
+                                <i class="fas fa-arrow-left"></i> Volver a Buscar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .form-control, .form-select {
+        border: 1px solid #dee2e6;
+    }
+    
+    .form-control:focus, .form-select:focus {
+        border-color: #80bdff;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    }
+    
+    .invalid-feedback {
+        color: #dc3545;
+        font-size: 0.875rem;
+        margin-top: 0.25rem;
+    }
+</style>
+{% endblock %}

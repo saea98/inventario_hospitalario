@@ -110,18 +110,10 @@ def buscar_lote_conteo(request):
                         )
                 
             except Lote.DoesNotExist:
-                # Lote no encontrado - Ofrecer opción de crear
+                # Lote no encontrado - Mostrar error en la misma página
                 tipo_busqueda_label = 'CLAVE' if tipo_busqueda == 'clave' else 'LOTE'
-                error = f"No se encontró lote con {tipo_busqueda_label}: {criterio_busqueda}"
-                
-                # Guardar datos en sesión para crear nuevo lote
-                if tipo_busqueda == 'clave':
-                    request.session['clave_cnis_busqueda'] = criterio_busqueda
-                else:
-                    request.session['numero_lote_busqueda'] = criterio_busqueda
-                request.session['almacen_id_busqueda'] = almacen.id
-                
-                return redirect('logistica:crear_lote_conteo')
+                error = f"❌ No se encontró lote con {tipo_busqueda_label}: {criterio_busqueda}. Puedes crear uno nuevo."
+                messages.warning(request, error)
             
             except Lote.MultipleObjectsReturned:
                 # Múltiples lotes encontrados - Mostrar lista para seleccionar
@@ -143,14 +135,10 @@ def buscar_lote_conteo(request):
                     request.session['almacen_id_busqueda'] = almacen.id
                     return redirect('logistica:seleccionar_lote_conteo')
                 else:
+                    # No se encontró nada - Mostrar error
                     tipo_busqueda_label = 'CLAVE' if tipo_busqueda == 'clave' else 'LOTE'
-                    error = f"No se encontró lote con {tipo_busqueda_label}: {criterio_busqueda}"
-                    if tipo_busqueda == 'clave':
-                        request.session['clave_cnis_busqueda'] = criterio_busqueda
-                    else:
-                        request.session['numero_lote_busqueda'] = criterio_busqueda
-                    request.session['almacen_id_busqueda'] = almacen.id
-                    return redirect('logistica:crear_lote_conteo')
+                    error = f"❌ No se encontró lote con {tipo_busqueda_label}: {criterio_busqueda}. Puedes crear uno nuevo."
+                    messages.warning(request, error)
     
     return render(request, 'inventario/conteo_fisico/buscar_lote.html', {
         'form': form,
