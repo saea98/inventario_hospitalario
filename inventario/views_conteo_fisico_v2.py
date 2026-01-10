@@ -82,18 +82,32 @@ def buscar_lote_conteo(request):
                         producto__clave_cnis=criterio_busqueda,
                         almacen=almacen
                     )
+                    # Redirigir a captura de conteos
+                    return redirect(
+                        'logistica:capturar_conteo_lote',
+                        lote_id=lote.id
+                    )
                 else:
                     # Búsqueda por NÚMERO DE LOTE
                     lote = Lote.objects.get(
                         numero_lote=criterio_busqueda,
                         almacen=almacen
                     )
-                
-                # Redirigir a captura de conteos
-                return redirect(
-                    'logistica:capturar_conteo_lote',
-                    lote_id=lote.id
-                )
+                    
+                    # Si el lote tiene múltiples ubicaciones, mostrar selección
+                    ubicaciones = lote.ubicaciones_detalle.all()
+                    if ubicaciones.count() > 1:
+                        # Guardar en sesión y mostrar selección de ubicación
+                        request.session['numero_lote_busqueda'] = criterio_busqueda
+                        request.session['almacen_id_busqueda'] = almacen.id
+                        request.session['lote_id_seleccionado'] = lote.id
+                        return redirect('logistica:seleccionar_ubicacion_conteo')
+                    else:
+                        # Si tiene solo una ubicación, ir directamente al conteo
+                        return redirect(
+                            'logistica:capturar_conteo_lote',
+                            lote_id=lote.id
+                        )
                 
             except Lote.DoesNotExist:
                 # Lote no encontrado - Ofrecer opción de crear
@@ -145,6 +159,40 @@ def buscar_lote_conteo(request):
 
 
 @login_required
+
+@login_required
+def seleccionar_ubicacion_conteo(request):
+    """
+    Vista para seleccionar la ubicación de un lote cuando hay múltiples.
+    Se muestra cuando se busca por número de lote y hay varias ubicaciones.
+    """
+    lote_id = request.session.get('lote_id_seleccionado')
+    
+    if not lote_id:
+        return redirect('logistica:buscar_lote_conteo')
+    
+    lote = get_object_or_404(Lote, id=lote_id)
+    ubicaciones = lote.ubicaciones_detalle.all().select_related('ubicacion', 'ubicacion__almacen')
+    
+    if request.method == 'POST':
+        lote_ubicacion_id = request.POST.get('lote_ubicacion_id')
+        if lote_ubicacion_id:
+            # Limpiar sesión
+            request.session.pop('lote_id_seleccionado', None)
+            request.session.pop('numero_lote_busqueda', None)
+            request.session.pop('almacen_id_busqueda', None)
+            
+            # Redirigir al conteo de esa ubicación
+            return redirect(
+                'logistica:capturar_conteo_lote',
+                lote_ubicacion_id=lote_ubicacion_id
+            )
+    
+    return render(request, 'inventario/conteo_fisico/seleccionar_ubicacion.html', {
+        'lote': lote,
+        'ubicaciones': ubicaciones
+    })
+
 def capturar_conteo_lote(request, lote_id=None, lote_ubicacion_id=None):
     """
     Vista para capturar los tres conteos de un lote específico.
