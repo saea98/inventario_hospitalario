@@ -83,6 +83,8 @@ def procesar_carga_masiva(archivo_path, institucion_id, usuario, dry_run=False):
         'ubicaciones_creadas': 0,
         'lotes_creados': 0,
         'lotes_actualizados': 0,
+        'ubicaciones_eliminadas': 0,
+        'ajustes_previos': 0,
         'errores': 0,
         'errores_detalle': [],
         'dry_run': dry_run,
@@ -193,7 +195,37 @@ def procesar_carga_masiva(archivo_path, institucion_id, usuario, dry_run=False):
                         lote.fecha_caducidad = fecha_caducidad
                     stats['lotes_actualizados'] += 1
                 
-                # 7. CREAR O ACTUALIZAR LOTE_UBICACION
+                # 7. LIMPIAR UBICACIONES PREVIAS AL 30 DE DICIEMBRE (si aplica)
+                # Solo para productos que NO inician con '060'
+                if not clave.startswith('060'):
+                    fecha_limite = timezone.datetime(2025, 12, 30).date()
+                    ubicaciones_previas = LoteUbicacion.objects.filter(
+                        lote=lote,
+                        fecha_asignacion__lt=fecha_limite
+                    ).exclude(ubicacion=ubicacion)
+                    
+                    for ub_previa in ubicaciones_previas:
+                        # Crear movimiento de ajuste previo a conteo
+                        if ub_previa.cantidad > 0:
+                            from .models import MovimientoInventario
+                            MovimientoInventario.objects.create(
+                                lote=lote,
+                                tipo_movimiento='AJUSTE_NEGATIVO',
+                                cantidad=ub_previa.cantidad,
+                                cantidad_anterior=ub_previa.cantidad,
+                                cantidad_nueva=0,
+                                motivo=f"Ajuste previo a conteo - Eliminación de ubicación previa ({ub_previa.ubicacion.codigo})",
+                                usuario=usuario,
+                                folio=f"AJUSTE-PREVIO-{timezone.now().strftime('%Y%m%d%H%M%S')}"
+                            )
+                        
+                        # Eliminar ubicación previa
+                        ub_previa.delete()
+                        stats['ubicaciones_eliminadas'] += 1
+                        if ub_previa.cantidad > 0:
+                            stats['ajustes_previos'] += 1
+                
+                # 8. CREAR O ACTUALIZAR LOTE_UBICACION
                 lote_ubicacion, _ = LoteUbicacion.objects.get_or_create(
                     lote=lote,
                     ubicacion=ubicacion,
