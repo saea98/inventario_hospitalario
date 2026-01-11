@@ -539,7 +539,7 @@ def lista_lotes(request):
     
     context = {
         'form': form,
-        'lotes': lotes,
+        'lotes': page_obj,
         'instituciones': instituciones,
         'resumen': resumen,
         'institucion_selected': request.GET.get('institucion', ''),
