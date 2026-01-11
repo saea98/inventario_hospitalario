@@ -154,14 +154,7 @@ USE_I18N = True
 USE_TZ = True
 
 
-# Static files (CSS, JavaScript, Images)
-# https://docs.djangoproject.com/en/4.2/howto/static-files/
-
-STATIC_URL = '/static/'
-STATICFILES_DIRS = [
-    BASE_DIR / 'static',
-]
-STATIC_ROOT = BASE_DIR / 'staticfiles'
+# Static files (CSS, JavaScript, Images) - REMOVIDO (duplicado abajo)
 
 # Media files
 MEDIA_URL = '/media/'
@@ -222,19 +215,12 @@ if IS_PRODUCTION:
 # Configuración de archivos estáticos
 STATIC_URL = '/static/'
 STATIC_ROOT = BASE_DIR / 'staticfiles'
+STATICFILES_DIRS = [
+    BASE_DIR / 'static',
+]
 
-# Tipos MIME para archivos estáticos
-# Esto asegura que los archivos se sirvan con los tipos MIME correctos
-MIMETYPES = {
-    '.css': 'text/css; charset=utf-8',
-    '.js': 'application/javascript; charset=utf-8',
-    '.json': 'application/json',
-    '.svg': 'image/svg+xml',
-    '.woff': 'font/woff',
-    '.woff2': 'font/woff2',
-    '.ttf': 'font/ttf',
-    '.eot': 'application/vnd.ms-fontobject',
-}
+# NOTA: Los MIME types se configuran en el servidor web
+# NO en Django. Django solo sirve los archivos.
 
 # Configuración de logging para producción
 LOGGING = {
