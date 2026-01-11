@@ -60,6 +60,9 @@ urlpatterns = [
     # Exportación personalizada de conteos
     path('conteos/exportar-personalizado/', views_conteo_fisico_v2.exportar_conteos_personalizado, name='exportar_conteos_personalizado'),
     
+    # Carga masiva de conteos
+    path('conteos/carga-masiva/', views_conteo_fisico_v2.carga_masiva_conteos, name='carga_masiva_conteos'),
+    
     # Detalle de un movimiento de conteo
     path('conteos/movimientos/<int:movimiento_id>/', views_conteo_fisico_v2.detalle_movimiento_conteo, name='detalle_movimiento_conteo'),
     

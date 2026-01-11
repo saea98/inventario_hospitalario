@@ -1,0 +1,198 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Carga Masiva de Conteos - Sistema de Inventario Hospitalario{% endblock %}
+
+{% block page_title %}Carga Masiva de Conteos Físicos{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <!-- Instrucciones -->
+    <div class="alert alert-info mb-4">
+        <h5><i class="fas fa-info-circle"></i> Instrucciones</h5>
+        <p class="mb-2">
+            Cargue un archivo Excel con los conteos físicos. El archivo debe contener las siguientes columnas:
+        </p>
+        <ul class="mb-0">
+            <li><strong>CLAVE</strong>: Clave CNIS del producto</li>
+            <li><strong>LOTE</strong>: Número de lote</li>
+            <li><strong>UBICACIÓN</strong>: Código de ubicación en almacén</li>
+            <li><strong>INVENTARIO</strong>: Cantidad (se usará para los 3 conteos)</li>
+        </ul>
+        <p class="mt-2 mb-0 text-muted">
+            <small>
+                <i class="fas fa-download"></i>
+                <a href="#" class="text-muted">Descargar plantilla de ejemplo</a>
+            </small>
+        </p>
+    </div>
+
+    <!-- Formulario de carga -->
+    <div class="card mb-4">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="fas fa-upload"></i> Cargar Archivo</h5>
+        </div>
+        <div class="card-body">
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                
+                <div class="form-group mb-3">
+                    <label for="archivo" class="form-label">Seleccionar archivo Excel (.xlsx, .xls)</label>
+                    <input type="file" class="form-control" id="archivo" name="archivo" 
+                           accept=".xlsx,.xls" required>
+                    <small class="form-text text-muted">
+                        Máximo 10 MB. Formato: Excel (.xlsx o .xls)
+                    </small>
+                </div>
+                
+                <button type="submit" class="btn btn-primary btn-lg">
+                    <i class="fas fa-upload"></i> Cargar Conteos
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <!-- Resultados de carga anterior -->
+    {% if resultados %}
+    <div class="card">
+        <div class="card-header bg-success text-white">
+            <h5 class="mb-0"><i class="fas fa-check-circle"></i> Resumen de Carga</h5>
+        </div>
+        <div class="card-body">
+            <!-- Métricas -->
+            <div class="row mb-4">
+                <div class="col-md-3">
+                    <div class="card text-center bg-light">
+                        <div class="card-body">
+                            <h6 class="card-title text-muted">Creados</h6>
+                            <h3 class="text-success">{{ resultados.creados }}</h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center bg-light">
+                        <div class="card-body">
+                            <h6 class="card-title text-muted">Actualizados</h6>
+                            <h3 class="text-info">{{ resultados.actualizados }}</h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center bg-light">
+                        <div class="card-body">
+                            <h6 class="card-title text-muted">Errores</h6>
+                            <h3 class="text-danger">{{ resultados.errores|length }}</h3>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-3">
+                    <div class="card text-center bg-light">
+                        <div class="card-body">
+                            <h6 class="card-title text-muted">Total Procesados</h6>
+                            <h3 class="text-primary">{{ resultados.creados|add:resultados.actualizados }}</h3>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Errores si existen -->
+            {% if resultados.errores %}
+            <div class="alert alert-warning mb-4">
+                <h6 class="alert-heading"><i class="fas fa-exclamation-triangle"></i> Registros con Error</h6>
+                <p class="mb-3">
+                    Se encontraron {{ resultados.errores|length }} registros que no pudieron procesarse.
+                </p>
+                
+                <!-- Tabla de errores -->
+                <div class="table-responsive">
+                    <table class="table table-sm table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Fila</th>
+                                <th>CLAVE</th>
+                                <th>LOTE</th>
+                                <th>UBICACIÓN</th>
+                                <th>Error</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for error in resultados.errores %}
+                            <tr>
+                                <td><strong>{{ error.fila }}</strong></td>
+                                <td>{{ error.clave }}</td>
+                                <td>{{ error.lote }}</td>
+                                <td>{{ error.ubicacion }}</td>
+                                <td>
+                                    <span class="badge bg-danger">{{ error.error }}</span>
+                                </td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+
+                <!-- Botón descargar errores -->
+                <div class="mt-3">
+                    <button type="button" class="btn btn-outline-danger btn-sm" id="btnDescargarErrores">
+                        <i class="fas fa-download"></i> Descargar Errores (CSV)
+                    </button>
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Mensaje de éxito -->
+            {% if resultados.errores|length == 0 %}
+            <div class="alert alert-success">
+                <i class="fas fa-check-circle"></i>
+                <strong>¡Carga completada exitosamente!</strong>
+                Se registraron {{ resultados.creados|add:resultados.actualizados }} conteos sin errores.
+            </div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<!-- Script para descargar errores -->
+<script>
+document.getElementById('btnDescargarErrores')?.addEventListener('click', function() {
+    const errores = {{ resultados.errores|safe }};
+    
+    if (!errores || errores.length === 0) {
+        alert('No hay errores para descargar');
+        return;
+    }
+    
+    // Crear CSV
+    let csv = 'Fila,CLAVE,LOTE,UBICACIÓN,Error\n';
+    errores.forEach(error => {
+        csv += `${error.fila},"${error.clave}","${error.lote}","${error.ubicacion}","${error.error}"\n`;
+    });
+    
+    // Descargar
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const link = document.createElement('a');
+    const url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'errores_conteos.csv');
+    link.style.visibility = 'hidden';
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+});
+</script>
+
+<style>
+    .card {
+        box-shadow: 0 0.125rem 0.25rem rgba(0, 0, 0, 0.075);
+    }
+    
+    .card-header {
+        border-bottom: 1px solid #dee2e6;
+    }
+    
+    .table-hover tbody tr:hover {
+        background-color: #f5f5f5;
+    }
+</style>
+{% endblock %}

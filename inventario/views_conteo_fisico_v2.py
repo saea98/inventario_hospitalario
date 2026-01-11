@@ -41,6 +41,7 @@ from .forms_conteo_fisico import (
 )
 from .servicios_notificaciones import notificaciones
 from .access_control import requiere_rol
+from .views_carga_masiva_conteos import carga_masiva_conteos
 
 
 @requiere_rol('Almacenero', 'Administrador', 'Gestor de Inventario', 'Supervisión')
