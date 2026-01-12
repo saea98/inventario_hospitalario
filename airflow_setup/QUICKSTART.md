@@ -1,8 +1,27 @@
 # ⚡ Inicio Rápido - Airflow
 
-## 1️⃣ Preparar Credenciales de Telegram (5 min)
+## 1️⃣ Configurar Base de Datos (2 min)
 
-### Obtener Token del Bot
+Edita el archivo `.env`:
+
+```bash
+nano .env
+```
+
+Actualiza estos valores con tu BD existente:
+
+```env
+# POSTGRESQL - INVENTARIO HOSPITALARIO
+DB_HOST=localhost              # o tu IP/hostname
+DB_PORT=5432                   # puerto de tu PostgreSQL
+DB_NAME=inventario_hospitalario
+DB_USER=postgres               # usuario de tu BD
+DB_PASSWORD=tu_contraseña      # contraseña de tu BD
+```
+
+## 2️⃣ Obtener Token de Telegram (Opcional - 5 min)
+
+### Crear Bot de Telegram
 1. Abre Telegram → Busca **@BotFather**
 2. Envía `/newbot`
 3. Sigue instrucciones → Copia el **TOKEN**
@@ -11,21 +30,11 @@
 1. Abre Telegram → Busca **@userinfobot**
 2. Envía `/start` → Copia tu **User ID**
 
-## 2️⃣ Configurar Variables (2 min)
+### Configurar en .env
 
-```bash
-cd ~/inventario_hospitalario/airflow_setup
-
-# Editar .env
-nano .env
-```
-
-Reemplaza:
 ```env
-TELEGRAM_BOT_TOKEN=TU_TOKEN_AQUI
-TELEGRAM_CHAT_ID=TU_CHAT_ID_AQUI
-DB_HOST=host.docker.internal  # o tu IP/hostname
-DB_PASSWORD=tu_contraseña_postgres
+TELEGRAM_BOT_TOKEN=tu_token_aqui
+TELEGRAM_CHAT_ID=tu_chat_id_aqui
 ```
 
 ## 3️⃣ Iniciar Airflow (3 min)
@@ -80,8 +89,11 @@ docker exec airflow_webserver airflow dags test actualizar_lotes_caducados 2024-
 
 **"No se puede conectar a PostgreSQL"**
 ```bash
-# Verificar conectividad
-docker exec airflow_webserver psql -h host.docker.internal -U postgres -d inventario_hospitalario -c "SELECT 1"
+# Verificar conectividad desde el contenedor
+docker exec airflow_webserver psql -h <DB_HOST> -U <DB_USER> -d <DB_NAME> -c "SELECT 1"
+
+# Ejemplo:
+docker exec airflow_webserver psql -h localhost -U postgres -d inventario_hospitalario -c "SELECT 1"
 ```
 
 **"Telegram no envía mensajes"**

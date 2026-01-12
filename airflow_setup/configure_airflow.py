@@ -59,10 +59,12 @@ def main():
 
     # Configurar variables de Base de Datos
     print("=" * 60)
-    print("📦 CONFIGURACIÓN DE BASE DE DATOS")
+    print("📦 CONFIGURACIÓN DE BASE DE DATOS (Inventario)")
     print("=" * 60)
+    print("\nNota: Estos valores se leen del archivo .env")
+    print("Puedes actualizarlos aquí o directamente en .env\n")
     
-    db_host = input("Host de PostgreSQL [host.docker.internal]: ").strip() or "host.docker.internal"
+    db_host = input("Host de PostgreSQL [localhost]: ").strip() or "localhost"
     db_port = input("Puerto de PostgreSQL [5432]: ").strip() or "5432"
     db_name = input("Nombre de BD [inventario_hospitalario]: ").strip() or "inventario_hospitalario"
     db_user = input("Usuario de PostgreSQL [postgres]: ").strip() or "postgres"
@@ -78,25 +80,23 @@ def main():
 
     # Configurar variables de Telegram
     print("=" * 60)
-    print("📱 CONFIGURACIÓN DE TELEGRAM")
+    print("📱 CONFIGURACIÓN DE TELEGRAM (Opcional)")
     print("=" * 60)
     print("\nPara obtener tus credenciales de Telegram:")
     print("1. Bot Token: Crea un bot en @BotFather y obtén el token")
     print("2. Chat ID: Envía un mensaje a tu bot y obtén el chat_id de:")
     print("   https://api.telegram.org/bot<TOKEN>/getUpdates\n")
     
-    telegram_token = input("Token del Bot de Telegram: ").strip()
-    telegram_chat_id = input("Chat ID de Telegram: ").strip()
+    telegram_token = input("Token del Bot de Telegram (dejar vacío para omitir): ").strip()
+    telegram_chat_id = input("Chat ID de Telegram (dejar vacío para omitir): ").strip()
     
     if telegram_token and telegram_chat_id:
         print("\n⏳ Guardando configuración de Telegram...")
         set_airflow_variable("TELEGRAM_BOT_TOKEN", telegram_token)
         set_airflow_variable("TELEGRAM_CHAT_ID", telegram_chat_id)
-        set_airflow_variable("NOTIFICATION_ENABLED", "true")
         print("✓ Configuración de Telegram guardada")
     else:
-        print("\n⚠️  Telegram no configurado (opcional)")
-        set_airflow_variable("NOTIFICATION_ENABLED", "false")
+        print("\n⚠️  Telegram no configurado (es opcional)")
     print()
 
     # Crear conexión a PostgreSQL

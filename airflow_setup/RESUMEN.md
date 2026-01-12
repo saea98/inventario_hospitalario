@@ -15,6 +15,7 @@ Sistema automatizado que **revisa diariamente los lotes caducados** en tu invent
 | **Notificaciones** | Envía resumen por Telegram |
 | **Panel Web** | Monitorea ejecuciones en tiempo real |
 | **Monitor de Tareas** | Flower para ver estado de workers |
+| **BD Existente** | Usa tu PostgreSQL actual, no crea una nueva |
 
 ## 📦 Archivos Creados
 
@@ -22,10 +23,10 @@ Sistema automatizado que **revisa diariamente los lotes caducados** en tu invent
 airflow_setup/
 ├── dags/
 │   └── actualizar_lotes_caducados.py    ← DAG principal
-├── docker-compose.yml                    ← Orquestación
+├── docker-compose.yml                    ← Orquestación (sin PostgreSQL del inventario)
 ├── Dockerfile                            ← Imagen personalizada
 ├── requirements.txt                      ← Dependencias Python
-├── .env                                  ← Variables de entorno
+├── .env                                  ← Variables de entorno (BD existente)
 ├── config/
 │   └── airflow.cfg                       ← Configuración
 ├── init_airflow.sh                       ← Inicialización automática
@@ -39,25 +40,32 @@ airflow_setup/
 
 ## 🚀 Inicio Rápido (5 minutos)
 
-### 1. Obtener Token de Telegram (Opcional)
+### 1. Configurar Base de Datos Existente
+
+```bash
+cd ~/inventario_hospitalario/airflow_setup
+nano .env
+
+# Edita con tus valores:
+DB_HOST=localhost              # o tu IP/hostname
+DB_PORT=5432
+DB_NAME=inventario_hospitalario
+DB_USER=postgres
+DB_PASSWORD=tu_contraseña
+```
+
+### 2. Obtener Token de Telegram (Opcional)
 
 ```bash
 # En Telegram:
 # 1. Busca @BotFather
 # 2. Envía /newbot
 # 3. Copia el TOKEN que te da
-```
+# 4. Busca @userinfobot → /start → Copia User ID
 
-### 2. Configurar Variables
-
-```bash
-cd ~/inventario_hospitalario/airflow_setup
-nano .env
-
-# Edita:
+# Edita .env:
 TELEGRAM_BOT_TOKEN=tu_token_aqui
 TELEGRAM_CHAT_ID=tu_chat_id_aqui
-DB_PASSWORD=tu_contraseña_postgres
 ```
 
 ### 3. Iniciar
@@ -89,7 +97,7 @@ bash init_airflow.sh
                         ↓
 ┌─────────────────────────────────────────────────────────┐
 │ 1. Obtener Lotes Caducados                              │
-│    - Conecta a PostgreSQL                               │
+│    - Conecta a tu PostgreSQL existente                  │
 │    - Busca lotes con fecha_caducidad < HOY              │
 │    - Filtra los no marcados como caducados              │
 └─────────────────────────────────────────────────────────┘
@@ -110,35 +118,31 @@ bash init_airflow.sh
 └──────────────────┘        └──────────────────┘
 ```
 
-## 📊 Interfaz Web
+## 📊 Servicios Incluidos
 
-### Airflow (http://localhost:8080)
-
-- **DAGs**: Ver todos los DAGs disponibles
-- **Ejecuciones**: Historial de ejecuciones
-- **Logs**: Ver logs detallados de cada tarea
-- **Variables**: Gestionar variables de configuración
-- **Conexiones**: Gestionar conexiones a BD
-
-### Flower (http://localhost:5555)
-
-- **Workers**: Estado de workers
-- **Tareas**: Tareas en cola y completadas
-- **Estadísticas**: Gráficos de rendimiento
+| Servicio | Puerto | Función |
+|----------|--------|----------|
+| Airflow Web | 8080 | Panel de control |
+| Flower | 5555 | Monitor de workers |
+| PostgreSQL Airflow | 5433 | BD interna de Airflow |
+| PostgreSQL Inventario | - | Tu BD existente (externa) |
+| Redis | 6379 | Cola de tareas |
+| Scheduler | - | Planificador |
+| Worker | - | Ejecutor de tareas |
 
 ## 🔧 Configuración
 
-### Variables de Airflow
+### Variables en .env
 
 | Variable | Descripción | Ejemplo |
 |----------|-------------|---------|
-| `DB_HOST` | Host de PostgreSQL | `host.docker.internal` |
-| `DB_PORT` | Puerto de PostgreSQL | `5432` |
+| `DB_HOST` | Host de tu PostgreSQL | `localhost` o `192.168.1.100` |
+| `DB_PORT` | Puerto de tu PostgreSQL | `5432` |
 | `DB_NAME` | Nombre de BD | `inventario_hospitalario` |
 | `DB_USER` | Usuario de BD | `postgres` |
 | `DB_PASSWORD` | Contraseña de BD | `tu_contraseña` |
-| `TELEGRAM_BOT_TOKEN` | Token del bot | `123456:ABC-DEF...` |
-| `TELEGRAM_CHAT_ID` | Chat ID | `987654321` |
+| `TELEGRAM_BOT_TOKEN` | Token del bot (opcional) | `123456:ABC-DEF...` |
+| `TELEGRAM_CHAT_ID` | Chat ID (opcional) | `987654321` |
 
 ### Cambiar Horario de Ejecución
 
@@ -158,12 +162,11 @@ Ejemplos:
 ### "No se puede conectar a PostgreSQL"
 
 ```bash
-# Verificar conectividad
-docker exec airflow_webserver psql -h host.docker.internal -U postgres -d inventario_hospitalario -c "SELECT 1"
+# Verificar conectividad desde el contenedor
+docker exec airflow_webserver psql -h <DB_HOST> -U <DB_USER> -d <DB_NAME> -c "SELECT 1"
 
-# Si falla, edita .env:
-# - En Docker Desktop: host.docker.internal
-# - En Linux: IP de la red Docker o nombre del contenedor
+# Ejemplo:
+docker exec airflow_webserver psql -h localhost -U postgres -d inventario_hospitalario -c "SELECT 1"
 ```
 
 ### "Telegram no envía mensajes"
@@ -218,7 +221,7 @@ docker-compose logs -f airflow-webserver
 
 ## 🎯 Próximos Pasos
 
-1. ✅ Configurar variables en `.env`
+1. ✅ Configurar variables en `.env` (BD existente)
 2. ✅ Iniciar Airflow con `docker-compose up -d`
 3. ✅ Ejecutar `bash init_airflow.sh`
 4. ✅ Acceder a http://localhost:8080
@@ -235,9 +238,10 @@ docker-compose logs -f airflow-webserver
 | **Notificaciones** | Alertas en tiempo real |
 | **Monitoreo** | Panel web completo |
 | **Escalabilidad** | Fácil de extender |
+| **Integración** | Usa tu BD actual |
 
 ---
 
-**Versión**: 1.0  
+**Versión**: 2.0 (Sin PostgreSQL del Inventario)  
 **Fecha**: 2024-01-12  
 **Autor**: Sistema de Inventario Hospitalario

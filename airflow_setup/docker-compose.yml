@@ -1,27 +1,27 @@
 version: '3.8'
 
 services:
-  # PostgreSQL para Airflow metadata
+  # PostgreSQL para Airflow metadata (solo para Airflow)
   postgres-airflow:
     image: postgres:15-alpine
     container_name: postgres_airflow
     environment:
-      POSTGRES_USER: airflow
-      POSTGRES_PASSWORD: airflow
-      POSTGRES_DB: airflow
+      POSTGRES_USER: ${AIRFLOW_DB_USER:-airflow}
+      POSTGRES_PASSWORD: ${AIRFLOW_DB_PASSWORD:-airflow}
+      POSTGRES_DB: ${AIRFLOW_DB_NAME:-airflow}
     volumes:
       - postgres_airflow_data:/var/lib/postgresql/data
     ports:
       - "5433:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U airflow"]
+      test: ["CMD-SHELL", "pg_isready -U ${AIRFLOW_DB_USER:-airflow}"]
       interval: 10s
       timeout: 5s
       retries: 5
     networks:
       - inventario_network
 
-  # Redis para Celery (opcional, pero recomendado)
+  # Redis para Celery
   redis:
     image: redis:7-alpine
     container_name: redis_airflow
@@ -48,9 +48,9 @@ services:
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
       AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS: 'false'
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres-airflow:5432/airflow
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-airflow}@postgres-airflow:5432/${AIRFLOW_DB_NAME:-airflow}
       AIRFLOW__CELERY__BROKER_URL: redis://redis:6379/0
-      AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:airflow@postgres-airflow:5432/airflow
+      AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-airflow}@postgres-airflow:5432/${AIRFLOW_DB_NAME:-airflow}
       AIRFLOW__CORE__EXECUTOR: CeleryExecutor
       AIRFLOW__CORE__PARALLELISM: 32
       AIRFLOW__CORE__DAG_CONCURRENCY: 16
@@ -59,6 +59,14 @@ services:
       AIRFLOW__WEBSERVER__RBAC: 'true'
       AIRFLOW_HOME: /opt/airflow
       PYTHONPATH: /opt/airflow
+      # Variables de BD del Inventario (disponibles en el DAG)
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID}
     volumes:
       - ./dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
@@ -88,15 +96,23 @@ services:
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
       AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS: 'false'
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres-airflow:5432/airflow
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-airflow}@postgres-airflow:5432/${AIRFLOW_DB_NAME:-airflow}
       AIRFLOW__CELERY__BROKER_URL: redis://redis:6379/0
-      AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:airflow@postgres-airflow:5432/airflow
+      AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-airflow}@postgres-airflow:5432/${AIRFLOW_DB_NAME:-airflow}
       AIRFLOW__CORE__EXECUTOR: CeleryExecutor
       AIRFLOW__CORE__PARALLELISM: 32
       AIRFLOW__CORE__DAG_CONCURRENCY: 16
       AIRFLOW__CORE__MAX_ACTIVE_RUNS_PER_DAG: 1
       AIRFLOW_HOME: /opt/airflow
       PYTHONPATH: /opt/airflow
+      # Variables de BD del Inventario
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID}
     volumes:
       - ./dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
@@ -119,15 +135,23 @@ services:
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
       AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS: 'false'
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres-airflow:5432/airflow
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-airflow}@postgres-airflow:5432/${AIRFLOW_DB_NAME:-airflow}
       AIRFLOW__CELERY__BROKER_URL: redis://redis:6379/0
-      AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:airflow@postgres-airflow:5432/airflow
+      AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-airflow}@postgres-airflow:5432/${AIRFLOW_DB_NAME:-airflow}
       AIRFLOW__CORE__EXECUTOR: CeleryExecutor
       AIRFLOW__CORE__PARALLELISM: 32
       AIRFLOW__CORE__DAG_CONCURRENCY: 16
       AIRFLOW__CORE__MAX_ACTIVE_RUNS_PER_DAG: 1
       AIRFLOW_HOME: /opt/airflow
       PYTHONPATH: /opt/airflow
+      # Variables de BD del Inventario
+      DB_HOST: ${DB_HOST}
+      DB_PORT: ${DB_PORT}
+      DB_NAME: ${DB_NAME}
+      DB_USER: ${DB_USER}
+      DB_PASSWORD: ${DB_PASSWORD}
+      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID}
     volumes:
       - ./dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
@@ -148,9 +172,9 @@ services:
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
       AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS: 'false'
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://airflow:airflow@postgres-airflow:5432/airflow
+      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-airflow}@postgres-airflow:5432/${AIRFLOW_DB_NAME:-airflow}
       AIRFLOW__CELERY__BROKER_URL: redis://redis:6379/0
-      AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://airflow:airflow@postgres-airflow:5432/airflow
+      AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-airflow}@postgres-airflow:5432/${AIRFLOW_DB_NAME:-airflow}
       AIRFLOW_HOME: /opt/airflow
     volumes:
       - ./dags:/opt/airflow/dags

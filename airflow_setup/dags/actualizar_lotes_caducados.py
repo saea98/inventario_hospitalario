@@ -2,7 +2,7 @@
 DAG para revisar y actualizar lotes caducados en el inventario hospitalario.
 
 Este DAG se ejecuta diariamente y:
-1. Conecta a la base de datos PostgreSQL
+1. Conecta a la base de datos PostgreSQL del inventario
 2. Identifica lotes con fecha de caducidad vencida
 3. Marca los lotes como caducados y no disponibles
 4. Registra los cambios en la BD de Airflow
@@ -18,6 +18,7 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 import requests
 import logging
+import os
 from typing import List, Dict
 
 # Configuración de logging
@@ -44,22 +45,38 @@ dag = DAG(
 )
 
 
+def obtener_credenciales_db():
+    """
+    Obtiene credenciales de BD desde variables de entorno o Airflow.
+    Prioriza variables de Airflow sobre variables de entorno.
+    """
+    try:
+        # Intentar obtener de variables de Airflow primero
+        db_host = Variable.get("DB_HOST", default=os.getenv("DB_HOST", "localhost"))
+        db_port = Variable.get("DB_PORT", default=os.getenv("DB_PORT", "5432"))
+        db_name = Variable.get("DB_NAME", default=os.getenv("DB_NAME", "inventario_hospitalario"))
+        db_user = Variable.get("DB_USER", default=os.getenv("DB_USER", "postgres"))
+        db_password = Variable.get("DB_PASSWORD", default=os.getenv("DB_PASSWORD", ""))
+        
+        logger.info(f"Conectando a {db_host}:{db_port}/{db_name}")
+        
+        return {
+            'host': db_host,
+            'port': db_port,
+            'database': db_name,
+            'user': db_user,
+            'password': db_password
+        }
+    except Exception as e:
+        logger.error(f"Error obteniendo credenciales: {str(e)}")
+        raise AirflowException(f"No se pudieron obtener credenciales de BD: {str(e)}")
+
+
 def obtener_conexion_db():
     """Obtiene conexión a la base de datos PostgreSQL."""
     try:
-        db_host = Variable.get("DB_HOST", default="localhost")
-        db_port = Variable.get("DB_PORT", default="5432")
-        db_name = Variable.get("DB_NAME", default="inventario_hospitalario")
-        db_user = Variable.get("DB_USER", default="postgres")
-        db_password = Variable.get("DB_PASSWORD", default="")
-        
-        conn = psycopg2.connect(
-            host=db_host,
-            port=db_port,
-            database=db_name,
-            user=db_user,
-            password=db_password
-        )
+        creds = obtener_credenciales_db()
+        conn = psycopg2.connect(**creds)
         return conn
     except Exception as e:
         logger.error(f"Error conectando a la base de datos: {str(e)}")
@@ -159,14 +176,17 @@ def actualizar_lotes_caducados(**context):
                 cursor.execute(update_query, (lote['id'],))
                 
                 # Registrar el cambio en la tabla de auditoría si existe
-                audit_query = """
-                    INSERT INTO inventario_auditorialote 
-                    (lote_id, accion, descripcion, fecha_cambio)
-                    VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
-                """
-                
-                descripcion = f"Lote marcado como caducado automáticamente. Fecha caducidad: {lote['fecha_caducidad']}"
-                cursor.execute(audit_query, (lote['id'], 'CADUCADO', descripcion))
+                try:
+                    audit_query = """
+                        INSERT INTO inventario_auditorialote 
+                        (lote_id, accion, descripcion, fecha_cambio)
+                        VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
+                    """
+                    
+                    descripcion = f"Lote marcado como caducado automáticamente. Fecha caducidad: {lote['fecha_caducidad']}"
+                    cursor.execute(audit_query, (lote['id'], 'CADUCADO', descripcion))
+                except Exception as e:
+                    logger.warning(f"No se pudo registrar en auditoría: {str(e)}")
                 
                 lotes_actualizados.append({
                     'id': lote['id'],
@@ -207,9 +227,9 @@ def enviar_notificacion_telegram(**context):
     Envía notificación por Telegram con el resumen de lotes caducados.
     """
     try:
-        # Obtener variables de Telegram
-        telegram_token = Variable.get("TELEGRAM_BOT_TOKEN", default="")
-        telegram_chat_id = Variable.get("TELEGRAM_CHAT_ID", default="")
+        # Obtener variables de Telegram (desde variables de Airflow o env)
+        telegram_token = Variable.get("TELEGRAM_BOT_TOKEN", default=os.getenv("TELEGRAM_BOT_TOKEN", ""))
+        telegram_chat_id = Variable.get("TELEGRAM_CHAT_ID", default=os.getenv("TELEGRAM_CHAT_ID", ""))
         
         if not telegram_token or not telegram_chat_id:
             logger.warning("Variables de Telegram no configuradas, saltando notificación")
