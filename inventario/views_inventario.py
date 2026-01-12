@@ -447,11 +447,17 @@ def lista_movimientos(request):
     # Ordenar
     movimientos = movimientos.order_by('-fecha_movimiento')
     
+    # Paginación
+    from django.core.paginator import Paginator
+    paginator = Paginator(movimientos, 25)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
     # Opciones para filtros
     tipos_movimiento = MovimientoInventario.TIPOS_MOVIMIENTO
     
     context = {
-        'movimientos': movimientos,
+        'page_obj': page_obj,
         'tipos_movimiento': tipos_movimiento,
         'filtro_tipo': filtro_tipo,
         'filtro_fecha_desde': filtro_fecha_desde,

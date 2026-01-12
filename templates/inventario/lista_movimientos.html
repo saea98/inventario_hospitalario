@@ -99,7 +99,7 @@
     <!-- Tabla de Movimientos -->
     <div class="card">
         <div class="card-header bg-light">
-            <h5 class="mb-0">Resultados ({{ movimientos|length }} movimientos)</h5>
+            <h5 class="mb-0">Resultados ({{ page_obj.paginator.count }} movimientos)</h5>
         </div>
         <div class="table-responsive">
             <table class="table table-hover mb-0">
@@ -117,7 +117,7 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for movimiento in movimientos %}
+                    {% for movimiento in page_obj %}
                     <tr>
                         <td>
                             <small>{{ movimiento.fecha_movimiento|date:"d/m/Y H:i" }}</small>
@@ -185,6 +185,35 @@
                 </tbody>
             </table>
         </div>
+        
+        <!-- Paginación -->
+        {% if page_obj.has_other_pages %}
+        <div class="card-footer">
+            <nav aria-label="Paginación de movimientos">
+                <ul class="pagination justify-content-center mb-0">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1{% if busqueda_lote %}&busqueda_lote={{ busqueda_lote }}{% endif %}{% if busqueda_producto %}&busqueda_producto={{ busqueda_producto }}{% endif %}{% if busqueda_motivo %}&busqueda_motivo={{ busqueda_motivo }}{% endif %}{% if filtro_tipo %}&tipo={{ filtro_tipo }}{% endif %}{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}"><i class="fas fa-angle-double-left"></i></a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if busqueda_lote %}&busqueda_lote={{ busqueda_lote }}{% endif %}{% if busqueda_producto %}&busqueda_producto={{ busqueda_producto }}{% endif %}{% if busqueda_motivo %}&busqueda_motivo={{ busqueda_motivo }}{% endif %}{% if filtro_tipo %}&tipo={{ filtro_tipo }}{% endif %}{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}"><i class="fas fa-angle-left"></i></a>
+                        </li>
+                    {% endif %}
+                    <li class="page-item active">
+                        <span class="page-link">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+                    </li>
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if busqueda_lote %}&busqueda_lote={{ busqueda_lote }}{% endif %}{% if busqueda_producto %}&busqueda_producto={{ busqueda_producto }}{% endif %}{% if busqueda_motivo %}&busqueda_motivo={{ busqueda_motivo }}{% endif %}{% if filtro_tipo %}&tipo={{ filtro_tipo }}{% endif %}{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}"><i class="fas fa-angle-right"></i></a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if busqueda_lote %}&busqueda_lote={{ busqueda_lote }}{% endif %}{% if busqueda_producto %}&busqueda_producto={{ busqueda_producto }}{% endif %}{% if busqueda_motivo %}&busqueda_motivo={{ busqueda_motivo }}{% endif %}{% if filtro_tipo %}&tipo={{ filtro_tipo }}{% endif %}{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}"><i class="fas fa-angle-double-right"></i></a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
     </div>
 
     <!-- Información Adicional -->
@@ -206,7 +235,7 @@
     </div>
 
     <!-- Resumen de Estadísticas -->
-    {% if movimientos %}
+    {% if page_obj %}
     <div class="row mt-4">
         <div class="col-md-3">
             <div class="card text-center">
