@@ -75,8 +75,9 @@ def reporte_conteo_almacen(request):
     
     # Obtener conteos
     conteos = RegistroConteoFisico.objects.select_related(
-        'lote',
-        'lote__producto'
+        'lote_ubicacion',
+        'lote_ubicacion__lote',
+        'lote_ubicacion__lote__producto'
     ).all()
     
     # Aplicar filtro de fechas a conteos
@@ -103,10 +104,10 @@ def reporte_conteo_almacen(request):
     })
     
     for conteo in conteos:
-        if not conteo.lote or not conteo.lote.producto:
+        if not conteo.lote_ubicacion or not conteo.lote_ubicacion.lote or not conteo.lote_ubicacion.lote.producto:
             continue
         
-        clave = conteo.lote.producto.clave_cnis
+        clave = conteo.lote_ubicacion.lote.producto.clave_cnis
         
         if conteo.numero_conteo == 1:
             conteos_dict[clave]['primer_conteo'] += conteo.cantidad_conteo
@@ -231,8 +232,9 @@ def exportar_conteo_almacen_excel(request):
     
     # Obtener conteos
     conteos = RegistroConteoFisico.objects.select_related(
-        'lote',
-        'lote__producto'
+        'lote_ubicacion',
+        'lote_ubicacion__lote',
+        'lote_ubicacion__lote__producto'
     ).all()
     
     # Aplicar filtro de fechas a conteos
@@ -259,10 +261,10 @@ def exportar_conteo_almacen_excel(request):
     })
     
     for conteo in conteos:
-        if not conteo.lote or not conteo.lote.producto:
+        if not conteo.lote_ubicacion or not conteo.lote_ubicacion.lote or not conteo.lote_ubicacion.lote.producto:
             continue
         
-        clave = conteo.lote.producto.clave_cnis
+        clave = conteo.lote_ubicacion.lote.producto.clave_cnis
         
         if conteo.numero_conteo == 1:
             conteos_dict[clave]['primer_conteo'] += conteo.cantidad_conteo
