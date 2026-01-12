@@ -29,6 +29,7 @@ def reporte_conteo_almacen(request):
     filtro_fecha_desde = request.GET.get('fecha_desde', '')
     filtro_fecha_hasta = request.GET.get('fecha_hasta', '')
     filtro_almacen = request.GET.get('almacen', '')
+    filtro_solo_con_conteos = request.GET.get('solo_con_conteos', '')
     
     # Obtener todos los lotes
     lotes = Lote.objects.select_related(
@@ -84,7 +85,7 @@ def reporte_conteo_almacen(request):
     if filtro_fecha_desde:
         try:
             fecha_desde = datetime.strptime(filtro_fecha_desde, '%Y-%m-%d').date()
-            conteos = conteos.filter(fecha_conteo__date__gte=fecha_desde)
+            conteos = conteos.filter(fecha_creacion__date__gte=fecha_desde)
         except ValueError:
             pass
     
@@ -92,7 +93,7 @@ def reporte_conteo_almacen(request):
         try:
             fecha_hasta = datetime.strptime(filtro_fecha_hasta, '%Y-%m-%d').date()
             fecha_hasta = fecha_hasta + timedelta(days=1)
-            conteos = conteos.filter(fecha_conteo__date__lt=fecha_hasta)
+            conteos = conteos.filter(fecha_creacion__date__lt=fecha_hasta)
         except ValueError:
             pass
     
@@ -172,6 +173,7 @@ def reporte_conteo_almacen(request):
         'filtro_fecha_desde': filtro_fecha_desde,
         'filtro_fecha_hasta': filtro_fecha_hasta,
         'filtro_almacen': filtro_almacen,
+        'filtro_solo_con_conteos': filtro_solo_con_conteos,
         'reporte_data': reporte_data,  # Para exportación
     }
     
@@ -188,6 +190,7 @@ def exportar_conteo_almacen_excel(request):
     filtro_fecha_desde = request.GET.get('fecha_desde', '')
     filtro_fecha_hasta = request.GET.get('fecha_hasta', '')
     filtro_almacen = request.GET.get('almacen', '')
+    filtro_solo_con_conteos = request.GET.get('solo_con_conteos', '')
     
     # Obtener todos los lotes
     lotes = Lote.objects.select_related(
@@ -241,7 +244,7 @@ def exportar_conteo_almacen_excel(request):
     if filtro_fecha_desde:
         try:
             fecha_desde = datetime.strptime(filtro_fecha_desde, '%Y-%m-%d').date()
-            conteos = conteos.filter(fecha_conteo__date__gte=fecha_desde)
+            conteos = conteos.filter(fecha_creacion__date__gte=fecha_desde)
         except ValueError:
             pass
     
@@ -249,7 +252,7 @@ def exportar_conteo_almacen_excel(request):
         try:
             fecha_hasta = datetime.strptime(filtro_fecha_hasta, '%Y-%m-%d').date()
             fecha_hasta = fecha_hasta + timedelta(days=1)
-            conteos = conteos.filter(fecha_conteo__date__lt=fecha_hasta)
+            conteos = conteos.filter(fecha_creacion__date__lt=fecha_hasta)
         except ValueError:
             pass
     
@@ -284,6 +287,17 @@ def exportar_conteo_almacen_excel(request):
             'segundo_conteo': 0,
             'tercer_conteo': 0
         })
+        
+        # Aplicar filtro: solo productos con conteos o ubicación asignada
+        if filtro_solo_con_conteos:
+            # Verificar si tiene ubicación asignada (cantidad > 0) o conteos
+            tiene_ubicacion = producto_info['cantidad_total'] > 0
+            tiene_conteos = (conteo_info['primer_conteo'] > 0 or 
+                           conteo_info['segundo_conteo'] > 0 or 
+                           conteo_info['tercer_conteo'] > 0)
+            
+            if not (tiene_ubicacion or tiene_conteos):
+                continue
         
         reporte_data.append({
             'consecutivo': consecutivo,
