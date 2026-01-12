@@ -109,12 +109,12 @@ def reporte_conteo_almacen(request):
         
         clave = conteo.lote_ubicacion.lote.producto.clave_cnis
         
-        if conteo.numero_conteo == 1:
-            conteos_dict[clave]['primer_conteo'] += conteo.cantidad_conteo
-        elif conteo.numero_conteo == 2:
-            conteos_dict[clave]['segundo_conteo'] += conteo.cantidad_conteo
-        elif conteo.numero_conteo == 3:
-            conteos_dict[clave]['tercer_conteo'] += conteo.cantidad_conteo
+        if conteo.primer_conteo:
+            conteos_dict[clave]['primer_conteo'] += conteo.primer_conteo
+        if conteo.segundo_conteo:
+            conteos_dict[clave]['segundo_conteo'] += conteo.segundo_conteo
+        if conteo.tercer_conteo:
+            conteos_dict[clave]['tercer_conteo'] += conteo.tercer_conteo
     
     # Combinar datos
     reporte_data = []
@@ -266,12 +266,12 @@ def exportar_conteo_almacen_excel(request):
         
         clave = conteo.lote_ubicacion.lote.producto.clave_cnis
         
-        if conteo.numero_conteo == 1:
-            conteos_dict[clave]['primer_conteo'] += conteo.cantidad_conteo
-        elif conteo.numero_conteo == 2:
-            conteos_dict[clave]['segundo_conteo'] += conteo.cantidad_conteo
-        elif conteo.numero_conteo == 3:
-            conteos_dict[clave]['tercer_conteo'] += conteo.cantidad_conteo
+        if conteo.primer_conteo:
+            conteos_dict[clave]['primer_conteo'] += conteo.primer_conteo
+        if conteo.segundo_conteo:
+            conteos_dict[clave]['segundo_conteo'] += conteo.segundo_conteo
+        if conteo.tercer_conteo:
+            conteos_dict[clave]['tercer_conteo'] += conteo.tercer_conteo
     
     # Combinar datos
     reporte_data = []
