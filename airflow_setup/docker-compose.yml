@@ -1,7 +1,40 @@
 version: '3.8'
 
+x-airflow-common:
+  &airflow-common
+  image: apache/airflow:2.10.2-python3.11
+  environment:
+    &airflow-common-env
+    AIRFLOW__CORE__EXECUTOR: LocalExecutor
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-airflow}@postgres-airflow:5432/${AIRFLOW_DB_NAME:-airflow}
+    AIRFLOW__CORE__FERNET_KEY: ''
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
+    AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
+    AIRFLOW__API__AUTH_BACKENDS: 'airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session'
+    AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: 'true'
+    AIRFLOW__WEBSERVER__EXPOSE_CONFIG: 'true'
+    # Variables de BD del Inventario
+    AIRFLOW_VAR_DB_HOST: ${DB_HOST}
+    AIRFLOW_VAR_DB_PORT: ${DB_PORT}
+    AIRFLOW_VAR_DB_NAME: ${DB_NAME}
+    AIRFLOW_VAR_DB_USER: ${DB_USER}
+    AIRFLOW_VAR_DB_PASSWORD: ${DB_PASSWORD}
+    # Variables de Telegram
+    AIRFLOW_VAR_TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
+    AIRFLOW_VAR_TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID}
+    _PIP_ADDITIONAL_REQUIREMENTS: 'psycopg2-binary requests'
+  volumes:
+    - ${AIRFLOW_PROJ_DIR:-.}/dags:/opt/airflow/dags
+    - ${AIRFLOW_PROJ_DIR:-.}/logs:/opt/airflow/logs
+    - ${AIRFLOW_PROJ_DIR:-.}/config:/opt/airflow/config
+    - ${AIRFLOW_PROJ_DIR:-.}/plugins:/opt/airflow/plugins
+  user: "${AIRFLOW_UID:-50000}:0"
+  depends_on:
+    &airflow-common-depends-on
+    postgres-airflow:
+      condition: service_healthy
+
 services:
-  # PostgreSQL para Airflow metadata
   postgres-airflow:
     image: postgres:15-alpine
     container_name: postgres_airflow
@@ -9,189 +42,96 @@ services:
       POSTGRES_USER: ${AIRFLOW_DB_USER:-airflow}
       POSTGRES_PASSWORD: ${AIRFLOW_DB_PASSWORD:-airflow}
       POSTGRES_DB: ${AIRFLOW_DB_NAME:-airflow}
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8"
     volumes:
       - postgres_airflow_data:/var/lib/postgresql/data
     ports:
       - "5433:5432"
     healthcheck:
-      test: ["CMD-SHELL", "pg_isready -U ${AIRFLOW_DB_USER:-airflow}"]
+      test: ["CMD-SHELL", "pg_isready -U ${AIRFLOW_DB_USER:-airflow} -d ${AIRFLOW_DB_NAME:-airflow}"]
       interval: 10s
       timeout: 5s
-      retries: 5
-    networks:
-      - inventario_network
+      retries: 10
+      start_period: 10s
+    restart: always
+    command: >
+      postgres
+      -c shared_preload_libraries=pg_stat_statements
+      -c max_connections=200
 
-  # Redis para Celery
-  redis:
-    image: redis:7-alpine
-    container_name: redis_airflow
-    ports:
-      - "6379:6379"
-    healthcheck:
-      test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
-      timeout: 5s
-      retries: 5
-    networks:
-      - inventario_network
-
-  # Airflow Webserver
   airflow-webserver:
-    image: apache/airflow:2.7.3
+    <<: *airflow-common
     container_name: airflow_webserver
-    depends_on:
-      postgres-airflow:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    environment:
-      AIRFLOW_HOME: /opt/airflow
-      AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
-      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
-      AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS: 'false'
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-airflow}@postgres-airflow:5432/${AIRFLOW_DB_NAME:-airflow}
-      AIRFLOW__CELERY__BROKER_URL: redis://redis:6379/0
-      AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-airflow}@postgres-airflow:5432/${AIRFLOW_DB_NAME:-airflow}
-      AIRFLOW__CORE__EXECUTOR: CeleryExecutor
-      AIRFLOW__CORE__PARALLELISM: 32
-      AIRFLOW__CORE__DAG_CONCURRENCY: 16
-      AIRFLOW__CORE__MAX_ACTIVE_RUNS_PER_DAG: 1
-      AIRFLOW__WEBSERVER__EXPOSE_CONFIG: 'true'
-      AIRFLOW__WEBSERVER__RBAC: 'true'
-      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
-      PYTHONPATH: /opt/airflow
-      # Variables de BD del Inventario
-      DB_HOST: ${DB_HOST}
-      DB_PORT: ${DB_PORT}
-      DB_NAME: ${DB_NAME}
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
-      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID}
-    volumes:
-      - ./dags:/opt/airflow/dags
-      - ./logs:/opt/airflow/logs
-      - ./plugins:/opt/airflow/plugins
+    command: webserver
     ports:
       - "8080:8080"
-    command: webserver
     healthcheck:
       test: ["CMD", "curl", "--fail", "http://localhost:8080/health"]
       interval: 30s
       timeout: 10s
       retries: 5
       start_period: 30s
-    networks:
-      - inventario_network
-    restart: unless-stopped
+    restart: always
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
 
-  # Airflow Scheduler
   airflow-scheduler:
-    image: apache/airflow:2.7.3
+    <<: *airflow-common
     container_name: airflow_scheduler
-    depends_on:
-      postgres-airflow:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    environment:
-      AIRFLOW_HOME: /opt/airflow
-      AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
-      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
-      AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS: 'false'
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-airflow}@postgres-airflow:5432/${AIRFLOW_DB_NAME:-airflow}
-      AIRFLOW__CELERY__BROKER_URL: redis://redis:6379/0
-      AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-airflow}@postgres-airflow:5432/${AIRFLOW_DB_NAME:-airflow}
-      AIRFLOW__CORE__EXECUTOR: CeleryExecutor
-      AIRFLOW__CORE__PARALLELISM: 32
-      AIRFLOW__CORE__DAG_CONCURRENCY: 16
-      AIRFLOW__CORE__MAX_ACTIVE_RUNS_PER_DAG: 1
-      PYTHONPATH: /opt/airflow
-      # Variables de BD del Inventario
-      DB_HOST: ${DB_HOST}
-      DB_PORT: ${DB_PORT}
-      DB_NAME: ${DB_NAME}
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
-      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID}
-    volumes:
-      - ./dags:/opt/airflow/dags
-      - ./logs:/opt/airflow/logs
-      - ./plugins:/opt/airflow/plugins
     command: scheduler
-    networks:
-      - inventario_network
-    restart: unless-stopped
-
-  # Airflow Worker (Celery)
-  airflow-worker:
-    image: apache/airflow:2.7.3
-    container_name: airflow_worker
+    healthcheck:
+      test: ["CMD", "curl", "--fail", "http://localhost:8974/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    restart: always
     depends_on:
-      postgres-airflow:
-        condition: service_healthy
-      redis:
-        condition: service_healthy
-    environment:
-      AIRFLOW_HOME: /opt/airflow
-      AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
-      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
-      AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS: 'false'
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-airflow}@postgres-airflow:5432/${AIRFLOW_DB_NAME:-airflow}
-      AIRFLOW__CELERY__BROKER_URL: redis://redis:6379/0
-      AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-airflow}@postgres-airflow:5432/${AIRFLOW_DB_NAME:-airflow}
-      AIRFLOW__CORE__EXECUTOR: CeleryExecutor
-      AIRFLOW__CORE__PARALLELISM: 32
-      AIRFLOW__CORE__DAG_CONCURRENCY: 16
-      AIRFLOW__CORE__MAX_ACTIVE_RUNS_PER_DAG: 1
-      PYTHONPATH: /opt/airflow
-      # Variables de BD del Inventario
-      DB_HOST: ${DB_HOST}
-      DB_PORT: ${DB_PORT}
-      DB_NAME: ${DB_NAME}
-      DB_USER: ${DB_USER}
-      DB_PASSWORD: ${DB_PASSWORD}
-      TELEGRAM_BOT_TOKEN: ${TELEGRAM_BOT_TOKEN}
-      TELEGRAM_CHAT_ID: ${TELEGRAM_CHAT_ID}
-    volumes:
-      - ./dags:/opt/airflow/dags
-      - ./logs:/opt/airflow/logs
-      - ./plugins:/opt/airflow/plugins
-    command: celery worker --loglevel=info
-    networks:
-      - inventario_network
-    restart: unless-stopped
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
 
-  # Airflow Flower (Monitor de Celery)
-  airflow-flower:
-    image: apache/airflow:2.7.3
-    container_name: airflow_flower
-    depends_on:
-      - redis
-      - airflow-worker
+  airflow-init:
+    <<: *airflow-common
+    container_name: airflow_init
+    entrypoint: /bin/bash
+    command:
+      - -c
+      - |
+        echo "Esperando a PostgreSQL..."
+        sleep 10
+        
+        if [[ -z "${AIRFLOW_UID}" ]]; then
+          echo
+          echo -e "\033[1;33mADVERTENCIA: AIRFLOW_UID no está configurado!\e[0m"
+          echo
+        fi
+        
+        echo "Creando directorios..."
+        mkdir -p /sources/logs /sources/dags /sources/plugins /sources/config
+        
+        echo "Configurando permisos..."
+        chown -R "${AIRFLOW_UID}:0" /sources/{logs,dags,plugins,config}
+        
+        echo "Inicializando base de datos..."
+        exec /entrypoint airflow version
     environment:
-      AIRFLOW_HOME: /opt/airflow
-      AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
-      AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
-      AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS: 'false'
-      AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-airflow}@postgres-airflow:5432/${AIRFLOW_DB_NAME:-airflow}
-      AIRFLOW__CELERY__BROKER_URL: redis://redis:6379/0
-      AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-airflow}@postgres-airflow:5432/${AIRFLOW_DB_NAME:-airflow}
+      <<: *airflow-common-env
+      _AIRFLOW_DB_MIGRATE: 'true'
+      _AIRFLOW_WWW_USER_CREATE: 'true'
+      _AIRFLOW_WWW_USER_USERNAME: ${_AIRFLOW_WWW_USER_USERNAME:-admin}
+      _AIRFLOW_WWW_USER_PASSWORD: ${_AIRFLOW_WWW_USER_PASSWORD:-admin}
+      _PIP_ADDITIONAL_REQUIREMENTS: ''
+    user: "0:0"
     volumes:
-      - ./dags:/opt/airflow/dags
-      - ./logs:/opt/airflow/logs
-      - ./plugins:/opt/airflow/plugins
-    ports:
-      - "5555:5555"
-    command: celery flower --port=5555
-    networks:
-      - inventario_network
-    restart: unless-stopped
+      - ${AIRFLOW_PROJ_DIR:-.}:/sources
 
 volumes:
   postgres_airflow_data:
 
 networks:
-  inventario_network:
+  default:
+    name: inventario_network
     driver: bridge

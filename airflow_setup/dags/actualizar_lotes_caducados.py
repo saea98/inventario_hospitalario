@@ -18,7 +18,6 @@ import psycopg2
 from psycopg2.extras import RealDictCursor
 import requests
 import logging
-import os
 from typing import List, Dict
 
 # Configuración de logging
@@ -47,16 +46,14 @@ dag = DAG(
 
 def obtener_credenciales_db():
     """
-    Obtiene credenciales de BD desde variables de entorno o Airflow.
-    Prioriza variables de Airflow sobre variables de entorno.
+    Obtiene credenciales de BD desde variables de Airflow.
     """
     try:
-        # Intentar obtener de variables de Airflow primero
-        db_host = Variable.get("DB_HOST", default=os.getenv("DB_HOST", "localhost"))
-        db_port = Variable.get("DB_PORT", default=os.getenv("DB_PORT", "5432"))
-        db_name = Variable.get("DB_NAME", default=os.getenv("DB_NAME", "inventario_hospitalario"))
-        db_user = Variable.get("DB_USER", default=os.getenv("DB_USER", "postgres"))
-        db_password = Variable.get("DB_PASSWORD", default=os.getenv("DB_PASSWORD", ""))
+        db_host = Variable.get("DB_HOST", default="localhost")
+        db_port = Variable.get("DB_PORT", default="5432")
+        db_name = Variable.get("DB_NAME", default="inventario_hospitalario")
+        db_user = Variable.get("DB_USER", default="postgres")
+        db_password = Variable.get("DB_PASSWORD", default="")
         
         logger.info(f"Conectando a {db_host}:{db_port}/{db_name}")
         
@@ -227,9 +224,9 @@ def enviar_notificacion_telegram(**context):
     Envía notificación por Telegram con el resumen de lotes caducados.
     """
     try:
-        # Obtener variables de Telegram (desde variables de Airflow o env)
-        telegram_token = Variable.get("TELEGRAM_BOT_TOKEN", default=os.getenv("TELEGRAM_BOT_TOKEN", ""))
-        telegram_chat_id = Variable.get("TELEGRAM_CHAT_ID", default=os.getenv("TELEGRAM_CHAT_ID", ""))
+        # Obtener variables de Telegram
+        telegram_token = Variable.get("TELEGRAM_BOT_TOKEN", default="")
+        telegram_chat_id = Variable.get("TELEGRAM_CHAT_ID", default="")
         
         if not telegram_token or not telegram_chat_id:
             logger.warning("Variables de Telegram no configuradas, saltando notificación")
