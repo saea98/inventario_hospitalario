@@ -4,6 +4,7 @@ URLs para Fase 2.3: Gestión de Inventario
 
 from django.urls import path
 from . import views_inventario
+from . import views_reporte_no_afectados
 
 urlpatterns = [
     # Dashboard
@@ -23,4 +24,8 @@ urlpatterns = [
     
     # Exportación personalizada de lotes
     path('lotes/exportar-personalizado/', views_inventario.exportar_lotes_personalizado, name='exportar_lotes_personalizado'),
+    
+    # Reporte de registros no afectados
+    path('reporte-no-afectados/', views_reporte_no_afectados.reporte_no_afectados, name='reporte_no_afectados'),
+    path('reporte-no-afectados/exportar/', views_reporte_no_afectados.exportar_no_afectados_excel, name='exportar_no_afectados_excel'),
 ]
