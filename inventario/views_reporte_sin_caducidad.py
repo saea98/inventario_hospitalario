@@ -51,7 +51,7 @@ def reporte_sin_caducidad(request):
         
         if es_invalido:
             # Obtener ubicaciones del lote
-            ubicaciones = lote.loteubicacion_set.select_related(
+            ubicaciones = lote.ubicaciones_detalle.select_related(
                 'ubicacion',
                 'ubicacion__almacen'
             )
@@ -175,7 +175,7 @@ def exportar_sin_caducidad_excel(request):
         
         if es_invalido:
             # Obtener ubicaciones del lote
-            ubicaciones = lote.loteubicacion_set.select_related(
+            ubicaciones = lote.ubicaciones_detalle.select_related(
                 'ubicacion',
                 'ubicacion__almacen'
             )
