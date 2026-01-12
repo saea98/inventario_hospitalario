@@ -6,6 +6,7 @@ from django.urls import path
 from . import views_inventario
 from . import views_reporte_no_afectados
 from . import views_reporte_sin_caducidad
+from . import views_reporte_entradas
 
 urlpatterns = [
     # Dashboard
@@ -33,4 +34,8 @@ urlpatterns = [
     # Reporte de lotes sin fecha de caducidad válida
     path('reporte-sin-caducidad/', views_reporte_sin_caducidad.reporte_sin_caducidad, name='reporte_sin_caducidad'),
     path('reporte-sin-caducidad/exportar/', views_reporte_sin_caducidad.exportar_sin_caducidad_excel, name='exportar_sin_caducidad_excel'),
+    
+    # Reporte de entradas al inventario
+    path('reporte-entradas/', views_reporte_entradas.reporte_entradas, name='reporte_entradas'),
+    path('reporte-entradas/exportar/', views_reporte_entradas.exportar_entradas_excel, name='exportar_entradas_excel'),
 ]
