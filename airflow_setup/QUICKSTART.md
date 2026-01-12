@@ -37,21 +37,21 @@ TELEGRAM_BOT_TOKEN=tu_token_aqui
 TELEGRAM_CHAT_ID=tu_chat_id_aqui
 ```
 
-## 3️⃣ Iniciar Airflow (3 min)
+## 3️⃣ Iniciar Airflow (1 comando)
 
 ```bash
-# Crear directorios
-mkdir -p dags logs plugins config
+cd ~/inventario_hospitalario/airflow_setup
 
-# Iniciar contenedores
-docker-compose up -d
-
-# Esperar 30 segundos
-sleep 30
-
-# Configurar automáticamente
-bash init_airflow.sh
+# Ejecutar script de inicio (hace todo automáticamente)
+bash start.sh
 ```
+
+Esto:
+- ✅ Crea directorios
+- ✅ Configura permisos
+- ✅ Inicia contenedores
+- ✅ Inicializa BD
+- ✅ Crea usuario admin
 
 ## 4️⃣ Acceder a Airflow (1 min)
 
@@ -112,6 +112,16 @@ docker exec airflow_webserver airflow dags reserialize
 
 # Reiniciar scheduler
 docker-compose restart airflow-scheduler
+```
+
+**"Los contenedores se cierran"**
+```bash
+# Ver logs
+docker logs airflow_webserver
+
+# Reintentar
+docker-compose down -v
+bash start.sh
 ```
 
 ---

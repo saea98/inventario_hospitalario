@@ -1,7 +1,7 @@
 version: '3.8'
 
 services:
-  # PostgreSQL para Airflow metadata (solo para Airflow)
+  # PostgreSQL para Airflow metadata
   postgres-airflow:
     image: postgres:15-alpine
     container_name: postgres_airflow
@@ -37,7 +37,7 @@ services:
 
   # Airflow Webserver
   airflow-webserver:
-    image: apache/airflow:2.7.3-python3.11
+    image: apache/airflow:2.7.3
     container_name: airflow_webserver
     depends_on:
       postgres-airflow:
@@ -45,6 +45,7 @@ services:
       redis:
         condition: service_healthy
     environment:
+      AIRFLOW_HOME: /opt/airflow
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
       AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS: 'false'
@@ -57,9 +58,9 @@ services:
       AIRFLOW__CORE__MAX_ACTIVE_RUNS_PER_DAG: 1
       AIRFLOW__WEBSERVER__EXPOSE_CONFIG: 'true'
       AIRFLOW__WEBSERVER__RBAC: 'true'
-      AIRFLOW_HOME: /opt/airflow
+      AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
       PYTHONPATH: /opt/airflow
-      # Variables de BD del Inventario (disponibles en el DAG)
+      # Variables de BD del Inventario
       DB_HOST: ${DB_HOST}
       DB_PORT: ${DB_PORT}
       DB_NAME: ${DB_NAME}
@@ -71,7 +72,6 @@ services:
       - ./dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
       - ./plugins:/opt/airflow/plugins
-      - ./config:/opt/airflow/config
     ports:
       - "8080:8080"
     command: webserver
@@ -80,12 +80,14 @@ services:
       interval: 30s
       timeout: 10s
       retries: 5
+      start_period: 30s
     networks:
       - inventario_network
+    restart: unless-stopped
 
   # Airflow Scheduler
   airflow-scheduler:
-    image: apache/airflow:2.7.3-python3.11
+    image: apache/airflow:2.7.3
     container_name: airflow_scheduler
     depends_on:
       postgres-airflow:
@@ -93,6 +95,7 @@ services:
       redis:
         condition: service_healthy
     environment:
+      AIRFLOW_HOME: /opt/airflow
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
       AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS: 'false'
@@ -103,7 +106,6 @@ services:
       AIRFLOW__CORE__PARALLELISM: 32
       AIRFLOW__CORE__DAG_CONCURRENCY: 16
       AIRFLOW__CORE__MAX_ACTIVE_RUNS_PER_DAG: 1
-      AIRFLOW_HOME: /opt/airflow
       PYTHONPATH: /opt/airflow
       # Variables de BD del Inventario
       DB_HOST: ${DB_HOST}
@@ -117,14 +119,14 @@ services:
       - ./dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
       - ./plugins:/opt/airflow/plugins
-      - ./config:/opt/airflow/config
     command: scheduler
     networks:
       - inventario_network
+    restart: unless-stopped
 
   # Airflow Worker (Celery)
   airflow-worker:
-    image: apache/airflow:2.7.3-python3.11
+    image: apache/airflow:2.7.3
     container_name: airflow_worker
     depends_on:
       postgres-airflow:
@@ -132,6 +134,7 @@ services:
       redis:
         condition: service_healthy
     environment:
+      AIRFLOW_HOME: /opt/airflow
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
       AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS: 'false'
@@ -142,7 +145,6 @@ services:
       AIRFLOW__CORE__PARALLELISM: 32
       AIRFLOW__CORE__DAG_CONCURRENCY: 16
       AIRFLOW__CORE__MAX_ACTIVE_RUNS_PER_DAG: 1
-      AIRFLOW_HOME: /opt/airflow
       PYTHONPATH: /opt/airflow
       # Variables de BD del Inventario
       DB_HOST: ${DB_HOST}
@@ -156,36 +158,36 @@ services:
       - ./dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
       - ./plugins:/opt/airflow/plugins
-      - ./config:/opt/airflow/config
     command: celery worker --loglevel=info
     networks:
       - inventario_network
+    restart: unless-stopped
 
   # Airflow Flower (Monitor de Celery)
   airflow-flower:
-    image: apache/airflow:2.7.3-python3.11
+    image: apache/airflow:2.7.3
     container_name: airflow_flower
     depends_on:
       - redis
       - airflow-worker
     environment:
+      AIRFLOW_HOME: /opt/airflow
       AIRFLOW__CORE__DAGS_FOLDER: /opt/airflow/dags
       AIRFLOW__CORE__LOAD_EXAMPLES: 'false'
       AIRFLOW__CORE__LOAD_DEFAULT_CONNECTIONS: 'false'
       AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-airflow}@postgres-airflow:5432/${AIRFLOW_DB_NAME:-airflow}
       AIRFLOW__CELERY__BROKER_URL: redis://redis:6379/0
       AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://${AIRFLOW_DB_USER:-airflow}:${AIRFLOW_DB_PASSWORD:-airflow}@postgres-airflow:5432/${AIRFLOW_DB_NAME:-airflow}
-      AIRFLOW_HOME: /opt/airflow
     volumes:
       - ./dags:/opt/airflow/dags
       - ./logs:/opt/airflow/logs
       - ./plugins:/opt/airflow/plugins
-      - ./config:/opt/airflow/config
     ports:
       - "5555:5555"
     command: celery flower --port=5555
     networks:
       - inventario_network
+    restart: unless-stopped
 
 volumes:
   postgres_airflow_data:
