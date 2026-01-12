@@ -204,7 +204,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for movimiento in movimientos %}
+                        {% for movimiento in page_obj %}
                         <tr>
                             <td>
                                 <small class="text-muted">
@@ -253,6 +253,35 @@
                     </tbody>
                 </table>
             </div>
+            
+            <!-- Paginación -->
+            {% if page_obj.has_other_pages %}
+            <div class="card-footer">
+                <nav aria-label="Paginación de movimientos">
+                    <ul class="pagination justify-content-center mb-0">
+                        {% if page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page=1{% if fecha_filtro %}&fecha={{ fecha_filtro }}{% endif %}{% if usuario_seleccionado %}&usuario={{ usuario_seleccionado }}{% endif %}{% if institucion_seleccionada %}&institucion={{ institucion_seleccionada }}{% endif %}{% if almacen_seleccionado %}&almacen={{ almacen_seleccionado }}{% endif %}"><i class="fas fa-angle-double-left"></i></a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if fecha_filtro %}&fecha={{ fecha_filtro }}{% endif %}{% if usuario_seleccionado %}&usuario={{ usuario_seleccionado }}{% endif %}{% if institucion_seleccionada %}&institucion={{ institucion_seleccionada }}{% endif %}{% if almacen_seleccionado %}&almacen={{ almacen_seleccionado }}{% endif %}"><i class="fas fa-angle-left"></i></a>
+                            </li>
+                        {% endif %}
+                        <li class="page-item active">
+                            <span class="page-link">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+                        </li>
+                        {% if page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if fecha_filtro %}&fecha={{ fecha_filtro }}{% endif %}{% if usuario_seleccionado %}&usuario={{ usuario_seleccionado }}{% endif %}{% if institucion_seleccionada %}&institucion={{ institucion_seleccionada }}{% endif %}{% if almacen_seleccionado %}&almacen={{ almacen_seleccionado }}{% endif %}"><i class="fas fa-angle-right"></i></a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if fecha_filtro %}&fecha={{ fecha_filtro }}{% endif %}{% if usuario_seleccionado %}&usuario={{ usuario_seleccionado }}{% endif %}{% if institucion_seleccionada %}&institucion={{ institucion_seleccionada }}{% endif %}{% if almacen_seleccionado %}&almacen={{ almacen_seleccionado }}{% endif %}"><i class="fas fa-angle-double-right"></i></a>
+                            </li>
+                        {% endif %}
+                    </ul>
+                </nav>
+            </div>
+            {% endif %}
         </div>
     </div>
 </div>

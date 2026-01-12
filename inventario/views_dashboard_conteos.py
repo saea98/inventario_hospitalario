@@ -173,9 +173,15 @@ def dashboard_conteos(request):
             nombre_usuario = f"{usuario.first_name} {usuario.last_name}".strip() or usuario.username
             conteos_por_usuario[nombre_usuario] = count
     
+    # Paginación
+    from django.core.paginator import Paginator
+    paginator = Paginator(conteos, 25)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
     # Preparar tabla con detalles
     tabla_conteos = []
-    for conteo in conteos[:100]:  # Limitar a 100 registros en la tabla
+    for conteo in page_obj:
         tabla_conteos.append({
             'id': conteo.id,
             'clave': conteo.lote_ubicacion.lote.producto.clave_cnis,
@@ -192,6 +198,7 @@ def dashboard_conteos(request):
         })
     
     contexto = {
+        'page_obj': page_obj,
         'total_conteos': total_conteos,
         'conteos_completados': conteos_completados,
         'conteos_en_progreso': conteos_en_progreso,

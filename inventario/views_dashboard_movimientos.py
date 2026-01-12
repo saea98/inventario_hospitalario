@@ -146,6 +146,12 @@ def dashboard_movimientos(request):
     # Ordenar por fecha descendente
     movimientos_consolidados.sort(key=lambda x: x['fecha'], reverse=True)
     
+    # Paginación
+    from django.core.paginator import Paginator
+    paginator = Paginator(movimientos_consolidados, 25)
+    page_number = request.GET.get('page')
+    page_obj = paginator.get_page(page_number)
+    
     # Calcular estadísticas
     estadisticas = {
         'total_movimientos': len(movimientos_consolidados),
@@ -174,7 +180,7 @@ def dashboard_movimientos(request):
     almacenes = Almacen.objects.all().order_by('nombre')
     
     context = {
-        'movimientos': movimientos_consolidados,
+        'page_obj': page_obj,
         'estadisticas': estadisticas,
         'fecha_filtro': fecha_filtro,
         'usuarios': usuarios,

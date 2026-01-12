@@ -361,6 +361,35 @@
                             </tbody>
                         </table>
                     </div>
+                    
+                    <!-- Paginación -->
+                    {% if page_obj.has_other_pages %}
+                    <div class="card-footer">
+                        <nav aria-label="Paginación de conteos">
+                            <ul class="pagination justify-content-center mb-0">
+                                {% if page_obj.has_previous %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page=1{% if fecha_desde %}&fecha_desde={{ fecha_desde }}{% endif %}{% if fecha_hasta %}&fecha_hasta={{ fecha_hasta }}{% endif %}{% if almacen_id %}&almacen={{ almacen_id }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}{% if usuario_id %}&usuario={{ usuario_id }}{% endif %}{% if clave_busqueda %}&clave={{ clave_busqueda }}{% endif %}{% if lote_busqueda %}&lote={{ lote_busqueda }}{% endif %}"><i class="fas fa-angle-double-left"></i></a>
+                                    </li>
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if fecha_desde %}&fecha_desde={{ fecha_desde }}{% endif %}{% if fecha_hasta %}&fecha_hasta={{ fecha_hasta }}{% endif %}{% if almacen_id %}&almacen={{ almacen_id }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}{% if usuario_id %}&usuario={{ usuario_id }}{% endif %}{% if clave_busqueda %}&clave={{ clave_busqueda }}{% endif %}{% if lote_busqueda %}&lote={{ lote_busqueda }}{% endif %}"><i class="fas fa-angle-left"></i></a>
+                                    </li>
+                                {% endif %}
+                                <li class="page-item active">
+                                    <span class="page-link">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+                                </li>
+                                {% if page_obj.has_next %}
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if fecha_desde %}&fecha_desde={{ fecha_desde }}{% endif %}{% if fecha_hasta %}&fecha_hasta={{ fecha_hasta }}{% endif %}{% if almacen_id %}&almacen={{ almacen_id }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}{% if usuario_id %}&usuario={{ usuario_id }}{% endif %}{% if clave_busqueda %}&clave={{ clave_busqueda }}{% endif %}{% if lote_busqueda %}&lote={{ lote_busqueda }}{% endif %}"><i class="fas fa-angle-right"></i></a>
+                                    </li>
+                                    <li class="page-item">
+                                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if fecha_desde %}&fecha_desde={{ fecha_desde }}{% endif %}{% if fecha_hasta %}&fecha_hasta={{ fecha_hasta }}{% endif %}{% if almacen_id %}&almacen={{ almacen_id }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}{% if usuario_id %}&usuario={{ usuario_id }}{% endif %}{% if clave_busqueda %}&clave={{ clave_busqueda }}{% endif %}{% if lote_busqueda %}&lote={{ lote_busqueda }}{% endif %}"><i class="fas fa-angle-double-right"></i></a>
+                                    </li>
+                                {% endif %}
+                            </ul>
+                        </nav>
+                    </div>
+                    {% endif %}
                 </div>
             </div>
         </div>
