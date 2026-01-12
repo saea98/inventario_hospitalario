@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Reporte de Productos sin Ubicación{% endblock %}
+
+{% block page_title %}
+<i class="fas fa-map-marker-slash me-2"></i>Reporte de Productos sin Ubicación Asignada
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Información del reporte -->
+    <div class="alert alert-warning mb-4">
+        <h5 class="alert-heading">
+            <i class="fas fa-exclamation-triangle me-2"></i>Atención
+        </h5>
+        <p class="mb-2">
+            Este reporte muestra todos los <strong>lotes que NO tienen ubicación asignada</strong> en el almacén.
+            Estos productos requieren ser ubicados para poder realizar conteos y movimientos.
+        </p>
+    </div>
+
+    <!-- Tarjetas de estadísticas -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card bg-danger text-white">
+                <div class="card-body">
+                    <h6 class="card-title">Lotes sin Ubicación</h6>
+                    <h2 class="mb-0">{{ total_registros|intcomma }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-warning text-dark">
+                <div class="card-body">
+                    <h6 class="card-title">Cantidad Total</h6>
+                    <h2 class="mb-0">{{ total_cantidad|intcomma }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card bg-info text-white">
+                <div class="card-body">
+                    <h6 class="card-title">Valor Total</h6>
+                    <h2 class="mb-0">${{ total_valor|intcomma }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card mb-4 shadow-sm">
+        <div class="card-header bg-light">
+            <h5 class="mb-0"><i class="fas fa-filter me-2"></i>Filtros</h5>
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-2">
+                    <label for="clave" class="form-label">Buscar por CLAVE CNIS</label>
+                    <input type="text" class="form-control" id="clave" name="clave" 
+                           value="{{ filtro_clave }}" placeholder="Ej: 010.000.0022">
+                </div>
+                
+                <div class="col-md-2">
+                    <label for="lote" class="form-label">Buscar por LOTE</label>
+                    <input type="text" class="form-control" id="lote" name="lote" 
+                           value="{{ filtro_lote }}" placeholder="Ej: 0811-072507222">
+                </div>
+                
+                <div class="col-md-2">
+                    <label for="institucion" class="form-label">Institución</label>
+                    <select name="institucion" class="form-select" id="institucion">
+                        <option value="">Todas</option>
+                        {% for inst in instituciones %}
+                        <option value="{{ inst.denominacion }}" {% if filtro_institucion == inst.denominacion %}selected{% endif %}>
+                            {{ inst.denominacion }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-md-2">
+                    <label for="almacen" class="form-label">Almacén</label>
+                    <select name="almacen" class="form-select" id="almacen">
+                        <option value="">Todos</option>
+                        {% for alm in almacenes %}
+                        <option value="{{ alm.nombre }}" {% if filtro_almacen == alm.nombre %}selected{% endif %}>
+                            {{ alm.nombre }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
+                <div class="col-md-4 d-flex align-items-end gap-2">
+                    <button type="submit" class="btn btn-primary flex-grow-1">
+                        <i class="fas fa-search me-2"></i>Filtrar
+                    </button>
+                    <a href="{% url 'reporte_sin_ubicacion' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-redo me-2"></i>Limpiar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tabla de resultados -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="fas fa-table me-2"></i>Lotes sin Ubicación ({{ page_obj.paginator.count }} total)
+            </h5>
+            <a href="{% url 'exportar_sin_ubicacion_excel' %}{% if filtro_clave %}?clave={{ filtro_clave }}{% endif %}{% if filtro_lote %}&lote={{ filtro_lote }}{% endif %}{% if filtro_institucion %}&institucion={{ filtro_institucion }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}" 
+               class="btn btn-success btn-sm">
+                <i class="fas fa-file-excel me-2"></i>Exportar a Excel
+            </a>
+        </div>
+        
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>CLAVE CNIS</th>
+                        <th>DESCRIPCIÓN PRODUCTO</th>
+                        <th>LOTE</th>
+                        <th>INSTITUCIÓN</th>
+                        <th>ALMACÉN</th>
+                        <th class="text-end">CANTIDAD DISPONIBLE</th>
+                        <th class="text-end">CANTIDAD INICIAL</th>
+                        <th class="text-end">PRECIO UNITARIO</th>
+                        <th class="text-end">VALOR TOTAL</th>
+                        <th>FECHA CADUCIDAD</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for lote in page_obj %}
+                    <tr class="table-warning">
+                        <td>
+                            <strong>{{ lote.clave_cnis }}</strong>
+                        </td>
+                        <td>
+                            <small>{{ lote.descripcion_producto|truncatechars:50 }}</small>
+                        </td>
+                        <td>
+                            <code>{{ lote.lote }}</code>
+                        </td>
+                        <td>
+                            <small>{{ lote.institucion }}</small>
+                        </td>
+                        <td>
+                            <span class="badge bg-danger">{{ lote.almacen }}</span>
+                        </td>
+                        <td class="text-end">
+                            <strong>{{ lote.cantidad_disponible|intcomma }}</strong>
+                        </td>
+                        <td class="text-end">
+                            <small>{{ lote.cantidad_inicial|intcomma }}</small>
+                        </td>
+                        <td class="text-end">
+                            <small>${{ lote.precio_unitario|floatformat:2 }}</small>
+                        </td>
+                        <td class="text-end">
+                            <strong>${{ lote.valor_total|floatformat:2 }}</strong>
+                        </td>
+                        <td>
+                            {% if lote.fecha_caducidad == '-' %}
+                                <span class="badge bg-danger">Sin fecha</span>
+                            {% else %}
+                                <small>{{ lote.fecha_caducidad }}</small>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="10" class="text-center text-muted py-4">
+                            <i class="fas fa-inbox me-2"></i>No hay lotes sin ubicación
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        
+        <!-- Paginación -->
+        {% if page_obj.has_other_pages %}
+        <div class="card-footer">
+            <nav aria-label="Paginación de lotes sin ubicación">
+                <ul class="pagination justify-content-center mb-0">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1{% if filtro_clave %}&clave={{ filtro_clave }}{% endif %}{% if filtro_lote %}&lote={{ filtro_lote }}{% endif %}{% if filtro_institucion %}&institucion={{ filtro_institucion }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}">
+                                <i class="fas fa-angle-double-left"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if filtro_clave %}&clave={{ filtro_clave }}{% endif %}{% if filtro_lote %}&lote={{ filtro_lote }}{% endif %}{% if filtro_institucion %}&institucion={{ filtro_institucion }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}">
+                                <i class="fas fa-angle-left"></i>
+                            </a>
+                        </li>
+                    {% endif %}
+                    <li class="page-item active">
+                        <span class="page-link">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+                    </li>
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if filtro_clave %}&clave={{ filtro_clave }}{% endif %}{% if filtro_lote %}&lote={{ filtro_lote }}{% endif %}{% if filtro_institucion %}&institucion={{ filtro_institucion }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}">
+                                <i class="fas fa-angle-right"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if filtro_clave %}&clave={{ filtro_clave }}{% endif %}{% if filtro_lote %}&lote={{ filtro_lote }}{% endif %}{% if filtro_institucion %}&institucion={{ filtro_institucion }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}">
+                                <i class="fas fa-angle-double-right"></i>
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- Información adicional -->
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="alert alert-info">
+                <h6 class="alert-heading">
+                    <i class="fas fa-lightbulb me-2"></i>Recomendaciones
+                </h6>
+                <ul class="mb-0 mt-2">
+                    <li>
+                        <strong>Asignar ubicaciones:</strong> Estos lotes deben ser ubicados en el almacén antes de poder realizar conteos.
+                    </li>
+                    <li>
+                        <strong>Prioridad:</strong> Los lotes con mayor cantidad o valor total deben ser ubicados primero.
+                    </li>
+                    <li>
+                        <strong>Verificar caducidad:</strong> Algunos lotes pueden no tener fecha de caducidad, verifícalos.
+                    </li>
+                    <li>
+                        <strong>Exportar para asignación:</strong> Descarga el reporte en Excel para compartir con el equipo de almacén.
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -7,6 +7,7 @@ from . import views_inventario
 from . import views_reporte_no_afectados
 from . import views_reporte_sin_caducidad
 from . import views_reporte_entradas
+from . import views_reporte_sin_ubicacion
 
 urlpatterns = [
     # Dashboard
@@ -38,4 +39,8 @@ urlpatterns = [
     # Reporte de entradas al inventario
     path('reporte-entradas/', views_reporte_entradas.reporte_entradas, name='reporte_entradas'),
     path('reporte-entradas/exportar/', views_reporte_entradas.exportar_entradas_excel, name='exportar_entradas_excel'),
+    
+    # Reporte de productos sin ubicación asignada
+    path('reporte-sin-ubicacion/', views_reporte_sin_ubicacion.reporte_sin_ubicacion, name='reporte_sin_ubicacion'),
+    path('reporte-sin-ubicacion/exportar/', views_reporte_sin_ubicacion.exportar_sin_ubicacion_excel, name='exportar_sin_ubicacion_excel'),
 ]
