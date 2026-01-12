@@ -49,11 +49,31 @@ def obtener_credenciales_db():
     Obtiene credenciales de BD desde variables de Airflow.
     """
     try:
-        db_host = Variable.get("DB_HOST", default="localhost")
-        db_port = Variable.get("DB_PORT", default="5432")
-        db_name = Variable.get("DB_NAME", default="inventario_hospitalario")
-        db_user = Variable.get("DB_USER", default="postgres")
-        db_password = Variable.get("DB_PASSWORD", default="")
+        # En Airflow 2.10.2, usar deserialize_json=False y manejar excepciones
+        try:
+            db_host = Variable.get("DB_HOST", deserialize_json=False)
+        except KeyError:
+            db_host = "localhost"
+        
+        try:
+            db_port = Variable.get("DB_PORT", deserialize_json=False)
+        except KeyError:
+            db_port = "5432"
+        
+        try:
+            db_name = Variable.get("DB_NAME", deserialize_json=False)
+        except KeyError:
+            db_name = "inventario_hospitalario"
+        
+        try:
+            db_user = Variable.get("DB_USER", deserialize_json=False)
+        except KeyError:
+            db_user = "postgres"
+        
+        try:
+            db_password = Variable.get("DB_PASSWORD", deserialize_json=False)
+        except KeyError:
+            db_password = ""
         
         logger.info(f"Conectando a {db_host}:{db_port}/{db_name}")
         
@@ -225,11 +245,19 @@ def enviar_notificacion_telegram(**context):
     """
     try:
         # Obtener variables de Telegram
-        telegram_token = Variable.get("TELEGRAM_BOT_TOKEN", default="")
-        telegram_chat_id = Variable.get("TELEGRAM_CHAT_ID", default="")
+        try:
+            telegram_token = Variable.get("TELEGRAM_BOT_TOKEN", deserialize_json=False)
+        except KeyError:
+            telegram_token = ""
+        
+        try:
+            telegram_chat_id = Variable.get("TELEGRAM_CHAT_ID", deserialize_json=False)
+        except KeyError:
+            telegram_chat_id = ""
         
         if not telegram_token or not telegram_chat_id:
             logger.warning("Variables de Telegram no configuradas, saltando notificación")
+            logger.info(f"Token: {bool(telegram_token)}, Chat ID: {bool(telegram_chat_id)}")
             return
         
         # Obtener lotes actualizados
