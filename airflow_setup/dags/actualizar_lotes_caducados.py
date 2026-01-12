@@ -4,9 +4,13 @@ DAG para revisar y actualizar lotes caducados en el inventario hospitalario.
 Este DAG se ejecuta diariamente y:
 1. Conecta a la base de datos PostgreSQL del inventario
 2. Identifica lotes con fecha de caducidad vencida
-3. Marca los lotes como caducados y no disponibles
-4. Registra los cambios en la BD de Airflow
+3. Marca los lotes como caducados (estado = 6)
+4. Registra los cambios
 5. Envía notificación por Telegram
+
+Estados de lotes:
+- 1: Disponible
+- 6: Caducado
 """
 
 from datetime import datetime, timedelta
@@ -43,6 +47,10 @@ dag = DAG(
     tags=['inventario', 'lotes', 'mantenimiento'],
 )
 
+# Constantes
+ESTADO_DISPONIBLE = 1
+ESTADO_CADUCADO = 6
+
 
 def obtener_credenciales_db():
     """
@@ -63,7 +71,7 @@ def obtener_credenciales_db():
         try:
             db_name = Variable.get("DB_NAME", deserialize_json=False)
         except KeyError:
-            db_name = "inventario_hospitalario"
+            db_name = "inventario_bd"
         
         try:
             db_user = Variable.get("DB_USER", deserialize_json=False)
@@ -79,7 +87,7 @@ def obtener_credenciales_db():
         
         return {
             'host': db_host,
-            'port': db_port,
+            'port': int(db_port),
             'database': db_name,
             'user': db_user,
             'password': db_password
@@ -104,6 +112,10 @@ def obtener_lotes_caducados(**context):
     """
     Obtiene los lotes que están caducados.
     
+    Estados:
+    - 1: Disponible
+    - 6: Caducado
+    
     Returns:
         Dict con información de lotes caducados
     """
@@ -111,22 +123,24 @@ def obtener_lotes_caducados(**context):
         conn = obtener_conexion_db()
         cursor = conn.cursor(cursor_factory=RealDictCursor)
         
-        # Query para obtener lotes caducados que no estén ya marcados como caducados
-        query = """
+        # Query para obtener lotes caducados que estén disponibles
+        # y que no estén ya marcados como caducados
+        query = f"""
             SELECT 
                 l.id,
                 l.numero_lote,
                 l.fecha_caducidad,
-                l.disponible,
+                l.cantidad_disponible,
                 l.estado,
+                l.cantidad_inicial,
                 p.nombre as producto_nombre,
                 p.clave as producto_clave
             FROM inventario_lote l
             JOIN inventario_producto p ON l.producto_id = p.id
             WHERE 
                 l.fecha_caducidad < CURRENT_DATE
-                AND l.disponible = true
-                AND l.estado != 'caducado'
+                AND l.cantidad_disponible > 0
+                AND l.estado = {ESTADO_DISPONIBLE}
             ORDER BY l.fecha_caducidad ASC
         """
         
@@ -156,7 +170,7 @@ def obtener_lotes_caducados(**context):
 
 def actualizar_lotes_caducados(**context):
     """
-    Marca los lotes caducados como no disponibles y actualiza su estado.
+    Marca los lotes caducados con estado = 6 y cantidad_disponible = 0.
     """
     try:
         # Obtener lotes del task anterior
@@ -181,39 +195,34 @@ def actualizar_lotes_caducados(**context):
         for lote in lotes_caducados:
             try:
                 # Actualizar el lote
-                update_query = """
+                # - estado = 6 (caducado)
+                # - cantidad_disponible = 0 (no disponible)
+                # - motivo_cambio_estado = razón del cambio
+                # - fecha_cambio_estado = timestamp actual
+                update_query = f"""
                     UPDATE inventario_lote
                     SET 
-                        disponible = false,
-                        estado = 'caducado',
+                        estado = {ESTADO_CADUCADO},
+                        cantidad_disponible = 0,
+                        motivo_cambio_estado = %s,
+                        fecha_cambio_estado = CURRENT_TIMESTAMP,
                         fecha_actualizacion = CURRENT_TIMESTAMP
                     WHERE id = %s
                 """
                 
-                cursor.execute(update_query, (lote['id'],))
-                
-                # Registrar el cambio en la tabla de auditoría si existe
-                try:
-                    audit_query = """
-                        INSERT INTO inventario_auditorialote 
-                        (lote_id, accion, descripcion, fecha_cambio)
-                        VALUES (%s, %s, %s, CURRENT_TIMESTAMP)
-                    """
-                    
-                    descripcion = f"Lote marcado como caducado automáticamente. Fecha caducidad: {lote['fecha_caducidad']}"
-                    cursor.execute(audit_query, (lote['id'], 'CADUCADO', descripcion))
-                except Exception as e:
-                    logger.warning(f"No se pudo registrar en auditoría: {str(e)}")
+                motivo = f"Lote marcado como caducado automáticamente por Airflow. Fecha caducidad: {lote['fecha_caducidad']}"
+                cursor.execute(update_query, (motivo, lote['id']))
                 
                 lotes_actualizados.append({
                     'id': lote['id'],
                     'numero_lote': lote['numero_lote'],
                     'producto': lote['producto_nombre'],
                     'clave': lote['producto_clave'],
-                    'fecha_caducidad': str(lote['fecha_caducidad'])
+                    'fecha_caducidad': str(lote['fecha_caducidad']),
+                    'cantidad': lote['cantidad_disponible']
                 })
                 
-                logger.info(f"Lote {lote['numero_lote']} marcado como caducado")
+                logger.info(f"Lote {lote['numero_lote']} marcado como caducado (ID: {lote['id']})")
                 
             except Exception as e:
                 logger.error(f"Error actualizando lote {lote['id']}: {str(e)}")
@@ -277,13 +286,14 @@ def enviar_notificacion_telegram(**context):
         
         mensaje += "*Lotes Procesados:*\n"
         for lote in lotes_actualizados[:10]:  # Mostrar máximo 10 en el mensaje
-            mensaje += f"• {lote['numero_lote']} - {lote['producto']} (Clave: {lote['clave']})\n"
+            mensaje += f"• *{lote['numero_lote']}* - {lote['producto']}\n"
+            mensaje += f"  Clave: {lote['clave']} | Cantidad: {lote['cantidad']}\n"
             mensaje += f"  Caducidad: {lote['fecha_caducidad']}\n"
         
         if len(lotes_actualizados) > 10:
             mensaje += f"\n... y {len(lotes_actualizados) - 10} lotes más\n"
         
-        mensaje += "\n✅ Los lotes han sido marcados como no disponibles"
+        mensaje += "\n✅ Los lotes han sido marcados como caducados y no disponibles"
         
         # Enviar por Telegram
         url = f"https://api.telegram.org/bot{telegram_token}/sendMessage"
@@ -312,14 +322,14 @@ def registrar_resumen(**context):
     Registra un resumen de la ejecución del DAG.
     """
     try:
-        cantidad_lotes = context['task_instance'].xcom_pull(
+        lotes_actualizados = context['task_instance'].xcom_pull(
             task_ids='actualizar_lotes_caducados',
             key='lotes_actualizados'
         )
         
         resumen = {
             'fecha_ejecucion': datetime.now().isoformat(),
-            'cantidad_lotes_procesados': len(cantidad_lotes) if cantidad_lotes else 0,
+            'cantidad_lotes_procesados': len(lotes_actualizados) if lotes_actualizados else 0,
             'estado': 'exitoso'
         }
         
