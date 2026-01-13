@@ -203,12 +203,9 @@ def lista_propuestas(request):
         'solicitud__usuario_solicitante'
     ).prefetch_related('items').all()
     
-    from django.urls import reverse
+    # Calcular porcentaje surtido para cada propuesta
     propuestas_con_porcentaje = []
     for propuesta in propuestas:
-        if not propuesta.id:
-            continue
-            
         total_solicitado = propuesta.items.aggregate(
             total=Sum('cantidad_solicitada')
         )['total'] or 0
@@ -221,17 +218,12 @@ def lista_propuestas(request):
         if total_solicitado > 0:
             porcentaje_surtido = round((total_surtido / total_solicitado) * 100, 2)
         
-        url_detalle = reverse('logistica:detalle_propuesta', args=[str(propuesta.id)])
-        url_pdf = reverse('logistica:generar_acuse_entrega_pdf', args=[str(propuesta.id)])
-        
         propuestas_con_porcentaje.append({
             'propuesta': propuesta,
             'porcentaje_surtido': porcentaje_surtido,
             'total_solicitado': total_solicitado,
             'total_surtido': total_surtido,
-            'puede_imprimir': porcentaje_surtido == 100.0,
-            'url_detalle': url_detalle,
-            'url_pdf': url_pdf
+            'puede_imprimir': porcentaje_surtido == 100.0
         })
     
     # Filtrar por estado

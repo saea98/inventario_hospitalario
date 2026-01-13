@@ -89,17 +89,21 @@
                                 </div>
                             </td>
                             <td>
-                                <a href="{{ item.url_detalle }}" 
-                                   class="btn btn-sm btn-primary"
-                                   title="Ver detalle">
-                                    <i class="fas fa-eye"></i> Ver
-                                </a>
-                                {% if item.puede_imprimir %}
-                                    <a href="{{ item.url_pdf }}" 
-                                       class="btn btn-sm btn-success"
-                                       title="Imprimir acuse">
-                                        <i class="fas fa-print"></i> Imprimir
+                                {% if item.propuesta.id %}
+                                    <a href="{% url 'logistica:detalle_propuesta' item.propuesta.id %}" 
+                                       class="btn btn-sm btn-primary"
+                                       title="Ver detalle">
+                                        <i class="fas fa-eye"></i> Ver
                                     </a>
+                                    {% if item.puede_imprimir %}
+                                        <a href="{% url 'logistica:generar_acuse_entrega_pdf' item.propuesta.id %}" 
+                                           class="btn btn-sm btn-success"
+                                           title="Imprimir acuse">
+                                            <i class="fas fa-print"></i> Imprimir
+                                        </a>
+                                    {% endif %}
+                                {% else %}
+                                    <span class="text-muted">Sin ID</span>
                                 {% endif %}
                             </td>
                         </tr>
