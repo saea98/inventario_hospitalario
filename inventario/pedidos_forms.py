@@ -288,3 +288,6 @@ ItemSolicitudFormSet = inlineformset_factory(
     extra=3,
     can_delete=True
 )
+
+class BulkUploadForm(forms.Form):
+    csv_file = forms.FileField(label='Archivo CSV para carga masiva')

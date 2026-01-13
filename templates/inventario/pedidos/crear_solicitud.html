@@ -1,10 +1,33 @@
+
 {% extends 'base.html' %}
 
 {% block content %}
 <div class="container-fluid">
     <h1 class="h3 mb-4 text-gray-800">{{ page_title|default:'Crear Nueva Solicitud de Pedido' }}</h1>
 
-    <form method="post" enctype="multipart/form-data" id="solicitud-form">
+    <!-- Formulario de Carga Masiva -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Carga Masiva de Items (CSV)</h6>
+        </div>
+        <div class="card-body">
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label for="id_csv_file">Selecciona un archivo CSV</label>
+                    {{ upload_form.csv_file }}
+                    <small class="form-text text-muted">
+                        El archivo debe tener las columnas "CLAVE" y "CANTIDAD SOLICITADA".
+                    </small>
+                </div>
+                <button type="submit" name="upload_csv" class="btn btn-info">
+                    <i class="fas fa-upload"></i> Cargar Items desde CSV
+                </button>
+            </form>
+        </div>
+    </div>
+
+    <form method="post" id="solicitud-form">
         {% csrf_token %}
         
         <!-- Datos de la Solicitud -->
@@ -13,67 +36,7 @@
                 <h6 class="m-0 font-weight-bold text-primary">Datos de la Solicitud</h6>
             </div>
             <div class="card-body">
-                <!-- Institución Solicitante -->
-                <div class="form-group">
-                    <label for="id_institucion_solicitante">
-                        Institución Solicitante <span class="text-danger">*</span>
-                    </label>
-                    <select id="id_institucion_solicitante" name="institucion_solicitante" class="form-control select2-single" required>
-                        <option value="">-- Selecciona una institución --</option>
-                        {% for institucion in form.institucion_solicitante.field.queryset %}
-                            <option value="{{ institucion.id }}">{{ institucion.denominacion }}</option>
-                        {% endfor %}
-                    </select>
-                    {% if form.institucion_solicitante.errors %}
-                        <div class="invalid-feedback d-block">
-                            {{ form.institucion_solicitante.errors }}
-                        </div>
-                    {% endif %}
-                </div>
-
-                <!-- Almacén Destino -->
-                <div class="form-group">
-                    <label for="id_almacen_destino">
-                        Almacén Destino <span class="text-danger">*</span>
-                    </label>
-                    <select id="id_almacen_destino" name="almacen_destino" class="form-control select2-single" required>
-                        <option value="">-- Selecciona un almacén --</option>
-                        {% for almacen in form.almacen_destino.field.queryset %}
-                            <option value="{{ almacen.id }}">{{ almacen.nombre }}</option>
-                        {% endfor %}
-                    </select>
-                    {% if form.almacen_destino.errors %}
-                        <div class="invalid-feedback d-block">
-                            {{ form.almacen_destino.errors }}
-                        </div>
-                    {% endif %}
-                </div>
-
-                <!-- Fecha de Entrega Programada -->
-                <div class="form-group">
-                    <label for="id_fecha_entrega_programada">
-                        Fecha de Entrega Programada <span class="text-danger">*</span>
-                    </label>
-                    <input type="date" id="id_fecha_entrega_programada" name="fecha_entrega_programada" class="form-control" required>
-                    {% if form.fecha_entrega_programada.errors %}
-                        <div class="invalid-feedback d-block">
-                            {{ form.fecha_entrega_programada.errors }}
-                        </div>
-                    {% endif %}
-                </div>
-
-                <!-- Observaciones -->
-                <div class="form-group">
-                    <label for="id_observaciones_solicitud">
-                        Observaciones
-                    </label>
-                    <textarea id="id_observaciones_solicitud" name="observaciones_solicitud" class="form-control" rows="3" placeholder="Observaciones adicionales (opcional)"></textarea>
-                    {% if form.observaciones_solicitud.errors %}
-                        <div class="invalid-feedback d-block">
-                            {{ form.observaciones_solicitud.errors }}
-                        </div>
-                    {% endif %}
-                </div>
+                {{ form.as_p }}
             </div>
         </div>
 
@@ -83,71 +46,19 @@
                 <h6 class="m-0 font-weight-bold text-primary">Items de la Solicitud</h6>
             </div>
             <div class="card-body">
-                <!-- Management Form (requerido por Django formset) -->
                 {{ formset.management_form }}
-                
-                <!-- Errores del formset -->
                 {% if formset.non_form_errors %}
-                    <div class="alert alert-danger" role="alert">
-                        <h4 class="alert-heading">Errores en los items:</h4>
-                        {% for error in formset.non_form_errors %}
-                            <p>{{ error }}</p>
-                        {% endfor %}
-                    </div>
+                    <div class="alert alert-danger">{{ formset.non_form_errors }}</div>
                 {% endif %}
 
-                <!-- Contenedor de formularios de items -->
                 <div id="item-forms-container">
                     {% for item_form in formset %}
-                        <div class="item-form mb-4 p-3 border rounded" data-form-index="{{ forloop.counter0 }}">
-                            {% if item_form.non_field_errors %}
-                                <div class="alert alert-danger" role="alert">
-                                    {{ item_form.non_field_errors }}
-                                </div>
-                            {% endif %}
-
-                            <!-- Campos ocultos necesarios -->
-                            {% if item_form.id %}
-                                {{ item_form.id }}
-                            {% endif %}
-                            
-                            <div class="row">
-                                <div class="col-md-8">
-                                    <div class="form-group">
-                                        <label for="{{ item_form.producto.id_for_label }}">Producto (CNIS)</label>
-                                        {{ item_form.producto }}
-                                        {% if item_form.producto.errors %}
-                                            <div class="invalid-feedback d-block">
-                                                {{ item_form.producto.errors }}
-                                            </div>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                                <div class="col-md-3">
-                                    <div class="form-group">
-                                        <label for="{{ item_form.cantidad_solicitada.id_for_label }}">Cantidad</label>
-                                        {{ item_form.cantidad_solicitada }}
-                                        {% if item_form.cantidad_solicitada.errors %}
-                                            <div class="invalid-feedback d-block">
-                                                {{ item_form.cantidad_solicitada.errors }}
-                                            </div>
-                                        {% endif %}
-                                    </div>
-                                </div>
-                                <div class="col-md-1 d-flex align-items-end">
-                                    <div class="form-group">
-                                        {% if item_form.instance.pk %}
-                                            <label for="{{ item_form.DELETE.id_for_label }}">Eliminar</label>
-                                            {{ item_form.DELETE }}
-                                        {% endif %}
-                                    </div>
-                                </div>
-                            </div>
+                        <div class="item-form mb-4 p-3 border rounded">
+                            {{ item_form.as_p }}
                         </div>
                     {% endfor %}
                 </div>
 
-                <!-- Botón para agregar más items -->
                 <button type="button" id="add-item-form" class="btn btn-secondary btn-sm mt-3">
                     <i class="fas fa-plus"></i> Añadir otro item
                 </button>
@@ -167,35 +78,11 @@
 </div>
 
 {% block extra_js %}
-<link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
-<script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Inicializar Select2 para campos existentes
-        initializeSelect2();
-
         const container = document.getElementById('item-forms-container');
         const addButton = document.getElementById('add-item-form');
         const totalFormsInput = document.getElementById('id_items-TOTAL_FORMS');
-        const form = document.getElementById('solicitud-form');
-        
-        // Validar que institución esté seleccionada antes de enviar
-        form.addEventListener('submit', function(e) {
-            const institucion = document.getElementById('id_institucion_solicitante').value;
-            const almacen = document.getElementById('id_almacen_destino').value;
-            
-            if (!institucion) {
-                e.preventDefault();
-                alert('Por favor, selecciona una institución solicitante');
-                return false;
-            }
-            
-            if (!almacen) {
-                e.preventDefault();
-                alert('Por favor, selecciona un almacén destino');
-                return false;
-            }
-        });
         
         addButton.addEventListener('click', function(e) {
             e.preventDefault();
@@ -204,71 +91,16 @@
             const firstForm = container.querySelector('.item-form');
             const newForm = firstForm.cloneNode(true);
             
-            // Actualizar los IDs y nombres de los campos
             const regex = new RegExp('items-(\\d+)-', 'g');
             newForm.innerHTML = newForm.innerHTML.replace(regex, 'items-' + formCount + '-');
             
-            // Limpiar los valores
-            newForm.querySelectorAll('input[type="text"], input[type="number"], select, textarea').forEach(function(field) {
-                if (field.type !== 'hidden') {
-                    field.value = '';
-                }
+            newForm.querySelectorAll('input, select, textarea').forEach(field => {
+                if (field.type !== 'hidden') field.value = '';
             });
             
-            // Agregar el nuevo formulario al contenedor
             container.appendChild(newForm);
-            
-            // Reinicializar Select2 para el nuevo formulario
-            initializeSelect2();
-            
-            // Actualizar el contador de formularios
             totalFormsInput.value = formCount + 1;
         });
-
-        // Filtrar almacenes cuando se selecciona una institución
-        const institucionSelect = document.getElementById('id_institucion_solicitante');
-        const almacenSelect = document.getElementById('id_almacen_destino');
-        
-        // Almacenar todos los almacenes disponibles
-        const almacenesData = {};
-        {% for almacen in form.almacen_destino.field.queryset %}
-            if (!almacenesData[{{ almacen.institucion.id }}]) {
-                almacenesData[{{ almacen.institucion.id }}] = [];
-            }
-            almacenesData[{{ almacen.institucion.id }}].push({
-                id: {{ almacen.id }},
-                nombre: '{{ almacen.nombre }}'
-            });
-        {% endfor %}
-        
-        // Usar el evento de Select2 en lugar del evento change nativo
-        $(institucionSelect).on('select2:select', function() {
-            const institucionId = $(this).val();
-            const almacenes = almacenesData[institucionId] || [];
-            
-            // Limpiar opciones actuales
-            almacenSelect.innerHTML = '<option value="">-- Selecciona un almacen --</option>';
-            
-            // Agregar nuevas opciones
-            almacenes.forEach(function(almacen) {
-                const option = document.createElement('option');
-                option.value = almacen.id;
-                option.textContent = almacen.nombre;
-                almacenSelect.appendChild(option);
-            });
-            
-            // Reinicializar Select2
-            $(almacenSelect).val(null).trigger('change');
-        });
-        
-        function initializeSelect2() {
-            $('.select2-single').select2({
-                width: '100%',
-                language: 'es',
-                allowClear: true,
-                dropdownParent: $('body')
-            });
-        }
     });
 </script>
 {% endblock %}
