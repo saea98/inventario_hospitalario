@@ -12,6 +12,7 @@ from django.core.paginator import Paginator
 from django.db.models import Q, Sum, F, Case, When, IntegerField
 from django.utils import timezone
 from datetime import datetime
+import textwrap
 
 from reportlab.lib.pagesizes import letter, landscape
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -22,6 +23,22 @@ from io import BytesIO
 
 from .pedidos_models import PropuestaPedido, ItemPropuesta, SolicitudPedido
 from .models import Institucion, Almacen
+
+
+def wrap_text(text, max_chars=25, max_lines=3):
+    """
+    Envuelve texto a un máximo de caracteres por línea y máximo de líneas
+    """
+    if not text:
+        return ""
+    
+    lines = []
+    for line in text.split('\n'):
+        wrapped = textwrap.wrap(line, width=max_chars)
+        lines.extend(wrapped)
+    
+    # Limitar a máximo de líneas
+    return '\n'.join(lines[:max_lines])
 
 
 @login_required
@@ -225,7 +242,7 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
     '''
     info = Paragraph(info_text, info_style)
     elements.append(info)
-    elements.append(Spacer(1, 0.2*inch))
+    elements.append(Spacer(1, 0.15*inch))
     
     # ============ ACUSE DE ENTREGA ============
     title_style = ParagraphStyle(
@@ -233,7 +250,7 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
         parent=styles['Heading2'],
         fontSize=12,
         textColor=colors.HexColor('#8B1538'),
-        spaceAfter=12,
+        spaceAfter=10,
         alignment=1
     )
     
@@ -244,47 +261,52 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
     solicitud = propuesta.solicitud
     usuario_solicitante = solicitud.usuario_solicitante
     
+    # Envolver textos largos
+    institucion_nombre = wrap_text(solicitud.institucion_solicitante.denominacion, max_chars=25, max_lines=3)
+    usuario_nombre = wrap_text(usuario_solicitante.get_full_name(), max_chars=25, max_lines=2)
+    
     delivery_data = [
         ['UNIDAD DE DESTINO', 'RECIBE (UNIDAD DE DESTINO)', 'AUTORIZA (ALMACEN)', 'ENTREGA (ALMACEN)'],
         [
-            solicitud.institucion_solicitante.denominacion,
-            'NOMBRE: ___________________________\n\nPUESTO: ___________________________\n\nFIRMA: ___________________________',
-            f'NOMBRE:\n{usuario_solicitante.get_full_name()}\n\nPUESTO:\nMESA DE CONTROL\n\nFIRMA: ___________________________',
-            'NOMBRE: ___________________________\n\nPUESTO: ___________________________\n\nFIRMA: ___________________________'
+            institucion_nombre,
+            'NOMBRE: ___________________\n\nPUESTO: ___________________\n\nFIRMA: ___________________',
+            f'NOMBRE:\n{usuario_nombre}\n\nPUESTO:\nMESA DE CONTROL\n\nFIRMA: ___________________',
+            'NOMBRE: ___________________\n\nPUESTO: ___________________\n\nFIRMA: ___________________'
         ]
     ]
     
-    delivery_table = Table(delivery_data, colWidths=[2.5*inch, 2.5*inch, 2.5*inch, 2.5*inch], rowHeights=[0.4*inch, 2.0*inch])
+    delivery_table = Table(delivery_data, colWidths=[2.5*inch, 2.5*inch, 2.5*inch, 2.5*inch], rowHeights=[0.35*inch, 1.8*inch])
     delivery_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#8B1538')),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
         ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 9),
-        ('FONTSIZE', (0, 1), (-1, -1), 8),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('TOPPADDING', (0, 1), (-1, -1), 12),
-        ('LEFTPADDING', (0, 1), (-1, -1), 8),
-        ('RIGHTPADDING', (0, 1), (-1, -1), 8),
+        ('FONTSIZE', (0, 0), (-1, 0), 8),
+        ('FONTSIZE', (0, 1), (-1, -1), 7),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+        ('TOPPADDING', (0, 1), (-1, -1), 8),
+        ('LEFTPADDING', (0, 1), (-1, -1), 6),
+        ('RIGHTPADDING', (0, 1), (-1, -1), 6),
         ('GRID', (0, 0), (-1, -1), 1, colors.lightgrey),
-        ('LEADING', (0, 1), (-1, -1), 14),
+        ('LEADING', (0, 1), (-1, -1), 11),
     ]))
     
     elements.append(delivery_table)
-    elements.append(Spacer(1, 0.2*inch))
+    elements.append(Spacer(1, 0.15*inch))
     
     # Observaciones
     obs_style = ParagraphStyle(
         'Observations',
         parent=styles['Normal'],
-        fontSize=9,
+        fontSize=8,
         textColor=colors.black,
     )
     
-    obs = Paragraph(f'<b>Observaciones:</b> {propuesta.solicitud.observaciones_solicitud or "N/A"}', obs_style)
+    obs_text = wrap_text(propuesta.solicitud.observaciones_solicitud or "N/A", max_chars=80, max_lines=2)
+    obs = Paragraph(f'<b>Observaciones:</b> {obs_text}', obs_style)
     elements.append(obs)
-    elements.append(Spacer(1, 0.3*inch))
+    elements.append(Spacer(1, 0.15*inch))
     
     # ============ TABLA DE PRODUCTOS ============
     items = propuesta.items.select_related(
@@ -318,10 +340,13 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
             caducidad = lote.fecha_caducidad.strftime("%d/%m/%Y")
             ubicacion = lote_asignado.lote_ubicacion.ubicacion.codigo
         
+        # Envolver descripción
+        descripcion = wrap_text(item.producto.descripcion, max_chars=20, max_lines=2)
+        
         table_data.append([
             str(idx),
             item.producto.clave_cnis,
-            item.producto.descripcion[:50],
+            descripcion,
             item.producto.unidad_medida,
             'ORDINARIO',
             lote_info,
@@ -332,6 +357,7 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
             ''
         ])
     
+    # Usar el mismo ancho que la tabla de firmas (10 pulgadas total)
     table = Table(table_data, colWidths=[
         0.3*inch, 0.8*inch, 1.5*inch, 0.8*inch, 0.7*inch, 
         0.8*inch, 0.8*inch, 0.7*inch, 0.8*inch, 0.9*inch, 1.0*inch
@@ -341,13 +367,18 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#8B1538')),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 8),
-        ('FONTSIZE', (0, 1), (-1, -1), 7),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-        ('TOPPADDING', (0, 0), (-1, 0), 8),
+        ('FONTSIZE', (0, 0), (-1, 0), 7),
+        ('FONTSIZE', (0, 1), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
+        ('TOPPADDING', (0, 0), (-1, 0), 6),
+        ('TOPPADDING', (0, 1), (-1, -1), 4),
+        ('BOTTOMPADDING', (0, 1), (-1, -1), 4),
+        ('LEFTPADDING', (0, 1), (-1, -1), 3),
+        ('RIGHTPADDING', (0, 1), (-1, -1), 3),
         ('GRID', (0, 0), (-1, -1), 0.5, colors.lightgrey),
+        ('LEADING', (0, 1), (-1, -1), 9),
     ]))
     
     elements.append(table)
@@ -355,7 +386,7 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
     # Función para paginación
     def footer(canvas, doc):
         canvas.saveState()
-        canvas.setFont('Helvetica', 9)
+        canvas.setFont('Helvetica', 8)
         canvas.drawString(inch, 0.5 * inch, f"Pagina {doc.page}")
         canvas.restoreState()
 
