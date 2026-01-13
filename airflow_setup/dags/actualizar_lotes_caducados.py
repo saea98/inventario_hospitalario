@@ -133,7 +133,7 @@ def obtener_lotes_caducados(**context):
                 l.cantidad_disponible,
                 l.estado,
                 l.cantidad_inicial,
-                p.nombre as producto_nombre,
+                p.descripcion as producto_nombre,
                 p.clave as producto_clave
             FROM inventario_lote l
             JOIN inventario_producto p ON l.producto_id = p.id
