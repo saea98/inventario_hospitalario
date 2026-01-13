@@ -1,3 +1,4 @@
+
 """
 URLs para FASE 2: Gestión Logística
 Incluye: Citas, Traslados y Conteo Físico
@@ -38,35 +39,17 @@ urlpatterns = [
     
     # ========================================================================
     # CONTEO FÍSICO - Validación de Existencias (NUEVA VERSIÓN)
-    # Basado en formato IMSS-Bienestar con tres conteos
     # ========================================================================
-    # Búsqueda de lote por CLAVE (CNIS)
     path('conteos/buscar/', views_conteo_fisico_v2.buscar_lote_conteo, name='buscar_lote_conteo'),
     path('conteos/seleccionar-ubicacion/', views_conteo_fisico_v2.seleccionar_ubicacion_conteo, name='seleccionar_ubicacion_conteo'),
-    
-    # Seleccionar lote cuando hay múltiples
     path('conteos/seleccionar/', views_conteo_fisico_v2.seleccionar_lote_conteo, name='seleccionar_lote_conteo'),
-    
-    # Capturar conteos de un lote específico
     path('conteos/lotes/<int:lote_id>/capturar/', views_conteo_fisico_v2.capturar_conteo_lote, name='capturar_conteo_lote'),
     path('conteos/ubicaciones/<int:lote_ubicacion_id>/capturar/', views_conteo_fisico_v2.capturar_conteo_lote, name='capturar_conteo_lote'),
-    
-    # Crear nuevo lote si no existe
     path('conteos/crear-lote/', views_conteo_fisico_v2.crear_lote_conteo, name='crear_lote_conteo'),
-    
-    # Historial de conteos realizados
     path('conteos/historial/', views_conteo_fisico_v2.listar_conteos, name='historial_conteos'),
-    
-    # Exportación personalizada de conteos
     path('conteos/exportar-personalizado/', views_conteo_fisico_v2.exportar_conteos_personalizado, name='exportar_conteos_personalizado'),
-    
-    # Carga masiva de conteos
     path('conteos/carga-masiva/', views_conteo_fisico_v2.carga_masiva_conteos, name='carga_masiva_conteos'),
-    
-    # Detalle de un movimiento de conteo
     path('conteos/movimientos/<int:movimiento_id>/', views_conteo_fisico_v2.detalle_movimiento_conteo, name='detalle_movimiento_conteo'),
-    
-    # Dashboard de Reportes de Conteos
     path('conteos/dashboard/', views_dashboard_conteos.dashboard_conteos, name='dashboard_conteos'),
     path('conteos/dashboard/exportar/excel/', views_dashboard_conteos.exportar_conteos_excel, name='exportar_conteos_excel'),
     path('conteos/dashboard/exportar/pdf/', views_dashboard_conteos.exportar_conteos_pdf, name='exportar_conteos_pdf'),
@@ -84,6 +67,9 @@ urlpatterns = [
     path('propuestas/<uuid:propuesta_id>/', pedidos_views.detalle_propuesta, name='detalle_propuesta'),
     path('propuestas/<uuid:propuesta_id>/acuse-pdf/', views_acuse_entrega.generar_acuse_entrega_pdf, name='generar_acuse_pdf'),
     path('propuestas/<uuid:propuesta_id>/cancelar/', pedidos_views.cancelar_propuesta_view, name='cancelar_propuesta'),
+    path('propuestas/<uuid:propuesta_id>/editar/', pedidos_views.editar_propuesta, name='editar_propuesta'),
+    path('propuestas/<uuid:propuesta_id>/revisar/', pedidos_views.revisar_propuesta, name='revisar_propuesta'),
+    path('propuestas/<uuid:propuesta_id>/surtir/', pedidos_views.surtir_propuesta, name='surtir_propuesta'),
     
     # ========================================================================
     # FASE 2.2.2: LLEGADA DE PROVEEDORES
