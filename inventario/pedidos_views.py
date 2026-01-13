@@ -185,19 +185,63 @@ def validar_solicitud(request, solicitud_id):
 def lista_propuestas(request):
     """
     Muestra una lista de propuestas de pedido para que el almacén las revise y surta.
+    Incluye indicador de porcentaje surtido y botón de impresión para propuestas surtidas.
     """
+    from django.urls import reverse
+    from django.db.models import Sum
+    
     propuestas = PropuestaPedido.objects.select_related(
         'solicitud__institucion_solicitante',
-        'solicitud__almacen_destino'
-    ).all()
+        'solicitud__almacen_destino',
+        'solicitud__usuario_solicitante'
+    ).prefetch_related('items').all()
+    
+    # Calcular porcentaje surtido y generar URLs para cada propuesta
+    propuestas_con_info = []
+    for propuesta in propuestas:
+        total_solicitado = propuesta.items.aggregate(
+            total=Sum('cantidad_solicitada')
+        )['total'] or 0
+        
+        total_surtido = propuesta.items.aggregate(
+            total=Sum('cantidad_surtida')
+        )['total'] or 0
+        
+        porcentaje_surtido = 0
+        if total_solicitado > 0:
+            porcentaje_surtido = round((total_surtido / total_solicitado) * 100, 2)
+        
+        # Generar URLs
+        try:
+            url_detalle = reverse('logistica:detalle_propuesta', args=[str(propuesta.id)])
+            url_pdf = reverse('logistica:generar_acuse_entrega_pdf', args=[str(propuesta.id)])
+        except:
+            url_detalle = f'/logistica/propuestas/{propuesta.id}/'
+            url_pdf = f'/logistica/propuestas/{propuesta.id}/acuse-pdf/'
+        
+        # Usar el estado SURTIDA para determinar si puede imprimir
+        puede_imprimir = propuesta.estado == 'SURTIDA'
+        
+        propuestas_con_info.append({
+            'propuesta': propuesta,
+            'porcentaje_surtido': porcentaje_surtido,
+            'total_solicitado': total_solicitado,
+            'total_surtido': total_surtido,
+            'puede_imprimir': puede_imprimir,
+            'url_detalle': url_detalle,
+            'url_pdf': url_pdf
+        })
     
     # Filtrar por estado
     estado = request.GET.get('estado')
     if estado:
-        propuestas = propuestas.filter(estado=estado)
+        propuestas_con_info = [
+            p for p in propuestas_con_info 
+            if p['propuesta'].estado == estado
+        ]
     
     context = {
-        'propuestas': propuestas,
+        'propuestas': propuestas_con_info,
         'estados': PropuestaPedido.ESTADO_CHOICES,
         'page_title': 'Propuestas de Pedido para Surtimiento'
     }
