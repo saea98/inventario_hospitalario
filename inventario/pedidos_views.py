@@ -213,4 +213,258 @@ def validar_solicitud(request, solicitud_id):
     return render(request, 'inventario/pedidos/validar_solicitud.html', context)
 
 
-# ... (el resto de las vistas se mantiene igual)
+# ============================================================================
+# VISTAS DE PROPUESTA DE PEDIDO (Para personal de almacén)
+# ============================================================================
+
+@login_required
+def lista_propuestas(request):
+    """
+    Muestra una lista de propuestas de pedido para que el almacén las revise y surta.
+    Incluye indicador de porcentaje surtido y botón de impresión para propuestas surtidas.
+    """
+    from django.urls import reverse
+    from django.db.models import Sum
+    
+    propuestas = PropuestaPedido.objects.select_related(
+        'solicitud__institucion_solicitante',
+        'solicitud__almacen_destino',
+        'solicitud__usuario_solicitante'
+    ).prefetch_related('items').all()
+    
+    # Calcular porcentaje surtido y generar URLs para cada propuesta
+    propuestas_con_info = []
+    for propuesta in propuestas:
+        # Validar que la propuesta tenga ID
+        if not propuesta.id:
+            continue
+            
+        total_solicitado = propuesta.items.aggregate(
+            total=Sum('cantidad_solicitada')
+        )['total'] or 0
+        
+        total_surtido = propuesta.items.aggregate(
+            total=Sum('cantidad_surtida')
+        )['total'] or 0
+        
+        porcentaje_surtido = 0
+        if total_solicitado > 0:
+            porcentaje_surtido = round((total_surtido / total_solicitado) * 100, 2)
+        
+        # Generar URLs con validación
+        url_detalle = f'/logistica/propuestas/{propuesta.id}/'
+        url_pdf = f'/logistica/propuestas/{propuesta.id}/acuse-pdf/'
+        
+        # Usar el estado SURTIDA para determinar si puede imprimir
+        puede_imprimir = propuesta.estado == 'SURTIDA'
+        
+        propuestas_con_info.append({
+            'propuesta': propuesta,
+            'porcentaje_surtido': porcentaje_surtido,
+            'total_solicitado': total_solicitado,
+            'total_surtido': total_surtido,
+            'puede_imprimir': puede_imprimir,
+            'url_detalle': url_detalle,
+            'url_pdf': url_pdf
+        })
+    
+    # Filtrar por estado
+    estado = request.GET.get('estado')
+    if estado:
+        propuestas_con_info = [
+            p for p in propuestas_con_info 
+            if p['propuesta'].estado == estado
+        ]
+    
+    context = {
+        'propuestas': propuestas_con_info,
+        'estados': PropuestaPedido.ESTADO_CHOICES,
+        'page_title': 'Propuestas de Pedido para Surtimiento'
+    }
+    return render(request, 'inventario/pedidos/lista_propuestas.html', context)
+
+
+@login_required
+def detalle_propuesta(request, propuesta_id):
+    """
+    Muestra el detalle de una propuesta de pedido con los lotes asignados.
+    """
+    propuesta = get_object_or_404(
+        PropuestaPedido.objects.select_related(
+            'solicitud__institucion_solicitante',
+            'solicitud__almacen_destino'
+        ).prefetch_related('items__lotes_asignados__lote_ubicacion__lote', 'items__lotes_asignados__lote_ubicacion__ubicacion__almacen'),
+        id=propuesta_id
+    )
+    
+    context = {
+        'propuesta': propuesta,
+        'page_title': f"Propuesta {propuesta.solicitud.folio}"
+    }
+    return render(request, 'inventario/pedidos/detalle_propuesta.html', context)
+
+
+@login_required
+@transaction.atomic
+def revisar_propuesta(request, propuesta_id):
+    """
+    Permite al personal de almacén revisar la propuesta antes de surtir.
+    """
+    propuesta = get_object_or_404(PropuestaPedido, id=propuesta_id, estado='GENERADA')
+    
+    if request.method == 'POST':
+        propuesta.estado = 'REVISADA'
+        propuesta.fecha_revision = timezone.now()
+        propuesta.usuario_revision = request.user
+        propuesta.observaciones_revision = request.POST.get('observaciones', '')
+        propuesta.save()
+        
+        messages.success(request, "Propuesta revisada. Procede al surtimiento.")
+        return redirect('logistica:detalle_propuesta', propuesta_id=propuesta.id)
+    
+    context = {
+        'propuesta': propuesta,
+        'page_title': f"Revisar Propuesta {propuesta.solicitud.folio}"
+    }
+    return render(request, 'inventario/pedidos/revisar_propuesta.html', context)
+
+
+@login_required
+@transaction.atomic
+def surtir_propuesta(request, propuesta_id):
+    """
+    Permite al personal de almacén confirmar el surtimiento de una propuesta.
+    FASE 5: Genera automáticamente movimientos de inventario.
+    """
+    from .fase5_utils import generar_movimientos_suministro
+    
+    propuesta = get_object_or_404(PropuestaPedido, id=propuesta_id, estado='REVISADA')
+    
+    if request.method == 'POST':
+        propuesta.estado = 'EN_SURTIMIENTO'
+        propuesta.fecha_surtimiento = timezone.now()
+        propuesta.usuario_surtimiento = request.user
+        propuesta.save()
+        
+        # Marcar los lotes como surtidos
+        for item in propuesta.items.all():
+            for lote_asignado in item.lotes_asignados.all():
+                lote_asignado.surtido = True
+                lote_asignado.fecha_surtimiento = timezone.now()
+                lote_asignado.save()
+        
+        propuesta.estado = 'SURTIDA'
+        propuesta.save()
+        
+        # FASE 5: Generar movimientos de inventario automáticamente
+        resultado = generar_movimientos_suministro(propuesta.id, request.user)
+        if resultado['exito']:
+            messages.success(
+                request, 
+                f"Propuesta surtida exitosamente. {resultado['mensaje']}"
+            )
+        else:
+            messages.warning(
+                request, 
+                f"Propuesta surtida pero con advertencia: {resultado['mensaje']}"
+            )
+        
+        return redirect('logistica:lista_propuestas')
+    
+    context = {
+        'propuesta': propuesta,
+        'page_title': f"Surtir Propuesta {propuesta.solicitud.folio}"
+    }
+    return render(request, 'inventario/pedidos/surtir_propuesta.html', context)
+
+
+@login_required
+@transaction.atomic
+def editar_propuesta(request, propuesta_id):
+    """
+    Permite al personal de almacén editar los lotes y cantidades de la propuesta.
+    Puede cambiar qué lotes se asignan y qué cantidades se proponen para cada item.
+    """
+    from .pedidos_models import LoteAsignado
+    from .models import LoteUbicacion
+    
+    propuesta = get_object_or_404(PropuestaPedido, id=propuesta_id, estado='GENERADA')
+    
+    if request.method == 'POST':
+        # Procesar cambios en cantidades y lotes
+        for item in propuesta.items.all():
+            # Actualizar cantidad propuesta
+            nueva_cantidad = request.POST.get(f'item_{item.id}_cantidad_propuesta')
+            if nueva_cantidad:
+                item.cantidad_propuesta = int(nueva_cantidad)
+                item.save()
+            
+            # Procesar cambios en lotes asignados
+            lotes_actuales = item.lotes_asignados.select_related('lote_ubicacion__lote', 'lote_ubicacion__ubicacion').all()
+            for lote_asignado in lotes_actuales:
+                nueva_cantidad_lote = request.POST.get(f'lote_{lote_asignado.id}_cantidad')
+                if nueva_cantidad_lote:
+                    lote_asignado.cantidad_asignada = int(nueva_cantidad_lote)
+                    lote_asignado.save()
+                
+                # Eliminar lote si se marca para eliminar
+                if request.POST.get(f'lote_{lote_asignado.id}_eliminar'):
+                    lote_asignado.delete()
+            
+            # Agregar nuevos lotes si se seleccionan
+            nueva_ubicacion_id = request.POST.get(f'item_{item.id}_nueva_ubicacion')
+            if nueva_ubicacion_id:
+                lote_ubicacion = LoteUbicacion.objects.get(id=nueva_ubicacion_id)
+                cantidad_nuevo = int(request.POST.get(f'item_{item.id}_cantidad_nueva_ubicacion', 0))
+                
+                if cantidad_nuevo > 0:
+                    LoteAsignado.objects.create(
+                        item_propuesta=item,
+                        lote_ubicacion=lote_ubicacion,
+                        cantidad_asignada=cantidad_nuevo
+                    )
+        
+        # Actualizar totales de la propuesta
+        propuesta.total_propuesto = sum(item.cantidad_propuesta for item in propuesta.items.all())
+        propuesta.save()
+        
+        messages.success(request, "Propuesta actualizada correctamente.")
+        return redirect('logistica:detalle_propuesta', propuesta_id=propuesta.id)
+    
+    context = {
+        'propuesta': propuesta,
+        'page_title': f"Editar Propuesta {propuesta.solicitud.folio}"
+    }
+    return render(request, 'inventario/pedidos/editar_propuesta.html', context)
+
+
+@login_required
+@transaction.atomic
+def cancelar_propuesta_view(request, propuesta_id):
+    """
+    Cancela una propuesta de suministro y libera todas las cantidades reservadas.
+    Hace un rollback completo de la propuesta.
+    """
+    propuesta = get_object_or_404(PropuestaPedido, id=propuesta_id)
+    
+    # Verificar permisos (solo almacenero o administrador)
+    if not (request.user.is_staff or request.user.groups.filter(name='Almacenero').exists()):
+        messages.error(request, "No tienes permiso para cancelar propuestas.")
+        return redirect('logistica:detalle_propuesta', propuesta_id=propuesta.id)
+    
+    if request.method == 'POST':
+        resultado = cancelar_propuesta(propuesta_id, usuario=request.user)
+        
+        if resultado['exito']:
+            messages.success(request, resultado['mensaje'])
+            return redirect('logistica:lista_propuestas')
+        else:
+            messages.error(request, resultado['mensaje'])
+            return redirect('logistica:detalle_propuesta', propuesta_id=propuesta.id)
+    
+    # GET: mostrar confirmación
+    context = {
+        'propuesta': propuesta,
+        'page_title': f"Cancelar Propuesta {propuesta.solicitud.folio}"
+    }
+    return render(request, 'inventario/pedidos/cancelar_propuesta.html', context)
