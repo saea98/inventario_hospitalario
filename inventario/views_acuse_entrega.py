@@ -166,17 +166,7 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
     """
     propuesta = get_object_or_404(PropuestaPedido, id=propuesta_id)
     
-    # Verificar que esté 100% surtida
-    total_solicitado = propuesta.items.aggregate(
-        total=Sum('cantidad_solicitada')
-    )['total'] or 0
-    
-    total_surtido = propuesta.items.aggregate(
-        total=Sum('cantidad_surtida')
-    )['total'] or 0
-    
-    if total_solicitado == 0 or total_surtido != total_solicitado:
-        return redirect('logistica:detalle_propuesta', propuesta_id=propuesta_id)
+    # Generar PDF sin importar el porcentaje surtido
     
     # Crear PDF
     buffer = BytesIO()
