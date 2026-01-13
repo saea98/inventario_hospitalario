@@ -11,11 +11,12 @@ from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.utils import timezone
 from datetime import date
+from django.forms import inlineformset_factory
 
 from .pedidos_models import SolicitudPedido, ItemSolicitud, PropuestaPedido, ItemPropuesta, Producto
 from .pedidos_forms import (
     SolicitudPedidoForm,
-    ItemSolicitudFormSet,
+    ItemSolicitudForm,
     FiltroSolicitudesForm,
     ValidarSolicitudPedidoForm,
     BulkUploadForm
@@ -64,9 +65,9 @@ def crear_solicitud(request):
     incluyendo la opción de carga masiva por CSV.
     """
     upload_form = BulkUploadForm()
-    
+    ItemSolicitudFormSet = inlineformset_factory(SolicitudPedido, ItemSolicitud, form=ItemSolicitudForm, extra=1, can_delete=True)
+
     if request.method == 'POST':
-        # Si se sube un archivo CSV
         if 'upload_csv' in request.POST:
             upload_form = BulkUploadForm(request.POST, request.FILES)
             if upload_form.is_valid():
@@ -91,7 +92,7 @@ def crear_solicitud(request):
                             except (Producto.DoesNotExist, ValueError):
                                 messages.warning(request, f"La clave '{clave}' no existe o la cantidad '{cantidad}' no es válida.")
                     
-                    # Crear formset con datos del CSV
+                    ItemSolicitudFormSet = inlineformset_factory(SolicitudPedido, ItemSolicitud, form=ItemSolicitudForm, extra=len(items_data), can_delete=True)
                     formset = ItemSolicitudFormSet(initial=items_data)
                     form = SolicitudPedidoForm()
                     messages.success(request, f"{len(items_data)} items cargados desde el CSV.")
@@ -105,7 +106,6 @@ def crear_solicitud(request):
                 form = SolicitudPedidoForm()
                 formset = ItemSolicitudFormSet(instance=SolicitudPedido())
         
-        # Si se guarda el formulario principal
         else:
             form = SolicitudPedidoForm(request.POST)
             formset = ItemSolicitudFormSet(request.POST, instance=SolicitudPedido())
@@ -232,10 +232,8 @@ def lista_propuestas(request):
         'solicitud__usuario_solicitante'
     ).prefetch_related('items').all()
     
-    # Calcular porcentaje surtido y generar URLs para cada propuesta
     propuestas_con_info = []
     for propuesta in propuestas:
-        # Validar que la propuesta tenga ID
         if not propuesta.id:
             continue
             
@@ -251,11 +249,9 @@ def lista_propuestas(request):
         if total_solicitado > 0:
             porcentaje_surtido = round((total_surtido / total_solicitado) * 100, 2)
         
-        # Generar URLs con validación
         url_detalle = f'/logistica/propuestas/{propuesta.id}/'
         url_pdf = f'/logistica/propuestas/{propuesta.id}/acuse-pdf/'
         
-        # Usar el estado SURTIDA para determinar si puede imprimir
         puede_imprimir = propuesta.estado == 'SURTIDA'
         
         propuestas_con_info.append({
@@ -268,7 +264,6 @@ def lista_propuestas(request):
             'url_pdf': url_pdf
         })
     
-    # Filtrar por estado
     estado = request.GET.get('estado')
     if estado:
         propuestas_con_info = [
@@ -346,7 +341,6 @@ def surtir_propuesta(request, propuesta_id):
         propuesta.usuario_surtimiento = request.user
         propuesta.save()
         
-        # Marcar los lotes como surtidos
         for item in propuesta.items.all():
             for lote_asignado in item.lotes_asignados.all():
                 lote_asignado.surtido = True
@@ -356,7 +350,6 @@ def surtir_propuesta(request, propuesta_id):
         propuesta.estado = 'SURTIDA'
         propuesta.save()
         
-        # FASE 5: Generar movimientos de inventario automáticamente
         resultado = generar_movimientos_suministro(propuesta.id, request.user)
         if resultado['exito']:
             messages.success(
@@ -383,7 +376,6 @@ def surtir_propuesta(request, propuesta_id):
 def editar_propuesta(request, propuesta_id):
     """
     Permite al personal de almacén editar los lotes y cantidades de la propuesta.
-    Puede cambiar qué lotes se asignan y qué cantidades se proponen para cada item.
     """
     from .pedidos_models import LoteAsignado
     from .models import LoteUbicacion
@@ -391,15 +383,12 @@ def editar_propuesta(request, propuesta_id):
     propuesta = get_object_or_404(PropuestaPedido, id=propuesta_id, estado='GENERADA')
     
     if request.method == 'POST':
-        # Procesar cambios en cantidades y lotes
         for item in propuesta.items.all():
-            # Actualizar cantidad propuesta
             nueva_cantidad = request.POST.get(f'item_{item.id}_cantidad_propuesta')
             if nueva_cantidad:
                 item.cantidad_propuesta = int(nueva_cantidad)
                 item.save()
             
-            # Procesar cambios en lotes asignados
             lotes_actuales = item.lotes_asignados.select_related('lote_ubicacion__lote', 'lote_ubicacion__ubicacion').all()
             for lote_asignado in lotes_actuales:
                 nueva_cantidad_lote = request.POST.get(f'lote_{lote_asignado.id}_cantidad')
@@ -407,11 +396,9 @@ def editar_propuesta(request, propuesta_id):
                     lote_asignado.cantidad_asignada = int(nueva_cantidad_lote)
                     lote_asignado.save()
                 
-                # Eliminar lote si se marca para eliminar
                 if request.POST.get(f'lote_{lote_asignado.id}_eliminar'):
                     lote_asignado.delete()
             
-            # Agregar nuevos lotes si se seleccionan
             nueva_ubicacion_id = request.POST.get(f'item_{item.id}_nueva_ubicacion')
             if nueva_ubicacion_id:
                 lote_ubicacion = LoteUbicacion.objects.get(id=nueva_ubicacion_id)
@@ -424,7 +411,6 @@ def editar_propuesta(request, propuesta_id):
                         cantidad_asignada=cantidad_nuevo
                     )
         
-        # Actualizar totales de la propuesta
         propuesta.total_propuesto = sum(item.cantidad_propuesta for item in propuesta.items.all())
         propuesta.save()
         
@@ -443,11 +429,9 @@ def editar_propuesta(request, propuesta_id):
 def cancelar_propuesta_view(request, propuesta_id):
     """
     Cancela una propuesta de suministro y libera todas las cantidades reservadas.
-    Hace un rollback completo de la propuesta.
     """
     propuesta = get_object_or_404(PropuestaPedido, id=propuesta_id)
     
-    # Verificar permisos (solo almacenero o administrador)
     if not (request.user.is_staff or request.user.groups.filter(name='Almacenero').exists()):
         messages.error(request, "No tienes permiso para cancelar propuestas.")
         return redirect('logistica:detalle_propuesta', propuesta_id=propuesta.id)
@@ -462,7 +446,6 @@ def cancelar_propuesta_view(request, propuesta_id):
             messages.error(request, resultado['mensaje'])
             return redirect('logistica:detalle_propuesta', propuesta_id=propuesta.id)
     
-    # GET: mostrar confirmación
     context = {
         'propuesta': propuesta,
         'page_title': f"Cancelar Propuesta {propuesta.solicitud.folio}"
