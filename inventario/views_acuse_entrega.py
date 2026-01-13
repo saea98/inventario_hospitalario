@@ -53,7 +53,7 @@ def lista_propuestas_surtimiento(request):
         
         # Generar URLs en la vista
         try:
-            url_detalle = reverse('detalle_propuesta_surtimiento', args=[str(propuesta.id)])
+            url_detalle = reverse('logistica:detalle_propuesta', args=[str(propuesta.id)])
             url_pdf = reverse('generar_acuse_entrega_pdf', args=[str(propuesta.id)])
         except:
             url_detalle = f'/logistica/propuestas/{propuesta.id}/'
@@ -176,7 +176,7 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
     )['total'] or 0
     
     if total_solicitado == 0 or total_surtido != total_solicitado:
-        return redirect('detalle_propuesta_surtimiento', propuesta_id=propuesta_id)
+        return redirect('logistica:detalle_propuesta', propuesta_id=propuesta_id)
     
     # Crear PDF
     buffer = BytesIO()
