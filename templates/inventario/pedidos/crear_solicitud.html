@@ -115,6 +115,32 @@
             totalFormsInput.value = formCount + 1;
             initializeSelect2();
         });
+
+        // Filtrado dinámico de almacenes
+        const institucionSelect = $('#id_institucion_solicitante');
+        const almacenSelect = $('#id_almacen_destino');
+        const almacenesData = {};
+
+        {% for almacen in form.almacen_destino.field.queryset %}
+            if (!almacenesData[{{ almacen.institucion.id }}]) {
+                almacenesData[{{ almacen.institucion.id }}] = [];
+            }
+            almacenesData[{{ almacen.institucion.id }}].push({ id: {{ almacen.id }}, text: '{{ almacen.nombre }}' });
+        {% endfor %}
+
+        institucionSelect.on('change', function() {
+            const institucionId = $(this).val();
+            const almacenes = almacenesData[institucionId] || [];
+            
+            almacenSelect.empty().select2({
+                data: almacenes,
+                width: '100%',
+                language: 'es',
+                allowClear: true,
+                placeholder: '-- Selecciona un almacén --',
+                dropdownParent: $('body')
+            });
+        });
     });
 </script>
 {% endblock %}
