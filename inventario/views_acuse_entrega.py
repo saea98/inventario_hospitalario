@@ -174,7 +174,7 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
         rightMargin=0.5*inch,
         leftMargin=0.5*inch,
         topMargin=0.5*inch,
-        bottomMargin=0.8*inch  # Aumentar margen inferior para paginación
+        bottomMargin=0.8*inch
     )
     
     elements = []
@@ -192,7 +192,7 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
         parent=styles['Heading1'],
         fontSize=14,
         textColor=colors.HexColor('#8B1538'),
-        alignment=2,  # Right aligned
+        alignment=2,
         spaceBefore=10
     )
     header_text = Paragraph('SAICA<br/>Sistema de Abasto, Inventarios y Control de Almacenes', header_style)
@@ -210,7 +210,7 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
         parent=styles['Normal'],
         fontSize=9,
         textColor=colors.black,
-        alignment=2, # Right aligned
+        alignment=2,
         leading=12
     )
     
@@ -245,16 +245,16 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
     usuario_solicitante = solicitud.usuario_solicitante
     
     delivery_data = [
-        ['UNIDAD DE DESTINO', 'RECIBE (UNIDAD DE DESTINO)', 'AUTORIZA (ALMACÉN)', 'ENTREGA (ALMACÉN)'],
+        ['UNIDAD DE DESTINO', 'RECIBE (UNIDAD DE DESTINO)', 'AUTORIZA (ALMACEN)', 'ENTREGA (ALMACEN)'],
         [
             solicitud.institucion_solicitante.denominacion,
-            'NOMBRE: \n\nPUESTO: \n\nFIRMA: ',
-            f'NOMBRE:\n{usuario_solicitante.get_full_name()}\n\nPUESTO:\nMESA DE CONTROL\n\nFIRMA: ',
-            'NOMBRE: \n\nPUESTO: \n\nFIRMA: '
+            'NOMBRE: ___________________________\n\nPUESTO: ___________________________\n\nFIRMA: ___________________________',
+            f'NOMBRE:\n{usuario_solicitante.get_full_name()}\n\nPUESTO:\nMESA DE CONTROL\n\nFIRMA: ___________________________',
+            'NOMBRE: ___________________________\n\nPUESTO: ___________________________\n\nFIRMA: ___________________________'
         ]
     ]
     
-    delivery_table = Table(delivery_data, colWidths=[2.5*inch, 2.5*inch, 2.5*inch, 2.5*inch], rowHeights=1.2*inch)
+    delivery_table = Table(delivery_data, colWidths=[2.5*inch, 2.5*inch, 2.5*inch, 2.5*inch], rowHeights=[0.4*inch, 2.0*inch])
     delivery_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#8B1538')),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
@@ -264,8 +264,11 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
         ('FONTSIZE', (0, 0), (-1, 0), 9),
         ('FONTSIZE', (0, 1), (-1, -1), 8),
         ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('TOPPADDING', (0, 1), (-1, -1), 6),
+        ('TOPPADDING', (0, 1), (-1, -1), 12),
+        ('LEFTPADDING', (0, 1), (-1, -1), 8),
+        ('RIGHTPADDING', (0, 1), (-1, -1), 8),
         ('GRID', (0, 0), (-1, -1), 1, colors.lightgrey),
+        ('LEADING', (0, 1), (-1, -1), 14),
     ]))
     
     elements.append(delivery_table)
@@ -292,13 +295,13 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
     table_data = [[
         '#',
         'CLAVE',
-        'DESCRIPCIÓN',
+        'DESCRIPCION',
         'UNIDAD DE MEDIDA',
         'RECURSO',
         'LOTE',
         'CADUCIDAD',
-        'ÁREA',
-        'UBICACIÓN',
+        'AREA',
+        'UBICACION',
         'CANTIDAD SURTIDA',
         'OBSERVACIONES'
     ]]
@@ -353,7 +356,7 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
     def footer(canvas, doc):
         canvas.saveState()
         canvas.setFont('Helvetica', 9)
-        canvas.drawString(inch, 0.5 * inch, f"Página {doc.page}")
+        canvas.drawString(inch, 0.5 * inch, f"Pagina {doc.page}")
         canvas.restoreState()
 
     # Generar PDF
