@@ -1,6 +1,6 @@
 from django.urls import path, include
 from . import views
-from . import urls_entrada_salida, urls_fase2, urls_inventario, urls_devoluciones, urls_reportes_devoluciones, urls_reportes_salidas, urls_picking, urls_acuse_entrega
+from . import urls_entrada_salida, urls_fase2, urls_inventario, urls_devoluciones, urls_reportes_devoluciones, urls_reportes_salidas, urls_picking
 from .views_dashboard_movimientos import dashboard_movimientos, api_estadisticas_movimientos
 from .views_logs import lista_logs, detalle_log, marcar_resuelto, limpiar_logs, api_logs_recientes
 from .views_health import health_check, diagnostico_sistema
@@ -113,8 +113,7 @@ urlpatterns = [
     path('ajax/ubicaciones/', views.ajax_ubicaciones_por_almacen, name='ajax_ubicaciones_por_almacen'),
     path('carga-lotes-excel/', views.carga_lotes_desde_excel_view, name='carga_lotes_excel'),
     path('inventario/', include(urls_entrada_salida)),
-    path('logistica/', include(urls_fase2)),  # URLs de FASE 2: Citas, Traslados, Conteo
-    path('logistica/', include(urls_acuse_entrega)),  # URLs de Acuse de Entrega
+    path('logistica/', include(urls_fase2)),  # URLs de FASE 2: Citas, Traslados, Conteo, Propuestas y Acuse de Entrega
     path('gestion-inventario/', include(urls_inventario)),  # URLs de FASE 2.3: Gestión de Inventario
     path('devoluciones/', include(urls_devoluciones)),  # URLs de FASE 2.4: Devoluciones de Proveedores
     path('reportes/devoluciones/', include(urls_reportes_devoluciones)),  # URLs de FASE 2.5: Reportes de Devoluciones
