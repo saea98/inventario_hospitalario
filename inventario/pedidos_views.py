@@ -7,7 +7,17 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.utils import timezone
+from django.db.models import Sum
+from django.http import HttpResponse
 from datetime import date
+from io import BytesIO
+
+from reportlab.lib.pagesizes import letter, landscape
+from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
+from reportlab.lib.units import inch
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer
+from reportlab.lib import colors
+from datetime import datetime
 
 from .pedidos_models import SolicitudPedido, ItemSolicitud, PropuestaPedido, ItemPropuesta
 from .pedidos_forms import (
@@ -185,21 +195,50 @@ def validar_solicitud(request, solicitud_id):
 def lista_propuestas(request):
     """
     Muestra una lista de propuestas de pedido para que el almacén las revise y surta.
+    Incluye indicador de porcentaje surtido y botón de impresión para propuestas 100% surtidas.
     """
     propuestas = PropuestaPedido.objects.select_related(
         'solicitud__institucion_solicitante',
-        'solicitud__almacen_destino'
-    ).all()
+        'solicitud__almacen_destino',
+        'solicitud__usuario_solicitante'
+    ).prefetch_related('items').all()
+    
+    # Calcular porcentaje surtido para cada propuesta
+    propuestas_con_porcentaje = []
+    for propuesta in propuestas:
+        total_solicitado = propuesta.items.aggregate(
+            total=Sum('cantidad_solicitada')
+        )['total'] or 0
+        
+        total_surtido = propuesta.items.aggregate(
+            total=Sum('cantidad_surtida')
+        )['total'] or 0
+        
+        porcentaje_surtido = 0
+        if total_solicitado > 0:
+            porcentaje_surtido = round((total_surtido / total_solicitado) * 100, 2)
+        
+        propuestas_con_porcentaje.append({
+            'propuesta': propuesta,
+            'porcentaje_surtido': porcentaje_surtido,
+            'total_solicitado': total_solicitado,
+            'total_surtido': total_surtido,
+            'puede_imprimir': porcentaje_surtido == 100.0
+        })
     
     # Filtrar por estado
     estado = request.GET.get('estado')
     if estado:
-        propuestas = propuestas.filter(estado=estado)
+        propuestas_con_porcentaje = [
+            p for p in propuestas_con_porcentaje 
+            if p['propuesta'].estado == estado
+        ]
     
     context = {
-        'propuestas': propuestas,
+        'propuestas': propuestas_con_porcentaje,
         'estados': PropuestaPedido.ESTADO_CHOICES,
-        'page_title': 'Propuestas de Pedido para Surtimiento'
+        'page_title': 'Propuestas de Pedido para Surtimiento',
+        'filtro_estado': estado
     }
     return render(request, 'inventario/pedidos/lista_propuestas.html', context)
 
@@ -208,20 +247,262 @@ def lista_propuestas(request):
 def detalle_propuesta(request, propuesta_id):
     """
     Muestra el detalle de una propuesta de pedido con los lotes asignados.
+    Incluye indicador de progreso y botón de impresión si está 100% surtida.
     """
     propuesta = get_object_or_404(
         PropuestaPedido.objects.select_related(
             'solicitud__institucion_solicitante',
-            'solicitud__almacen_destino'
+            'solicitud__almacen_destino',
+            'solicitud__usuario_solicitante'
         ).prefetch_related('items__lotes_asignados__lote_ubicacion__lote', 'items__lotes_asignados__lote_ubicacion__ubicacion__almacen'),
         id=propuesta_id
     )
     
+    # Calcular porcentaje surtido
+    total_solicitado = propuesta.items.aggregate(
+        total=Sum('cantidad_solicitada')
+    )['total'] or 0
+    
+    total_surtido = propuesta.items.aggregate(
+        total=Sum('cantidad_surtida')
+    )['total'] or 0
+    
+    porcentaje_surtido = 0
+    if total_solicitado > 0:
+        porcentaje_surtido = round((total_surtido / total_solicitado) * 100, 2)
+    
+    puede_imprimir = porcentaje_surtido == 100.0
+    
     context = {
         'propuesta': propuesta,
-        'page_title': f"Propuesta {propuesta.solicitud.folio}"
+        'page_title': f"Propuesta {propuesta.solicitud.folio}",
+        'porcentaje_surtido': porcentaje_surtido,
+        'total_solicitado': total_solicitado,
+        'total_surtido': total_surtido,
+        'puede_imprimir': puede_imprimir,
     }
     return render(request, 'inventario/pedidos/detalle_propuesta.html', context)
+
+
+@login_required
+def generar_acuse_entrega_pdf(request, propuesta_id):
+    """
+    Genera el PDF del Acuse de Entrega para una propuesta surtida al 100%
+    """
+    propuesta = get_object_or_404(PropuestaPedido, id=propuesta_id)
+    
+    # Verificar que esté 100% surtida
+    total_solicitado = propuesta.items.aggregate(
+        total=Sum('cantidad_solicitada')
+    )['total'] or 0
+    
+    total_surtido = propuesta.items.aggregate(
+        total=Sum('cantidad_surtida')
+    )['total'] or 0
+    
+    if total_solicitado == 0 or total_surtido != total_solicitado:
+        return redirect('detalle_propuesta', propuesta_id=propuesta_id)
+    
+    # Crear PDF
+    buffer = BytesIO()
+    doc = SimpleDocTemplate(
+        buffer,
+        pagesize=landscape(letter),
+        rightMargin=0.5*inch,
+        leftMargin=0.5*inch,
+        topMargin=0.5*inch,
+        bottomMargin=0.5*inch
+    )
+    
+    elements = []
+    styles = getSampleStyleSheet()
+    
+    # ============ ENCABEZADO ============
+    
+    # Logo y título
+    header_style = ParagraphStyle(
+        'Header',
+        parent=styles['Heading1'],
+        fontSize=14,
+        textColor=colors.HexColor('#8B1538'),
+        spaceAfter=6,
+        alignment=1
+    )
+    
+    header = Paragraph('SAICA<br/>Sistema de Abasto, Inventarios y Control de Almacenes', header_style)
+    elements.append(header)
+    
+    # Información del folio
+    info_style = ParagraphStyle(
+        'Info',
+        parent=styles['Normal'],
+        fontSize=9,
+        textColor=colors.black,
+        spaceAfter=12
+    )
+    
+    folio = propuesta.solicitud.folio
+    fecha_actual = datetime.now().strftime("%d/%m/%Y")
+    
+    info_text = f'''
+    <b>#FOLIO: {folio}</b><br/>
+    <b>TRANSFERENCIA:</b> prueba<br/>
+    <b>FECHA: {fecha_actual}</b><br/>
+    <b>TIPO: TRANSFERENCIA (SURTIMIENTO)</b>
+    '''
+    info = Paragraph(info_text, info_style)
+    elements.append(info)
+    
+    elements.append(Spacer(1, 0.2*inch))
+    
+    # ============ ACUSE DE ENTREGA ============
+    
+    title_style = ParagraphStyle(
+        'Title',
+        parent=styles['Heading2'],
+        fontSize=12,
+        textColor=colors.HexColor('#8B1538'),
+        spaceAfter=12,
+        alignment=1
+    )
+    
+    title = Paragraph('ACUSE DE ENTREGA', title_style)
+    elements.append(title)
+    
+    # Tabla de datos de entrega
+    solicitud = propuesta.solicitud
+    usuario_solicitante = solicitud.usuario_solicitante
+    
+    delivery_data = [
+        ['UNIDAD DE DESTINO', 'RECIBE (UNIDAD DE DESTINO)', 'AUTORIZA (ALMACÉN)', 'ENTREGA (ALMACÉN)'],
+        [
+            solicitud.institucion_solicitante.denominacion,
+            'NOMBRE: _______________________________\n\nPUESTO: _______________________________\n\nFIRMA: _______________________________',
+            f'NOMBRE:\n{usuario_solicitante.get_full_name()}\n\nPUESTO:\nMESA DE CONTROL\n\nFIRMA: _______________________________',
+            'NOMBRE: _______________________________\n\nPUESTO: _______________________________\n\nFIRMA: _______________________________'
+        ]
+    ]
+    
+    delivery_table = Table(delivery_data, colWidths=[1.5*inch, 2*inch, 2*inch, 2*inch])
+    delivery_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#8B1538')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 9),
+        ('FONTSIZE', (0, 1), (-1, -1), 8),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
+        ('TOPPADDING', (0, 1), (-1, -1), 12),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('ROWHEIGHTS', (0, 0), (-1, -1), 1.2*inch),
+    ]))
+    
+    elements.append(delivery_table)
+    elements.append(Spacer(1, 0.2*inch))
+    
+    # Observaciones
+    obs_style = ParagraphStyle(
+        'Observations',
+        parent=styles['Normal'],
+        fontSize=9,
+        textColor=colors.black,
+    )
+    
+    obs = Paragraph(f'<b>Observaciones:</b> {propuesta.solicitud.observaciones_solicitud or "N/A"}', obs_style)
+    elements.append(obs)
+    
+    elements.append(Spacer(1, 0.3*inch))
+    
+    # ============ TABLA DE PRODUCTOS ============
+    
+    # Obtener items
+    items = propuesta.items.select_related(
+        'producto',
+        'item_solicitud'
+    ).prefetch_related('lotes_asignados__lote_ubicacion__lote')
+    
+    # Preparar datos de tabla
+    table_data = [[
+        '#',
+        'CLAVE',
+        'DESCRIPCIÓN',
+        'UNIDAD DE MEDIDA',
+        'RECURSO',
+        'LOTE',
+        'CADUCIDAD',
+        'ÁREA',
+        'UBICACIÓN',
+        'CANTIDAD SURTIDA',
+        'OBSERVACIONES'
+    ]]
+    
+    for idx, item in enumerate(items, 1):
+        # Obtener información del lote
+        lote_info = ''
+        caducidad = ''
+        ubicacion = ''
+        
+        if item.lotes_asignados.exists():
+            lote_asignado = item.lotes_asignados.first()
+            lote = lote_asignado.lote_ubicacion.lote
+            lote_info = lote.numero_lote
+            caducidad = lote.fecha_caducidad.strftime("%d/%m/%Y")
+            ubicacion = lote_asignado.lote_ubicacion.ubicacion.codigo
+        
+        table_data.append([
+            str(idx),
+            item.producto.clave_cnis,
+            item.producto.descripcion[:50],  # Limitar descripción
+            item.producto.unidad_medida,
+            'ORDINARIO',  # Placeholder
+            lote_info,
+            caducidad,
+            'MEDICAMENTO',  # Placeholder
+            ubicacion,
+            str(item.cantidad_surtida),
+            ''
+        ])
+    
+    # Crear tabla
+    table = Table(table_data, colWidths=[
+        0.3*inch,  # #
+        0.8*inch,  # CLAVE
+        1.5*inch,  # DESCRIPCIÓN
+        0.8*inch,  # UNIDAD
+        0.7*inch,  # RECURSO
+        0.8*inch,  # LOTE
+        0.8*inch,  # CADUCIDAD
+        0.7*inch,  # ÁREA
+        0.8*inch,  # UBICACIÓN
+        0.9*inch,  # CANTIDAD
+        1.0*inch,  # OBSERVACIONES
+    ])
+    
+    table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#8B1538')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 8),
+        ('FONTSIZE', (0, 1), (-1, -1), 7),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+        ('TOPPADDING', (0, 0), (-1, 0), 8),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
+        ('ROWHEIGHTS', (0, 0), (-1, -1), 0.25*inch),
+    ]))
+    
+    elements.append(table)
+    
+    # Generar PDF
+    doc.build(elements)
+    buffer.seek(0)
+    
+    response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
+    response['Content-Disposition'] = f'attachment; filename="acuse_entrega_{folio}.pdf"'
+    
+    return response
 
 
 @login_required
@@ -247,146 +528,3 @@ def revisar_propuesta(request, propuesta_id):
         'page_title': f"Revisar Propuesta {propuesta.solicitud.folio}"
     }
     return render(request, 'inventario/pedidos/revisar_propuesta.html', context)
-
-
-@login_required
-@transaction.atomic
-def surtir_propuesta(request, propuesta_id):
-    """
-    Permite al personal de almacén confirmar el surtimiento de una propuesta.
-    FASE 5: Genera automáticamente movimientos de inventario.
-    """
-    from .fase5_utils import generar_movimientos_suministro
-    
-    propuesta = get_object_or_404(PropuestaPedido, id=propuesta_id, estado='REVISADA')
-    
-    if request.method == 'POST':
-        propuesta.estado = 'EN_SURTIMIENTO'
-        propuesta.fecha_surtimiento = timezone.now()
-        propuesta.usuario_surtimiento = request.user
-        propuesta.save()
-        
-        # Marcar los lotes como surtidos
-        for item in propuesta.items.all():
-            for lote_asignado in item.lotes_asignados.all():
-                lote_asignado.surtido = True
-                lote_asignado.fecha_surtimiento = timezone.now()
-                lote_asignado.save()
-        
-        propuesta.estado = 'SURTIDA'
-        propuesta.save()
-        
-        # FASE 5: Generar movimientos de inventario automáticamente
-        resultado = generar_movimientos_suministro(propuesta.id, request.user)
-        if resultado['exito']:
-            messages.success(
-                request, 
-                f"Propuesta surtida exitosamente. {resultado['mensaje']}"
-            )
-        else:
-            messages.warning(
-                request, 
-                f"Propuesta surtida pero con advertencia: {resultado['mensaje']}"
-            )
-        
-        return redirect('logistica:lista_propuestas')
-    
-    context = {
-        'propuesta': propuesta,
-        'page_title': f"Surtir Propuesta {propuesta.solicitud.folio}"
-    }
-    return render(request, 'inventario/pedidos/surtir_propuesta.html', context)
-
-
-
-@login_required
-@transaction.atomic
-def editar_propuesta(request, propuesta_id):
-    """
-    Permite al personal de almacén editar los lotes y cantidades de la propuesta.
-    Puede cambiar qué lotes se asignan y qué cantidades se proponen para cada item.
-    """
-    from .pedidos_models import LoteAsignado
-    from .models import LoteUbicacion
-    
-    propuesta = get_object_or_404(PropuestaPedido, id=propuesta_id, estado='GENERADA')
-    
-    if request.method == 'POST':
-        # Procesar cambios en cantidades y lotes
-        for item in propuesta.items.all():
-            # Actualizar cantidad propuesta
-            nueva_cantidad = request.POST.get(f'item_{item.id}_cantidad_propuesta')
-            if nueva_cantidad:
-                item.cantidad_propuesta = int(nueva_cantidad)
-                item.save()
-            
-            # Procesar cambios en lotes asignados
-            lotes_actuales = item.lotes_asignados.select_related('lote_ubicacion__lote', 'lote_ubicacion__ubicacion').all()
-            for lote_asignado in lotes_actuales:
-                nueva_cantidad_lote = request.POST.get(f'lote_{lote_asignado.id}_cantidad')
-                if nueva_cantidad_lote:
-                    lote_asignado.cantidad_asignada = int(nueva_cantidad_lote)
-                    lote_asignado.save()
-                
-                # Eliminar lote si se marca para eliminar
-                if request.POST.get(f'lote_{lote_asignado.id}_eliminar'):
-                    lote_asignado.delete()
-            
-            # Agregar nuevos lotes si se seleccionan
-            nueva_ubicacion_id = request.POST.get(f'item_{item.id}_nueva_ubicacion')
-            if nueva_ubicacion_id:
-                lote_ubicacion = LoteUbicacion.objects.get(id=nueva_ubicacion_id)
-                cantidad_nuevo = int(request.POST.get(f'item_{item.id}_cantidad_nueva_ubicacion', 0))
-                
-                if cantidad_nuevo > 0:
-                    LoteAsignado.objects.create(
-                        item_propuesta=item,
-                        lote_ubicacion=lote_ubicacion,
-                        cantidad_asignada=cantidad_nuevo
-                    )
-        
-        # Actualizar totales de la propuesta
-        propuesta.total_propuesto = sum(item.cantidad_propuesta for item in propuesta.items.all())
-        propuesta.save()
-        
-        messages.success(request, "Propuesta actualizada correctamente.")
-        return redirect('logistica:detalle_propuesta', propuesta_id=propuesta.id)
-    
-    context = {
-        'propuesta': propuesta,
-        'page_title': f"Editar Propuesta {propuesta.solicitud.folio}"
-    }
-    return render(request, 'inventario/pedidos/editar_propuesta.html', context)
-
-
-
-@login_required
-@transaction.atomic
-def cancelar_propuesta_view(request, propuesta_id):
-    """
-    Cancela una propuesta de suministro y libera todas las cantidades reservadas.
-    Hace un rollback completo de la propuesta.
-    """
-    propuesta = get_object_or_404(PropuestaPedido, id=propuesta_id)
-    
-    # Verificar permisos (solo almacenero o administrador)
-    if not (request.user.is_staff or request.user.groups.filter(name='Almacenero').exists()):
-        messages.error(request, "No tienes permiso para cancelar propuestas.")
-        return redirect('logistica:detalle_propuesta', propuesta_id=propuesta.id)
-    
-    if request.method == 'POST':
-        resultado = cancelar_propuesta(propuesta_id, usuario=request.user)
-        
-        if resultado['exito']:
-            messages.success(request, resultado['mensaje'])
-            return redirect('logistica:lista_propuestas')
-        else:
-            messages.error(request, resultado['mensaje'])
-            return redirect('logistica:detalle_propuesta', propuesta_id=propuesta.id)
-    
-    # GET: mostrar confirmación
-    context = {
-        'propuesta': propuesta,
-        'page_title': f"Cancelar Propuesta {propuesta.solicitud.folio}"
-    }
-    return render(request, 'inventario/pedidos/cancelar_propuesta.html', context)

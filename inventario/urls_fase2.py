@@ -86,6 +86,7 @@ urlpatterns = [
     path('propuestas/<uuid:propuesta_id>/revisar/', pedidos_views.revisar_propuesta, name='revisar_propuesta'),
     path('propuestas/<uuid:propuesta_id>/surtir/', pedidos_views.surtir_propuesta, name='surtir_propuesta'),
     path('propuestas/<uuid:propuesta_id>/cancelar/', pedidos_views.cancelar_propuesta_view, name='cancelar_propuesta'),
+    path('propuestas/<uuid:propuesta_id>/acuse-pdf/', pedidos_views.generar_acuse_entrega_pdf, name='generar_acuse_entrega_pdf'),
     
     # ========================================================================
     # FASE 2.2.2: LLEGADA DE PROVEEDORES
