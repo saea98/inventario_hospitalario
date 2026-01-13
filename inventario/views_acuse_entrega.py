@@ -59,12 +59,15 @@ def lista_propuestas_surtimiento(request):
             url_detalle = f'/logistica/propuestas/{propuesta.id}/'
             url_pdf = f'/logistica/propuestas/{propuesta.id}/acuse-pdf/'
         
+        # Usar el estado SURTIDA para determinar si puede imprimir
+        puede_imprimir = propuesta.estado == 'SURTIDA'
+        
         propuestas_con_porcentaje.append({
             'propuesta': propuesta,
             'porcentaje_surtido': porcentaje_surtido,
             'total_solicitado': total_solicitado,
             'total_surtido': total_surtido,
-            'puede_imprimir': porcentaje_surtido == 100.0,
+            'puede_imprimir': puede_imprimir,
             'url_detalle': url_detalle,
             'url_pdf': url_pdf
         })
