@@ -199,6 +199,10 @@ def lista_propuestas(request):
     # Calcular porcentaje surtido y generar URLs para cada propuesta
     propuestas_con_info = []
     for propuesta in propuestas:
+        # Validar que la propuesta tenga ID
+        if not propuesta.id:
+            continue
+            
         total_solicitado = propuesta.items.aggregate(
             total=Sum('cantidad_solicitada')
         )['total'] or 0
@@ -211,13 +215,9 @@ def lista_propuestas(request):
         if total_solicitado > 0:
             porcentaje_surtido = round((total_surtido / total_solicitado) * 100, 2)
         
-        # Generar URLs
-        try:
-            url_detalle = reverse('logistica:detalle_propuesta', args=[str(propuesta.id)])
-            url_pdf = reverse('logistica:generar_acuse_entrega_pdf', args=[str(propuesta.id)])
-        except:
-            url_detalle = f'/logistica/propuestas/{propuesta.id}/'
-            url_pdf = f'/logistica/propuestas/{propuesta.id}/acuse-pdf/'
+        # Generar URLs con validación
+        url_detalle = f'/logistica/propuestas/{propuesta.id}/'
+        url_pdf = f'/logistica/propuestas/{propuesta.id}/acuse-pdf/'
         
         # Usar el estado SURTIDA para determinar si puede imprimir
         puede_imprimir = propuesta.estado == 'SURTIDA'
