@@ -1,0 +1,211 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Reporte de Ubicaciones Vacías{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-warehouse"></i> Reporte de Ubicaciones Vacías en Almacenes
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <!-- Filtros -->
+                    <form method="get" class="mb-4">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <label for="codigo" class="form-label">Código de Ubicación</label>
+                                <input type="text" class="form-control" id="codigo" name="codigo" 
+                                       value="{{ filtro_codigo }}" placeholder="Buscar por código...">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="almacen" class="form-label">Almacén</label>
+                                <select class="form-select" id="almacen" name="almacen">
+                                    <option value="">-- Todos los almacenes --</option>
+                                    {% for almacen in almacenes %}
+                                        <option value="{{ almacen.id }}" 
+                                                {% if filtro_almacen|stringformat:"s" == almacen.id|stringformat:"s" %}selected{% endif %}>
+                                            {{ almacen.nombre }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="institucion" class="form-label">Institución</label>
+                                <select class="form-select" id="institucion" name="institucion">
+                                    <option value="">-- Todas las instituciones --</option>
+                                    {% for institucion in instituciones %}
+                                        <option value="{{ institucion.id }}" 
+                                                {% if filtro_institucion|stringformat:"s" == institucion.id|stringformat:"s" %}selected{% endif %}>
+                                            {{ institucion.denominacion }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-3">
+                                <label for="estado" class="form-label">Estado</label>
+                                <select class="form-select" id="estado" name="estado">
+                                    <option value="">-- Todos los estados --</option>
+                                    {% for valor, label in estados %}
+                                        <option value="{{ label }}" 
+                                                {% if filtro_estado == label %}selected{% endif %}>
+                                            {{ label }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-md-12">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-search"></i> Filtrar
+                                </button>
+                                <a href="{% url 'reporte_ubicaciones_vacias' %}" class="btn btn-secondary">
+                                    <i class="fas fa-redo"></i> Limpiar Filtros
+                                </a>
+                                <a href="{% url 'exportar_ubicaciones_vacias_excel' %}?codigo={{ filtro_codigo }}&almacen={{ filtro_almacen }}&institucion={{ filtro_institucion }}&estado={{ filtro_estado }}" 
+                                   class="btn btn-success">
+                                    <i class="fas fa-file-excel"></i> Descargar Excel
+                                </a>
+                                <a href="{% url 'exportar_ubicaciones_vacias_pdf' %}?codigo={{ filtro_codigo }}&almacen={{ filtro_almacen }}&institucion={{ filtro_institucion }}&estado={{ filtro_estado }}" 
+                                   class="btn btn-danger">
+                                    <i class="fas fa-file-pdf"></i> Descargar PDF
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+
+                    <!-- Estadísticas -->
+                    <div class="row mb-3">
+                        <div class="col-md-12">
+                            <div class="alert alert-info">
+                                <strong>Total de ubicaciones vacías encontradas:</strong> {{ total_registros }}
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Tabla de resultados -->
+                    {% if page_obj %}
+                        <div class="table-responsive">
+                            <table class="table table-striped table-hover table-sm">
+                                <thead class="table-dark">
+                                    <tr>
+                                        <th>ID</th>
+                                        <th>Código</th>
+                                        <th>Descripción</th>
+                                        <th>Nivel</th>
+                                        <th>Pasillo</th>
+                                        <th>Rack</th>
+                                        <th>Sección</th>
+                                        <th>Almacén</th>
+                                        <th>Institución</th>
+                                        <th>Estado</th>
+                                        <th>Activo</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for ubicacion in page_obj %}
+                                        <tr>
+                                            <td>{{ ubicacion.id }}</td>
+                                            <td><strong>{{ ubicacion.codigo }}</strong></td>
+                                            <td>{{ ubicacion.descripcion }}</td>
+                                            <td>{{ ubicacion.nivel }}</td>
+                                            <td>{{ ubicacion.pasillo }}</td>
+                                            <td>{{ ubicacion.rack }}</td>
+                                            <td>{{ ubicacion.seccion }}</td>
+                                            <td>{{ ubicacion.almacen }}</td>
+                                            <td>{{ ubicacion.institucion }}</td>
+                                            <td>
+                                                <span class="badge bg-info">{{ ubicacion.estado }}</span>
+                                            </td>
+                                            <td>
+                                                {% if ubicacion.activo == 'Sí' %}
+                                                    <span class="badge bg-success">Sí</span>
+                                                {% else %}
+                                                    <span class="badge bg-danger">No</span>
+                                                {% endif %}
+                                            </td>
+                                        </tr>
+                                    {% empty %}
+                                        <tr>
+                                            <td colspan="11" class="text-center text-muted">
+                                                No se encontraron ubicaciones vacías con los filtros aplicados.
+                                            </td>
+                                        </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+
+                        <!-- Paginación -->
+                        {% if page_obj.has_other_pages %}
+                            <nav aria-label="Page navigation" class="mt-3">
+                                <ul class="pagination justify-content-center">
+                                    {% if page_obj.has_previous %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page=1{% if filtro_codigo %}&codigo={{ filtro_codigo }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_institucion %}&institucion={{ filtro_institucion }}{% endif %}{% if filtro_estado %}&estado={{ filtro_estado }}{% endif %}">
+                                                Primera
+                                            </a>
+                                        </li>
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if filtro_codigo %}&codigo={{ filtro_codigo }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_institucion %}&institucion={{ filtro_institucion }}{% endif %}{% if filtro_estado %}&estado={{ filtro_estado }}{% endif %}">
+                                                Anterior
+                                            </a>
+                                        </li>
+                                    {% endif %}
+
+                                    {% for num in page_obj.paginator.page_range %}
+                                        {% if page_obj.number == num %}
+                                            <li class="page-item active">
+                                                <span class="page-link">{{ num }}</span>
+                                            </li>
+                                        {% else %}
+                                            <li class="page-item">
+                                                <a class="page-link" href="?page={{ num }}{% if filtro_codigo %}&codigo={{ filtro_codigo }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_institucion %}&institucion={{ filtro_institucion }}{% endif %}{% if filtro_estado %}&estado={{ filtro_estado }}{% endif %}">
+                                                    {{ num }}
+                                                </a>
+                                            </li>
+                                        {% endif %}
+                                    {% endfor %}
+
+                                    {% if page_obj.has_next %}
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if filtro_codigo %}&codigo={{ filtro_codigo }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_institucion %}&institucion={{ filtro_institucion }}{% endif %}{% if filtro_estado %}&estado={{ filtro_estado }}{% endif %}">
+                                                Siguiente
+                                            </a>
+                                        </li>
+                                        <li class="page-item">
+                                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if filtro_codigo %}&codigo={{ filtro_codigo }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_institucion %}&institucion={{ filtro_institucion }}{% endif %}{% if filtro_estado %}&estado={{ filtro_estado }}{% endif %}">
+                                                Última
+                                            </a>
+                                        </li>
+                                    {% endif %}
+                                </ul>
+                            </nav>
+                        {% endif %}
+                    {% else %}
+                        <div class="alert alert-warning">
+                            No hay datos para mostrar.
+                        </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .table-sm td {
+        padding: 0.5rem;
+    }
+    
+    .badge {
+        font-size: 0.85rem;
+        padding: 0.4rem 0.6rem;
+    }
+</style>
+{% endblock %}
