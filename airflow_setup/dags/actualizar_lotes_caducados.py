@@ -134,7 +134,7 @@ def obtener_lotes_caducados(**context):
                 l.estado,
                 l.cantidad_inicial,
                 p.descripcion as producto_nombre,
-                p.clave as producto_clave
+                p.clave_cnis as producto_clave
             FROM inventario_lote l
             JOIN inventario_producto p ON l.producto_id = p.id
             WHERE 
@@ -217,7 +217,7 @@ def actualizar_lotes_caducados(**context):
                     'id': lote['id'],
                     'numero_lote': lote['numero_lote'],
                     'producto': lote['producto_nombre'],
-                    'clave': lote['producto_clave'],
+                    'clave_cnis': lote['producto_clave'],
                     'fecha_caducidad': str(lote['fecha_caducidad']),
                     'cantidad': lote['cantidad_disponible']
                 })
@@ -287,7 +287,7 @@ def enviar_notificacion_telegram(**context):
         mensaje += "*Lotes Procesados:*\n"
         for lote in lotes_actualizados[:10]:  # Mostrar máximo 10 en el mensaje
             mensaje += f"• *{lote['numero_lote']}* - {lote['producto']}\n"
-            mensaje += f"  Clave: {lote['clave']} | Cantidad: {lote['cantidad']}\n"
+            mensaje += f"  Clave CNIS: {lote['clave_cnis']} | Cantidad: {lote['cantidad']}\n"
             mensaje += f"  Caducidad: {lote['fecha_caducidad']}\n"
         
         if len(lotes_actualizados) > 10:
