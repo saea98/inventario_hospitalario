@@ -113,13 +113,13 @@
                                 </div>
                             </td>
                             <td>
-                                <a href="{% url 'detalle_propuesta_surtimiento' item.propuesta.id %}" 
+                                <a href="{{ item.url_detalle }}" 
                                    class="btn btn-sm btn-primary"
                                    title="Ver detalle">
                                     <i class="fas fa-eye"></i> Ver
                                 </a>
                                 {% if item.puede_imprimir %}
-                                    <a href="{% url 'generar_acuse_entrega_pdf' item.propuesta.id %}" 
+                                    <a href="{{ item.url_pdf }}" 
                                        class="btn btn-sm btn-success"
                                        title="Imprimir acuse">
                                         <i class="fas fa-print"></i> Imprimir

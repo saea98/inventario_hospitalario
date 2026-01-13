@@ -34,6 +34,8 @@ def lista_propuestas_surtimiento(request):
         'solicitud__usuario_solicitante'
     ).prefetch_related('items')
     
+    from django.urls import reverse
+    
     # Calcular porcentaje surtido para cada propuesta
     propuestas_con_porcentaje = []
     for propuesta in propuestas:
@@ -49,12 +51,22 @@ def lista_propuestas_surtimiento(request):
         if total_solicitado > 0:
             porcentaje_surtido = round((total_surtido / total_solicitado) * 100, 2)
         
+        # Generar URLs en la vista
+        try:
+            url_detalle = reverse('detalle_propuesta_surtimiento', args=[str(propuesta.id)])
+            url_pdf = reverse('generar_acuse_entrega_pdf', args=[str(propuesta.id)])
+        except:
+            url_detalle = f'/logistica/propuestas/{propuesta.id}/'
+            url_pdf = f'/logistica/propuestas/{propuesta.id}/acuse-pdf/'
+        
         propuestas_con_porcentaje.append({
             'propuesta': propuesta,
             'porcentaje_surtido': porcentaje_surtido,
             'total_solicitado': total_solicitado,
             'total_surtido': total_surtido,
-            'puede_imprimir': porcentaje_surtido == 100.0
+            'puede_imprimir': porcentaje_surtido == 100.0,
+            'url_detalle': url_detalle,
+            'url_pdf': url_pdf
         })
     
     # Filtros
