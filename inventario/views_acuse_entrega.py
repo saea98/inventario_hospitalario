@@ -181,7 +181,9 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
     styles = getSampleStyleSheet()
 
     # ============ ENCABEZADO ============
-    logo_path = '/home/ubuntu/upload/logo_sistema.png'
+    import os
+    from django.conf import settings
+    logo_path = os.path.join(settings.BASE_DIR, 'templates', 'inventario', 'images', 'logo_sistema.png')
     logo = Image(logo_path, width=2.5*inch, height=0.8*inch)
     logo.hAlign = 'LEFT'
 
