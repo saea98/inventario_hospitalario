@@ -1,3 +1,4 @@
+
 """
 Vistas para generar Acuse de Entrega en PDF
 Módulo: Logística - Gestión de Propuestas de Surtimiento
@@ -15,7 +16,7 @@ from datetime import datetime
 from reportlab.lib.pagesizes import letter, landscape
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
 from reportlab.lib.units import inch
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageBreak, Image
 from reportlab.lib import colors
 from io import BytesIO
 
@@ -166,9 +167,6 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
     """
     propuesta = get_object_or_404(PropuestaPedido, id=propuesta_id)
     
-    # Generar PDF sin importar el porcentaje surtido
-    
-    # Crear PDF
     buffer = BytesIO()
     doc = SimpleDocTemplate(
         buffer,
@@ -176,34 +174,42 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
         rightMargin=0.5*inch,
         leftMargin=0.5*inch,
         topMargin=0.5*inch,
-        bottomMargin=0.5*inch
+        bottomMargin=0.8*inch  # Aumentar margen inferior para paginación
     )
     
     elements = []
     styles = getSampleStyleSheet()
-    
+
     # ============ ENCABEZADO ============
-    
-    # Logo y título
+    logo_path = '/home/ubuntu/upload/logo_sistema.png'
+    logo = Image(logo_path, width=2.5*inch, height=0.8*inch)
+    logo.hAlign = 'LEFT'
+
     header_style = ParagraphStyle(
         'Header',
         parent=styles['Heading1'],
         fontSize=14,
         textColor=colors.HexColor('#8B1538'),
-        spaceAfter=6,
-        alignment=1
+        alignment=2,  # Right aligned
+        spaceBefore=10
     )
-    
-    header = Paragraph('SAICA<br/>Sistema de Abasto, Inventarios y Control de Almacenes', header_style)
-    elements.append(header)
-    
+    header_text = Paragraph('SAICA<br/>Sistema de Abasto, Inventarios y Control de Almacenes', header_style)
+
+    header_table = Table([[logo, header_text]], colWidths=[3*inch, 7*inch])
+    header_table.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+    ]))
+    elements.append(header_table)
+    elements.append(Spacer(1, 0.2*inch))
+
     # Información del folio
     info_style = ParagraphStyle(
         'Info',
         parent=styles['Normal'],
         fontSize=9,
         textColor=colors.black,
-        spaceAfter=12
+        alignment=2, # Right aligned
+        leading=12
     )
     
     folio = propuesta.solicitud.folio
@@ -217,11 +223,9 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
     '''
     info = Paragraph(info_text, info_style)
     elements.append(info)
-    
     elements.append(Spacer(1, 0.2*inch))
     
     # ============ ACUSE DE ENTREGA ============
-    
     title_style = ParagraphStyle(
         'Title',
         parent=styles['Heading2'],
@@ -242,25 +246,24 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
         ['UNIDAD DE DESTINO', 'RECIBE (UNIDAD DE DESTINO)', 'AUTORIZA (ALMACÉN)', 'ENTREGA (ALMACÉN)'],
         [
             solicitud.institucion_solicitante.denominacion,
-            'NOMBRE: _______________________________\n\nPUESTO: _______________________________\n\nFIRMA: _______________________________',
-            f'NOMBRE:\n{usuario_solicitante.get_full_name()}\n\nPUESTO:\nMESA DE CONTROL\n\nFIRMA: _______________________________',
-            'NOMBRE: _______________________________\n\nPUESTO: _______________________________\n\nFIRMA: _______________________________'
+            'NOMBRE: \n\nPUESTO: \n\nFIRMA: ',
+            f'NOMBRE:\n{usuario_solicitante.get_full_name()}\n\nPUESTO:\nMESA DE CONTROL\n\nFIRMA: ',
+            'NOMBRE: \n\nPUESTO: \n\nFIRMA: '
         ]
     ]
     
-    delivery_table = Table(delivery_data, colWidths=[1.5*inch, 2*inch, 2*inch, 2*inch])
+    delivery_table = Table(delivery_data, colWidths=[2.5*inch, 2.5*inch, 2.5*inch, 2.5*inch], rowHeights=1.2*inch)
     delivery_table.setStyle(TableStyle([
         ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#8B1538')),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
         ('VALIGN', (0, 0), (-1, -1), 'TOP'),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
         ('FONTSIZE', (0, 0), (-1, 0), 9),
         ('FONTSIZE', (0, 1), (-1, -1), 8),
         ('BOTTOMPADDING', (0, 0), (-1, 0), 12),
-        ('TOPPADDING', (0, 1), (-1, -1), 12),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ('ROWHEIGHTS', (0, 0), (-1, -1), 1.2*inch),
+        ('TOPPADDING', (0, 1), (-1, -1), 6),
+        ('GRID', (0, 0), (-1, -1), 1, colors.lightgrey),
     ]))
     
     elements.append(delivery_table)
@@ -276,18 +279,14 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
     
     obs = Paragraph(f'<b>Observaciones:</b> {propuesta.solicitud.observaciones_solicitud or "N/A"}', obs_style)
     elements.append(obs)
-    
     elements.append(Spacer(1, 0.3*inch))
     
     # ============ TABLA DE PRODUCTOS ============
-    
-    # Obtener items
     items = propuesta.items.select_related(
         'producto',
         'item_solicitud'
     ).prefetch_related('lotes_asignados__lote_ubicacion__lote')
     
-    # Preparar datos de tabla
     table_data = [[
         '#',
         'CLAVE',
@@ -303,7 +302,6 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
     ]]
     
     for idx, item in enumerate(items, 1):
-        # Obtener información del lote
         lote_info = ''
         caducidad = ''
         ubicacion = ''
@@ -318,30 +316,20 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
         table_data.append([
             str(idx),
             item.producto.clave_cnis,
-            item.producto.descripcion[:50],  # Limitar descripción
+            item.producto.descripcion[:50],
             item.producto.unidad_medida,
-            'ORDINARIO',  # Placeholder
+            'ORDINARIO',
             lote_info,
             caducidad,
-            'MEDICAMENTO',  # Placeholder
+            'MEDICAMENTO',
             ubicacion,
             str(item.cantidad_surtida),
             ''
         ])
     
-    # Crear tabla
     table = Table(table_data, colWidths=[
-        0.3*inch,  # #
-        0.8*inch,  # CLAVE
-        1.5*inch,  # DESCRIPCIÓN
-        0.8*inch,  # UNIDAD
-        0.7*inch,  # RECURSO
-        0.8*inch,  # LOTE
-        0.8*inch,  # CADUCIDAD
-        0.7*inch,  # ÁREA
-        0.8*inch,  # UBICACIÓN
-        0.9*inch,  # CANTIDAD
-        1.0*inch,  # OBSERVACIONES
+        0.3*inch, 0.8*inch, 1.5*inch, 0.8*inch, 0.7*inch, 
+        0.8*inch, 0.8*inch, 0.7*inch, 0.8*inch, 0.9*inch, 1.0*inch
     ])
     
     table.setStyle(TableStyle([
@@ -354,14 +342,20 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
         ('FONTSIZE', (0, 1), (-1, -1), 7),
         ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
         ('TOPPADDING', (0, 0), (-1, 0), 8),
-        ('GRID', (0, 0), (-1, -1), 0.5, colors.grey),
-        ('ROWHEIGHTS', (0, 0), (-1, -1), 0.25*inch),
+        ('GRID', (0, 0), (-1, -1), 0.5, colors.lightgrey),
     ]))
     
     elements.append(table)
     
+    # Función para paginación
+    def footer(canvas, doc):
+        canvas.saveState()
+        canvas.setFont('Helvetica', 9)
+        canvas.drawString(inch, 0.5 * inch, f"Página {doc.page}")
+        canvas.restoreState()
+
     # Generar PDF
-    doc.build(elements)
+    doc.build(elements, onFirstPage=footer, onLaterPages=footer)
     buffer.seek(0)
     
     response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
