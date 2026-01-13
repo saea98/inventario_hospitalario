@@ -1,5 +1,16 @@
+
 {% extends 'base.html' %}
 {% load crispy_forms_tags %}
+
+{% block extra_css %}
+<style>
+    .badge-generada { background-color: #17a2b8; color: white; }
+    .badge-revisada { background-color: #ffc107; color: black; }
+    .badge-en-surtimiento { background-color: #fd7e14; color: white; }
+    .badge-surtida { background-color: #28a745; color: white; }
+    .badge-cancelada { background-color: #dc3545; color: white; }
+</style>
+{% endblock %}
 
 {% block content %}
 <div class="container-fluid">
@@ -45,7 +56,7 @@
                                 <td>{{ item.propuesta.solicitud.institucion_solicitante.denominacion }}</td>
                                 <td>{{ item.propuesta.fecha_generacion|date:"d/m/Y H:i" }}</td>
                                 <td>
-                                    <span class="badge badge-{{ item.propuesta.get_estado_display|lower|slugify }}">{{ item.propuesta.get_estado_display }}</span>
+                                    <span class="badge badge-{{ item.propuesta.estado|lower }}">{{ item.propuesta.get_estado_display }}</span>
                                 </td>
                                 <td>
                                     <div class="progress" style="height: 20px;">
