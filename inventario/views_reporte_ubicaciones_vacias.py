@@ -346,6 +346,18 @@ def exportar_ubicaciones_vacias_pdf(request):
     elements.append(info)
     
     # Tabla de datos
+    headers = [
+        'CÓDIGO UBICACIÓN',
+        'DESCRIPCIÓN',
+        'NIVEL',
+        'PASILLO',
+        'RACK',
+        'SECCIÓN',
+        'ALMACÉN',
+        'INSTITUCIÓN',
+        'ESTADO',
+        'ACTIVO'
+    ]
     data = [headers]
     
     for ubicacion in ubicaciones_vacias:
