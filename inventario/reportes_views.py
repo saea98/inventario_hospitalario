@@ -2,6 +2,7 @@ from django.shortcuts import render
 from django.views import View
 from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import HttpResponse
+from django.core.paginator import Paginator
 import openpyxl
 from openpyxl.utils import get_column_letter
 
@@ -31,7 +32,12 @@ class ReporteEntradasView(LoginRequiredMixin, View):
             if request.GET["export"] == "excel":
                 return self.export_to_excel(items)
 
-        return render(request, "inventario/reportes/reporte_entradas.html", {"form": form, "items": items})
+        # Paginación
+        paginator = Paginator(items, 20)  # 20 items por página
+        page_number = request.GET.get('page')
+        page_obj = paginator.get_page(page_number)
+
+        return render(request, "inventario/reportes/reporte_entradas.html", {"form": form, "page_obj": page_obj, "items": page_obj.object_list})
 
     def export_to_excel(self, items):
         response = HttpResponse(content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet")
