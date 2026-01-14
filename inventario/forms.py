@@ -603,11 +603,14 @@ class CitaProveedorForm(forms.ModelForm):
         
         if fecha_cita:
             from django.utils import timezone
-            # Validar que la cita sea en el futuro
+            from datetime import timedelta
+            # Permitir fechas pasadas solo durante los próximos 3 días
             ahora = timezone.now()
-            if fecha_cita < ahora:
+            limite_pasado = ahora - timedelta(days=3)
+            
+            if fecha_cita < limite_pasado:
                 raise forms.ValidationError(
-                    "La fecha y hora de la cita debe ser en el futuro."
+                    "La fecha y hora de la cita no puede ser anterior a hace 3 días."
                 )
         
         return cleaned_data
