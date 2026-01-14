@@ -302,9 +302,9 @@ class MovimientoInventarioForm(forms.ModelForm):
 class CargaInventarioForm(forms.ModelForm):
     class Meta:
         model = CargaInventario
-        fields = ["archivo_excel", "institucion", "almacen", "fecha_carga"]
+        fields = ["archivo_excel", "institucion", "almacen"]
         widgets = {
-            "fecha_carga": forms.DateInput(attrs={"type": "date"}),
+            "archivo_excel": forms.FileInput(attrs={"accept": ".xlsx,.xls"}),
         }
 
 
