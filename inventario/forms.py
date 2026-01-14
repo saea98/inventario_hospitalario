@@ -302,9 +302,10 @@ class MovimientoInventarioForm(forms.ModelForm):
 class CargaInventarioForm(forms.ModelForm):
     class Meta:
         model = CargaInventario
-        fields = ["archivo_excel", "institucion", "almacen"]
+        fields = ["archivo", "nombre_archivo"]
         widgets = {
-            "archivo_excel": forms.FileInput(attrs={"accept": ".xlsx,.xls"}),
+            "archivo": forms.FileInput(attrs={"accept": ".xlsx,.xls"}),
+            "nombre_archivo": forms.TextInput(attrs={"placeholder": "Nombre del archivo"}),
         }
 
 
