@@ -4,8 +4,7 @@ from django.contrib.auth.mixins import LoginRequiredMixin
 from django.http import HttpResponse
 import openpyxl
 from openpyxl.utils import get_column_letter
-from django.template.loader import render_to_string
-from weasyprint import HTML
+
 
 from .llegada_models import ItemLlegada
 from .reportes_forms import ReporteEntradasForm
@@ -31,8 +30,6 @@ class ReporteEntradasView(LoginRequiredMixin, View):
         if "export" in request.GET:
             if request.GET["export"] == "excel":
                 return self.export_to_excel(items)
-            elif request.GET["export"] == "pdf":
-                return self.export_to_pdf(items)
 
         return render(request, "inventario/reportes/reporte_entradas.html", {"form": form, "items": items})
 
@@ -62,10 +59,4 @@ class ReporteEntradasView(LoginRequiredMixin, View):
         workbook.save(response)
         return response
 
-    def export_to_pdf(self, items):
-        html_string = render_to_string("inventario/reportes/reporte_entradas_pdf.html", {"items": items})
-        html = HTML(string=html_string)
-        response = HttpResponse(content_type="application/pdf")
-        response["Content-Disposition"] = "attachment; filename=reporte_entradas.pdf"
-        html.write_pdf(response)
-        return response
+
