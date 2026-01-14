@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Reporte de Entradas</title>
+    <style>
+        table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+        th, td {
+            border: 1px solid black;
+            padding: 8px;
+            text-align: left;
+        }
+    </style>
+</head>
+<body>
+    <h1>Reporte de Entradas</h1>
+    <table>
+        <thead>
+            <tr>
+                <th>Fecha de Entrada</th>
+                <th>Proveedor</th>
+                <th>Clave</th>
+                <th>Descripción</th>
+                <th>Lote</th>
+                <th>Fecha de Caducidad</th>
+                <th>Cantidad Recibida</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td>{{ item.llegada.fecha_llegada_real|date:"d/m/Y" }}</td>
+                <td>{{ item.llegada.proveedor.nombre }}</td>
+                <td>{{ item.producto.clave_cnis }}</td>
+                <td>{{ item.producto.descripcion }}</td>
+                <td>{{ item.numero_lote }}</td>
+                <td>{{ item.fecha_caducidad|date:"d/m/Y" }}</td>
+                <td>{{ item.cantidad_recibida }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+</body>
+</html>

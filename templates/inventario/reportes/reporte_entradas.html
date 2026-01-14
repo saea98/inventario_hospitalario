@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="h3 mb-4 text-gray-800">Reporte de Entradas</h1>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Filtros</h6>
+        </div>
+        <div class="card-body">
+            <form method="get">
+                <div class="row">
+                    <div class="col-md-3">{{ form.fecha_inicio.label_tag }}{{ form.fecha_inicio }}</div>
+                    <div class="col-md-3">{{ form.fecha_fin.label_tag }}{{ form.fecha_fin }}</div>
+                    <div class="col-md-3">{{ form.proveedor.label_tag }}{{ form.proveedor }}</div>
+                    <div class="col-md-3">{{ form.clave.label_tag }}{{ form.clave }}</div>
+                    <div class="col-md-3">{{ form.lote.label_tag }}{{ form.lote }}</div>
+                </div>
+                <button type="submit" class="btn btn-primary mt-3">Filtrar</button>
+<a href="?{{ request.GET.urlencode }}&export=excel" class="btn btn-success mt-3">Exportar a Excel</a>
+<a href="?{{ request.GET.urlencode }}&export=pdf" class="btn btn-danger mt-3">Exportar a PDF</a>
+            </form>
+        </div>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Resultados</h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>Fecha de Entrada</th>
+                            <th>Proveedor</th>
+                            <th>Clave</th>
+                            <th>Descripción</th>
+                            <th>Lote</th>
+                            <th>Fecha de Caducidad</th>
+                            <th>Cantidad Recibida</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items %}
+                        <tr>
+                            <td>{{ item.llegada.fecha_llegada_real|date:"d/m/Y" }}</td>
+                            <td>{{ item.llegada.proveedor.nombre }}</td>
+                            <td>{{ item.producto.clave_cnis }}</td>
+                            <td>{{ item.producto.descripcion }}</td>
+                            <td>{{ item.numero_lote }}</td>
+                            <td>{{ item.fecha_caducidad|date:"d/m/Y" }}</td>
+                            <td>{{ item.cantidad_recibida }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

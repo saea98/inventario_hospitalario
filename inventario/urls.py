@@ -1,5 +1,5 @@
 from django.urls import path, include
-from . import views
+from . import views, reportes_urls
 from . import urls_entrada_salida, urls_fase2, urls_inventario, urls_devoluciones, urls_reportes_devoluciones, urls_reportes_salidas, urls_picking
 from .views_dashboard_movimientos import dashboard_movimientos, api_estadisticas_movimientos
 from .views_logs import lista_logs, detalle_log, marcar_resuelto, limpiar_logs, api_logs_recientes
@@ -119,7 +119,7 @@ urlpatterns = [
     path('reportes/devoluciones/', include(urls_reportes_devoluciones)),  # URLs de FASE 2.5: Reportes de Devoluciones
     path('reportes/salidas/', include(urls_reportes_salidas)),  # URLs de FASE 4: Reportes de Salidas
     path('picking/', include(urls_picking)),  # URLs de FASE 6: Optimización de Picking
-    path('admin/', django_admin.site.urls),
-    #path("select2/", include("django_select2.urls")),
+    path(\'admin/\', django_admin.site.urls),
+    path(\'reportes/\', include(reportes_urls)),   #path("select2/", include("django_select2.urls")),
     
 ]
