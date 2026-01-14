@@ -590,8 +590,7 @@ class ItemConteoFisicoForm(forms.ModelForm):
                 "class": "form-control",
                 "required": True
             }),
-        }
-    "cantidad_fisica": forms.NumberInput(attrs={
+            "cantidad_fisica": forms.NumberInput(attrs={
                 "class": "form-control",
                 "required": True,
                 "min": 0
