@@ -97,6 +97,7 @@
                         <th>UBICACIÓN</th>
                         <th>CANTIDAD</th>
                         <th>FECHA ASIGNACIÓN</th>
+                        <th>ACCIONES</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -134,10 +135,15 @@
                         <td>
                             <small class="text-muted">{{ registro.fecha_asignacion }}</small>
                         </td>
+                        <td>
+                            <button class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#confirmDeleteModal" onclick="setDeleteData({{ registro.lote_id }}, {{ registro.ubicacion_id|default:'null' }})">
+                                <i class="fas fa-trash me-1"></i>Eliminar
+                            </button>
+                        </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="8" class="text-center text-muted py-4">
+                        <td colspan="9" class="text-center text-muted py-4">
                             <i class="fas fa-inbox me-2"></i>No hay registros que coincidan con los filtros
                         </td>
                     </tr>
@@ -210,3 +216,39 @@
     </div>
 </div>
 {% endblock %}
+
+<!-- Modal de confirmación de eliminación -->
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="confirmDeleteLabel">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Confirmar eliminación
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>¿Está seguro de que desea eliminar este registro?</p>
+                <p class="text-muted"><small>Esta acción no se puede deshacer.</small></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form id="deleteForm" method="post" style="display: inline;">
+                    {% csrf_token %}
+                    <button type="submit" class="btn btn-danger">Eliminar</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+function setDeleteData(loteId, ubicacionId) {
+    const form = document.getElementById('deleteForm');
+    if (ubicacionId) {
+        form.action = '/gestion-inventario/reporte-no-afectados/eliminar/' + loteId + '/' + ubicacionId + '/';
+    } else {
+        form.action = '/gestion-inventario/reporte-no-afectados/eliminar/' + loteId + '/';
+    }
+}
+</script>

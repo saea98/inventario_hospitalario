@@ -32,6 +32,8 @@ urlpatterns = [
     # Reporte de registros no afectados
     path('reporte-no-afectados/', views_reporte_no_afectados.reporte_no_afectados, name='reporte_no_afectados'),
     path('reporte-no-afectados/exportar/', views_reporte_no_afectados.exportar_no_afectados_excel, name='exportar_no_afectados_excel'),
+    path('reporte-no-afectados/eliminar/<int:lote_id>/', views_reporte_no_afectados.eliminar_registro_no_afectado, name='eliminar_registro_no_afectado'),
+    path('reporte-no-afectados/eliminar/<int:lote_id>/<int:ubicacion_id>/', views_reporte_no_afectados.eliminar_registro_no_afectado, name='eliminar_registro_no_afectado_ubicacion'),
     
     # Reporte de lotes sin fecha de caducidad válida
     path('reporte-sin-caducidad/', views_reporte_sin_caducidad.reporte_sin_caducidad, name='reporte_sin_caducidad'),

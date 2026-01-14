@@ -269,3 +269,29 @@ def exportar_no_afectados_excel(request):
     wb.save(response)
     
     return response
+
+
+@login_required
+def eliminar_registro_no_afectado(request, lote_id, ubicacion_id=None):
+    """
+    Elimina un registro no afectado (Lote o LoteUbicacion).
+    """
+    from django.shortcuts import redirect
+    from django.contrib import messages
+    
+    try:
+        if ubicacion_id:
+            # Eliminar LoteUbicacion
+            lote_ubicacion = LoteUbicacion.objects.get(id=ubicacion_id)
+            lote_ubicacion.delete()
+            messages.success(request, f"Ubicación eliminada correctamente.")
+        else:
+            # Eliminar Lote
+            lote = Lote.objects.get(id=lote_id)
+            lote.delete()
+            messages.success(request, f"Lote {lote.numero_lote} eliminado correctamente.")
+    except Exception as e:
+        messages.error(request, f"Error al eliminar el registro: {str(e)}")
+    
+    # Redirigir al reporte
+    return redirect('reporte_no_afectados')
