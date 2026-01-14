@@ -1970,7 +1970,6 @@ def editar_ubicaciones_lote(request, pk):
     
     # Obtener ubicaciones disponibles del almacén
     ubicaciones_disponibles = UbicacionAlmacen.objects.filter(
-        almacen=lote.almacen,
         activo=True
     ).exclude(
         id__in=ubicaciones_actuales.values_list('ubicacion_id', flat=True)
