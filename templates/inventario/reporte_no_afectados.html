@@ -8,6 +8,16 @@
 {% endblock %}
 
 {% block content %}
+<script>
+function setDeleteData(loteId, ubicacionId) {
+    const form = document.getElementById('deleteForm');
+    if (ubicacionId) {
+        form.action = '/gestion-inventario/reporte-no-afectados/eliminar/' + loteId + '/' + ubicacionId + '/';
+    } else {
+        form.action = '/gestion-inventario/reporte-no-afectados/eliminar/' + loteId + '/';
+    }
+}
+</script>
 <div class="container-fluid py-4">
     <!-- Información del reporte -->
     <div class="alert alert-warning mb-4">
@@ -241,14 +251,3 @@
         </div>
     </div>
 </div>
-
-<script>
-function setDeleteData(loteId, ubicacionId) {
-    const form = document.getElementById('deleteForm');
-    if (ubicacionId) {
-        form.action = '/gestion-inventario/reporte-no-afectados/eliminar/' + loteId + '/' + ubicacionId + '/';
-    } else {
-        form.action = '/gestion-inventario/reporte-no-afectados/eliminar/' + loteId + '/';
-    }
-}
-</script>
