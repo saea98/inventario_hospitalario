@@ -14,3 +14,4 @@ django-environ
 django-select2
 requests==2.31.0
 xhtml2pdf==0.2.16
+weasyprint==61.2
