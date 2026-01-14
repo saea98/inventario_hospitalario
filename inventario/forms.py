@@ -441,9 +441,14 @@ class CitaProveedorForm(forms.ModelForm):
     
     def clean_fecha_cita(self):
         fecha_cita = self.cleaned_data.get("fecha_cita")
+        if not fecha_cita:
+            return fecha_cita
         # Permitir fechas pasadas solo durante los próximos 3 días
-        if timezone.now() > fecha_cita and (timezone.now() - fecha_cita).days > 3:
-            raise forms.ValidationError("La fecha de la cita no puede ser en el pasado.")
+        ahora = timezone.now()
+        if ahora > fecha_cita:
+            diferencia_dias = (ahora - fecha_cita).days
+            if diferencia_dias > 3:
+                raise forms.ValidationError("La fecha de la cita no puede ser en el pasado.")
         return fecha_cita
 
     def clean(self):
