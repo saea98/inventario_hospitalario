@@ -1,34 +1,15 @@
 from django.shortcuts import render
 from django.views import View
 from django.contrib.auth.mixins import LoginRequiredMixin
-from .llegada_models import ItemLlegada
-from .reportes_forms import ReporteEntradasForm
-
-class ReporteEntradasView(LoginRequiredMixin, View):
-    def get(self, request):
-        form = ReporteEntradasForm(request.GET)
-        items = ItemLlegada.objects.select_related('llegada', 'producto', 'llegada__proveedor').all()
-
-        if form.is_valid():
-            if form.cleaned_data.get('fecha_inicio'):
-                items = items.filter(llegada__fecha_llegada_real__gte=form.cleaned_data['fecha_inicio'])
-            if form.cleaned_data.get('fecha_fin'):
-                items = items.filter(llegada__fecha_llegada_real__lte=form.cleaned_data['fecha_fin'])
-            if form.cleaned_data.get('proveedor'):
-                items = items.filter(llegada__proveedor=form.cleaned_data['proveedor'])
-            if form.cleaned_data.get('clave'):
-                items = items.filter(producto__clave_cnis__icontains=form.cleaned_data['clave'])
-            if form.cleaned_data.get('lote'):
-                items = items.filter(numero_lote__icontains=form.cleaned_data['lote'])
-
-        return render(request, 'inventario/reportes/reporte_entradas.html', {'form': form, 'items': items})
-
-
 from django.http import HttpResponse
 import openpyxl
 from openpyxl.utils import get_column_letter
 from django.template.loader import render_to_string
 from weasyprint import HTML
+
+from .llegada_models import ItemLlegada
+from .reportes_forms import ReporteEntradasForm
+
 
 class ReporteEntradasView(LoginRequiredMixin, View):
     def get(self, request):
