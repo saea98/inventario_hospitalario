@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ('inventario', '0043_cargainventario_productos_no_procesados'),
+        ('inventario', '0044_merge_20260110_1719'),
     ]
 
     operations = [
