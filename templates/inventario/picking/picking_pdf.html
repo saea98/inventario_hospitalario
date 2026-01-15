@@ -68,6 +68,7 @@
             font-weight: bold;
             border: 1px solid #1f77b4;
             font-size: 10px;
+            line-height: 0.5;
         }
         
         .items-table td {
@@ -153,19 +154,18 @@
         <table class="items-table">
             <thead>
                 <tr>
-                    <th style="width: 25%;">UBICACIÓN</th>
-                    <th style="width: 45%;">PRODUCTO</th>
+                    <th style="width: 15%;">ALMACÉN</th>
+                    <th style="width: 10%;">UBICACIÓN</th>
+                    <th style="width: 40%;">PRODUCTO</th>
                     <th style="width: 15%;">CANTIDAD</th>
-                    <th style="width: 15%;">LOTE</th>
+                    <th style="width: 20%;">LOTE</th>
                 </tr>
             </thead>
             <tbody>
                 {% for item in items_picking %}
                 <tr>
-                    <td class="ubicacion">
-                        {{ item.almacen }}<br>
-                        {{ item.ubicacion }}
-                    </td>
+                    <td class="ubicacion" style="text-align: left;">{{ item.almacen }}</td>
+                    <td class="ubicacion" style="text-align: center; font-weight: bold;">{{ item.ubicacion }}</td>
                     <td class="producto">
                         {{ item.producto }}<br>
                         <small>({{ item.clave_cnis }})</small>
