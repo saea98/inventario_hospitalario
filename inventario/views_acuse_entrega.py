@@ -310,7 +310,7 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
     ]))
     
-    elements.append(PageBreak())
+
     
     # ============ ACUSE DE ENTREGA (SEGUNDA PÁGINA EN ADELANTE) ============
     title_style = ParagraphStyle(

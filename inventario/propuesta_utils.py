@@ -10,7 +10,7 @@ Este módulo proporciona funciones para:
 
 from django.db import transaction
 from django.utils import timezone
-from .pedidos_models import PropuestaPedido, ItemPropuesta, LoteAsignado
+from .pedidos_models import PropuestaPedido, ItemPropuesta, LoteAsignado, LogPropuesta
 from .models import Lote, LoteUbicacion
 
 
@@ -87,21 +87,22 @@ def cancelar_propuesta(propuesta_id, usuario=None):
                         lote_asignado.cantidad_asignada
                     )
             
-            # Cambiar estado a cancelada
-            propuesta.estado = 'CANCELADA'
+            # Cambiar estado a 'GENERADA' para que se pueda editar
+            propuesta.estado = 'GENERADA'
             propuesta.save(update_fields=['estado'])
             
-            # Registrar en auditoría si se proporciona usuario
-            if usuario:
-                from django.contrib.admin.models import LogEntry, CHANGE
-                LogEntry.objects.create(
-                    user=usuario,
-                    content_type_id=None,
-                    object_id=str(propuesta.id),
-                    object_repr=f"Propuesta {propuesta.solicitud.folio} cancelada",
-                    action_flag=CHANGE,
-                    change_message=f"Propuesta cancelada por {usuario.username} el {timezone.now()}"
-                )
+            # La solicitud vuelve a 'VALIDADA' para que se pueda generar otra propuesta
+            solicitud = propuesta.solicitud
+            solicitud.estado = 'VALIDADA'
+            solicitud.save(update_fields=['estado'])
+            
+            # Registrar en el log de la propuesta
+            LogPropuesta.objects.create(
+                propuesta=propuesta,
+                usuario=usuario,
+                accion=\"PROPUESTA CANCELADA\",
+                detalles=f\"La propuesta fue cancelada por {usuario.username}. Las cantidades han sido liberadas y la solicitud ha vuelto al estado VALIDADA.\"
+            )
         
         return {
             'exito': True,
