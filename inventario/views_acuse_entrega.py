@@ -260,6 +260,57 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
     ]))
     
     elements.append(firma_table)
+    elements.append(Spacer(1, 0.1*inch))
+    
+    # ============ TABLA DE ITEMS (PRIMERA PÁGINA) ============
+    table_data_page1 = [
+        ['#', 'CLAVE CNIS', 'DESCRIPCIÓN', 'U.M.', 'TIPO', 'LOTE', 'CADUCIDAD', 'CLASIFICACIÓN', 'UBICACIÓN', 'CANTIDAD', 'FOLIO PEDIDO']
+    ]
+    
+    idx = 1
+    for item in propuesta.items.all():
+        lotes_asignados = item.lotes_asignados.all()
+        for lote_asignado in lotes_asignados:
+            lote_ubicacion = lote_asignado.lote_ubicacion
+            lote = lote_ubicacion.lote
+            ubicacion = lote_ubicacion.ubicacion.codigo if lote_ubicacion.ubicacion else 'N/A'
+            caducidad = lote.fecha_caducidad.strftime("%d/%m/%Y") if lote.fecha_caducidad else 'N/A'
+            lote_info = lote.numero_lote if lote.numero_lote else 'N/A'
+            descripcion = wrap_text(item.producto.descripcion, max_chars=20, max_lines=2)
+            table_data_page1.append([
+                str(idx),
+                item.producto.clave_cnis,
+                descripcion,
+                item.producto.unidad_medida,
+                'ORDINARIO',
+                lote_info,
+                caducidad,
+                'MEDICAMENTO',
+                ubicacion,
+                str(item.cantidad_propuesta if item.cantidad_propuesta > 0 else item.cantidad_surtida),
+                ''
+            ])
+            idx += 1
+    
+    table_page1 = Table(table_data_page1, colWidths=[
+        0.3*inch, 0.8*inch, 1.5*inch, 0.8*inch, 0.7*inch, 
+        0.8*inch, 0.8*inch, 0.8*inch, 0.8*inch, 0.6*inch, 0.8*inch
+    ])
+    
+    table_page1.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#8B1538')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 8),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('FONTSIZE', (0, 1), (-1, -1), 8),
+        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f0f0f0')]),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+    ]))
+    
+    elements.append(table_page1)
     elements.append(PageBreak())
     
     # ============ ACUSE DE ENTREGA (SEGUNDA PÁGINA EN ADELANTE) ============
@@ -282,34 +333,23 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
         ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
     ]))
     elements.append(title_table)
-    elements.append(Spacer(1, 0.1*inch))
+    elements.append(Spacer(1, 0.6*inch))
     
-    # ============ TABLA DE ITEMS ============
+    # ============ TABLA DE ITEMS (PÁGINAS POSTERIORES) ============
     table_data = [
         ['#', 'CLAVE CNIS', 'DESCRIPCIÓN', 'U.M.', 'TIPO', 'LOTE', 'CADUCIDAD', 'CLASIFICACIÓN', 'UBICACIÓN', 'CANTIDAD', 'FOLIO PEDIDO']
     ]
     
     idx = 1
     for item in propuesta.items.all():
-        # Obtener lotes asignados
         lotes_asignados = item.lotes_asignados.all()
-        
         for lote_asignado in lotes_asignados:
             lote_ubicacion = lote_asignado.lote_ubicacion
             lote = lote_ubicacion.lote
-            
-            # Información de ubicación
             ubicacion = lote_ubicacion.ubicacion.codigo if lote_ubicacion.ubicacion else 'N/A'
-            
-            # Información de caducidad
             caducidad = lote.fecha_caducidad.strftime("%d/%m/%Y") if lote.fecha_caducidad else 'N/A'
-            
-            # Información de lote
             lote_info = lote.numero_lote if lote.numero_lote else 'N/A'
-            
-            # Envolver descripción
             descripcion = wrap_text(item.producto.descripcion, max_chars=20, max_lines=2)
-            
             table_data.append([
                 str(idx),
                 item.producto.clave_cnis,
@@ -325,7 +365,6 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
             ])
             idx += 1
     
-    # Usar el mismo ancho que la tabla de firmas (10 pulgadas total)
     table = Table(table_data, colWidths=[
         0.3*inch, 0.8*inch, 1.5*inch, 0.8*inch, 0.7*inch, 
         0.8*inch, 0.8*inch, 0.8*inch, 0.8*inch, 0.6*inch, 0.8*inch
@@ -351,7 +390,6 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
         canvas.saveState()
         
         if doc.page > 1:
-            # Agregar header compacto en páginas siguientes
             from django.conf import settings
             logo_path = os.path.join(settings.BASE_DIR, 'templates', 'inventario', 'images', 'logo_imss.jpg')
             
