@@ -238,7 +238,7 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
     
     # ============ TABLA DE ITEMS ============
     table_data = [
-        ['#', 'CLAVE CNIS', 'DESCRIPCIÓN', 'U.M.', 'TIPO', 'LOTE', 'CADUCIDAD', 'CLASIFICACIÓN', 'UBICACIÓN', 'CANTIDAD', 'OBSERVACIONES']
+        ['#', 'CLAVE CNIS', 'DESCRIPCIÓN', 'U.M.', 'TIPO', 'LOTE', 'CADUCIDAD', 'CLASIFICACIÓN', 'UBICACIÓN', 'CANTIDAD', 'FOLIO PEDIDO']
     ]
     
     idx = 1
@@ -297,6 +297,54 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
     ]))
     
     elements.append(table)
+    elements.append(Spacer(1, 0.2*inch))
+    
+    # ============ TABLA DE FIRMAS ============
+    firma_title_style = ParagraphStyle(
+        'FirmaTitle',
+        parent=styles['Heading2'],
+        fontSize=11,
+        textColor=colors.HexColor('#8B1538'),
+        alignment=1,
+        spaceAfter=8
+    )
+    
+    firma_title = Paragraph('ACUSE DE ENTREGA', firma_title_style)
+    firma_title_table = Table([[firma_title]], colWidths=[10*inch])
+    firma_title_table.setStyle(TableStyle([
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+    ]))
+    elements.append(firma_title_table)
+    
+    # Tabla de firmas
+    firma_data = [
+        ['UNIDAD DE DESTINO', 'RECIBE (UNIDAD DE DESTINO)', 'AUTORIZA (ALMACEN)', 'ENTREGA (ALMACEN)'],
+        [
+            propuesta.solicitud.almacen_destino.nombre if propuesta.solicitud.almacen_destino else 'N/A',
+            'NOMBRE: __________________\n\nPUESTO: __________________\n\nFIRMA: __________________',
+            'NOMBRE: Gerardo Anaya\n\nPUESTO: MESA DE CONTROL\n\nFIRMA: __________________',
+            'NOMBRE: __________________\n\nPUESTO: __________________\n\nFIRMA: __________________'
+        ]
+    ]
+    
+    firma_table = Table(firma_data, colWidths=[2.5*inch, 2.5*inch, 2.5*inch, 2.5*inch])
+    firma_table.setStyle(TableStyle([
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#8B1538')),
+        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
+        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+        ('FONTSIZE', (0, 0), (-1, 0), 9),
+        ('FONTSIZE', (0, 1), (-1, -1), 8),
+        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
+        ('TOPPADDING', (0, 0), (-1, 0), 8),
+        ('GRID', (0, 0), (-1, -1), 1, colors.black),
+        ('TOPPADDING', (0, 1), (-1, -1), 10),
+        ('BOTTOMPADDING', (0, 1), (-1, -1), 40),
+    ]))
+    
+    elements.append(firma_table)
     
     # Función para agregar header en páginas siguientes
     def header_pages(canvas, doc):
@@ -335,9 +383,40 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
             # Línea divisoria
             canvas.setLineWidth(0.5)
             canvas.line(0.5*inch, doc.height + 0.05*inch, doc.width + 0.5*inch, doc.height + 0.05*inch)
+            
+            # Título ACUSE DE ENTREGA
+            canvas.setFont('Helvetica-Bold', 11)
+            canvas.setFillColor(colors.HexColor('#8B1538'))
+            canvas.drawCentredString(5.5*inch, doc.height - 0.15*inch, 'ACUSE DE ENTREGA')
+            
+            # Tabla de firmas (dibujada manualmente)
+            canvas.setLineWidth(1)
+            canvas.setFillColor(colors.HexColor('#8B1538'))
+            canvas.rect(0.5*inch, doc.height - 1.2*inch, doc.width, 0.25*inch, fill=1)
+            
+            # Encabezados de la tabla de firmas
+            canvas.setFont('Helvetica-Bold', 8)
+            canvas.setFillColor(colors.white)
+            headers = ['UNIDAD DE DESTINO', 'RECIBE (UNIDAD DE DESTINO)', 'AUTORIZA (ALMACEN)', 'ENTREGA (ALMACEN)']
+            col_width = doc.width / 4
+            for i, header in enumerate(headers):
+                x = 0.5*inch + (i * col_width) + (col_width / 2)
+                canvas.drawCentredString(x, doc.height - 1.05*inch, header)
+            
+            # Líneas de la tabla
+            canvas.setLineWidth(0.5)
+            canvas.setFillColor(colors.black)
+            for i in range(5):
+                y = doc.height - 1.2*inch + (i * 0.35*inch)
+                canvas.line(0.5*inch, y, doc.width + 0.5*inch, y)
+            
+            for i in range(5):
+                x = 0.5*inch + (i * col_width)
+                canvas.line(x, doc.height - 1.2*inch, x, doc.height - 1.2*inch + (4 * 0.35*inch))
         
         # Número de página
         canvas.setFont('Helvetica', 8)
+        canvas.setFillColor(colors.black)
         canvas.drawString(doc.width + 0.2*inch, 0.5 * inch, f'Página {doc.page}')
         
         canvas.restoreState()
