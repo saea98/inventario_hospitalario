@@ -189,7 +189,7 @@ class ItemFacturacionForm(forms.ModelForm):
         if self.instance and self.instance.producto:
             clave = self.instance.producto.clave_cnis or ''
             # Si la clave NO empieza con 010, 020, 030, 040, establecer IVA a 0.16
-            if any(clave.startswith(prefix) for prefix in ['060', '080', '120', '130']) or not any(clave.startswith(prefix) for prefix in ['010', '020', '030', '040']):
+            if any(clave.startswith(prefix) for prefix in ['060', '080', '379', '130']) or not any(clave.startswith(prefix) for prefix in ['010', '020', '030', '040']):
                 self.fields['porcentaje_iva'].initial = 0.16
 
 
