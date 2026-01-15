@@ -441,22 +441,23 @@ def editar_propuesta(request, propuesta_id):
 @login_required
 def cancelar_propuesta_view(request, propuesta_id):
     """
-    Cancela una propuesta de suministro y libera todas las cantidades reservadas.
+    Libera todas las cantidades reservadas y devuelve la propuesta al estado GENERADA (editable).
+    Permite cambiar los ítems de suministro.
     Requiere permisos de staff o grupo Almacenero.
     """
     propuesta = get_object_or_404(PropuestaPedido, id=propuesta_id)
     
     # Validar permisos
     if not (request.user.is_staff or request.user.is_superuser or request.user.groups.filter(name='Almacenero').exists()):
-        messages.error(request, "No tienes permiso para cancelar propuestas.")
+        messages.error(request, "No tienes permiso para liberar propuestas.")
         return redirect('logistica:detalle_propuesta', propuesta_id=propuesta.id)
     
-    # Validar que la propuesta este en un estado cancelable
-    estados_cancelables = ['GENERADA', 'REVISADA', 'EN_SURTIMIENTO']
-    if propuesta.estado not in estados_cancelables:
+    # Validar que la propuesta este en un estado que permita liberación
+    estados_liberables = ['GENERADA', 'REVISADA', 'EN_SURTIMIENTO']
+    if propuesta.estado not in estados_liberables:
         messages.error(
             request, 
-            f"No se puede cancelar una propuesta en estado {propuesta.get_estado_display()}."
+            f"No se puede liberar una propuesta en estado {propuesta.get_estado_display()}."
         )
         return redirect('logistica:detalle_propuesta', propuesta_id=propuesta.id)
     
@@ -468,14 +469,14 @@ def cancelar_propuesta_view(request, propuesta_id):
                 cantidad_liberada = resultado.get('cantidad_liberada', 0)
                 messages.success(
                     request, 
-                    f"Propuesta {propuesta.solicitud.folio} cancelada exitosamente. Se liberaron {cantidad_liberada} unidades."
+                    f"Propuesta {propuesta.solicitud.folio} liberada exitosamente. Se liberaron {cantidad_liberada} unidades. Puedes editar la propuesta ahora."
                 )
-                return redirect('logistica:lista_propuestas')
+                return redirect('logistica:editar_propuesta', propuesta_id=propuesta.id)
             else:
                 messages.error(request, resultado['mensaje'])
                 return redirect('logistica:detalle_propuesta', propuesta_id=propuesta.id)
         except Exception as e:
-            messages.error(request, f"Error al cancelar la propuesta: {str(e)}")
+            messages.error(request, f"Error al liberar la propuesta: {str(e)}")
             return redirect('logistica:detalle_propuesta', propuesta_id=propuesta.id)
     
     # GET: Mostrar confirmacion
@@ -486,7 +487,7 @@ def cancelar_propuesta_view(request, propuesta_id):
     
     context = {
         'propuesta': propuesta,
-        'page_title': f"Cancelar Propuesta {propuesta.solicitud.folio}",
+        'page_title': f"Liberar Propuesta {propuesta.solicitud.folio}",
         'cantidad_total_a_liberar': cantidad_total,
         'items_count': propuesta.items.count()
     }

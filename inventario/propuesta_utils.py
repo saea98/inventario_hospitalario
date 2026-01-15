@@ -57,12 +57,12 @@ def liberar_cantidad_lote(lote_ubicacion, cantidad):
 
 def cancelar_propuesta(propuesta_id, usuario=None):
     """
-    Cancela una propuesta de suministro y libera todas las cantidades reservadas.
-    Hace un rollback completo de la propuesta.
+    Libera todas las cantidades reservadas y devuelve la propuesta al estado GENERADA (editable).
+    Permite cambiar los ítems de suministro y generar una nueva propuesta.
     
     Args:
-        propuesta_id: ID de la propuesta a cancelar
-        usuario: Usuario que realiza la cancelación (para auditoría)
+        propuesta_id: ID de la propuesta a liberar
+        usuario: Usuario que realiza la acción (para auditoría)
     
     Returns:
         dict: {'exito': bool, 'mensaje': str, 'propuesta': PropuestaPedido, 'cantidad_liberada': int}
@@ -102,33 +102,32 @@ def cancelar_propuesta(propuesta_id, usuario=None):
             # Guardar estado anterior para el log
             estado_anterior = propuesta.get_estado_display()
             
-            # Cambiar estado a 'CANCELADA'
-            propuesta.estado = 'CANCELADA'
+            # Cambiar estado a 'GENERADA' para que sea editable
+            propuesta.estado = 'GENERADA'
             propuesta.save(update_fields=['estado'])
             
-            # La solicitud vuelve a 'VALIDADA' para que se pueda generar otra propuesta
+            # La solicitud permanece en 'VALIDADA' para poder editar la propuesta
             solicitud = propuesta.solicitud
-            solicitud.estado = 'VALIDADA'
-            solicitud.save(update_fields=['estado'])
+            # No cambiar el estado de la solicitud, ya está en VALIDADA
             
             # Registrar en el log de la propuesta con detalles completos
-            detalles_completos = f"""Propuesta cancelada por {usuario.username if usuario else 'Sistema'}.
+            detalles_completos = f"""Propuesta liberada por {usuario.username if usuario else 'Sistema'}.
  Estado anterior: {estado_anterior}
  Cantidad total liberada: {cantidad_total_liberada} unidades
  Detalles de liberación:
  - {chr(10).join(detalles_liberacion)}
- La solicitud ha vuelto al estado VALIDADA y puede generar una nueva propuesta."""
+ La propuesta ha vuelto al estado GENERADA y puede ser editada para cambiar los ítems de suministro."""
             
             LogPropuesta.objects.create(
                 propuesta=propuesta,
                 usuario=usuario,
-                accion="PROPUESTA CANCELADA",
+                accion="PROPUESTA LIBERADA Y DEVUELTA A EDICIÓN",
                 detalles=detalles_completos
             )
         
         return {
             'exito': True,
-            'mensaje': f'Propuesta {propuesta.solicitud.folio} cancelada exitosamente. Se liberaron {cantidad_total_liberada} unidades.',
+            'mensaje': f'Propuesta {propuesta.solicitud.folio} liberada exitosamente. Se liberaron {cantidad_total_liberada} unidades y la propuesta está lista para editar.',
             'propuesta': propuesta,
             'cantidad_liberada': cantidad_total_liberada
         }
