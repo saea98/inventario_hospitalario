@@ -65,7 +65,7 @@ def cancelar_propuesta(propuesta_id, usuario=None):
         usuario: Usuario que realiza la cancelación (para auditoría)
     
     Returns:
-        dict: {'exito': bool, 'mensaje': str, 'propuesta': PropuestaPedido}
+        dict: {'exito': bool, 'mensaje': str, 'propuesta': PropuestaPedido, 'cantidad_liberada': int}
     """
     try:
         propuesta = PropuestaPedido.objects.get(id=propuesta_id)
@@ -79,16 +79,31 @@ def cancelar_propuesta(propuesta_id, usuario=None):
             }
         
         with transaction.atomic():
+            # Contar cantidad total a liberar
+            cantidad_total_liberada = 0
+            detalles_liberacion = []
+            
             # Liberar todas las cantidades reservadas
             for item in propuesta.items.all():
                 for lote_asignado in item.lotes_asignados.all():
+                    cantidad = lote_asignado.cantidad_asignada
+                    cantidad_total_liberada += cantidad
+                    
+                    # Registrar detalles de lo que se libera
+                    detalles_liberacion.append(
+                        f"Lote {lote_asignado.lote_ubicacion.lote.numero_lote}: {cantidad} unidades"
+                    )
+                    
                     liberar_cantidad_lote(
                         lote_asignado.lote_ubicacion,
-                        lote_asignado.cantidad_asignada
+                        cantidad
                     )
             
-            # Cambiar estado a 'GENERADA' para que se pueda editar
-            propuesta.estado = 'GENERADA'
+            # Guardar estado anterior para el log
+            estado_anterior = propuesta.get_estado_display()
+            
+            # Cambiar estado a 'CANCELADA'
+            propuesta.estado = 'CANCELADA'
             propuesta.save(update_fields=['estado'])
             
             # La solicitud vuelve a 'VALIDADA' para que se pueda generar otra propuesta
@@ -96,18 +111,26 @@ def cancelar_propuesta(propuesta_id, usuario=None):
             solicitud.estado = 'VALIDADA'
             solicitud.save(update_fields=['estado'])
             
-            # Registrar en el log de la propuesta
+            # Registrar en el log de la propuesta con detalles completos
+            detalles_completos = f"""Propuesta cancelada por {usuario.username if usuario else 'Sistema'}.
+ Estado anterior: {estado_anterior}
+ Cantidad total liberada: {cantidad_total_liberada} unidades
+ Detalles de liberación:
+ - {chr(10).join(detalles_liberacion)}
+ La solicitud ha vuelto al estado VALIDADA y puede generar una nueva propuesta."""
+            
             LogPropuesta.objects.create(
                 propuesta=propuesta,
                 usuario=usuario,
                 accion="PROPUESTA CANCELADA",
-                detalles=f"La propuesta fue cancelada por {usuario.username}. Las cantidades han sido liberadas y la solicitud ha vuelto al estado VALIDADA."
+                detalles=detalles_completos
             )
         
         return {
             'exito': True,
-            'mensaje': f'Propuesta {propuesta.solicitud.folio} cancelada exitosamente. Cantidades liberadas.',
-            'propuesta': propuesta
+            'mensaje': f'Propuesta {propuesta.solicitud.folio} cancelada exitosamente. Se liberaron {cantidad_total_liberada} unidades.',
+            'propuesta': propuesta,
+            'cantidad_liberada': cantidad_total_liberada
         }
     
     except PropuestaPedido.DoesNotExist:
