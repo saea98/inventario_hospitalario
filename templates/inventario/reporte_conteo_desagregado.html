@@ -35,6 +35,16 @@
                             <input type="date" class="form-control" id="fecha_hasta" name="fecha_hasta" value="{{ filtro_fecha_hasta }}">
                         </div>
                     </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <div class="custom-control custom-checkbox">
+                                <input type="checkbox" class="custom-control-input" id="solo_con_ubicacion" name="solo_con_ubicacion" value="1" {% if filtro_solo_con_ubicacion %}checked{% endif %}>
+                                <label class="custom-control-label" for="solo_con_ubicacion">
+                                    Solo con ubicación
+                                </label>
+                            </div>
+                        </div>
+                    </div>
                     <div class="col-md-3 d-flex align-items-end">
                         <button type="submit" class="btn btn-primary">Filtrar</button>
                     </div>
@@ -44,8 +54,11 @@
     </div>
 
     <div class="card shadow mb-4">
-        <div class="card-header py-3">
+        <div class="card-header py-3 d-flex justify-content-between align-items-center">
             <h6 class="m-0 font-weight-bold text-primary">Resultados</h6>
+            <a href="{% url 'exportar_conteo_desagregado_excel' %}?almacen={{ filtro_almacen }}&fecha_desde={{ filtro_fecha_desde }}&fecha_hasta={{ filtro_fecha_hasta }}&solo_con_ubicacion={{ filtro_solo_con_ubicacion }}" class="btn btn-success btn-sm">
+                <i class="fas fa-download"></i> Exportar a Excel
+            </a>
         </div>
         <div class="card-body">
             <div class="table-responsive">

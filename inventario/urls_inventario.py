@@ -58,3 +58,6 @@ from . import views_reporte_conteo_desagregado
 urlpatterns.append(
     path("reporte-conteo-desagregado/", views_reporte_conteo_desagregado.reporte_conteo_desagregado, name="reporte_conteo_desagregado")
 )
+urlpatterns.append(
+    path("reporte-conteo-desagregado/exportar/", views_reporte_conteo_desagregado.exportar_conteo_desagregado_excel, name="exportar_conteo_desagregado_excel")
+)
