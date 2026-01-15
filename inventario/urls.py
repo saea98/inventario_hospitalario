@@ -121,6 +121,6 @@ urlpatterns = [
     path('picking/', include(urls_picking)),  # URLs de FASE 6: Optimización de Picking
     path('admin/', django_admin.site.urls),
     path('reportes/', include(reportes_urls)),
-    path('admin/', include(sql_urls)),
+    path('sistema/sql/', include(sql_urls)),
     
 ]
