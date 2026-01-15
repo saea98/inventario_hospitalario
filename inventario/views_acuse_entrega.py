@@ -200,8 +200,8 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
     # ============ ENCABEZADO ============
     import os
     from django.conf import settings
-    logo_path = os.path.join(settings.BASE_DIR, 'templates', 'inventario', 'images', 'logo_acuse.png')
-    logo = Image(logo_path, width=4.85*inch, height=1.0*inch)
+    logo_path = os.path.join(settings.BASE_DIR, 'templates', 'inventario', 'images', 'logo_imss.png')
+    logo = Image(logo_path, width=6.0*inch, height=0.8*inch)
     logo.hAlign = 'LEFT'
 
     header_style = ParagraphStyle(
@@ -385,15 +385,26 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
     
     elements.append(table)
     
-    # Función para paginación
-    def footer(canvas, doc):
+    # Función para agregar header en todas las páginas
+    def header_footer(canvas, doc):
         canvas.saveState()
+        
+        # Agregar header en todas las páginas
+        logo_path = os.path.join(settings.BASE_DIR, 'templates', 'inventario', 'images', 'logo_imss.png')
+        canvas.drawImage(logo_path, 0.5*inch, doc.height + 0.3*inch, width=6.0*inch, height=0.8*inch)
+        
+        # Agregar linea divisoria
+        canvas.setLineWidth(1)
+        canvas.line(0.5*inch, doc.height + 0.15*inch, doc.width + 0.5*inch, doc.height + 0.15*inch)
+        
+        # Agregar numero de pagina
         canvas.setFont('Helvetica', 8)
         canvas.drawString(inch, 0.5 * inch, f"Pagina {doc.page}")
+        
         canvas.restoreState()
 
     # Generar PDF
-    doc.build(elements, onFirstPage=footer, onLaterPages=footer)
+    doc.build(elements, onFirstPage=header_footer, onLaterPages=header_footer)
     buffer.seek(0)
     
     response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
