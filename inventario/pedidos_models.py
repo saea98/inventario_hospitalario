@@ -309,7 +309,7 @@ class LogPropuesta(models.Model):
     detalles = models.TextField(blank=True, null=True)
 
     class Meta:
-        ordering = [\'-timestamp\']
+        ordering = ['-timestamp']
 
     def __str__(self):
         return f'{self.timestamp} - {self.propuesta.solicitud.folio} - {self.accion}'
