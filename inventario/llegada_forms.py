@@ -4,6 +4,7 @@ Formularios para la Fase 2.2.2: Llegada de Proveedores
 
 from django import forms
 from django.forms import inlineformset_factory, BaseFormSet
+from decimal import Decimal
 from .llegada_models import LlegadaProveedor, ItemLlegada, DocumentoLlegada
 
 
@@ -181,7 +182,7 @@ class ItemFacturacionForm(forms.ModelForm):
         ]
         widgets = {
             "precio_unitario_sin_iva": forms.NumberInput(attrs={"class": "form-control"}),
-            "porcentaje_iva": forms.NumberInput(attrs={"class": "form-control"}),
+            "porcentaje_iva": forms.NumberInput(attrs={"class": "form-control", "step": "0.01"}),
         }
     
     def __init__(self, *args, **kwargs):
@@ -191,25 +192,25 @@ class ItemFacturacionForm(forms.ModelForm):
             clave = self.instance.producto.clave_cnis or ''
             # Claves exentas de IVA
             if any(clave.startswith(prefix) for prefix in ['010', '020', '030', '040']):
-                self.fields['porcentaje_iva'].initial = 0
-            # Todas las demas claves con IVA 16%
+                self.fields['porcentaje_iva'].initial = Decimal('0.00')
+            # Todas las demas claves con IVA 0.16
             else:
-                self.fields['porcentaje_iva'].initial = 16
+                self.fields['porcentaje_iva'].initial = Decimal('0.16')
     
     def clean_porcentaje_iva(self):
         """
         Sobrescribir el valor del IVA con el que corresponde segun la clave CNIS,
         sin importar lo que el usuario haya ingresado.
-        El valor se devuelve como porcentaje (0 para 0%, 16 para 16%).
+        El valor se devuelve como decimal (0.00 para 0%, 0.16 para 16%).
         """
         if self.instance and self.instance.producto:
             clave = self.instance.producto.clave_cnis or ''
             # Claves exentas de IVA
             if any(clave.startswith(prefix) for prefix in ['010', '020', '030', '040']):
-                return 0
-            # Todas las demas claves con IVA 16%
+                return Decimal('0.00')
+            # Todas las demas claves con IVA 0.16
             else:
-                return 16
+                return Decimal('0.16')
         return self.cleaned_data.get('porcentaje_iva')
 
 
