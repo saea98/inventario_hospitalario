@@ -302,7 +302,7 @@ class LogPropuesta(models.Model):
     """
     Registra los cambios de estado y acciones importantes en una propuesta.
     """
-    propuesta = models.ForeignKey(PropuestaPedido, on_delete=models.CASCADE, related_name=\'logs\')
+    propuesta = models.ForeignKey(PropuestaPedido, on_delete=models.CASCADE, related_name='logs')
     usuario = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, blank=True)
     timestamp = models.DateTimeField(auto_now_add=True)
     accion = models.CharField(max_length=255)
