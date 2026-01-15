@@ -333,7 +333,7 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
         ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
     ]))
     elements.append(title_table)
-    elements.append(Spacer(1, 0.6*inch))
+    elements.append(Spacer(1, 1.2*inch))
     
     # ============ TABLA DE ITEMS (PÁGINAS POSTERIORES) ============
     table_data = [
