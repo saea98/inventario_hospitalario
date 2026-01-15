@@ -42,7 +42,8 @@
                     <thead>
                         <tr>
                             <th>Folio de Solicitud</th>
-                            <th>Institución Solicitante</th>
+                            <th style="width: 15%;">Institución Solicitante</th>
+                            <th>Folio de Pedido</th>
                             <th>Fecha de Generación</th>
                             <th>Estado</th>
                             <th>Surtimiento</th>
@@ -54,6 +55,7 @@
                             <tr>
                                 <td>{{ item.propuesta.solicitud.folio }}</td>
                                 <td>{{ item.propuesta.solicitud.institucion_solicitante.denominacion }}</td>
+                                <td><code>{{ item.propuesta.solicitud.observaciones_solicitud|default:"N/A" }}</code></td>
                                 <td>{{ item.propuesta.fecha_generacion|date:"d/m/Y H:i" }}</td>
                                 <td>
                                     <span class="badge badge-{{ item.propuesta.estado|lower }}">{{ item.propuesta.get_estado_display }}</span>
@@ -83,7 +85,7 @@
                             </tr>
                         {% empty %}
                             <tr>
-                                <td colspan="6" class="text-center">No hay propuestas de pedido.</td>
+                                <td colspan="7" class="text-center">No hay propuestas de pedido.</td>
                             </tr>
                         {% endfor %}
                     </tbody>
