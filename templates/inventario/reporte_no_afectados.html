@@ -15,7 +15,6 @@ document.addEventListener('DOMContentLoaded', function() {
     const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
     const selectedCount = document.getElementById('selectedCount');
     const selectedIdsInput = document.getElementById('selectedIds');
-    const bulkDeleteForm = document.getElementById('bulkDeleteForm');
 
     function toggleBulkDeleteBtn() {
         const anyChecked = Array.from(rowCheckboxes).some(cb => cb.checked);
@@ -134,20 +133,22 @@ document.addEventListener('DOMContentLoaded', function() {
             <h5 class="mb-0">
                 <i class="fas fa-table me-2"></i>Registros No Afectados ({{ page_obj.paginator.count }} total)
             </h5>
-            <a href="{% url 'exportar_no_afectados_excel' %}{% if filtro_clave %}?clave={{ filtro_clave }}{% endif %}{% if filtro_institucion %}&institucion={{ filtro_institucion }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}" 
-               class="btn btn-success btn-sm">
-                <i class="fas fa-file-excel me-2"></i>Exportar a Excel
-            </a>
-            <button type="button" class="btn btn-danger btn-sm" id="bulkDeleteBtn" data-bs-toggle="modal" data-bs-target="#confirmBulkDeleteModal" disabled>
-                <i class="fas fa-trash-alt me-2"></i>Eliminar Seleccionados
-            </button>
-            </a>
+            <div class="d-flex gap-2">
+                <a href="{% url 'exportar_no_afectados_excel' %}{% if filtro_clave %}?clave={{ filtro_clave }}{% endif %}{% if filtro_institucion %}&institucion={{ filtro_institucion }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}" 
+                   class="btn btn-success btn-sm">
+                    <i class="fas fa-file-excel me-2"></i>Exportar a Excel
+                </a>
+                <button type="button" class="btn btn-danger btn-sm" id="bulkDeleteBtn" data-bs-toggle="modal" data-bs-target="#confirmBulkDeleteModal" disabled>
+                    <i class="fas fa-trash-alt me-2"></i>Eliminar Seleccionados
+                </button>
+            </div>
         </div>
         
         <div class="table-responsive">
             <table class="table table-hover mb-0 align-middle">
                 <thead class="table-light">
                     <tr>
+                        <th><input type="checkbox" id="selectAll"></th>
                         <th>CLAVE CNIS</th>
                         <th>DESCRIPCIÓN PRODUCTO</th>
                         <th>LOTE</th>
@@ -156,13 +157,15 @@ document.addEventListener('DOMContentLoaded', function() {
                         <th>UBICACIÓN</th>
                         <th>CANTIDAD</th>
                         <th>FECHA ASIGNACIÓN</th>
-                        <th><input type="checkbox" id="selectAll"></th>
                         <th>ACCIONES</th>
                     </tr>
                 </thead>
                 <tbody>
                     {% for registro in page_obj %}
                     <tr class="{% if registro.ubicacion == 'Sin ubicación asignada' %}table-warning{% endif %}">
+                        <td>
+                            <input type="checkbox" class="row-checkbox" name="selected_items" value="{{ registro.lote_id }}_{{ registro.ubicacion_id|default:'' }}">
+                        </td>
                         <td>
                             <strong>{{ registro.clave_cnis }}</strong>
                         </td>
@@ -196,8 +199,6 @@ document.addEventListener('DOMContentLoaded', function() {
                             <small class="text-muted">{{ registro.fecha_asignacion }}</small>
                         </td>
                         <td>
-                            <td><input type="checkbox" class="row-checkbox" name="selected_items" value="{{ registro.lote_id }}_{{ registro.ubicacion_id|default:'' }}"></td>
-                        <td>
                             <button class="btn btn-danger btn-sm delete-btn" data-bs-toggle="modal" data-bs-target="#confirmDeleteModal" data-lote-id="{{ registro.lote_id }}" data-ubicacion-id="{{ registro.ubicacion_id|default:'' }}">
                                 <i class="fas fa-trash me-1"></i>Eliminar
                             </button>
@@ -205,7 +206,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="9" class="text-center text-muted py-4">
+                        <td colspan="10" class="text-center text-muted py-4">
                             <i class="fas fa-inbox me-2"></i>No hay registros que coincidan con los filtros
                         </td>
                     </tr>
@@ -277,55 +278,55 @@ document.addEventListener('DOMContentLoaded', function() {
         </div>
     </div>
 
-    <!-- Modal de confirmación de eliminación -->
-    <div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title" id="confirmBulkDeleteLabel">
-                    <i class="fas fa-exclamation-triangle me-2"></i>Confirmar Eliminación Masiva
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <p>¿Está seguro de que desea eliminar los <strong id="selectedCount"></strong> registros seleccionados?</p>
-                <p class="text-muted"><small>Esta acción no se puede deshacer.</small></p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <form id="bulkDeleteForm" method="post" action="{% url 'reporte_no_afectados_bulk_delete' %}" style="display: inline;">
-                    {% csrf_token %}
-                    <input type="hidden" name="selected_ids" id="selectedIds">
-                    <button type="submit" class="btn btn-danger">Eliminar Seleccionados</button>
-                </form>
+    <!-- Modal de confirmación de eliminación masiva -->
+    <div class="modal fade" id="confirmBulkDeleteModal" tabindex="-1" aria-labelledby="confirmBulkDeleteLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title" id="confirmBulkDeleteLabel">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Confirmar Eliminación Masiva
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>¿Está seguro de que desea eliminar los <strong id="selectedCount"></strong> registros seleccionados?</p>
+                    <p class="text-muted"><small>Esta acción no se puede deshacer.</small></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <form id="bulkDeleteForm" method="post" action="{% url 'reporte_no_afectados_bulk_delete' %}" style="display: inline;">
+                        {% csrf_token %}
+                        <input type="hidden" name="selected_ids" id="selectedIds">
+                        <button type="submit" class="btn btn-danger">Eliminar Seleccionados</button>
+                    </form>
+                </div>
             </div>
         </div>
     </div>
-</div>
 
-<!-- Modal de confirmación de eliminación individual -->
-<div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteLabel" aria-hidden="true">
-    <div class="modal-dialog">
-        <div class="modal-content">
-            <div class="modal-header bg-danger text-white">
-                <h5 class="modal-title" id="confirmDeleteLabel">
-                    <i class="fas fa-exclamation-triangle me-2"></i>Confirmar eliminación
-                </h5>
-                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
-            </div>
-            <div class="modal-body">
-                <p>¿Está seguro de que desea eliminar este registro?</p>
-                <p class="text-muted"><small>Esta acción no se puede deshacer.</small></p>
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
-                <form id="deleteForm" method="post" style="display: inline;">
-                    {% csrf_token %}
-                    <button type="submit" class="btn btn-danger">Eliminar</button>
-                </form>
+    <!-- Modal de confirmación de eliminación individual -->
+    <div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header bg-danger text-white">
+                    <h5 class="modal-title" id="confirmDeleteLabel">
+                        <i class="fas fa-exclamation-triangle me-2"></i>Confirmar eliminación
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body">
+                    <p>¿Está seguro de que desea eliminar este registro?</p>
+                    <p class="text-muted"><small>Esta acción no se puede deshacer.</small></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <form id="deleteForm" method="post" style="display: inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-danger">Eliminar</button>
+                    </form>
+                </div>
             </div>
         </div>
-    </div>
     </div>
 </div>
 {% endblock %}
