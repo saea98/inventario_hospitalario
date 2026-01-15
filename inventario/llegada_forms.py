@@ -126,20 +126,21 @@ class ControlCalidadForm(forms.ModelForm):
         }
 
 
+TIPO_ENTRADA_CHOICES = [
+    ('', '-- Selecciona tipo de entrada --'),
+    ('Entrega directa', 'Entrega directa'),
+    ('Operador Logístico', 'Operador Logístico'),
+    ('Sedesa', 'Sedesa'),
+    ('Transferencia', 'Transferencia'),
+    ('Canje', 'Canje'),
+    ('Donación', 'Donación'),
+]
+
+
 class FacturacionForm(forms.ModelForm):
     """
     Formulario para la captura de datos de Facturación.
     """
-    
-    TIPO_ENTRADA_CHOICES = [
-        ('', '-- Selecciona tipo de entrada --'),
-        ('Entrega directa', 'Entrega directa'),
-        ('Operador Logístico', 'Operador Logístico'),
-        ('Sedesa', 'Sedesa'),
-        ('Transferencia', 'Transferencia'),
-        ('Canje', 'Canje'),
-        ('Donación', 'Donación'),
-    ]
     
     class Meta:
         model = LlegadaProveedor
@@ -163,7 +164,7 @@ class FacturacionForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['tipo_compra'].label = 'Tipo de Entrada'
-        self.fields['tipo_compra'].choices = self.TIPO_ENTRADA_CHOICES
+        self.fields['tipo_compra'].choices = TIPO_ENTRADA_CHOICES
 
 
 class ItemFacturacionForm(forms.ModelForm):
