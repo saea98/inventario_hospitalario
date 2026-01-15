@@ -568,11 +568,11 @@ def exportar_lotes_personalizado(request):
             if institucion:
                 lotes = Lote.objects.filter(institucion=institucion).select_related(
                     'producto', 'almacen', 'ubicacion', 'institucion'
-                )
+                ).prefetch_related('ubicaciones_detalle__ubicacion')
             else:
                 lotes = Lote.objects.all().select_related(
                     'producto', 'almacen', 'ubicacion', 'institucion'
-                )
+                ).prefetch_related('ubicaciones_detalle__ubicacion')
             
             # 4✍⃣ Aplicar filtros (si vienen en la petición)
             filtro_estado = request.POST.get('filtro_estado', '')
@@ -582,6 +582,7 @@ def exportar_lotes_personalizado(request):
             busqueda_lote = request.POST.get('busqueda_lote', '')
             busqueda_cnis = request.POST.get('busqueda_cnis', '')
             busqueda_producto = request.POST.get('busqueda_producto', '')
+            filtro_partida = request.POST.get('filtro_partida', '')
             
             if filtro_estado:
                 lotes = lotes.filter(estado=int(filtro_estado))
@@ -612,22 +613,86 @@ def exportar_lotes_personalizado(request):
             
             if busqueda_producto:
                 lotes = lotes.filter(producto__descripcion__icontains=busqueda_producto)
+
+            if filtro_partida:
+                lotes = lotes.filter(partida__icontains=filtro_partida)
             
-            # 5✍⃣ Consultar los datos (solo esos campos)
-            datos = lotes.values(*campos).order_by('-fecha_recepcion')
-            datos_lista = list(datos)
+            # 5️⃣ Procesar datos manualmente para manejar ubicaciones correctamente
+            datos_lista = []
+            estado_map = dict(Lote.ESTADOS_CHOICES)
+            
+            for lote in lotes.order_by('-fecha_recepcion'):
+                # Obtener ubicaciones del lote
+                ubicaciones = lote.ubicaciones_detalle.all()
+                
+                if ubicaciones.exists():
+                    # Si hay ubicaciones, crear un registro por cada ubicación
+                    for ubi in ubicaciones:
+                        registro = {}
+                        for campo in campos:
+                            if campo == 'ubicacion__codigo':
+                                # Obtener el código de la ubicación desde LoteUbicacion
+                                registro[campo] = ubi.ubicacion.codigo if ubi.ubicacion else ""
+                            elif campo == 'almacen__nombre':
+                                registro[campo] = lote.almacen.nombre if lote.almacen else ""
+                            elif campo == 'producto__clave_cnis':
+                                registro[campo] = lote.producto.clave_cnis if lote.producto else ""
+                            elif campo == 'institucion__denominacion':
+                                registro[campo] = lote.institucion.denominacion if lote.institucion else ""
+                            elif campo == 'producto__descripcion':
+                                registro[campo] = lote.producto.descripcion if lote.producto else ""
+                            elif campo == 'estado':
+                                registro[campo] = estado_map.get(lote.estado, str(lote.estado))
+                            else:
+                                # Obtener el valor del campo del lote
+                                valor = getattr(lote, campo.replace('__', '_'), None)
+                                if valor is None and '__' in campo:
+                                    # Intentar acceso por relación
+                                    partes = campo.split('__')
+                                    obj = lote
+                                    for parte in partes:
+                                        obj = getattr(obj, parte, None)
+                                        if obj is None:
+                                            break
+                                    valor = obj
+                                registro[campo] = valor
+                        datos_lista.append(registro)
+                else:
+                    # Si no hay ubicaciones, crear un registro sin ubicación
+                    registro = {}
+                    for campo in campos:
+                        if campo == 'ubicacion__codigo':
+                            registro[campo] = ""
+                        elif campo == 'almacen__nombre':
+                            registro[campo] = lote.almacen.nombre if lote.almacen else ""
+                        elif campo == 'producto__clave_cnis':
+                            registro[campo] = lote.producto.clave_cnis if lote.producto else ""
+                        elif campo == 'institucion__denominacion':
+                            registro[campo] = lote.institucion.denominacion if lote.institucion else ""
+                        elif campo == 'producto__descripcion':
+                            registro[campo] = lote.producto.descripcion if lote.producto else ""
+                        elif campo == 'estado':
+                            registro[campo] = estado_map.get(lote.estado, str(lote.estado))
+                        else:
+                            # Obtener el valor del campo del lote
+                            valor = getattr(lote, campo.replace('__', '_'), None)
+                            if valor is None and '__' in campo:
+                                # Intentar acceso por relación
+                                partes = campo.split('__')
+                                obj = lote
+                                for parte in partes:
+                                    obj = getattr(obj, parte, None)
+                                    if obj is None:
+                                        break
+                                valor = obj
+                            registro[campo] = valor
+                    datos_lista.append(registro)
+            
             if not datos_lista:
                 return JsonResponse({"error": "No hay datos para exportar"}, status=404)
 
             # 6️⃣ Procesar campos legibles
-            estado_map = dict(Lote.ESTADOS_CHOICES)
-            
             for registro in datos_lista:
-                # Estado legible
-                if "estado" in registro:
-                    estado_val = registro["estado"]
-                    registro["estado"] = estado_map.get(estado_val, str(estado_val))
-
                 # Fechas legibles
                 for k, v in registro.items():
                     if isinstance(v, Decimal):
