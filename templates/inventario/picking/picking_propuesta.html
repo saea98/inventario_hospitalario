@@ -271,6 +271,10 @@
             <i class="fas fa-print"></i> Imprimir Hoja de Surtido
         </a>
         
+        <a href="{% url 'picking:exportar_picking_excel' propuesta.id %}" class="btn btn-imprimir" style="background-color: #007bff;">
+            <i class="fas fa-file-excel"></i> Exportar a Excel
+        </a>
+        
         <button class="btn-volver" onclick="window.history.back()">
             <i class="fas fa-arrow-left"></i> Volver
         </button>

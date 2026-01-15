@@ -14,6 +14,9 @@ from django.utils import timezone
 from django.template.loader import get_template
 from datetime import datetime
 from xhtml2pdf import pisa
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from io import BytesIO
 
 from .pedidos_models import PropuestaPedido, ItemPropuesta, LoteAsignado
 from .models import Lote, UbicacionAlmacen, Almacen
@@ -273,4 +276,145 @@ def imprimir_hoja_surtido(request, propuesta_id):
 
     if pisa_status.err:
         return HttpResponse('We had some errors <pre>' + html + '</pre>')
+    return response
+
+
+
+# ============================================================
+# EXPORTAR HOJA DE PICKING A EXCEL
+# ============================================================
+
+@login_required
+def exportar_picking_excel(request, propuesta_id):
+    """
+    Genera un archivo Excel con la hoja de picking ordenada por ubicación
+    """
+    propuesta = get_object_or_404(PropuestaPedido, id=propuesta_id)
+    
+    # Obtener items de la propuesta con lotes asignados
+    items_picking = []
+    
+    for item in propuesta.items.all():
+        for lote_asignado in item.lotes_asignados.filter(surtido=False):
+            lote_ubicacion = lote_asignado.lote_ubicacion
+            lote = lote_ubicacion.lote
+            items_picking.append({
+                'item_id': item.id,
+                'lote_asignado_id': lote_asignado.id,
+                'producto': lote.producto.descripcion,
+                'cantidad': lote_asignado.cantidad_asignada,
+                'lote_numero': lote.numero_lote,
+                'almacen': lote_ubicacion.ubicacion.almacen.nombre,
+                'almacen_id': lote_ubicacion.ubicacion.almacen_id,
+                'ubicacion': lote_ubicacion.ubicacion.codigo,
+                'ubicacion_id': lote_ubicacion.ubicacion_id,
+                'clave_cnis': lote.producto.clave_cnis,
+            })
+    
+    # Ordenar por ubicación
+    items_picking.sort(key=lambda x: (x['almacen_id'], x['ubicacion_id']))
+    
+    # Crear workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Picking"
+    
+    # Definir estilos
+    header_fill = PatternFill(start_color="1f77b4", end_color="1f77b4", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF", size=11)
+    header_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    
+    border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+    
+    center_alignment = Alignment(horizontal="center", vertical="center")
+    left_alignment = Alignment(horizontal="left", vertical="center")
+    
+    # Agregar información de la propuesta
+    ws['A1'] = "PICKING LIST"
+    ws['A1'].font = Font(bold=True, size=14, color="1f77b4")
+    ws.merge_cells('A1:E1')
+    
+    ws['A3'] = "Propuesta:"
+    ws['B3'] = str(propuesta.solicitud.folio)
+    ws['A4'] = "Fecha:"
+    ws['B4'] = datetime.now().strftime('%d/%m/%Y %H:%M')
+    ws['A5'] = "Folio de Pedido:"
+    ws['B5'] = propuesta.solicitud.observaciones_solicitud or "N/A"
+    ws['A6'] = "Total Items:"
+    ws['B6'] = len(items_picking)
+    
+    # Definir anchos de columnas
+    ws.column_dimensions['A'].width = 18
+    ws.column_dimensions['B'].width = 12
+    ws.column_dimensions['C'].width = 35
+    ws.column_dimensions['D'].width = 12
+    ws.column_dimensions['E'].width = 15
+    
+    # Agregar encabezados
+    headers = ['ALMACÉN', 'UBICACIÓN', 'PRODUCTO', 'CANTIDAD', 'LOTE']
+    header_row = 8
+    
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=header_row, column=col_num)
+        cell.value = header
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = header_alignment
+        cell.border = border
+    
+    # Establecer altura del encabezado
+    ws.row_dimensions[header_row].height = 25
+    
+    # Agregar datos
+    for row_num, item in enumerate(items_picking, header_row + 1):
+        # Almacén
+        cell_a = ws.cell(row=row_num, column=1)
+        cell_a.value = item['almacen']
+        cell_a.alignment = left_alignment
+        cell_a.border = border
+        
+        # Ubicación
+        cell_b = ws.cell(row=row_num, column=2)
+        cell_b.value = item['ubicacion']
+        cell_b.alignment = center_alignment
+        cell_b.font = Font(bold=True)
+        cell_b.border = border
+        
+        # Producto
+        cell_c = ws.cell(row=row_num, column=3)
+        cell_c.value = f"{item['producto']}\n({item['clave_cnis']})"
+        cell_c.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
+        cell_c.border = border
+        ws.row_dimensions[row_num].height = 30
+        
+        # Cantidad
+        cell_d = ws.cell(row=row_num, column=4)
+        cell_d.value = item['cantidad']
+        cell_d.alignment = center_alignment
+        cell_d.font = Font(bold=True)
+        cell_d.fill = PatternFill(start_color="e8f4f8", end_color="e8f4f8", fill_type="solid")
+        cell_d.border = border
+        
+        # Lote
+        cell_e = ws.cell(row=row_num, column=5)
+        cell_e.value = item['lote_numero']
+        cell_e.alignment = center_alignment
+        cell_e.border = border
+    
+    # Crear respuesta
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    response = HttpResponse(
+        output.getvalue(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename="picking_{propuesta.solicitud.folio}.xlsx"'
+    
     return response

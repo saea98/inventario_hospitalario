@@ -25,4 +25,9 @@ urlpatterns = [
         picking_views.imprimir_hoja_surtido,
         name="imprimir_hoja_surtido",
     ),
+    path(
+        "propuesta/<uuid:propuesta_id>/exportar-excel/",
+        picking_views.exportar_picking_excel,
+        name="exportar_picking_excel",
+    ),
 ]
