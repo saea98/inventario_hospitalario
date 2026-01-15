@@ -131,6 +131,16 @@ class FacturacionForm(forms.ModelForm):
     Formulario para la captura de datos de Facturación.
     """
     
+    TIPO_ENTRADA_CHOICES = [
+        ('', '-- Selecciona tipo de entrada --'),
+        ('Entrega directa', 'Entrega directa'),
+        ('Operador Logístico', 'Operador Logístico'),
+        ('Sedesa', 'Sedesa'),
+        ('Transferencia', 'Transferencia'),
+        ('Canje', 'Canje'),
+        ('Donación', 'Donación'),
+    ]
+    
     class Meta:
         model = LlegadaProveedor
         fields = [
@@ -147,8 +157,13 @@ class FacturacionForm(forms.ModelForm):
             "numero_contrato": forms.TextInput(attrs={"class": "form-control"}),
             "numero_procedimiento": forms.TextInput(attrs={"class": "form-control"}),
             "programa_presupuestario": forms.TextInput(attrs={"class": "form-control"}),
-            "tipo_compra": forms.TextInput(attrs={"class": "form-control"}),
+            "tipo_compra": forms.Select(choices=TIPO_ENTRADA_CHOICES, attrs={"class": "form-control"}),
         }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields['tipo_compra'].label = 'Tipo de Entrada'
+        self.fields['tipo_compra'].choices = self.TIPO_ENTRADA_CHOICES
 
 
 class ItemFacturacionForm(forms.ModelForm):
@@ -166,6 +181,15 @@ class ItemFacturacionForm(forms.ModelForm):
             "precio_unitario_sin_iva": forms.NumberInput(attrs={"class": "form-control"}),
             "porcentaje_iva": forms.NumberInput(attrs={"class": "form-control"}),
         }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Establecer IVA a 0.16 si la clave del producto no empieza con 010, 020, 030, 040
+        if self.instance and self.instance.producto:
+            clave = self.instance.producto.clave_cnis or ''
+            # Si la clave NO empieza con 010, 020, 030, 040, establecer IVA a 0.16
+            if not any(clave.startswith(prefix) for prefix in ['010', '020', '030', '040']):
+                self.fields['porcentaje_iva'].initial = 0.16
 
 
 ItemFacturacionFormSet = inlineformset_factory(
