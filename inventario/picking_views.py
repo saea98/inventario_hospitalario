@@ -228,14 +228,43 @@ def marcar_item_recogido(request, lote_asignado_id):
 @login_required
 def imprimir_hoja_surtido(request, propuesta_id):
     """
-    Genera un PDF con la hoja de surtido
+    Genera un PDF con la hoja de surtido ordenada por ubicación
     """
     propuesta = get_object_or_404(PropuestaPedido, id=propuesta_id)
-    template_path = 'inventario/picking/hoja_surtido_pdf.html'
-    context = {'propuesta': propuesta}
+    
+    # Obtener items de la propuesta con lotes asignados
+    items_picking = []
+    
+    for item in propuesta.items.all():
+        for lote_asignado in item.lotes_asignados.filter(surtido=False):
+            lote_ubicacion = lote_asignado.lote_ubicacion
+            lote = lote_ubicacion.lote
+            items_picking.append({
+                'item_id': item.id,
+                'lote_asignado_id': lote_asignado.id,
+                'producto': lote.producto.descripcion,
+                'cantidad': lote_asignado.cantidad_asignada,
+                'lote_numero': lote.numero_lote,
+                'almacen': lote_ubicacion.ubicacion.almacen.nombre,
+                'almacen_id': lote_ubicacion.ubicacion.almacen_id,
+                'ubicacion': lote_ubicacion.ubicacion.codigo,
+                'ubicacion_id': lote_ubicacion.ubicacion_id,
+                'clave_cnis': lote.producto.clave_cnis,
+            })
+    
+    # Ordenar por ubicación
+    items_picking.sort(key=lambda x: (x['almacen_id'], x['ubicacion_id']))
+    
+    template_path = 'inventario/picking/picking_pdf.html'
+    context = {
+        'propuesta': propuesta,
+        'items_picking': items_picking,
+        'total_items': len(items_picking),
+        'fecha': datetime.now().strftime('%d/%m/%Y %H:%M')
+    }
 
     response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename=hoja_surtido_{propuesta.solicitud.folio}.pdf'
+    response['Content-Disposition'] = f'attachment; filename=picking_{propuesta.solicitud.folio}.pdf'
 
     template = get_template(template_path)
     html = template.render(context)
