@@ -9,14 +9,22 @@
 
 {% block content %}
 <script>
-function setDeleteData(loteId, ubicacionId) {
-    const form = document.getElementById('deleteForm');
-    if (ubicacionId) {
-        form.action = '/gestion-inventario/reporte-no-afectados/eliminar/' + loteId + '/' + ubicacionId + '/';
-    } else {
-        form.action = '/gestion-inventario/reporte-no-afectados/eliminar/' + loteId + '/';
-    }
-}
+document.addEventListener('DOMContentLoaded', function() {
+    const deleteButtons = document.querySelectorAll('.delete-btn');
+    deleteButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            const loteId = this.getAttribute('data-lote-id');
+            const ubicacionId = this.getAttribute('data-ubicacion-id');
+            const form = document.getElementById('deleteForm');
+            
+            if (ubicacionId) {
+                form.action = '/gestion-inventario/reporte-no-afectados/eliminar/' + loteId + '/' + ubicacionId + '/';
+            } else {
+                form.action = '/gestion-inventario/reporte-no-afectados/eliminar/' + loteId + '/';
+            }
+        });
+    });
+});
 </script>
 <div class="container-fluid py-4">
     <!-- Información del reporte -->
@@ -146,7 +154,7 @@ function setDeleteData(loteId, ubicacionId) {
                             <small class="text-muted">{{ registro.fecha_asignacion }}</small>
                         </td>
                         <td>
-                            <button class="btn btn-danger btn-sm" data-bs-toggle="modal" data-bs-target="#confirmDeleteModal" onclick="setDeleteData({{ registro.lote_id }}, {{ registro.ubicacion_id|default:'null' }})">
+                            <button class="btn btn-danger btn-sm delete-btn" data-bs-toggle="modal" data-bs-target="#confirmDeleteModal" data-lote-id="{{ registro.lote_id }}" data-ubicacion-id="{{ registro.ubicacion_id|default:'' }}">
                                 <i class="fas fa-trash me-1"></i>Eliminar
                             </button>
                         </td>
