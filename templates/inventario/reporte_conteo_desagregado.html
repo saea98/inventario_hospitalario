@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="h3 mb-2 text-gray-800">Reporte de Conteo Desagregado</h1>
+    <p class="mb-4">Reporte de conteo de almacén desagregado por producto, lote y caducidad.</p>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Filtros</h6>
+        </div>
+        <div class="card-body">
+            <form method="get" action="{% url 'reporte_conteo_desagregado' %}">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="almacen">Almacén</label>
+                            <select class="form-control" id="almacen" name="almacen">
+                                <option value="">Todos</option>
+                                {% for almacen in almacenes %}
+                                    <option value="{{ almacen.nombre }}" {% if filtro_almacen == almacen.nombre %}selected{% endif %}>{{ almacen.nombre }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="fecha_desde">Fecha Desde</label>
+                            <input type="date" class="form-control" id="fecha_desde" name="fecha_desde" value="{{ filtro_fecha_desde }}">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="fecha_hasta">Fecha Hasta</label>
+                            <input type="date" class="form-control" id="fecha_hasta" name="fecha_hasta" value="{{ filtro_fecha_hasta }}">
+                        </div>
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary">Filtrar</button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Resultados</h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
+                    <thead>
+                        <tr>
+                            <th>#</th>
+                            <th>Fuente Financiamiento</th>
+                            <th>Clave CNIS</th>
+                            <th>Descripción</th>
+                            <th>U.M.</th>
+                            <th>Lote</th>
+                            <th>Caducidad</th>
+                            <th>Cantidad</th>
+                            <th>Importe</th>
+                            <th>1er Conteo</th>
+                            <th>2do Conteo</th>
+                            <th>3er Conteo</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in page_obj %}
+                        <tr>
+                            <td>{{ item.consecutivo }}</td>
+                            <td>{{ item.fuente_financiamiento }}</td>
+                            <td>{{ item.clave_cnis }}</td>
+                            <td>{{ item.descripcion }}</td>
+                            <td>{{ item.unidad_medida }}</td>
+                            <td>{{ item.lote }}</td>
+                            <td>{{ item.fecha_caducidad }}</td>
+                            <td>{{ item.cantidad }}</td>
+                            <td>{{ item.importe|floatformat:2 }}</td>
+                            <td>{{ item.cifra_primer_conteo }}</td>
+                            <td>{{ item.cifra_segundo_conteo }}</td>
+                            <td>{{ item.cifra_tercer_conteo }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot>
+                        <tr>
+                            <th colspan="7" style="text-align:right">Totales:</th>
+                            <th>{{ total_cantidad }}</th>
+                            <th>{{ total_importe|floatformat:2 }}</th>
+                            <th>{{ total_primer_conteo }}</th>
+                            <th>{{ total_segundo_conteo }}</th>
+                            <th>{{ total_tercer_conteo }}</th>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+            <div class="row">
+                <div class="col-sm-12 col-md-5">
+                    <div class="dataTables_info" id="dataTable_info" role="status" aria-live="polite">
+                        Mostrando {{ page_obj.start_index }} a {{ page_obj.end_index }} de {{ total_registros }} registros
+                    </div>
+                </div>
+                <div class="col-sm-12 col-md-7">
+                    <div class="dataTables_paginate paging_simple_numbers" id="dataTable_paginate">
+                        <ul class="pagination">
+                            {% if page_obj.has_previous %}
+                                <li class="paginate_button page-item previous" id="dataTable_previous">
+                                    <a href="?page=1&almacen={{ filtro_almacen }}&fecha_desde={{ filtro_fecha_desde }}&fecha_hasta={{ filtro_fecha_hasta }}" aria-controls="dataTable" data-dt-idx="0" tabindex="0" class="page-link">Primero</a>
+                                </li>
+                                <li class="paginate_button page-item ">
+                                    <a href="?page={{ page_obj.previous_page_number }}&almacen={{ filtro_almacen }}&fecha_desde={{ filtro_fecha_desde }}&fecha_hasta={{ filtro_fecha_hasta }}" aria-controls="dataTable" data-dt-idx="1" tabindex="0" class="page-link">Anterior</a>
+                                </li>
+                            {% endif %}
+
+                            <li class="paginate_button page-item active">
+                                <a href="#" aria-controls="dataTable" data-dt-idx="2" tabindex="0" class="page-link">{{ page_obj.number }}</a>
+                            </li>
+
+                            {% if page_obj.has_next %}
+                                <li class="paginate_button page-item ">
+                                    <a href="?page={{ page_obj.next_page_number }}&almacen={{ filtro_almacen }}&fecha_desde={{ filtro_fecha_desde }}&fecha_hasta={{ filtro_fecha_hasta }}" aria-controls="dataTable" data-dt-idx="3" tabindex="0" class="page-link">Siguiente</a>
+                                </li>
+                                <li class="paginate_button page-item next" id="dataTable_next">
+                                    <a href="?page={{ page_obj.paginator.num_pages }}&almacen={{ filtro_almacen }}&fecha_desde={{ filtro_fecha_desde }}&fecha_hasta={{ filtro_fecha_hasta }}" aria-controls="dataTable" data-dt-idx="4" tabindex="0" class="page-link">Último</a>
+                                </li>
+                            {% endif %}
+                        </ul>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

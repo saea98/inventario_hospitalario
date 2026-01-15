@@ -52,3 +52,9 @@ urlpatterns = [
     path('reporte-conteo-almacen/', views_reporte_conteo_almacen.reporte_conteo_almacen, name='reporte_conteo_almacen'),
     path('reporte-conteo-almacen/exportar/', views_reporte_conteo_almacen.exportar_conteo_almacen_excel, name='exportar_conteo_almacen_excel'),
 ]
+
+from . import views_reporte_conteo_desagregado
+
+urlpatterns.append(
+    path("reporte-conteo-desagregado/", views_reporte_conteo_desagregado.reporte_conteo_desagregado, name="reporte_conteo_desagregado")
+)
