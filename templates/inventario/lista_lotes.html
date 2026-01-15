@@ -88,6 +88,11 @@
                 </div>
 
                 <div class="col-md-3">
+                    <label class="form-label">Partida</label>
+                    <input type="text" name="partida" class="form-control" placeholder="Ej: 1234" value="{{ filtro_partida }}">
+                </div>
+
+                <div class="col-md-3">
                     <label class="form-label">Caducidad</label>
                     <select name="caducidad" class="form-select">
                         <option value="">Todas las fechas</option>
@@ -125,6 +130,7 @@
         {% if filtro_caducidad == "menos_30" %}<span class="badge bg-warning">Menos de 30 días</span>{% endif %}
         {% if filtro_caducidad == "menos_60" %}<span class="badge bg-info">Menos de 60 días</span>{% endif %}
         {% if filtro_caducidad == "menos_90" %}<span class="badge bg-secondary">Menos de 90 días</span>{% endif %}
+        {% if filtro_partida %}<span class="badge bg-info">Partida: {{ filtro_partida }}</span>{% endif %}
     </div>
     {% endif %}
 

@@ -133,7 +133,8 @@ def lista_lotes(request):
     filtro_caducidad = request.GET.get('caducidad', '')
     busqueda_lote = request.GET.get('busqueda_lote', '')
     busqueda_cnis = request.GET.get('busqueda_cnis', '')
-    busqueda_producto = request.GET.get('busqueda_producto', '')
+    busqueda_producto = request.GET.get("busqueda_producto", "")
+    filtro_partida = request.GET.get("partida", "")
     
     # Aplicar filtros
     if filtro_estado:
@@ -166,6 +167,9 @@ def lista_lotes(request):
     
     if busqueda_producto:
         lotes = lotes.filter(producto__descripcion__icontains=busqueda_producto)
+
+    if filtro_partida:
+        lotes = lotes.filter(partida__icontains=filtro_partida)
     
     # Ordenar
     lotes = lotes.order_by('-fecha_recepcion')
@@ -215,6 +219,9 @@ def lista_lotes(request):
         {'value': 'tipo_entrega', 'label': 'Tipo de Entrega'},
         {'value': 'tipo_red', 'label': 'Tipo de Red'},
         {'value': 'epa', 'label': 'EPA'},
+        {'value': 'producto__clave_cnis', 'label': 'Clave CNIS'},
+        {'value': 'almacen__nombre', 'label': 'Almacén'},
+        {'value': 'ubicacion__codigo', 'label': 'Ubicación'},
     ]
     
     context = {
@@ -228,7 +235,8 @@ def lista_lotes(request):
         'filtro_caducidad': filtro_caducidad,
         'busqueda_lote': busqueda_lote,
         'busqueda_cnis': busqueda_cnis,
-        'busqueda_producto': busqueda_producto,
+        "busqueda_producto": busqueda_producto,
+        "filtro_partida": filtro_partida,
         'columnas_disponibles': columnas_disponibles,
     }
     
