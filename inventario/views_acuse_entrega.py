@@ -293,8 +293,8 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
             idx += 1
     
     table_page1 = Table(table_data_page1, colWidths=[
-        0.3*inch, 0.8*inch, 1.5*inch, 0.8*inch, 0.7*inch, 
-        0.8*inch, 0.8*inch, 0.8*inch, 0.8*inch, 0.6*inch, 0.8*inch
+        0.35*inch, 0.85*inch, 1.9*inch, 0.75*inch, 0.75*inch, 
+        0.85*inch, 0.85*inch, 0.85*inch, 0.85*inch, 0.75*inch, 1.5*inch
     ])
     
     table_page1.setStyle(TableStyle([
