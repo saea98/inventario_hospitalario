@@ -355,7 +355,7 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
             caducidad,
             'MEDICAMENTO',
             ubicacion,
-            str(item.cantidad_surtida),
+            str(item.cantidad_propuesta if item.cantidad_propuesta > 0 else item.cantidad_surtida),
             ''
         ])
     
