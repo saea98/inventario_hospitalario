@@ -18,7 +18,7 @@
                 </div>
                 <div class="col-md-6">
                     <p><strong>Estado:</strong> <span class="badge badge-{{ propuesta.get_estado_display|lower|slugify }}">{{ propuesta.get_estado_display }}</span></p>
-                    <p><strong>Total Solicitado:</strong> {{ propuesta.total_solicitado }}</p>
+                    <p><strong>Folio de Pedido:</strong> <code>{{ propuesta.solicitud.observaciones_solicitud|default:"N/A" }}</code></p>
                     <p><strong>Total Propuesto:</strong> {{ propuesta.total_propuesto }}</p>
                 </div>
             </div>
