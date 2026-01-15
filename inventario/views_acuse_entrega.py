@@ -366,8 +366,8 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
             idx += 1
     
     table = Table(table_data, colWidths=[
-        0.3*inch, 0.8*inch, 1.5*inch, 0.8*inch, 0.7*inch, 
-        0.8*inch, 0.8*inch, 0.8*inch, 0.8*inch, 0.6*inch, 0.8*inch
+        0.3*inch, 0.8*inch, 1.8*inch, 0.7*inch, 0.7*inch, 
+        0.8*inch, 0.8*inch, 0.8*inch, 0.8*inch, 0.7*inch, 1.2*inch
     ])
     
     table.setStyle(TableStyle([
