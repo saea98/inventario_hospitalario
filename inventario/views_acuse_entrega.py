@@ -12,6 +12,7 @@ from django.db.models import Q, Sum, F, Case, When, IntegerField
 from django.utils import timezone
 from datetime import datetime
 import textwrap
+import os
 
 from reportlab.lib.pagesizes import letter, landscape
 from reportlab.lib.styles import getSampleStyleSheet, ParagraphStyle
@@ -133,6 +134,56 @@ def detalle_propuesta_surtimiento(request, propuesta_id):
     return render(request, 'inventario/detalle_propuesta_surtimiento.html', context)
 
 
+def crear_header_compacto(folio, fecha, folio_pedido, styles):
+    """
+    Crea un header compacto para el PDF que se puede reutilizar en cada página
+    """
+    from django.conf import settings
+    
+    logo_path = os.path.join(settings.BASE_DIR, 'templates', 'inventario', 'images', 'logo_imss.jpg')
+    logo = Image(logo_path, width=1.5*inch, height=0.4*inch)
+    
+    # Título del sistema
+    title_style = ParagraphStyle(
+        'HeaderTitle',
+        parent=styles['Normal'],
+        fontSize=10,
+        textColor=colors.HexColor('#8B1538'),
+        alignment=1,
+        spaceAfter=2
+    )
+    title = Paragraph('Sistema de Abasto, Inventarios y Control de Almacenes', title_style)
+    
+    # Información de folio
+    info_style = ParagraphStyle(
+        'HeaderInfo',
+        parent=styles['Normal'],
+        fontSize=7,
+        textColor=colors.black,
+        alignment=2,
+        spaceAfter=0,
+        leading=8
+    )
+    
+    info_text = f'''#FOLIO: {folio}<br/>
+TRANSFERENCIA: prueba<br/>
+FOLIO DE PEDIDO: {folio_pedido}<br/>
+FECHA: {fecha}<br/>
+TIPO: TRANSFERENCIA (SURTIMIENTO)'''
+    
+    info = Paragraph(info_text, info_style)
+    
+    # Crear tabla con logo y título
+    header_table = Table([[logo, title, info]], colWidths=[1.8*inch, 5.2*inch, 3.0*inch])
+    header_table.setStyle(TableStyle([
+        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+        ('ALIGN', (1, 0), (1, 0), 'CENTER'),
+        ('ALIGN', (2, 0), (2, 0), 'RIGHT'),
+    ]))
+    
+    return header_table
+
+
 @login_required
 def generar_acuse_entrega_pdf(request, propuesta_id):
     """
@@ -146,60 +197,21 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
         pagesize=landscape(letter),
         rightMargin=0.5*inch,
         leftMargin=0.5*inch,
-        topMargin=1.2*inch,
+        topMargin=0.5*inch,
         bottomMargin=0.8*inch
     )
     
     elements = []
     styles = getSampleStyleSheet()
-
-    # ============ ENCABEZADO ============
-    import os
-    from django.conf import settings
-    logo_path = os.path.join(settings.BASE_DIR, 'templates', 'inventario', 'images', 'logo_imss.jpg')
-    logo = Image(logo_path, width=6.0*inch, height=0.8*inch)
-    logo.hAlign = 'LEFT'
-
-    header_style = ParagraphStyle(
-        'Header',
-        parent=styles['Heading1'],
-        fontSize=14,
-        textColor=colors.HexColor('#8B1538'),
-        alignment=2,
-        spaceBefore=10
-    )
-    header_text = Paragraph('Sistema de Abasto, Inventarios y Control de Almacenes', header_style)
-
-    header_table = Table([[logo, header_text]], colWidths=[3*inch, 7*inch])
-    header_table.setStyle(TableStyle([
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-    ]))
-    elements.append(header_table)
-    elements.append(Spacer(1, 0.2*inch))
-
-    # Información del folio
-    info_style = ParagraphStyle(
-        'Info',
-        parent=styles['Normal'],
-        fontSize=9,
-        textColor=colors.black,
-        alignment=2,
-        leading=12
-    )
     
+    # Datos para el header
     folio = propuesta.solicitud.folio
     fecha_actual = datetime.now().strftime("%d/%m/%Y")
-    
     folio_pedido = propuesta.solicitud.observaciones_solicitud or 'N/A'
-    info_text = f'''
-    <b>#FOLIO: {folio}</b><br/>
-    <b>TRANSFERENCIA:</b> prueba<br/>
-    <b>FOLIO DE PEDIDO:</b> {folio_pedido}<br/>
-    <b>FECHA: {fecha_actual}</b><br/>
-    <b>TIPO: TRANSFERENCIA (SURTIMIENTO)</b>
-    '''
-    info = Paragraph(info_text, info_style)
-    elements.append(info)
+    
+    # ============ ENCABEZADO PRIMERA PÁGINA ============
+    header_table = crear_header_compacto(folio, fecha_actual, folio_pedido, styles)
+    elements.append(header_table)
     elements.append(Spacer(1, 0.15*inch))
     
     # ============ ACUSE DE ENTREGA ============
@@ -215,11 +227,11 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
     title = Paragraph('ACUSE DE ENTREGA', title_style)
     title_table = Table([[title]], colWidths=[10*inch])
     title_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#1f77b4')),
+        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#8B1538')),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('TOPPADDING', (0, 0), (-1, -1), 8),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 8),
+        ('TOPPADDING', (0, 0), (-1, -1), 6),
+        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
     ]))
     elements.append(title_table)
     elements.append(Spacer(1, 0.1*inch))
@@ -272,7 +284,7 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
     ])
     
     table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1f77b4')),
+        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#8B1538')),
         ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
         ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
         ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
@@ -286,31 +298,52 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
     
     elements.append(table)
     
-    # Función para agregar header solo en páginas siguientes
-    def header_later_pages(canvas, doc):
+    # Función para agregar header en páginas siguientes
+    def header_pages(canvas, doc):
         canvas.saveState()
         
-        # Agregar logo en páginas siguientes
-        logo_path = os.path.join(settings.BASE_DIR, 'templates', 'inventario', 'images', 'logo_imss.jpg')
-        canvas.drawImage(logo_path, 0.5*inch, doc.height + 0.4*inch, width=6.0*inch, height=0.8*inch)
+        if doc.page > 1:
+            # Agregar header compacto en páginas siguientes
+            from django.conf import settings
+            logo_path = os.path.join(settings.BASE_DIR, 'templates', 'inventario', 'images', 'logo_imss.jpg')
+            
+            # Dibujar logo
+            canvas.drawImage(logo_path, 0.5*inch, doc.height + 0.25*inch, width=1.5*inch, height=0.4*inch)
+            
+            # Dibujar título
+            canvas.setFont('Helvetica-Bold', 10)
+            canvas.setFillColor(colors.HexColor('#8B1538'))
+            title_text = 'Sistema de Abasto, Inventarios y Control de Almacenes'
+            canvas.drawCentredString(5.5*inch, doc.height + 0.25*inch, title_text)
+            
+            # Dibujar información de folio
+            canvas.setFont('Helvetica', 7)
+            canvas.setFillColor(colors.black)
+            info_lines = [
+                f'#FOLIO: {folio}',
+                f'TRANSFERENCIA: prueba',
+                f'FOLIO DE PEDIDO: {folio_pedido}',
+                f'FECHA: {fecha_actual}',
+                f'TIPO: TRANSFERENCIA (SURTIMIENTO)'
+            ]
+            
+            y_pos = doc.height + 0.25*inch
+            for line in info_lines:
+                canvas.drawRightString(doc.width + 0.5*inch, y_pos, line)
+                y_pos -= 0.08*inch
+            
+            # Línea divisoria
+            canvas.setLineWidth(0.5)
+            canvas.line(0.5*inch, doc.height + 0.05*inch, doc.width + 0.5*inch, doc.height + 0.05*inch)
         
-        # Agregar información de folio
+        # Número de página
         canvas.setFont('Helvetica', 8)
-        info_line = f"#FOLIO: {folio} | TRANSFERENCIA: prueba | FOLIO DE PEDIDO: {folio_pedido} | FECHA: {fecha_actual} | TIPO: TRANSFERENCIA (SURTIMIENTO)"
-        canvas.drawString(0.5*inch, doc.height + 0.15*inch, info_line)
-        
-        # Agregar linea divisoria
-        canvas.setLineWidth(0.5)
-        canvas.line(0.5*inch, doc.height, doc.width + 0.5*inch, doc.height)
-        
-        # Agregar numero de pagina
-        canvas.setFont('Helvetica', 8)
-        canvas.drawString(doc.width + 0.2*inch, 0.5 * inch, f"Página {doc.page}")
+        canvas.drawString(doc.width + 0.2*inch, 0.5 * inch, f'Página {doc.page}')
         
         canvas.restoreState()
 
     # Generar PDF
-    doc.build(elements, onFirstPage=lambda c, d: None, onLaterPages=header_later_pages)
+    doc.build(elements, onFirstPage=lambda c, d: None, onLaterPages=header_pages)
     buffer.seek(0)
     
     response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
