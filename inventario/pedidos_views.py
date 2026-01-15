@@ -74,7 +74,21 @@ def crear_solicitud(request):
                 csv_file = request.FILES['csv_file']
                 try:
                     items_data = []
-                    decoded_file = csv_file.read().decode('utf-8-sig')
+                    # Intentar decodificar con múltiples codificaciones
+                    decoded_file = None
+                    codificaciones = ['utf-8-sig', 'utf-8', 'latin-1', 'cp1252', 'iso-8859-1']
+                    contenido_bytes = csv_file.read()
+                    
+                    for codificacion in codificaciones:
+                        try:
+                            decoded_file = contenido_bytes.decode(codificacion)
+                            break
+                        except (UnicodeDecodeError, AttributeError):
+                            continue
+                    
+                    if decoded_file is None:
+                        raise ValueError('No se pudo decodificar el archivo con ninguna codificación soportada')
+                    
                     io_string = io.StringIO(decoded_file)
                     reader = csv.DictReader(io_string)
                     
