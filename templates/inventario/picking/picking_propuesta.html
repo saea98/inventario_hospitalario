@@ -254,6 +254,7 @@
         </div>
         <div class="info">
             <p><strong>Propuesta:</strong> {{ propuesta.solicitud.folio }}</p>
+            <p><strong>Folio de Pedido:</strong> <code>{{ propuesta.solicitud.observaciones_solicitud|default:"N/A" }}</code></p>
             <p><strong>Total Items:</strong> <span id="total-items">{{ total_items }}</span></p>
         </div>
     </div>
