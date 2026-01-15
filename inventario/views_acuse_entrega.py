@@ -416,11 +416,9 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
             y_pos = doc.height + 1.35*inch
             for line in info_lines:
                 canvas.drawRightString(doc.width + 0.5*inch, y_pos, line)
-                y_pos -= 0.08*inch
+                y_pos -= 0.12*inch
             
-            # Línea divisoria
-            canvas.setLineWidth(0.5)
-            canvas.line(0.5*inch, doc.height + 1.15*inch, doc.width + 0.5*inch, doc.height + 1.15*inch)
+            # Línea divisoria (removida)
         
         # Número de página
         canvas.setFont('Helvetica', 8)
