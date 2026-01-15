@@ -197,7 +197,7 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
         pagesize=landscape(letter),
         rightMargin=0.5*inch,
         leftMargin=0.5*inch,
-        topMargin=0.5*inch,
+        topMargin=1.2*inch,
         bottomMargin=0.8*inch
     )
     
@@ -333,7 +333,7 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
         ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
     ]))
     elements.append(title_table)
-    elements.append(Spacer(1, 0.6*inch))
+    elements.append(Spacer(1, 0.1*inch))
     
     # ============ TABLA DE ITEMS (PÁGINAS POSTERIORES) ============
     table_data = [
@@ -394,13 +394,13 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
             logo_path = os.path.join(settings.BASE_DIR, 'templates', 'inventario', 'images', 'logo_imss.jpg')
             
             # Dibujar logo
-            canvas.drawImage(logo_path, 0.5*inch, doc.height + 0.25*inch, width=1.5*inch, height=0.4*inch)
+            canvas.drawImage(logo_path, 0.5*inch, doc.height + 0.75*inch, width=1.5*inch, height=0.4*inch)
             
             # Dibujar título
             canvas.setFont('Helvetica-Bold', 10)
             canvas.setFillColor(colors.HexColor('#8B1538'))
             title_text = 'Sistema de Abasto, Inventarios y Control de Almacenes'
-            canvas.drawCentredString(5.5*inch, doc.height + 0.25*inch, title_text)
+            canvas.drawCentredString(5.5*inch, doc.height + 0.75*inch, title_text)
             
             # Dibujar información de folio
             canvas.setFont('Helvetica', 7)
@@ -413,14 +413,14 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
                 f'TIPO: TRANSFERENCIA (SURTIMIENTO)'
             ]
             
-            y_pos = doc.height + 0.25*inch
+            y_pos = doc.height + 0.75*inch
             for line in info_lines:
                 canvas.drawRightString(doc.width + 0.5*inch, y_pos, line)
                 y_pos -= 0.08*inch
             
             # Línea divisoria
             canvas.setLineWidth(0.5)
-            canvas.line(0.5*inch, doc.height + 0.05*inch, doc.width + 0.5*inch, doc.height + 0.05*inch)
+            canvas.line(0.5*inch, doc.height + 0.55*inch, doc.width + 0.5*inch, doc.height + 0.55*inch)
         
         # Número de página
         canvas.setFont('Helvetica', 8)
