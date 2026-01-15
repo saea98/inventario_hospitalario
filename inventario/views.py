@@ -1937,11 +1937,15 @@ def editar_ubicaciones_lote(request, pk):
                     messages.error(request, "❌ Error al agregar la ubicación.")
             
             # Eliminar ubicaciones marcadas
+            from .pedidos_models import LoteAsignado
             eliminar_ids = request.POST.getlist('eliminar_ubicacion')
             for ubicacion_id in eliminar_ids:
                 try:
                     ubicacion = LoteUbicacion.objects.get(id=ubicacion_id, lote=lote)
                     cantidad_eliminada = ubicacion.cantidad
+                    
+                    # Eliminar registros relacionados en LoteAsignado
+                    LoteAsignado.objects.filter(lote_ubicacion=ubicacion).delete()
                     
                     # Registrar movimiento de eliminación
                     MovimientoInventario.objects.create(
