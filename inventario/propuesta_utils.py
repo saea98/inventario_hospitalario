@@ -100,8 +100,8 @@ def cancelar_propuesta(propuesta_id, usuario=None):
             LogPropuesta.objects.create(
                 propuesta=propuesta,
                 usuario=usuario,
-                accion=\"PROPUESTA CANCELADA\",
-                detalles=f\"La propuesta fue cancelada por {usuario.username}. Las cantidades han sido liberadas y la solicitud ha vuelto al estado VALIDADA.\"
+                accion="PROPUESTA CANCELADA",
+                detalles=f"La propuesta fue cancelada por {usuario.username}. Las cantidades han sido liberadas y la solicitud ha vuelto al estado VALIDADA."
             )
         
         return {
