@@ -295,3 +295,48 @@ def eliminar_registro_no_afectado(request, lote_id, ubicacion_id=None):
     
     # Redirigir al reporte
     return redirect('reporte_no_afectados')
+
+
+@login_required
+def reporte_no_afectados_bulk_delete(request):
+    """
+    Elimina masivamente registros no afectados (Lote o LoteUbicacion).
+    """
+    from django.shortcuts import redirect
+    from django.contrib import messages
+
+    if request.method == 'POST':
+        selected_ids = request.POST.get('selected_ids', '')
+        if not selected_ids:
+            messages.warning(request, "No se seleccionó ningún registro para eliminar.")
+            return redirect('reporte_no_afectados')
+
+        deleted_count = 0
+        error_count = 0
+        
+        ids_list = selected_ids.split(',')
+        
+        for item_id in ids_list:
+            try:
+                lote_id_str, ubicacion_id_str = item_id.split('_')
+                lote_id = int(lote_id_str)
+                
+                if ubicacion_id_str and ubicacion_id_str != 'None':
+                    ubicacion_id = int(ubicacion_id_str)
+                    LoteUbicacion.objects.filter(id=ubicacion_id, lote_id=lote_id).delete()
+                else:
+                    # Si no hay ubicacion_id, se elimina el lote completo si no tiene ubicaciones
+                    if not LoteUbicacion.objects.filter(lote_id=lote_id).exists():
+                        Lote.objects.filter(id=lote_id).delete()
+                
+                deleted_count += 1
+            except Exception as e:
+                error_count += 1
+                messages.error(request, f"Error al procesar el registro {item_id}: {str(e)}")
+
+        if deleted_count > 0:
+            messages.success(request, f"{deleted_count} registros eliminados correctamente.")
+        if error_count > 0:
+            messages.warning(request, f"No se pudieron eliminar {error_count} registros.")
+
+    return redirect('reporte_no_afectados')

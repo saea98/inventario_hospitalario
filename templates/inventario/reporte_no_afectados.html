@@ -10,6 +10,43 @@
 {% block content %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    const selectAll = document.getElementById('selectAll');
+    const rowCheckboxes = document.querySelectorAll('.row-checkbox');
+    const bulkDeleteBtn = document.getElementById('bulkDeleteBtn');
+    const selectedCount = document.getElementById('selectedCount');
+    const selectedIdsInput = document.getElementById('selectedIds');
+    const bulkDeleteForm = document.getElementById('bulkDeleteForm');
+
+    function toggleBulkDeleteBtn() {
+        const anyChecked = Array.from(rowCheckboxes).some(cb => cb.checked);
+        bulkDeleteBtn.disabled = !anyChecked;
+    }
+
+    selectAll.addEventListener('change', function() {
+        rowCheckboxes.forEach(checkbox => {
+            checkbox.checked = this.checked;
+        });
+        toggleBulkDeleteBtn();
+    });
+
+    rowCheckboxes.forEach(checkbox => {
+        checkbox.addEventListener('change', function() {
+            if (!this.checked) {
+                selectAll.checked = false;
+            }
+            toggleBulkDeleteBtn();
+        });
+    });
+
+    bulkDeleteBtn.addEventListener('click', function() {
+        const selectedItems = Array.from(rowCheckboxes)
+            .filter(cb => cb.checked)
+            .map(cb => cb.value);
+        
+        selectedCount.textContent = selectedItems.length;
+        selectedIdsInput.value = selectedItems.join(',');
+    });
+
     const deleteButtons = document.querySelectorAll('.delete-btn');
     deleteButtons.forEach(button => {
         button.addEventListener('click', function() {
@@ -101,6 +138,10 @@ document.addEventListener('DOMContentLoaded', function() {
                class="btn btn-success btn-sm">
                 <i class="fas fa-file-excel me-2"></i>Exportar a Excel
             </a>
+            <button type="button" class="btn btn-danger btn-sm" id="bulkDeleteBtn" data-bs-toggle="modal" data-bs-target="#confirmBulkDeleteModal" disabled>
+                <i class="fas fa-trash-alt me-2"></i>Eliminar Seleccionados
+            </button>
+            </a>
         </div>
         
         <div class="table-responsive">
@@ -115,6 +156,7 @@ document.addEventListener('DOMContentLoaded', function() {
                         <th>UBICACIÓN</th>
                         <th>CANTIDAD</th>
                         <th>FECHA ASIGNACIÓN</th>
+                        <th><input type="checkbox" id="selectAll"></th>
                         <th>ACCIONES</th>
                     </tr>
                 </thead>
@@ -153,6 +195,8 @@ document.addEventListener('DOMContentLoaded', function() {
                         <td>
                             <small class="text-muted">{{ registro.fecha_asignacion }}</small>
                         </td>
+                        <td>
+                            <td><input type="checkbox" class="row-checkbox" name="selected_items" value="{{ registro.lote_id }}_{{ registro.ubicacion_id|default:'' }}"></td>
                         <td>
                             <button class="btn btn-danger btn-sm delete-btn" data-bs-toggle="modal" data-bs-target="#confirmDeleteModal" data-lote-id="{{ registro.lote_id }}" data-ubicacion-id="{{ registro.ubicacion_id|default:'' }}">
                                 <i class="fas fa-trash me-1"></i>Eliminar
@@ -235,6 +279,32 @@ document.addEventListener('DOMContentLoaded', function() {
 
     <!-- Modal de confirmación de eliminación -->
     <div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header bg-danger text-white">
+                <h5 class="modal-title" id="confirmBulkDeleteLabel">
+                    <i class="fas fa-exclamation-triangle me-2"></i>Confirmar Eliminación Masiva
+                </h5>
+                <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <p>¿Está seguro de que desea eliminar los <strong id="selectedCount"></strong> registros seleccionados?</p>
+                <p class="text-muted"><small>Esta acción no se puede deshacer.</small></p>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                <form id="bulkDeleteForm" method="post" action="{% url 'reporte_no_afectados_bulk_delete' %}" style="display: inline;">
+                    {% csrf_token %}
+                    <input type="hidden" name="selected_ids" id="selectedIds">
+                    <button type="submit" class="btn btn-danger">Eliminar Seleccionados</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal de confirmación de eliminación individual -->
+<div class="modal fade" id="confirmDeleteModal" tabindex="-1" aria-labelledby="confirmDeleteLabel" aria-hidden="true">
     <div class="modal-dialog">
         <div class="modal-content">
             <div class="modal-header bg-danger text-white">

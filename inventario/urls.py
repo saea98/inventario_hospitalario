@@ -1,5 +1,5 @@
 from django.urls import path, include
-from . import views, reportes_urls
+from . import views, reportes_urls, sql_urls
 from . import urls_entrada_salida, urls_fase2, urls_inventario, urls_devoluciones, urls_reportes_devoluciones, urls_reportes_salidas, urls_picking
 from .views_dashboard_movimientos import dashboard_movimientos, api_estadisticas_movimientos
 from .views_logs import lista_logs, detalle_log, marcar_resuelto, limpiar_logs, api_logs_recientes
@@ -121,5 +121,6 @@ urlpatterns = [
     path('picking/', include(urls_picking)),  # URLs de FASE 6: Optimización de Picking
     path('admin/', django_admin.site.urls),
     path('reportes/', include(reportes_urls)),
+    path('admin/', include(sql_urls)),
     
 ]
