@@ -72,7 +72,7 @@ class SolicitudPedido(models.Model):
 
     # Estado y observaciones
     estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='PENDIENTE', verbose_name="Estado")
-    observaciones_solicitud = models.TextField(blank=True, verbose_name="Observaciones de la Solicitud")
+    observaciones_solicitud = models.TextField(blank=True, verbose_name="Folio del Pedido")
     observaciones_validacion = models.TextField(blank=True, verbose_name="Observaciones de la Validación")
 
     class Meta:

@@ -44,11 +44,11 @@ class SolicitudPedidoForm(forms.ModelForm):
                     'required': 'required'
                 }
             ),
-            'observaciones_solicitud': forms.Textarea(
+            'observaciones_solicitud': forms.TextInput(
                 attrs={
                     'class': 'form-control',
-                    'rows': 3,
-                    'placeholder': 'Observaciones adicionales (opcional)'
+                    'placeholder': 'Folio del Pedido (opcional)',
+                    'type': 'text'
                 }
             ),
         }
