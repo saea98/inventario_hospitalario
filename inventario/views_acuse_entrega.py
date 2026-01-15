@@ -201,7 +201,7 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
     import os
     from django.conf import settings
     logo_path = os.path.join(settings.BASE_DIR, 'templates', 'inventario', 'images', 'logo_acuse.png')
-    logo = Image(logo_path, width=5.5*inch, height=1.0*inch)
+    logo = Image(logo_path, width=4.85*inch, height=1.0*inch)
     logo.hAlign = 'LEFT'
 
     header_style = ParagraphStyle(
@@ -212,7 +212,7 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
         alignment=2,
         spaceBefore=10
     )
-    header_text = Paragraph('SAICA<br/>Sistema de Abasto, Inventarios y Control de Almacenes', header_style)
+    header_text = Paragraph('Sistema de Abasto, Inventarios y Control de Almacenes', header_style)
 
     header_table = Table([[logo, header_text]], colWidths=[3*inch, 7*inch])
     header_table.setStyle(TableStyle([
