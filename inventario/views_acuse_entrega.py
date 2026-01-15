@@ -234,9 +234,11 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
     folio = propuesta.solicitud.folio
     fecha_actual = datetime.now().strftime("%d/%m/%Y")
     
+    folio_pedido = propuesta.solicitud.observaciones_solicitud or 'N/A'
     info_text = f'''
     <b>#FOLIO: {folio}</b><br/>
     <b>TRANSFERENCIA:</b> prueba<br/>
+    <b>FOLIO DE PEDIDO:</b> {folio_pedido}<br/>
     <b>FECHA: {fecha_actual}</b><br/>
     <b>TIPO: TRANSFERENCIA (SURTIMIENTO)</b>
     '''
