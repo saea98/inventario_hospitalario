@@ -210,7 +210,7 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
     folio = propuesta.solicitud.folio
     fecha_actual = datetime.now().strftime("%d/%m/%Y")
     folio_pedido = propuesta.solicitud.observaciones_solicitud or 'N/A'
-    institucion = propuesta.solicitud.institucion_solicitante.nombre if propuesta.solicitud.institucion_solicitante else 'N/A'
+    institucion = propuesta.solicitud.institucion_solicitante.denominacion if propuesta.solicitud.institucion_solicitante else 'N/A'
     
     # ============ ENCABEZADO PRIMERA PÁGINA ============
     header_table = crear_header_compacto(folio, fecha_actual, folio_pedido, institucion, styles)
