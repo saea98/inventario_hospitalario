@@ -74,8 +74,8 @@ def generar_acuse_excel(propuesta):
     
     info_text = f'FOLIO: {folio} | FECHA: {fecha_actual} | FOLIO DE PEDIDO: {folio_pedido} | INSTITUCIÓN: {institucion}'
     ws['A3'].value = info_text
-    ws['A3'].font = Font(name='Calibri', size=10, bold=True)
-    ws['A3'].alignment = Alignment(horizontal='center', vertical='center')
+    ws['A3'].font = Font(name='Calibri', size=9, bold=True)
+    ws['A3'].alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
     
     # Fila 4: Espaciador
     ws.row_dimensions[4].height = 5

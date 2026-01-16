@@ -159,7 +159,7 @@ def crear_header_compacto(folio, fecha, folio_pedido, institucion, styles):
     info_style = ParagraphStyle(
         'HeaderInfo',
         parent=styles['Normal'],
-        fontSize=7,
+        fontSize=6,
         textColor=colors.black,
         alignment=2,
         spaceAfter=0,
