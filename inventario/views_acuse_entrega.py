@@ -135,7 +135,7 @@ def detalle_propuesta_surtimiento(request, propuesta_id):
     return render(request, 'inventario/detalle_propuesta_surtimiento.html', context)
 
 
-def crear_header_compacto(folio, fecha, folio_pedido, styles):
+def crear_header_compacto(folio, fecha, folio_pedido, institucion, styles):
     """
     Crea un header compacto para el PDF que se puede reutilizar en cada página
     """
@@ -169,6 +169,7 @@ def crear_header_compacto(folio, fecha, folio_pedido, styles):
     info_text = f'''#FOLIO: {folio}<br/>
 TRANSFERENCIA: prueba<br/>
 FOLIO DE PEDIDO: {folio_pedido}<br/>
+INSTITUCIÓN: {institucion}<br/>
 FECHA: {fecha}<br/>
 TIPO: TRANSFERENCIA (SURTIMIENTO)'''
     
@@ -209,9 +210,10 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
     folio = propuesta.solicitud.folio
     fecha_actual = datetime.now().strftime("%d/%m/%Y")
     folio_pedido = propuesta.solicitud.observaciones_solicitud or 'N/A'
+    institucion = propuesta.solicitud.institucion_solicitante.nombre if propuesta.solicitud.institucion_solicitante else 'N/A'
     
     # ============ ENCABEZADO PRIMERA PÁGINA ============
-    header_table = crear_header_compacto(folio, fecha_actual, folio_pedido, styles)
+    header_table = crear_header_compacto(folio, fecha_actual, folio_pedido, institucion, styles)
     elements.append(header_table)
     elements.append(Spacer(1, 0.15*inch))
     

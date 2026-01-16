@@ -70,8 +70,9 @@ def generar_acuse_excel(propuesta):
     folio = propuesta.solicitud.folio
     fecha_actual = datetime.now().strftime("%d/%m/%Y")
     folio_pedido = propuesta.solicitud.observaciones_solicitud or 'N/A'
+    institucion = propuesta.solicitud.institucion_solicitante.nombre if propuesta.solicitud.institucion_solicitante else 'N/A'
     
-    info_text = f'FOLIO: {folio} | FECHA: {fecha_actual} | FOLIO DE PEDIDO: {folio_pedido}'
+    info_text = f'FOLIO: {folio} | FECHA: {fecha_actual} | FOLIO DE PEDIDO: {folio_pedido} | INSTITUCIÓN: {institucion}'
     ws['A3'].value = info_text
     ws['A3'].font = Font(name='Calibri', size=10, bold=True)
     ws['A3'].alignment = Alignment(horizontal='center', vertical='center')
