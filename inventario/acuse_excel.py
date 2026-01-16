@@ -27,6 +27,20 @@ def copiar_estilo_celda(celda_origen, celda_destino):
         celda_destino.alignment = copy(celda_origen.alignment)
 
 
+def agregar_bordes_celda(celda):
+    """
+    Agrega bordes a una celda
+    """
+    from openpyxl.styles import Side
+    thin_border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+    celda.border = thin_border
+
+
 def generar_acuse_excel(propuesta):
     """
     Genera un archivo Excel con el acuse de entrega usando un template como base
@@ -132,6 +146,8 @@ def generar_acuse_excel(propuesta):
             celda_referencia = ws.cell(row=fila_referencia, column=col)
             celda_destino = ws.cell(row=row_num, column=col)
             copiar_estilo_celda(celda_referencia, celda_destino)
+            # Agregar bordes
+            agregar_bordes_celda(celda_destino)
         
         row_num += 1
     
