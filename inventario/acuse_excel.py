@@ -3,12 +3,28 @@ Módulo para generar Acuse de Entrega en Excel usando template
 """
 
 from openpyxl import load_workbook
-from openpyxl.utils import get_column_letter
+from openpyxl.styles import Font, Border, PatternFill, Alignment, numbers
+from copy import copy
 from datetime import datetime
 import os
 from django.conf import settings
 from io import BytesIO
-import shutil
+
+
+def copiar_estilo_celda(celda_origen, celda_destino):
+    """
+    Copia el estilo de una celda a otra de forma segura
+    """
+    if celda_origen.font:
+        celda_destino.font = copy(celda_origen.font)
+    if celda_origen.border:
+        celda_destino.border = copy(celda_origen.border)
+    if celda_origen.fill:
+        celda_destino.fill = copy(celda_origen.fill)
+    if celda_origen.number_format:
+        celda_destino.number_format = copy(celda_origen.number_format)
+    if celda_origen.alignment:
+        celda_destino.alignment = copy(celda_origen.alignment)
 
 
 def generar_acuse_excel(propuesta):
@@ -56,22 +72,10 @@ def generar_acuse_excel(propuesta):
     
     # ============ ACTUALIZAR TABLA DE ITEMS ============
     
-    # Comenzar en fila 18 (después de los encabezados en fila 17)
-    row_num = 18
+    # Recolectar todos los items primero
+    items_data = []
     idx = 1
     
-    # Limpiar filas existentes primero (si las hay)
-    # Buscar cuántas filas tienen datos en el template
-    max_row_in_template = 18
-    for row in range(18, ws.max_row + 1):
-        if ws.cell(row=row, column=1).value is not None:
-            max_row_in_template = row
-    
-    # Eliminar filas de datos del template (mantener encabezados)
-    if max_row_in_template > 18:
-        ws.delete_rows(18, max_row_in_template - 17)
-    
-    # Agregar items
     for item in propuesta.items.all():
         lotes_asignados = item.lotes_asignados.all()
         
@@ -84,50 +88,52 @@ def generar_acuse_excel(propuesta):
             descripcion = item.producto.descripcion
             cantidad = item.cantidad_propuesta if item.cantidad_propuesta > 0 else item.cantidad_surtida
             
-            # Agregar fila con datos
-            ws.cell(row=row_num, column=1).value = idx
-            ws.cell(row=row_num, column=2).value = item.producto.clave_cnis
-            ws.cell(row=row_num, column=3).value = descripcion
-            ws.cell(row=row_num, column=4).value = item.producto.unidad_medida
-            ws.cell(row=row_num, column=5).value = 'ORDINARIO'
-            ws.cell(row=row_num, column=6).value = lote_info
-            ws.cell(row=row_num, column=7).value = caducidad
-            ws.cell(row=row_num, column=8).value = 'MEDICAMENTO'
-            ws.cell(row=row_num, column=9).value = ubicacion
-            ws.cell(row=row_num, column=10).value = cantidad
-            ws.cell(row=row_num, column=11).value = ''
-            
-            # Copiar estilos de la fila anterior (fila 18 del template)
-            if row_num == 18:
-                # Primera fila de datos, copiar estilos de la fila 18 del template
-                for col in range(1, 12):
-                    source_cell = ws.cell(row=18, column=col)
-                    target_cell = ws.cell(row=row_num, column=col)
-                    
-                    # Copiar estilos
-                    if source_cell.has_style:
-                        target_cell.font = source_cell.font.copy()
-                        target_cell.border = source_cell.border.copy()
-                        target_cell.fill = source_cell.fill.copy()
-                        target_cell.number_format = source_cell.number_format
-                        target_cell.protection = source_cell.protection
-                        target_cell.alignment = source_cell.alignment.copy()
-            else:
-                # Copiar estilos de la fila anterior
-                for col in range(1, 12):
-                    source_cell = ws.cell(row=row_num - 1, column=col)
-                    target_cell = ws.cell(row=row_num, column=col)
-                    
-                    if source_cell.has_style:
-                        target_cell.font = source_cell.font.copy()
-                        target_cell.border = source_cell.border.copy()
-                        target_cell.fill = source_cell.fill.copy()
-                        target_cell.number_format = source_cell.number_format
-                        target_cell.protection = source_cell.protection
-                        target_cell.alignment = source_cell.alignment.copy()
-            
-            row_num += 1
+            items_data.append({
+                'idx': idx,
+                'clave': item.producto.clave_cnis,
+                'descripcion': descripcion,
+                'um': item.producto.unidad_medida,
+                'tipo': 'ORDINARIO',
+                'lote': lote_info,
+                'caducidad': caducidad,
+                'clasificacion': 'MEDICAMENTO',
+                'ubicacion': ubicacion,
+                'cantidad': cantidad,
+                'folio_pedido': ''
+            })
             idx += 1
+    
+    # Eliminar filas de datos del template (mantener encabezados)
+    # El template tiene datos de ejemplo en filas 18 en adelante
+    # Vamos a eliminar todas las filas después de la 17 (encabezados)
+    while ws.max_row > 17:
+        ws.delete_rows(18, 1)
+    
+    # Agregar las filas de datos
+    row_num = 18
+    for item_data in items_data:
+        # Agregar fila con datos
+        ws.cell(row=row_num, column=1).value = item_data['idx']
+        ws.cell(row=row_num, column=2).value = item_data['clave']
+        ws.cell(row=row_num, column=3).value = item_data['descripcion']
+        ws.cell(row=row_num, column=4).value = item_data['um']
+        ws.cell(row=row_num, column=5).value = item_data['tipo']
+        ws.cell(row=row_num, column=6).value = item_data['lote']
+        ws.cell(row=row_num, column=7).value = item_data['caducidad']
+        ws.cell(row=row_num, column=8).value = item_data['clasificacion']
+        ws.cell(row=row_num, column=9).value = item_data['ubicacion']
+        ws.cell(row=row_num, column=10).value = item_data['cantidad']
+        ws.cell(row=row_num, column=11).value = item_data['folio_pedido']
+        
+        # Copiar estilos de la fila 18 del template (primera fila de datos)
+        fila_referencia = 18 if row_num == 18 else row_num - 1
+        
+        for col in range(1, 12):
+            celda_referencia = ws.cell(row=fila_referencia, column=col)
+            celda_destino = ws.cell(row=row_num, column=col)
+            copiar_estilo_celda(celda_referencia, celda_destino)
+        
+        row_num += 1
     
     # Guardar en buffer
     buffer = BytesIO()
