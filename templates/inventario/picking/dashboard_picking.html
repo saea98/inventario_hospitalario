@@ -88,15 +88,10 @@
                                     <strong>Área:</strong> {{ item.propuesta.solicitud.area.nombre }}
                                 </p>
                                 <p class="mb-2">
-                                    <strong>Almacén:</strong> {{ item.propuesta.almacen.nombre }}
+                                    <strong>Folio de Pedido:</strong> {{ item.propuesta.solicitud.observaciones_solicitud }}
                                 </p>
                                 <p class="mb-2">
-                                    <strong>Estado:</strong>
-                                    {% if item.propuesta.estado == 'REVISADA' %}
-                                        <span class="badge bg-info">Revisada</span>
-                                    {% elif item.propuesta.estado == 'EN_SURTIMIENTO' %}
-                                        <span class="badge bg-warning">En Surtimiento</span>
-                                    {% endif %}
+                                    <strong>Institución Solicitante:</strong> {{ item.propuesta.solicitud.institucion_solicitante.denominacion }}
                                 </p>
                             </div>
 
