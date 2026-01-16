@@ -151,6 +151,21 @@ def generar_acuse_excel(propuesta):
         
         row_num += 1
     
+    # ============ ACTUALIZAR ENCABEZADOS DE TABLA DE DETALLE ============
+    
+    # Cambiar color de texto a blanco en fila 17 (encabezados de tabla de detalle)
+    for col in range(1, 12):
+        celda = ws.cell(row=17, column=col)
+        if celda.font:
+            celda.font = Font(
+                name=celda.font.name or 'Calibri',
+                size=celda.font.size or 8,
+                bold=celda.font.bold or False,
+                color='FFFFFF'
+            )
+        else:
+            celda.font = Font(name='Calibri', size=8, bold=True, color='FFFFFF')
+    
     # Guardar en buffer
     buffer = BytesIO()
     wb.save(buffer)
