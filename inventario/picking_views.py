@@ -12,11 +12,13 @@ from django.views.decorators.http import require_http_methods
 from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from django.template.loader import get_template
+from django.conf import settings
 from datetime import datetime
 from xhtml2pdf import pisa
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from io import BytesIO
+import os
 
 from .pedidos_models import PropuestaPedido, ItemPropuesta, LoteAsignado
 from .models import Lote, UbicacionAlmacen, Almacen
@@ -109,6 +111,7 @@ def picking_propuesta(request, propuesta_id):
         for lote_asignado in item.lotes_asignados.filter(surtido=False):
             lote_ubicacion = lote_asignado.lote_ubicacion
             lote = lote_ubicacion.lote
+            caducidad = lote.fecha_caducidad.strftime('%d/%m/%Y') if lote.fecha_caducidad else 'N/A'
             items_picking.append({
                 'item_id': item.id,
                 'lote_asignado_id': lote_asignado.id,
@@ -120,6 +123,7 @@ def picking_propuesta(request, propuesta_id):
                 'ubicacion': lote_ubicacion.ubicacion.codigo,
                 'ubicacion_id': lote_ubicacion.ubicacion_id,
                 'clave_cnis': lote.producto.clave_cnis,
+                'caducidad': caducidad,
             })
     
     # Ordenar según parámetro
@@ -242,6 +246,7 @@ def imprimir_hoja_surtido(request, propuesta_id):
         for lote_asignado in item.lotes_asignados.filter(surtido=False):
             lote_ubicacion = lote_asignado.lote_ubicacion
             lote = lote_ubicacion.lote
+            caducidad = lote.fecha_caducidad.strftime('%d/%m/%Y') if lote.fecha_caducidad else 'N/A'
             items_picking.append({
                 'item_id': item.id,
                 'lote_asignado_id': lote_asignado.id,
@@ -253,17 +258,23 @@ def imprimir_hoja_surtido(request, propuesta_id):
                 'ubicacion': lote_ubicacion.ubicacion.codigo,
                 'ubicacion_id': lote_ubicacion.ubicacion_id,
                 'clave_cnis': lote.producto.clave_cnis,
+                'caducidad': caducidad,
             })
     
     # Ordenar por ubicación
     items_picking.sort(key=lambda x: (x['almacen_id'], x['ubicacion_id']))
     
     template_path = 'inventario/picking/picking_pdf.html'
+    # Obtener URL del logo
+    logo_path = os.path.join(settings.BASE_DIR, 'templates', 'inventario', 'images', 'logo_imss.jpg')
+    logo_url = f'file://{logo_path}' if os.path.exists(logo_path) else None
+    
     context = {
         'propuesta': propuesta,
         'items_picking': items_picking,
         'total_items': len(items_picking),
-        'fecha': datetime.now().strftime('%d/%m/%Y %H:%M')
+        'fecha': datetime.now().strftime('%d/%m/%Y %H:%M'),
+        'logo_url': logo_url
     }
 
     response = HttpResponse(content_type='application/pdf')
@@ -298,6 +309,7 @@ def exportar_picking_excel(request, propuesta_id):
         for lote_asignado in item.lotes_asignados.filter(surtido=False):
             lote_ubicacion = lote_asignado.lote_ubicacion
             lote = lote_ubicacion.lote
+            caducidad = lote.fecha_caducidad.strftime('%d/%m/%Y') if lote.fecha_caducidad else 'N/A'
             items_picking.append({
                 'item_id': item.id,
                 'lote_asignado_id': lote_asignado.id,
@@ -309,6 +321,7 @@ def exportar_picking_excel(request, propuesta_id):
                 'ubicacion': lote_ubicacion.ubicacion.codigo,
                 'ubicacion_id': lote_ubicacion.ubicacion_id,
                 'clave_cnis': lote.producto.clave_cnis,
+                'caducidad': caducidad,
             })
     
     # Ordenar por ubicación
@@ -335,28 +348,37 @@ def exportar_picking_excel(request, propuesta_id):
     left_alignment = Alignment(horizontal="left", vertical="center")
     
     # Agregar información de la propuesta
-    ws['A1'] = "PICKING LIST"
-    ws['A1'].font = Font(bold=True, size=14, color="1f77b4")
-    ws.merge_cells('A1:E1')
+    ws['A1'] = "HOJA DE PICKING"
+    ws['A1'].font = Font(bold=True, size=14, color="8B1538")
+    ws.merge_cells('A1:H1')
     
     ws['A3'] = "Propuesta:"
     ws['B3'] = str(propuesta.solicitud.folio)
+    ws['C3'] = "Institución Solicitante:"
+    ws['D3'] = propuesta.solicitud.institucion_solicitante.denominacion if propuesta.solicitud.institucion_solicitante else "N/A"
+    
     ws['A4'] = "Fecha:"
     ws['B4'] = datetime.now().strftime('%d/%m/%Y %H:%M')
-    ws['A5'] = "Folio de Pedido:"
-    ws['B5'] = propuesta.solicitud.observaciones_solicitud or "N/A"
-    ws['A6'] = "Total Items:"
-    ws['B6'] = len(items_picking)
+    ws['C4'] = "Folio de Pedido:"
+    ws['D4'] = propuesta.solicitud.observaciones_solicitud or "N/A"
+    
+    ws['A5'] = "Área:"
+    ws['B5'] = propuesta.solicitud.area.nombre if propuesta.solicitud.area else "N/A"
+    ws['C5'] = "Total Items:"
+    ws['D5'] = len(items_picking)
     
     # Definir anchos de columnas
-    ws.column_dimensions['A'].width = 18
+    ws.column_dimensions['A'].width = 12
     ws.column_dimensions['B'].width = 12
-    ws.column_dimensions['C'].width = 35
+    ws.column_dimensions['C'].width = 12
     ws.column_dimensions['D'].width = 12
-    ws.column_dimensions['E'].width = 15
+    ws.column_dimensions['E'].width = 30
+    ws.column_dimensions['F'].width = 12
+    ws.column_dimensions['G'].width = 12
+    ws.column_dimensions['H'].width = 15
     
     # Agregar encabezados
-    headers = ['ALMACÉN', 'UBICACIÓN', 'PRODUCTO', 'CANTIDAD', 'LOTE']
+    headers = ['UBICACIÓN', 'CLAVE CNIS', 'PRODUCTO', 'CADUCIDAD', 'LOTE', 'CANTIDAD', 'CANTIDAD SURTIDA', 'OBSERVACIONES']
     header_row = 8
     
     for col_num, header in enumerate(headers, 1):
@@ -372,32 +394,30 @@ def exportar_picking_excel(request, propuesta_id):
     
     # Agregar datos
     for row_num, item in enumerate(items_picking, header_row + 1):
-        # Almacén
+        # Ubicación
         cell_a = ws.cell(row=row_num, column=1)
-        cell_a.value = item['almacen']
-        cell_a.alignment = left_alignment
+        cell_a.value = item['ubicacion']
+        cell_a.alignment = center_alignment
+        cell_a.font = Font(bold=True)
         cell_a.border = border
         
-        # Ubicación
+        # Clave CNIS
         cell_b = ws.cell(row=row_num, column=2)
-        cell_b.value = item['ubicacion']
+        cell_b.value = item['clave_cnis']
         cell_b.alignment = center_alignment
-        cell_b.font = Font(bold=True)
         cell_b.border = border
         
         # Producto
         cell_c = ws.cell(row=row_num, column=3)
-        cell_c.value = f"{item['producto']}\n({item['clave_cnis']})"
+        cell_c.value = item['producto']
         cell_c.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
         cell_c.border = border
-        ws.row_dimensions[row_num].height = 30
+        ws.row_dimensions[row_num].height = 25
         
-        # Cantidad
+        # Caducidad
         cell_d = ws.cell(row=row_num, column=4)
-        cell_d.value = item['cantidad']
+        cell_d.value = item['caducidad']
         cell_d.alignment = center_alignment
-        cell_d.font = Font(bold=True)
-        cell_d.fill = PatternFill(start_color="e8f4f8", end_color="e8f4f8", fill_type="solid")
         cell_d.border = border
         
         # Lote
@@ -405,7 +425,27 @@ def exportar_picking_excel(request, propuesta_id):
         cell_e.value = item['lote_numero']
         cell_e.alignment = center_alignment
         cell_e.border = border
-    
+        
+        # Cantidad
+        cell_f = ws.cell(row=row_num, column=6)
+        cell_f.value = item['cantidad']
+        cell_f.alignment = center_alignment
+        cell_f.font = Font(bold=True)
+        cell_f.fill = PatternFill(start_color="e8f4f8", end_color="e8f4f8", fill_type="solid")
+        cell_f.border = border
+        
+        # Cantidad Surtida (vacío)
+        cell_g = ws.cell(row=row_num, column=7)
+        cell_g.value = ""
+        cell_g.alignment = center_alignment
+        cell_g.border = border
+        
+        # Observaciones (vacío)
+        cell_h = ws.cell(row=row_num, column=8)
+        cell_h.value = ""
+        cell_h.alignment = center_alignment
+        cell_h.border = border
+
     # Crear respuesta
     output = BytesIO()
     wb.save(output)

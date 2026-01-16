@@ -12,69 +12,102 @@
         
         body {
             font-family: Arial, sans-serif;
-            font-size: 11px;
-            line-height: 1.4;
+            font-size: 10px;
+            line-height: 1.3;
         }
         
         .container {
             width: 100%;
-            padding: 10mm;
+            padding: 8mm;
         }
         
         .header {
-            text-align: center;
-            margin-bottom: 15mm;
-            border-bottom: 2px solid #1f77b4;
+            display: flex;
+            align-items: center;
+            margin-bottom: 10mm;
+            border-bottom: 2px solid #8B1538;
             padding-bottom: 5mm;
         }
         
+        .logo {
+            width: 50px;
+            height: 50px;
+            margin-right: 15mm;
+        }
+        
+        .header-title {
+            flex: 1;
+        }
+        
         .header h1 {
-            font-size: 24px;
-            color: #1f77b4;
-            margin-bottom: 5mm;
+            font-size: 20px;
+            color: #8B1538;
+            margin-bottom: 2mm;
+        }
+        
+        .header p {
+            font-size: 9px;
+            color: #666;
+        }
+        
+        .info-section {
+            margin-bottom: 8mm;
+            padding: 5mm;
+            background-color: #f9f9f9;
+            border-left: 3px solid #8B1538;
+        }
+        
+        .info-section p {
+            margin: 2mm 0;
+            font-size: 10px;
+        }
+        
+        .info-section strong {
+            color: #8B1538;
         }
         
         .info-table {
             width: 100%;
-            margin-bottom: 10mm;
+            margin-bottom: 8mm;
             border-collapse: collapse;
         }
         
         .info-table td {
-            padding: 3mm;
+            padding: 2mm 4mm;
             border: 1px solid #ddd;
+            font-size: 9px;
         }
         
         .info-table td:first-child {
             font-weight: bold;
             background-color: #f0f0f0;
-            width: 30%;
+            width: 25%;
         }
         
         .items-table {
             width: 100%;
             border-collapse: collapse;
-            margin-top: 10mm;
+            margin-top: 5mm;
+            font-size: 9px;
         }
         
         .items-table thead {
-            background-color: #1f77b4;
-            color: black;
+            background-color: #8B1538;
+            color: white;
         }
         
         .items-table th {
-            padding: 4mm;
-            text-align: left;
+            padding: 3mm 2mm;
+            text-align: center;
             font-weight: bold;
-            border: 1px solid #1f77b4;
-            font-size: 10px;
-            line-height: 0.5;
+            border: 1px solid #8B1538;
+            font-size: 8px;
         }
         
         .items-table td {
-            padding: 3mm;
+            padding: 2mm;
             border: 1px solid #ddd;
-            font-size: 10px;
+            font-size: 8px;
         }
         
         .items-table tbody tr:nth-child(even) {
@@ -83,11 +116,13 @@
         
         .ubicacion {
             font-weight: bold;
-            color: #1f77b4;
+            color: #8B1538;
+            text-align: center;
         }
         
         .producto {
-            font-size: 9px;
+            font-size: 8px;
+            text-align: left;
         }
         
         .cantidad {
@@ -96,23 +131,29 @@
             background-color: #e8f4f8;
         }
         
+        .cantidad-surtida {
+            text-align: center;
+            min-height: 15mm;
+            background-color: #ffffff;
+        }
+        
         .lote {
             text-align: center;
-            font-size: 9px;
+            font-size: 8px;
         }
         
         .footer {
-            margin-top: 15mm;
+            margin-top: 10mm;
             text-align: center;
-            font-size: 9px;
+            font-size: 8px;
             color: #666;
             border-top: 1px solid #ddd;
-            padding-top: 5mm;
+            padding-top: 3mm;
         }
         
         @page {
-            size: A4;
-            margin: 10mm;
+            size: A4 landscape;
+            margin: 8mm;
         }
         
         @media print {
@@ -120,14 +161,23 @@
                 margin: 0;
                 padding: 0;
             }
+            .container {
+                padding: 8mm;
+            }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- Header -->
+        <!-- Header con Logo -->
         <div class="header">
-            <h1>📋 PICKING LIST</h1>
+            {% if logo_url %}
+            <img src="{{ logo_url }}" alt="Logo IMSS" class="logo">
+            {% endif %}
+            <div class="header-title">
+                <h1>HOJA DE PICKING</h1>
+                <p>Sistema de Abasto, Inventarios y Control de Almacenes</p>
+            </div>
         </div>
         
         <!-- Información de la propuesta -->
@@ -135,18 +185,20 @@
             <tr>
                 <td>Propuesta</td>
                 <td>{{ propuesta.solicitud.folio }}</td>
+                <td style="width: 25%; font-weight: bold; background-color: #f0f0f0;">Institución Solicitante</td>
+                <td>{{ propuesta.solicitud.institucion_solicitante.denominacion|default:"N/A" }}</td>
             </tr>
             <tr>
                 <td>Fecha</td>
                 <td>{{ fecha }}</td>
-            </tr>
-            <tr>
-                <td>Folio de Pedido</td>
+                <td style="font-weight: bold; background-color: #f0f0f0;">Folio de Pedido</td>
                 <td><code>{{ propuesta.solicitud.observaciones_solicitud|default:"N/A" }}</code></td>
             </tr>
             <tr>
                 <td>Total Items</td>
                 <td>{{ total_items }}</td>
+                <td style="font-weight: bold; background-color: #f0f0f0;">Área</td>
+                <td>{{ propuesta.solicitud.area.nombre|default:"N/A" }}</td>
             </tr>
         </table>
         
@@ -154,24 +206,27 @@
         <table class="items-table">
             <thead>
                 <tr>
-                    <th style="width: 15%;">ALMACÉN</th>
-                    <th style="width: 10%;">UBICACIÓN</th>
-                    <th style="width: 40%;">PRODUCTO</th>
-                    <th style="width: 15%;">CANTIDAD</th>
-                    <th style="width: 20%;">LOTE</th>
+                    <th style="width: 8%;">UBICACIÓN</th>
+                    <th style="width: 12%;">CLAVE CNIS</th>
+                    <th style="width: 30%;">PRODUCTO</th>
+                    <th style="width: 10%;">CADUCIDAD</th>
+                    <th style="width: 8%;">LOTE</th>
+                    <th style="width: 8%;">CANTIDAD</th>
+                    <th style="width: 12%;">CANTIDAD SURTIDA</th>
+                    <th style="width: 12%;">OBSERVACIONES</th>
                 </tr>
             </thead>
             <tbody>
                 {% for item in items_picking %}
                 <tr>
-                    <td class="ubicacion" style="text-align: left;">{{ item.almacen }}</td>
-                    <td class="ubicacion" style="text-align: center; font-weight: bold;">{{ item.ubicacion }}</td>
-                    <td class="producto">
-                        {{ item.producto }}<br>
-                        <small>({{ item.clave_cnis }})</small>
-                    </td>
-                    <td class="cantidad">{{ item.cantidad }}</td>
+                    <td class="ubicacion">{{ item.ubicacion }}</td>
+                    <td class="producto" style="text-align: center; font-weight: bold;">{{ item.clave_cnis }}</td>
+                    <td class="producto">{{ item.producto }}</td>
+                    <td class="lote">{{ item.caducidad }}</td>
                     <td class="lote">{{ item.lote_numero }}</td>
+                    <td class="cantidad">{{ item.cantidad }}</td>
+                    <td class="cantidad-surtida"></td>
+                    <td style="text-align: center;"></td>
                 </tr>
                 {% endfor %}
             </tbody>
