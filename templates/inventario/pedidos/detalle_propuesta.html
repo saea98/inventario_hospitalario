@@ -83,6 +83,23 @@
         </div>
     </div>
 
+    <!-- Acciones de Descarga -->
+    {% if propuesta.estado == 'SURTIDA' %}
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 bg-success">
+            <h6 class="m-0 font-weight-bold text-white">Descargar Acuse de Entrega</h6>
+        </div>
+        <div class="card-body">
+            <a href="{% url 'logistica:generar_acuse_pdf' propuesta.id %}" class="btn btn-primary" target="_blank">
+                <i class="fas fa-file-pdf"></i> Descargar PDF
+            </a>
+            <a href="{% url 'logistica:generar_acuse_excel' propuesta.id %}" class="btn btn-success">
+                <i class="fas fa-file-excel"></i> Descargar Excel
+            </a>
+        </div>
+    </div>
+    {% endif %}
+
     <!-- Acciones -->
     <div class="mb-4">
         {% if propuesta.estado == 'GENERADA' %}

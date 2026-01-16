@@ -23,6 +23,7 @@ from io import BytesIO
 
 from .pedidos_models import PropuestaPedido, ItemPropuesta, SolicitudPedido
 from .models import Institucion, Almacen
+from .acuse_excel import generar_acuse_excel
 
 
 def wrap_text(text, max_chars=25, max_lines=3):
@@ -432,5 +433,27 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
     
     response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
     response['Content-Disposition'] = f'attachment; filename="acuse_entrega_{folio}.pdf"'
+    
+    return response
+
+
+@login_required
+def generar_acuse_entrega_excel(request, propuesta_id):
+    """
+    Genera el Excel del Acuse de Entrega para una propuesta surtida al 100%
+    """
+    propuesta = get_object_or_404(PropuestaPedido, id=propuesta_id)
+    
+    # Generar Excel
+    buffer = generar_acuse_excel(propuesta)
+    
+    # Obtener folio para el nombre del archivo
+    folio = propuesta.solicitud.folio
+    
+    response = HttpResponse(
+        buffer.getvalue(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename="acuse_entrega_{folio}.xlsx"'
     
     return response
