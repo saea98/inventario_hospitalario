@@ -236,10 +236,11 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
     elements.append(firma_title_table)
     
     # Tabla de firmas
+    institucion_nombre = propuesta.solicitud.institucion_solicitante.denominacion if propuesta.solicitud.institucion_solicitante else 'N/A'
     firma_data = [
         ['UNIDAD DE DESTINO', 'RECIBE (UNIDAD DE DESTINO)', 'AUTORIZA (ALMACEN)', 'ENTREGA (ALMACEN)'],
         [
-            propuesta.solicitud.almacen_destino.nombre if propuesta.solicitud.almacen_destino else 'N/A',
+            f'INSTITUCIÓN: {institucion_nombre}',
             'NOMBRE: __________________\n\nPUESTO: __________________\n\nFIRMA: __________________',
             'NOMBRE: Gerardo Anaya\n\nPUESTO: MESA DE CONTROL\n\nFIRMA: __________________',
             'NOMBRE: __________________\n\nPUESTO: __________________\n\nFIRMA: __________________'
