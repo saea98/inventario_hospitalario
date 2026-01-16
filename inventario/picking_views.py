@@ -350,7 +350,7 @@ def exportar_picking_excel(request, propuesta_id):
     # Agregar información de la propuesta
     ws['A1'] = "HOJA DE PICKING"
     ws['A1'].font = Font(bold=True, size=14, color="8B1538")
-    ws.merge_cells('A1:H1')
+    ws.merge_cells('A1:G1')
     
     ws['A3'] = "Propuesta:"
     ws['B3'] = str(propuesta.solicitud.folio)
@@ -363,7 +363,7 @@ def exportar_picking_excel(request, propuesta_id):
     ws['D4'] = propuesta.solicitud.observaciones_solicitud or "N/A"
     
     ws['A5'] = "Área:"
-    ws['B5'] = propuesta.solicitud.area.nombre if propuesta.solicitud.area else "N/A"
+    ws['B5'] = propuesta.solicitud.almacen_destino.nombre if propuesta.solicitud.almacen_destino else "N/A"
     ws['C5'] = "Total Items:"
     ws['D5'] = len(items_picking)
     
@@ -374,11 +374,10 @@ def exportar_picking_excel(request, propuesta_id):
     ws.column_dimensions['D'].width = 12
     ws.column_dimensions['E'].width = 30
     ws.column_dimensions['F'].width = 12
-    ws.column_dimensions['G'].width = 12
-    ws.column_dimensions['H'].width = 15
+    ws.column_dimensions['G'].width = 20
     
     # Agregar encabezados
-    headers = ['UBICACIÓN', 'CLAVE CNIS', 'PRODUCTO', 'CADUCIDAD', 'LOTE', 'CANTIDAD', 'CANTIDAD SURTIDA', 'OBSERVACIONES']
+    headers = ['UBICACIÓN', 'CLAVE CNIS', 'PRODUCTO', 'CADUCIDAD', 'LOTE', 'CANTIDAD', 'CANTIDAD SURTIDA']
     header_row = 8
     
     for col_num, header in enumerate(headers, 1):
@@ -440,11 +439,6 @@ def exportar_picking_excel(request, propuesta_id):
         cell_g.alignment = center_alignment
         cell_g.border = border
         
-        # Observaciones (vacío)
-        cell_h = ws.cell(row=row_num, column=8)
-        cell_h.value = ""
-        cell_h.alignment = center_alignment
-        cell_h.border = border
 
     # Crear respuesta
     output = BytesIO()

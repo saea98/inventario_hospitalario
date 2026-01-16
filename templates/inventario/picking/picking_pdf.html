@@ -135,6 +135,7 @@
             text-align: center;
             min-height: 15mm;
             background-color: #ffffff;
+            min-width: 100px;
         }
         
         .lote {
@@ -197,8 +198,8 @@
             <tr>
                 <td>Total Items</td>
                 <td>{{ total_items }}</td>
-                <td style="font-weight: bold; background-color: #f0f0f0;">Área</td>
-                <td>{{ propuesta.solicitud.area.nombre|default:"N/A" }}</td>
+                <td style="font-weight: bold; background-color: #f0f0f0;">Almacén Destino</td>
+                <td>{{ propuesta.solicitud.almacen_destino.nombre|default:"N/A" }}</td>
             </tr>
         </table>
         
@@ -212,8 +213,7 @@
                     <th style="width: 10%;">CADUCIDAD</th>
                     <th style="width: 8%;">LOTE</th>
                     <th style="width: 8%;">CANTIDAD</th>
-                    <th style="width: 12%;">CANTIDAD SURTIDA</th>
-                    <th style="width: 12%;">OBSERVACIONES</th>
+                    <th style="width: 16%; min-width: 100px;">CANTIDAD SURTIDA</th>
                 </tr>
             </thead>
             <tbody>
@@ -226,7 +226,6 @@
                     <td class="lote">{{ item.lote_numero }}</td>
                     <td class="cantidad">{{ item.cantidad }}</td>
                     <td class="cantidad-surtida"></td>
-                    <td style="text-align: center;"></td>
                 </tr>
                 {% endfor %}
             </tbody>
