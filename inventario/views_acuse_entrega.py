@@ -24,6 +24,7 @@ from io import BytesIO
 from .pedidos_models import PropuestaPedido, ItemPropuesta, SolicitudPedido
 from .models import Institucion, Almacen
 from .acuse_excel import generar_acuse_excel
+from .acuse_excel_to_pdf import convertir_acuse_excel_a_pdf
 
 
 def wrap_text(text, max_chars=25, max_lines=3):
@@ -190,254 +191,25 @@ TIPO: TRANSFERENCIA (SURTIMIENTO)'''
 def generar_acuse_entrega_pdf(request, propuesta_id):
     """
     Genera el PDF del Acuse de Entrega para una propuesta surtida al 100%
+    Genera el Excel primero y luego lo convierte a PDF
     """
     propuesta = get_object_or_404(PropuestaPedido, id=propuesta_id)
     
-    buffer = BytesIO()
-    doc = SimpleDocTemplate(
-        buffer,
-        pagesize=landscape(letter),
-        rightMargin=0.5*inch,
-        leftMargin=0.5*inch,
-        topMargin=1.8*inch,
-        bottomMargin=0.8*inch
-    )
-    
-    elements = []
-    styles = getSampleStyleSheet()
-    
-    # Datos para el header
-    folio = propuesta.solicitud.folio
-    fecha_actual = datetime.now().strftime("%d/%m/%Y")
-    folio_pedido = propuesta.solicitud.observaciones_solicitud or 'N/A'
-    institucion = propuesta.solicitud.institucion_solicitante.denominacion if propuesta.solicitud.institucion_solicitante else 'N/A'
-    
-    # ============ ENCABEZADO PRIMERA PÁGINA ============
-    header_table = crear_header_compacto(folio, fecha_actual, folio_pedido, institucion, styles)
-    elements.append(header_table)
-    elements.append(Spacer(1, 0.15*inch))
-    
-    # ============ TABLA DE FIRMAS (SOLO PRIMERA PÁGINA) ============
-    firma_title_style = ParagraphStyle(
-        'FirmaTitle',
-        parent=styles['Heading2'],
-        fontSize=11,
-        textColor=colors.HexColor('#8B1538'),
-        alignment=1,
-        spaceAfter=8
-    )
-    
-    firma_title = Paragraph('ACUSE DE ENTREGA', firma_title_style)
-    firma_title_table = Table([[firma_title]], colWidths=[10*inch])
-    firma_title_table.setStyle(TableStyle([
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-    ]))
-    elements.append(firma_title_table)
-    
-    # Tabla de firmas
-    institucion_nombre = propuesta.solicitud.institucion_solicitante.denominacion if propuesta.solicitud.institucion_solicitante else 'N/A'
-    firma_data = [
-        ['UNIDAD DE DESTINO', 'RECIBE (UNIDAD DE DESTINO)', 'AUTORIZA (ALMACEN)', 'ENTREGA (ALMACEN)'],
-        [
-            f'INSTITUCIÓN: {institucion_nombre}',
-            'NOMBRE: __________________\n\nPUESTO: __________________\n\nFIRMA: __________________',
-            'NOMBRE: Gerardo Anaya\n\nPUESTO: MESA DE CONTROL\n\nFIRMA: __________________',
-            'NOMBRE: __________________\n\nPUESTO: __________________\n\nFIRMA: __________________'
-        ]
-    ]
-    
-    firma_table = Table(firma_data, colWidths=[2.5*inch, 2.5*inch, 2.5*inch, 2.5*inch])
-    firma_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#8B1538')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.white),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('VALIGN', (0, 0), (-1, -1), 'TOP'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 9),
-        ('FONTSIZE', (0, 1), (-1, -1), 8),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 8),
-        ('TOPPADDING', (0, 0), (-1, 0), 8),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ('TOPPADDING', (0, 1), (-1, -1), 10),
-        ('BOTTOMPADDING', (0, 1), (-1, -1), 40),
-    ]))
-    
-    elements.append(firma_table)
-    elements.append(Spacer(1, 0.1*inch))
-    
-    # ============ TABLA DE ITEMS (PRIMERA PÁGINA) ============
-    table_data_page1 = [
-        ['#', 'CLAVE CNIS', 'DESCRIPCIÓN', 'U.M.', 'TIPO', 'LOTE', 'CADUCIDAD', 'CLASIFICACIÓN', 'UBICACIÓN', 'CANTIDAD', 'FOLIO PEDIDO']
-    ]
-    
-    idx = 1
-    for item in propuesta.items.all():
-        lotes_asignados = item.lotes_asignados.all()
-        for lote_asignado in lotes_asignados:
-            lote_ubicacion = lote_asignado.lote_ubicacion
-            lote = lote_ubicacion.lote
-            ubicacion = lote_ubicacion.ubicacion.codigo if lote_ubicacion.ubicacion else 'N/A'
-            caducidad = lote.fecha_caducidad.strftime("%d/%m/%Y") if lote.fecha_caducidad else 'N/A'
-            lote_info = lote.numero_lote if lote.numero_lote else 'N/A'
-            descripcion = wrap_text(item.producto.descripcion, max_chars=20, max_lines=2)
-            table_data_page1.append([
-                str(idx),
-                item.producto.clave_cnis,
-                descripcion,
-                item.producto.unidad_medida,
-                'ORDINARIO',
-                lote_info,
-                caducidad,
-                'MEDICAMENTO',
-                ubicacion,
-                str(item.cantidad_propuesta if item.cantidad_propuesta > 0 else item.cantidad_surtida),
-                ''
-            ])
-            idx += 1
-    
-    table_page1 = Table(table_data_page1, colWidths=[
-        0.35*inch, 0.85*inch, 1.9*inch, 0.75*inch, 0.75*inch, 
-        0.85*inch, 0.85*inch, 0.85*inch, 0.85*inch, 0.75*inch, 1.5*inch
-    ])
-    
-    table_page1.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#8B1538')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 7),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ('FONTSIZE', (0, 1), (-1, -1), 7),
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f0f0f0')]),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-    ]))
-    
-
-    
-    # ============ ACUSE DE ENTREGA (SEGUNDA PÁGINA EN ADELANTE) ============
-    title_style = ParagraphStyle(
-        'Title',
-        parent=styles['Heading2'],
-        fontSize=12,
-        textColor=colors.white,
-        alignment=1,
-        spaceAfter=10
-    )
-    
-    title = Paragraph('ACUSE DE ENTREGA', title_style)
-    title_table = Table([[title]], colWidths=[10*inch])
-    title_table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, -1), colors.HexColor('#8B1538')),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-        ('TOPPADDING', (0, 0), (-1, -1), 6),
-        ('BOTTOMPADDING', (0, 0), (-1, -1), 6),
-    ]))
-    elements.append(title_table)
-    elements.append(Spacer(1, 1.2*inch))
-    
-    # ============ TABLA DE ITEMS (PÁGINAS POSTERIORES) ============
-    table_data = [
-        ['#', 'CLAVE CNIS', 'DESCRIPCIÓN', 'U.M.', 'TIPO', 'LOTE', 'CADUCIDAD', 'CLASIFICACIÓN', 'UBICACIÓN', 'CANTIDAD', 'FOLIO PEDIDO']
-    ]
-    
-    idx = 1
-    for item in propuesta.items.all():
-        lotes_asignados = item.lotes_asignados.all()
-        for lote_asignado in lotes_asignados:
-            lote_ubicacion = lote_asignado.lote_ubicacion
-            lote = lote_ubicacion.lote
-            ubicacion = lote_ubicacion.ubicacion.codigo if lote_ubicacion.ubicacion else 'N/A'
-            caducidad = lote.fecha_caducidad.strftime("%d/%m/%Y") if lote.fecha_caducidad else 'N/A'
-            lote_info = lote.numero_lote if lote.numero_lote else 'N/A'
-            descripcion = wrap_text(item.producto.descripcion, max_chars=20, max_lines=2)
-            table_data.append([
-                str(idx),
-                item.producto.clave_cnis,
-                descripcion,
-                item.producto.unidad_medida,
-                'ORDINARIO',
-                lote_info,
-                caducidad,
-                'MEDICAMENTO',
-                ubicacion,
-                str(item.cantidad_propuesta if item.cantidad_propuesta > 0 else item.cantidad_surtida),
-                propuesta.solicitud.observaciones_solicitud or ''
-            ])
-            idx += 1
-    
-    table = Table(table_data, colWidths=[
-        0.35*inch, 0.85*inch, 1.9*inch, 0.75*inch, 0.75*inch, 
-        0.85*inch, 0.85*inch, 0.85*inch, 0.85*inch, 0.75*inch, 1.5*inch
-    ])
-    
-    table.setStyle(TableStyle([
-        ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#8B1538')),
-        ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
-        ('ALIGN', (0, 0), (-1, -1), 'CENTER'),
-        ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
-        ('FONTSIZE', (0, 0), (-1, 0), 7),
-        ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
-        ('GRID', (0, 0), (-1, -1), 1, colors.black),
-        ('FONTSIZE', (0, 1), (-1, -1), 7),
-        ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f0f0f0')]),
-        ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-    ]))
-    
-    elements.append(table)
-    
-    # Función para agregar header en páginas siguientes
-    def header_pages(canvas, doc):
-        canvas.saveState()
+    try:
+        # Generar Excel
+        excel_buffer = generar_acuse_excel(propuesta)
         
-        if doc.page > 1:
-            from django.conf import settings
-            logo_path = os.path.join(settings.BASE_DIR, 'templates', 'inventario', 'images', 'logo_imss.jpg')
-            
-            # Dibujar logo
-            canvas.drawImage(logo_path, 0.5*inch, doc.height + 1.35*inch, width=1.5*inch, height=0.4*inch)
-            
-            # Dibujar título
-            canvas.setFont('Helvetica-Bold', 10)
-            canvas.setFillColor(colors.HexColor('#8B1538'))
-            title_text = 'Sistema de Abasto, Inventarios y Control de Almacenes'
-            canvas.drawCentredString(5.5*inch, doc.height + 1.35*inch, title_text)
-            
-            # Dibujar información de folio
-            canvas.setFont('Helvetica', 7)
-            canvas.setFillColor(colors.black)
-            info_lines = [
-                f'#FOLIO: {folio}',
-                f'TRANSFERENCIA: prueba',
-                f'FOLIO DE PEDIDO: {folio_pedido}',
-                f'FECHA: {fecha_actual}',
-                f'TIPO: TRANSFERENCIA (SURTIMIENTO)'
-            ]
-            
-            y_pos = doc.height + 1.35*inch
-            for line in info_lines:
-                canvas.drawRightString(doc.width + 0.5*inch, y_pos, line)
-                y_pos -= 0.12*inch
-            
-            # Línea divisoria (removida)
+        # Convertir Excel a PDF
+        pdf_buffer = convertir_acuse_excel_a_pdf(excel_buffer)
         
-        # Número de página
-        canvas.setFont('Helvetica', 8)
-        canvas.setFillColor(colors.black)
-        canvas.drawString(doc.width + 0.2*inch, 0.5 * inch, f'Página {doc.page}')
+        # Retornar PDF
+        folio = propuesta.solicitud.folio
+        response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="acuse_entrega_{folio}.pdf"'
+        return response
         
-        canvas.restoreState()
-
-    # Generar PDF
-    doc.build(elements, onFirstPage=lambda c, d: None, onLaterPages=header_pages)
-    buffer.seek(0)
-    
-    response = HttpResponse(buffer.getvalue(), content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename="acuse_entrega_{folio}.pdf"'
-    
-    return response
+    except Exception as e:
+        return HttpResponse(f'Error al generar PDF: {str(e)}', status=500)
 
 
 @login_required
