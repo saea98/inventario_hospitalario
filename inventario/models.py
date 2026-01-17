@@ -883,6 +883,23 @@ class CitaProveedor(models.Model):
         verbose_name="Número de Orden de Remisión"
     )
     
+    # Tipo de entrega con nomenclatura de folios
+    TIPOS_ENTREGA = [
+        ('entrega_directa', 'Entrega Directa', 'IB'),
+        ('operador_logistico', 'Operador Logístico', 'IB'),
+        ('sedesa', 'Sedesa', 'S'),
+        ('transferencia', 'Transferencia', 'T'),
+        ('canje', 'Canje', 'C'),
+        ('donacion', 'Donación', 'D'),
+    ]
+    
+    tipo_entrega = models.CharField(
+        max_length=20,
+        choices=[(t[0], t[1]) for t in TIPOS_ENTREGA],
+        default='entrega_directa',
+        verbose_name="Tipo de Entrega"
+    )
+    
     fecha_actualizacion = models.DateTimeField(auto_now=True)
 
     class Meta:

@@ -549,7 +549,7 @@ class CitaProveedorForm(forms.ModelForm):
     class Meta:
         model = CitaProveedor
         fields = [
-            'proveedor', 'fecha_cita', 'almacen', 'observaciones',
+            'proveedor', 'fecha_cita', 'almacen', 'tipo_entrega', 'observaciones',
             'numero_orden_suministro', 'numero_contrato', 'clave_medicamento',
             'tipo_transporte', 'fecha_expedicion', 'fecha_limite_entrega',
             'numero_orden_remision'
@@ -605,6 +605,10 @@ class CitaProveedorForm(forms.ModelForm):
                 'class': 'form-control',
                 'placeholder': 'Número de orden de remisión'
             }),
+            'tipo_entrega': forms.Select(attrs={
+                'class': 'form-control form-control-lg',
+                'required': True
+            }),
         }
         labels = {
             'proveedor': '👥 Proveedor',
@@ -618,6 +622,7 @@ class CitaProveedorForm(forms.ModelForm):
             'fecha_expedicion': '📅 Fecha de Expedición',
             'fecha_limite_entrega': '📅 Fecha Límite de Entrega',
             'numero_orden_remision': '📦 Número de Orden de Remisión',
+            'tipo_entrega': '🚚 Tipo de Entrega',
         }
     
     def __init__(self, *args, **kwargs):
@@ -632,7 +637,8 @@ class CitaProveedorForm(forms.ModelForm):
                 css_class='form-row'
             ),
             Row(
-                Column('fecha_cita', css_class='form-group col-md-12 mb-3'),
+                Column('fecha_cita', css_class='form-group col-md-6 mb-3'),
+                Column('tipo_entrega', css_class='form-group col-md-6 mb-3'),
                 css_class='form-row'
             ),
             'observaciones',
@@ -730,7 +736,7 @@ class CitaProveedorEditForm(forms.ModelForm):
     class Meta:
         model = CitaProveedor
         fields = [
-            'proveedor', 'fecha_cita', 'almacen', 'observaciones',
+            'proveedor', 'fecha_cita', 'almacen', 'tipo_entrega', 'observaciones',
             'numero_orden_suministro', 'numero_contrato', 'clave_medicamento',
             'tipo_transporte', 'fecha_expedicion', 'fecha_limite_entrega',
             'numero_orden_remision'
@@ -786,6 +792,10 @@ class CitaProveedorEditForm(forms.ModelForm):
                 'class': 'form-control',
                 'placeholder': 'Número de orden de remisión'
             }),
+            'tipo_entrega': forms.Select(attrs={
+                'class': 'form-control form-control-lg',
+                'required': True
+            }),
         }
         labels = {
             'proveedor': '👥 Proveedor',
@@ -799,6 +809,7 @@ class CitaProveedorEditForm(forms.ModelForm):
             'fecha_expedicion': '📅 Fecha de Expedición',
             'fecha_limite_entrega': '📅 Fecha Límite de Entrega',
             'numero_orden_remision': '📦 Número de Orden de Remisión',
+            'tipo_entrega': '🚚 Tipo de Entrega',
         }
     
     def __init__(self, *args, **kwargs):
@@ -813,7 +824,8 @@ class CitaProveedorEditForm(forms.ModelForm):
                 css_class='form-row'
             ),
             Row(
-                Column('fecha_cita', css_class='form-group col-md-12 mb-3'),
+                Column('fecha_cita', css_class='form-group col-md-6 mb-3'),
+                Column('tipo_entrega', css_class='form-group col-md-6 mb-3'),
                 css_class='form-row'
             ),
             'observaciones',
