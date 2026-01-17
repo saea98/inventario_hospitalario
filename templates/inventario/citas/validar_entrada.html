@@ -150,7 +150,7 @@
                 </div>
 
                 <!-- Sección de Aprobación -->
-                <div class="card mb-4 border-success">
+                <div class="card mb-4 border-success" id="seccion-aprobacion">
                     <div class="card-header bg-light border-success">
                         <h6 class="mb-0"><i class="fas fa-thumbs-up text-success"></i> Aprobar Entrada</h6>
                     </div>
@@ -160,14 +160,14 @@
                             <textarea class="form-control" id="observaciones" name="observaciones" 
                                 rows="3" placeholder="Agregue observaciones finales si lo considera necesario">{{ form_validar.observaciones.value|default:'' }}</textarea>
                         </div>
-                        <button type="submit" name="aprobar" class="btn btn-success btn-lg">
+                        <button type="submit" name="aprobar" id="btn-aprobar" class="btn btn-success btn-lg">
                             <i class="fas fa-check-circle"></i> Aprobar y Autorizar Entrada
                         </button>
                     </div>
                 </div>
 
                 <!-- Sección de Rechazo -->
-                <div class="card mb-4 border-danger">
+                <div class="card mb-4 border-danger" id="seccion-rechazo" style="opacity: 0.5; pointer-events: none;">
                     <div class="card-header bg-light border-danger">
                         <h6 class="mb-0"><i class="fas fa-thumbs-down text-danger"></i> Rechazar Entrada</h6>
                     </div>
@@ -175,10 +175,10 @@
                         <div class="mb-3">
                             <label for="justificacion" class="form-label">Justificación del Rechazo <span class="text-danger">*</span></label>
                             <textarea class="form-control" id="justificacion" name="justificacion" 
-                                rows="4" placeholder="Explique por qué se rechaza la entrada (requerido)">{{ form_rechazar.justificacion.value|default:'' }}</textarea>
+                                rows="4" placeholder="Explique por qué se rechaza la entrada (requerido)" disabled>{{ form_rechazar.justificacion.value|default:'' }}</textarea>
                             <small class="text-muted">Este campo es obligatorio si decide rechazar la entrada.</small>
                         </div>
-                        <button type="submit" name="rechazar" class="btn btn-danger btn-lg">
+                        <button type="submit" name="rechazar" id="btn-rechazar" class="btn btn-danger btn-lg" disabled>
                             <i class="fas fa-times-circle"></i> Rechazar Entrada
                         </button>
                     </div>
@@ -212,5 +212,76 @@
     .card-header {
         border-bottom: 1px solid #dee2e6;
     }
+    
+    .seccion-deshabilitada {
+        opacity: 0.5;
+        pointer-events: none;
+    }
+    
+    .seccion-habilitada {
+        opacity: 1;
+        pointer-events: auto;
+    }
 </style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        // Función para validar criterios
+        function validarCriterios() {
+            // Obtener todos los radio buttons de criterios
+            const criterios = document.querySelectorAll('input[name$="_resultado"]');
+            let tieneNO = false;
+            
+            // Verificar si algún criterio está en "NO"
+            criterios.forEach(radio => {
+                if (radio.value === 'no' && radio.checked) {
+                    tieneNO = true;
+                }
+            });
+            
+            // Elementos a controlar
+            const btnAprobar = document.getElementById('btn-aprobar');
+            const btnRechazar = document.getElementById('btn-rechazar');
+            const seccionAprobacion = document.getElementById('seccion-aprobacion');
+            const seccionRechazo = document.getElementById('seccion-rechazo');
+            const observaciones = document.getElementById('observaciones');
+            const justificacion = document.getElementById('justificacion');
+            
+            if (tieneNO) {
+                // Deshabilitar aprobación
+                btnAprobar.disabled = true;
+                observaciones.disabled = true;
+                seccionAprobacion.classList.add('seccion-deshabilitada');
+                
+                // Habilitar rechazo
+                btnRechazar.disabled = false;
+                justificacion.disabled = false;
+                seccionRechazo.classList.remove('seccion-deshabilitada');
+                seccionRechazo.style.opacity = '1';
+                seccionRechazo.style.pointerEvents = 'auto';
+            } else {
+                // Habilitar aprobación
+                btnAprobar.disabled = false;
+                observaciones.disabled = false;
+                seccionAprobacion.classList.remove('seccion-deshabilitada');
+                
+                // Deshabilitar rechazo
+                btnRechazar.disabled = true;
+                justificacion.disabled = true;
+                seccionRechazo.classList.add('seccion-deshabilitada');
+                seccionRechazo.style.opacity = '0.5';
+                seccionRechazo.style.pointerEvents = 'none';
+            }
+        }
+        
+        // Ejecutar validación al cargar
+        validarCriterios();
+        
+        // Ejecutar validación cuando cambien los radio buttons
+        const criterios = document.querySelectorAll('input[name$="_resultado"]');
+        criterios.forEach(radio => {
+            radio.addEventListener('change', validarCriterios);
+        });
+    });
+</script>
 {% endblock %}
