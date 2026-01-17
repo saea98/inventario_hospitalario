@@ -45,11 +45,14 @@ class ServicioListaRevision:
         # Crear items de revisión con criterios por defecto
         items = []
         for orden, (criterio, tipo_control) in enumerate(ServicioListaRevision.CRITERIOS_DEFECTO, 1):
+            # Criterios 5 y 6 por defecto en N/A
+            resultado = 'na' if orden in [5, 6] else 'si'
+            
             item = ItemRevision.objects.create(
                 lista_revision=lista,
                 descripcion=criterio,
                 tipo_control=tipo_control,
-                resultado='si',  # Por defecto marcado como SI
+                resultado=resultado,
                 orden=orden
             )
             items.append(item)
