@@ -1,19 +1,24 @@
 """
 Módulo para convertir archivos Excel a PDF
-Usa openpyxl para leer el Excel y weasyprint para generar el PDF
-Sin dependencias externas como LibreOffice
+Usa openpyxl para leer el Excel y reportlab para generar el PDF
+Sin dependencias externas como LibreOffice o weasyprint
 """
 
 from openpyxl import load_workbook
-from openpyxl.styles import PatternFill, Font, Alignment, Border
-from weasyprint import HTML, CSS
+from reportlab.lib.pagesizes import A4, landscape
+from reportlab.lib.units import mm
+from reportlab.pdfgen import canvas
+from reportlab.lib.styles import ParagraphStyle
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageTemplate, Frame
+from reportlab.lib import colors
+from reportlab.lib.enums import TA_CENTER, TA_LEFT
 from io import BytesIO
-import base64
+from datetime import datetime
 
 
 def convertir_excel_a_pdf(excel_buffer):
     """
-    Convierte un buffer de Excel a PDF usando openpyxl y weasyprint.
+    Convierte un buffer de Excel a PDF usando openpyxl y reportlab.
     
     Args:
         excel_buffer: BytesIO con contenido del archivo Excel
@@ -31,12 +36,133 @@ def convertir_excel_a_pdf(excel_buffer):
         workbook = load_workbook(excel_buffer)
         worksheet = workbook.active
         
-        # Convertir a HTML
-        html_content = _excel_a_html(worksheet)
+        # Extraer datos del Excel
+        titulo = _obtener_valor_celda(worksheet['A1'])
+        propuesta_folio = _obtener_valor_celda(worksheet['B3'])
+        institucion = _obtener_valor_celda(worksheet['D3'])
+        fecha = _obtener_valor_celda(worksheet['B4'])
+        folio_pedido = _obtener_valor_celda(worksheet['D4'])
+        area = _obtener_valor_celda(worksheet['B5'])
+        total_items = _obtener_valor_celda(worksheet['D5'])
         
-        # Generar PDF desde HTML
+        # Extraer datos de la tabla (a partir de fila 9)
+        datos_tabla = []
+        for row_idx in range(9, worksheet.max_row + 1):
+            fila = []
+            for col_idx in range(1, 8):
+                celda = worksheet.cell(row=row_idx, column=col_idx)
+                valor = _obtener_valor_celda(celda)
+                fila.append(valor if valor else "")
+            
+            # Si la fila tiene contenido, agregarla
+            if any(fila):
+                datos_tabla.append(fila)
+        
+        # Crear PDF
         pdf_buffer = BytesIO()
-        HTML(string=html_content).write_pdf(pdf_buffer)
+        
+        # Crear documento con tamaño A4 landscape
+        doc = SimpleDocTemplate(
+            pdf_buffer,
+            pagesize=landscape(A4),
+            rightMargin=8*mm,
+            leftMargin=8*mm,
+            topMargin=8*mm,
+            bottomMargin=8*mm
+        )
+        
+        # Contenido del documento
+        story = []
+        
+        # Título
+        titulo_style = ParagraphStyle(
+            'CustomTitle',
+            fontSize=14,
+            textColor=colors.HexColor('#8B1538'),
+            spaceAfter=6,
+            alignment=TA_CENTER,
+            fontName='Helvetica-Bold'
+        )
+        story.append(Paragraph(titulo, titulo_style))
+        story.append(Spacer(1, 5*mm))
+        
+        # Información de la propuesta
+        info_data = [
+            ['Propuesta:', str(propuesta_folio), 'Institución Solicitante:', str(institucion)],
+            ['Fecha:', str(fecha), 'Folio de Pedido:', str(folio_pedido)],
+            ['Área:', str(area), 'Total Items:', str(total_items)],
+        ]
+        
+        info_table = Table(info_data, colWidths=[25*mm, 35*mm, 40*mm, 80*mm])
+        info_table.setStyle(TableStyle([
+            ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#f0f0f0')),
+            ('BACKGROUND', (2, 0), (2, -1), colors.HexColor('#f0f0f0')),
+            ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
+            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
+            ('FONTNAME', (2, 0), (2, -1), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, -1), 9),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
+            ('TOPPADDING', (0, 0), (-1, -1), 4),
+            ('GRID', (0, 0), (-1, -1), 1, colors.grey),
+            ('LEFTPADDING', (0, 0), (-1, -1), 3),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 3),
+        ]))
+        
+        story.append(info_table)
+        story.append(Spacer(1, 5*mm))
+        
+        # Tabla de items
+        encabezados = ['UBICACIÓN', 'CLAVE CNIS', 'PRODUCTO', 'CADUCIDAD', 'LOTE', 'CANTIDAD', 'CANTIDAD SURTIDA']
+        datos_completos = [encabezados] + datos_tabla
+        
+        items_table = Table(
+            datos_completos,
+            colWidths=[15*mm, 20*mm, 100*mm, 18*mm, 18*mm, 18*mm, 25*mm]
+        )
+        
+        items_table.setStyle(TableStyle([
+            # Encabezado
+            ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1f77b4')),
+            ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
+            ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+            ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
+            ('FONTSIZE', (0, 0), (-1, 0), 9),
+            ('BOTTOMPADDING', (0, 0), (-1, 0), 5),
+            ('TOPPADDING', (0, 0), (-1, 0), 5),
+            
+            # Datos
+            ('ALIGN', (0, 1), (0, -1), 'CENTER'),
+            ('ALIGN', (1, 1), (1, -1), 'CENTER'),
+            ('ALIGN', (2, 1), (2, -1), 'LEFT'),
+            ('ALIGN', (3, 1), (3, -1), 'CENTER'),
+            ('ALIGN', (4, 1), (4, -1), 'CENTER'),
+            ('ALIGN', (5, 1), (5, -1), 'CENTER'),
+            ('ALIGN', (6, 1), (6, -1), 'CENTER'),
+            
+            ('FONTNAME', (0, 1), (0, -1), 'Helvetica-Bold'),
+            ('FONTNAME', (5, 1), (5, -1), 'Helvetica-Bold'),
+            
+            ('FONTSIZE', (0, 1), (-1, -1), 8),
+            
+            ('BACKGROUND', (5, 1), (5, -1), colors.HexColor('#e8f4f8')),
+            
+            ('GRID', (0, 0), (-1, -1), 1, colors.grey),
+            
+            ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f9f9f9')]),
+            
+            ('LEFTPADDING', (0, 0), (-1, -1), 3),
+            ('RIGHTPADDING', (0, 0), (-1, -1), 3),
+            ('TOPPADDING', (0, 0), (-1, -1), 3),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+            
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+        ]))
+        
+        story.append(items_table)
+        
+        # Construir el PDF
+        doc.build(story)
         pdf_buffer.seek(0)
         
         return pdf_buffer
@@ -45,318 +171,19 @@ def convertir_excel_a_pdf(excel_buffer):
         raise Exception(f"Error al convertir Excel a PDF: {str(e)}")
 
 
-def _excel_a_html(worksheet):
-    """
-    Convierte una hoja de Excel a HTML.
-    
-    Args:
-        worksheet: Hoja de openpyxl
-        
-    Returns:
-        str: HTML con el contenido formateado
-    """
-    
-    html_parts = [
-        '<!DOCTYPE html>',
-        '<html>',
-        '<head>',
-        '<meta charset="UTF-8">',
-        '<title>Picking</title>',
-        '<style>',
-        _generar_css(),
-        '</style>',
-        '</head>',
-        '<body>',
-        '<div class="container">',
-    ]
-    
-    # Procesar cada fila
-    for row_idx, row in enumerate(worksheet.iter_rows(values_only=False), 1):
-        # Determinar clase de fila
-        row_class = _obtener_clase_fila(row_idx, worksheet)
-        
-        html_parts.append(f'<div class="row {row_class}">')
-        
-        for cell in row:
-            cell_class = _obtener_clase_celda(cell)
-            cell_value = _obtener_valor_celda(cell)
-            cell_style = _obtener_estilo_celda(cell)
-            
-            html_parts.append(f'<div class="cell {cell_class}" style="{cell_style}">')
-            html_parts.append(str(cell_value) if cell_value else '')
-            html_parts.append('</div>')
-        
-        html_parts.append('</div>')
-    
-    html_parts.extend([
-        '</div>',
-        '</body>',
-        '</html>',
-    ])
-    
-    return '\n'.join(html_parts)
-
-
-def _generar_css():
-    """Genera el CSS para el HTML."""
-    
-    css = """
-    * {
-        margin: 0;
-        padding: 0;
-        box-sizing: border-box;
-    }
-    
-    body {
-        font-family: Arial, sans-serif;
-        font-size: 10px;
-        line-height: 1.3;
-    }
-    
-    .container {
-        width: 100%;
-        padding: 8mm;
-        display: flex;
-        flex-direction: column;
-    }
-    
-    .row {
-        display: flex;
-        flex-direction: row;
-        width: 100%;
-        min-height: 20px;
-        border-bottom: 1px solid #ddd;
-    }
-    
-    .row.header {
-        background-color: #1f77b4;
-        color: white;
-        font-weight: bold;
-        min-height: 25px;
-    }
-    
-    .row.info {
-        background-color: #f9f9f9;
-        border-left: 3px solid #8B1538;
-        padding: 5mm;
-        min-height: auto;
-    }
-    
-    .cell {
-        display: flex;
-        align-items: center;
-        justify-content: center;
-        padding: 2mm;
-        border-right: 1px solid #ddd;
-        word-wrap: break-word;
-        overflow-wrap: break-word;
-    }
-    
-    .cell.header {
-        text-align: center;
-        font-weight: bold;
-        font-size: 11px;
-    }
-    
-    .cell.ubicacion {
-        font-weight: bold;
-        color: #8B1538;
-        text-align: center;
-    }
-    
-    .cell.producto {
-        text-align: left;
-        font-size: 9px;
-        padding: 3mm;
-    }
-    
-    .cell.cantidad {
-        text-align: center;
-        font-weight: bold;
-        background-color: #e8f4f8;
-    }
-    
-    .cell.cantidad-surtida {
-        text-align: center;
-        min-height: 15mm;
-        background-color: #ffffff;
-    }
-    
-    .cell.lote {
-        text-align: center;
-        font-size: 9px;
-    }
-    
-    @page {
-        size: A4 landscape;
-        margin: 8mm;
-    }
-    
-    @media print {
-        body {
-            margin: 0;
-            padding: 0;
-        }
-        .container {
-            padding: 8mm;
-        }
-    }
-    """
-    
-    return css
-
-
-def _obtener_clase_fila(row_idx, worksheet):
-    """Determina la clase CSS para una fila."""
-    
-    # Las primeras filas son de información
-    if row_idx <= 7:
-        return "info"
-    
-    # Fila 8 es el encabezado
-    if row_idx == 8:
-        return "header"
-    
-    # Filas de datos
-    return "data"
-
-
-def _obtener_clase_celda(cell):
-    """Determina la clase CSS para una celda."""
-    
-    # Verificar si es encabezado
-    if cell.fill and cell.fill.start_color:
-        if cell.fill.start_color.rgb in ['FF1f77b4', '1f77b4']:
-            return "header"
-    
-    # Verificar por contenido o posición
-    return ""
-
-
-def _obtener_valor_celda(cell):
+def _obtener_valor_celda(celda):
     """Obtiene el valor de una celda."""
     
-    value = cell.value
+    if celda is None:
+        return ""
+    
+    value = celda.value if hasattr(celda, 'value') else celda
     
     if value is None:
         return ""
     
     # Formatear fechas
     if hasattr(value, 'strftime'):
-        return value.strftime('%d/%m/%Y')
+        return value.strftime('%d/%m/%Y %H:%M')
     
     return str(value)
-
-
-def _obtener_estilo_celda(cell):
-    """Genera estilos CSS inline para una celda."""
-    
-    styles = []
-    
-    # Ancho de columna
-    if cell.column_letter:
-        col_width = cell.parent.column_dimensions.get(cell.column_letter)
-        if col_width and col_width.width:
-            # Convertir ancho de Excel a píxeles aproximadamente
-            width_px = int(col_width.width * 8)
-            styles.append(f"width: {width_px}px;")
-    
-    # Color de fondo
-    if cell.fill and cell.fill.start_color:
-        color = cell.fill.start_color.rgb
-        if color and color != '00000000':
-            # Convertir color de Excel a hex
-            if len(str(color)) == 8:
-                hex_color = f"#{str(color)[2:]}"
-            else:
-                hex_color = f"#{str(color)}"
-            styles.append(f"background-color: {hex_color};")
-    
-    # Color de texto
-    if cell.font and cell.font.color:
-        color = cell.font.color.rgb
-        if color and color != '00000000':
-            if len(str(color)) == 8:
-                hex_color = f"#{str(color)[2:]}"
-            else:
-                hex_color = f"#{str(color)}"
-            styles.append(f"color: {hex_color};")
-    
-    # Alineación
-    if cell.alignment:
-        if cell.alignment.horizontal:
-            text_align = _mapear_alineacion(cell.alignment.horizontal)
-            if text_align:
-                styles.append(f"text-align: {text_align};")
-        
-        if cell.alignment.vertical:
-            vertical_align = _mapear_alineacion_vertical(cell.alignment.vertical)
-            if vertical_align:
-                styles.append(f"vertical-align: {vertical_align};")
-    
-    # Negrita
-    if cell.font and cell.font.bold:
-        styles.append("font-weight: bold;")
-    
-    # Tamaño de fuente
-    if cell.font and cell.font.size:
-        styles.append(f"font-size: {cell.font.size}px;")
-    
-    # Bordes
-    if cell.border:
-        border_style = _generar_bordes(cell.border)
-        if border_style:
-            styles.append(border_style)
-    
-    return " ".join(styles)
-
-
-def _mapear_alineacion(alignment):
-    """Mapea alineación de Excel a CSS."""
-    
-    mapping = {
-        'left': 'left',
-        'center': 'center',
-        'right': 'right',
-        'justify': 'justify',
-        'distributed': 'justify',
-    }
-    
-    return mapping.get(alignment, 'left')
-
-
-def _mapear_alineacion_vertical(alignment):
-    """Mapea alineación vertical de Excel a CSS."""
-    
-    mapping = {
-        'top': 'top',
-        'center': 'middle',
-        'bottom': 'bottom',
-        'justify': 'middle',
-        'distributed': 'middle',
-    }
-    
-    return mapping.get(alignment, 'middle')
-
-
-def _generar_bordes(border):
-    """Genera estilos de borde CSS."""
-    
-    if not border:
-        return ""
-    
-    border_parts = []
-    
-    if border.left and border.left.style:
-        border_parts.append("border-left: 1px solid #999;")
-    
-    if border.right and border.right.style:
-        border_parts.append("border-right: 1px solid #999;")
-    
-    if border.top and border.top.style:
-        border_parts.append("border-top: 1px solid #999;")
-    
-    if border.bottom and border.bottom.style:
-        border_parts.append("border-bottom: 1px solid #999;")
-    
-    return " ".join(border_parts)
