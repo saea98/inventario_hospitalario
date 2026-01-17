@@ -9,13 +9,12 @@ class ServicioListaRevision:
     """Servicio para crear y gestionar listas de revisión"""
     
     # Criterios de revisión por defecto
-    CRITERIOS_DEFECTO = [
+    [
         ("CLUES correcto", "radio"),
         ("Certificado analítico por lote", "radio"),
         ("Lotes corresponden con certificado analítico", "radio"),
         ("Registro Sanitario vigente o prórroga", "radio"),
         ("Permiso de importación", "radio"),
-        ("LAS CONDICIONES FÍSICAS DEL INSUMO SE REVISAN DE ACUERDO A GUÍA TÉCNICA", "checkbox"),
         ("Registro Sanitario extranjero equivalente", "radio"),
         ("Carta canje con detalle de lotes y piezas", "radio"),
         ("Carta de vicios ocultos con detalle de lotes", "radio"),

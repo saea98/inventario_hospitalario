@@ -111,49 +111,35 @@
                                             <strong>{{ item.descripcion }}</strong>
                                         </td>
                                         <td class="align-middle">
-                                            {% if item.tipo_control == 'checkbox' %}
-                                                <!-- Checkbox para condiciones físicas -->
-                                                <div class="form-check">
-                                                    <input type="checkbox" class="form-check-input" 
-                                                        id="item_{{ item.id }}_check"
-                                                        name="item_{{ item.id }}_resultado"
-                                                        value="si"
-                                                        {% if item.resultado == 'si' %}checked{% endif %}>
-                                                    <label class="form-check-label" for="item_{{ item.id }}_check">
-                                                        Aplica
-                                                    </label>
-                                                </div>
-                                            {% else %}
-                                                <!-- Radio buttons para otros criterios -->
-                                                <div class="btn-group btn-group-sm" role="group">
-                                                    <input type="radio" class="btn-check" 
-                                                        name="item_{{ item.id }}_resultado" 
-                                                        id="item_{{ item.id }}_si" 
-                                                        value="si"
-                                                        {% if item.resultado == 'si' %}checked{% endif %}>
-                                                    <label class="btn btn-outline-success" for="item_{{ item.id }}_si">
-                                                        <i class="fas fa-check"></i> SI
-                                                    </label>
+                                            <!-- Radio buttons para todos los criterios -->
+                                            <div class="btn-group btn-group-sm" role="group">
+                                                <input type="radio" class="btn-check" 
+                                                    name="item_{{ item.id }}_resultado" 
+                                                    id="item_{{ item.id }}_si" 
+                                                    value="si"
+                                                    {% if item.resultado == 'si' %}checked{% endif %}>
+                                                <label class="btn btn-outline-success" for="item_{{ item.id }}_si">
+                                                    <i class="fas fa-check"></i> SI
+                                                </label>
 
-                                                    <input type="radio" class="btn-check" 
-                                                        name="item_{{ item.id }}_resultado" 
-                                                        id="item_{{ item.id }}_no" 
-                                                        value="no"
-                                                        {% if item.resultado == 'no' %}checked{% endif %}>
-                                                    <label class="btn btn-outline-danger" for="item_{{ item.id }}_no">
-                                                        <i class="fas fa-times"></i> NO
-                                                    </label>
+                                                <input type="radio" class="btn-check" 
+                                                    name="item_{{ item.id }}_resultado" 
+                                                    id="item_{{ item.id }}_no" 
+                                                    value="no"
+                                                    {% if item.resultado == 'no' %}checked{% endif %}>
+                                                <label class="btn btn-outline-danger" for="item_{{ item.id }}_no">
+                                                    <i class="fas fa-times"></i> NO
+                                                </label>
 
-                                                    <input type="radio" class="btn-check" 
-                                                        name="item_{{ item.id }}_resultado" 
-                                                        id="item_{{ item.id }}_na" 
-                                                        value="na"
-                                                        {% if item.resultado == 'na' %}checked{% endif %}>
-                                                    <label class="btn btn-outline-secondary" for="item_{{ item.id }}_na">
-                                                        <i class="fas fa-minus"></i> N/A
-                                                    </label>
-                                                </div>
-                                            {% endif %}
+                                                <input type="radio" class="btn-check" 
+                                                    name="item_{{ item.id }}_resultado" 
+                                                    id="item_{{ item.id }}_na" 
+                                                    value="na"
+                                                    {% if item.resultado == 'na' %}checked{% endif %}>
+                                                <label class="btn btn-outline-secondary" for="item_{{ item.id }}_na">
+                                                    <i class="fas fa-minus"></i> N/A
+                                                </label>
+                                            </div>
                                         </td>
                                     </tr>
                                     {% endfor %}
