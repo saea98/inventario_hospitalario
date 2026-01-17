@@ -254,7 +254,6 @@ def validar_entrada(request, pk):
         lista_revision = ListaRevision.objects.get(cita=cita)
     except ListaRevision.DoesNotExist:
         # Crear nueva lista de revisión
-        from .servicio_lista_revision import ServicioListaRevision
         lista_revision = ServicioListaRevision.crear_lista_revision(cita, request.user)
     
     if request.method == 'POST':
