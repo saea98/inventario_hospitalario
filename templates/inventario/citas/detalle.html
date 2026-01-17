@@ -82,12 +82,18 @@
                             <h6 class="mb-0"><i class="fas fa-user"></i> Creado por</h6>
                         </div>
                         <div class="card-body">
-                            <p class="mb-2">
-                                <strong>{{ cita.usuario_creacion.get_full_name|default:cita.usuario_creacion.username }}</strong>
-                            </p>
-                            <p class="mb-0">
-                                <small class="text-muted">{{ cita.fecha_creacion|date:"d/m/Y H:i" }}</small>
-                            </p>
+                            {% if cita.usuario_creacion %}
+                                <p class="mb-2">
+                                    <strong>{{ cita.usuario_creacion.get_full_name|default:cita.usuario_creacion.username }}</strong>
+                                </p>
+                                <p class="mb-0">
+                                    <small class="text-muted">{{ cita.fecha_creacion|date:"d/m/Y H:i" }}</small>
+                                </p>
+                            {% else %}
+                                <p class="mb-0 text-muted">
+                                    <em>No especificado</em>
+                                </p>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
@@ -109,6 +115,61 @@
                                     <small class="text-muted">{{ cita.fecha_autorizacion|date:"d/m/Y H:i" }}</small>
                                 </p>
                             </div>
+                        </div>
+                    </div>
+                </div>
+            {% endif %}
+
+            <!-- Información de Orden de Suministro (si aplica) -->
+            {% if cita.numero_orden_suministro %}
+                <div class="card mb-4">
+                    <div class="card-header bg-light">
+                        <h6 class="mb-0"><i class="fas fa-file-invoice"></i> Información de Orden de Suministro</h6>
+                    </div>
+                    <div class="card-body">
+                        <div class="row">
+                            {% if cita.numero_orden_suministro %}
+                                <div class="col-md-6 mb-3">
+                                    <small class="text-muted">Número de Orden:</small>
+                                    <p class="mb-0"><strong>{{ cita.numero_orden_suministro }}</strong></p>
+                                </div>
+                            {% endif %}
+                            {% if cita.numero_contrato %}
+                                <div class="col-md-6 mb-3">
+                                    <small class="text-muted">Número de Contrato:</small>
+                                    <p class="mb-0"><strong>{{ cita.numero_contrato }}</strong></p>
+                                </div>
+                            {% endif %}
+                            {% if cita.clave_medicamento %}
+                                <div class="col-md-6 mb-3">
+                                    <small class="text-muted">Clave de Medicamento (CNIS):</small>
+                                    <p class="mb-0"><strong>{{ cita.clave_medicamento }}</strong></p>
+                                </div>
+                            {% endif %}
+                            {% if cita.tipo_transporte %}
+                                <div class="col-md-6 mb-3">
+                                    <small class="text-muted">Tipo de Transporte:</small>
+                                    <p class="mb-0"><strong>{{ cita.tipo_transporte }}</strong></p>
+                                </div>
+                            {% endif %}
+                            {% if cita.fecha_expedicion %}
+                                <div class="col-md-6 mb-3">
+                                    <small class="text-muted">Fecha de Expedición:</small>
+                                    <p class="mb-0"><strong>{{ cita.fecha_expedicion|date:"d/m/Y" }}</strong></p>
+                                </div>
+                            {% endif %}
+                            {% if cita.fecha_limite_entrega %}
+                                <div class="col-md-6 mb-3">
+                                    <small class="text-muted">Fecha Límite de Entrega:</small>
+                                    <p class="mb-0"><strong>{{ cita.fecha_limite_entrega|date:"d/m/Y" }}</strong></p>
+                                </div>
+                            {% endif %}
+                            {% if cita.numero_orden_remision %}
+                                <div class="col-md-6 mb-3">
+                                    <small class="text-muted">Número de Orden de Remisión:</small>
+                                    <p class="mb-0"><strong>{{ cita.numero_orden_remision }}</strong></p>
+                                </div>
+                            {% endif %}
                         </div>
                     </div>
                 </div>
