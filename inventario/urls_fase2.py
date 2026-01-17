@@ -5,7 +5,7 @@ Incluye: Citas, Traslados y Conteo Físico
 """
 
 from django.urls import path, include
-from . import views_fase2, views_telegram_test, views_traslados_completo, views_conteo_fisico_v2, pedidos_views, views_dashboard_conteos, views_acuse_entrega
+from . import views_fase2, views_telegram_test, views_traslados_completo, views_conteo_fisico_v2, pedidos_views, views_dashboard_conteos, views_acuse_entrega, views_cedula_rechazo
 from . import llegada_urls
 
 app_name = 'logistica'
@@ -20,6 +20,8 @@ urlpatterns = [
     path('citas/<int:pk>/editar/', views_fase2.editar_cita, name='editar_cita'),
     path('citas/<int:pk>/validar-entrada/', views_fase2.validar_entrada, name='validar_entrada'),
     path('citas/<int:pk>/cancelar/', views_fase2.cancelar_cita, name='cancelar_cita'),
+    path('citas/<int:pk>/cedula-rechazo/', views_cedula_rechazo.generar_cedula_rechazo, name='cedula_rechazo'),
+    path('citas/<int:pk>/cedula-rechazo/imprimir/', views_cedula_rechazo.imprimir_cedula_rechazo, name='imprimir_cedula_rechazo'),
     
     # ========================================================================
     # TRASLADOS

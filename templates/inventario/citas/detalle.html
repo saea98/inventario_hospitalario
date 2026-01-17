@@ -188,7 +188,7 @@
             {% endif %}
 
             <!-- Acciones -->
-            <div class="d-flex gap-2 mb-4">
+            <div class="d-flex gap-2 mb-4 flex-wrap">
                 {% if puede_autorizar %}
                     <a href="{% url 'logistica:validar_entrada' cita.pk %}" class="btn btn-success btn-lg">
                         <i class="fas fa-check"></i> Validar Entrada
@@ -204,6 +204,12 @@
                 {% if cita.estado != 'cancelada' and cita.estado != 'completada' %}
                     <a href="{% url 'logistica:cancelar_cita' cita.pk %}" class="btn btn-danger btn-lg">
                         <i class="fas fa-times"></i> Cancelar
+                    </a>
+                {% endif %}
+
+                {% if cita.estado == 'cancelada' %}
+                    <a href="{% url 'logistica:cedula_rechazo' cita.pk %}" class="btn btn-info btn-lg">
+                        <i class="fas fa-file-pdf"></i> Cédula de Rechazo
                     </a>
                 {% endif %}
 

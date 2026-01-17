@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Cédula de Rechazo - {{ cita.folio }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Botones de acción -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <a href="{% url 'logistica:detalle_cita' cita.id %}" class="btn btn-secondary">
+                <i class="fas fa-arrow-left"></i> Volver
+            </a>
+            <button onclick="window.print()" class="btn btn-primary">
+                <i class="fas fa-print"></i> Imprimir
+            </button>
+        </div>
+    </div>
+
+    <!-- Cédula de Rechazo -->
+    <div class="cedula-container" id="cedula">
+        <!-- Encabezado -->
+        <div class="cedula-header text-center mb-4">
+            <div class="row align-items-center mb-3">
+                <div class="col-md-3">
+                    <img src="{% static 'img/imss-logo.png' %}" alt="IMSS" style="max-height: 80px;">
+                </div>
+                <div class="col-md-6 text-center">
+                    <h2 style="color: #8B1538; font-weight: bold;">CÉDULA DE RECHAZO</h2>
+                    <p style="color: #666; font-size: 14px;">SERVICIOS DE SALUD - IMSS BIENESTAR</p>
+                </div>
+                <div class="col-md-3"></div>
+            </div>
+
+            <!-- Información General -->
+            <div class="row mb-3" style="font-size: 13px;">
+                <div class="col-md-6">
+                    <p><strong>Fecha:</strong> {{ fecha }}</p>
+                    <p><strong>Folio:</strong> {{ folio }}</p>
+                </div>
+                <div class="col-md-6 text-right">
+                    <p><strong>CLUES:</strong> {{ almacen.clues }}</p>
+                    <p><strong>Almacén:</strong> {{ almacen.nombre }}</p>
+                </div>
+            </div>
+
+            <hr style="border-color: #8B1538;">
+
+            <!-- Datos de la Transacción -->
+            <div class="row mb-3" style="font-size: 13px;">
+                <div class="col-md-4">
+                    <p><strong>Entidad:</strong> {{ almacen.entidad|default:"No especificada" }}</p>
+                </div>
+                <div class="col-md-4">
+                    <p><strong>Proveedor:</strong> {{ proveedor.razon_social }}</p>
+                </div>
+                <div class="col-md-4">
+                    <p><strong>Operador Logístico:</strong> {{ cita.numero_orden_suministro|default:"No especificado" }}</p>
+                </div>
+            </div>
+        </div>
+
+        <!-- Tabla de Items -->
+        <div class="cedula-table mb-4">
+            <table class="table table-bordered" style="font-size: 12px; margin-bottom: 0;">
+                <thead style="background-color: #000; color: white;">
+                    <tr>
+                        <th style="width: 5%;">No.</th>
+                        <th style="width: 15%;">NO. ORDEN</th>
+                        <th style="width: 10%;">CLAVE</th>
+                        <th style="width: 10%;">LOTE</th>
+                        <th style="width: 12%;">NO. DE REMISIÓN</th>
+                        <th style="width: 10%;">CANTIDAD A ENTREGAR</th>
+                        <th style="width: 10%;">CANTIDAD RECHAZADA</th>
+                        <th style="width: 28%;">MOTIVO</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td class="text-center">1</td>
+                        <td>{{ cita.numero_orden_suministro|default:"-" }}</td>
+                        <td>{{ cita.clave_medicamento|default:"-" }}</td>
+                        <td>{{ cita.numero_contrato|default:"-" }}</td>
+                        <td>{{ cita.numero_orden_remision|default:"-" }}</td>
+                        <td class="text-center">-</td>
+                        <td class="text-center">-</td>
+                        <td style="word-wrap: break-word; white-space: normal;">{{ motivo }}</td>
+                    </tr>
+                    {% for i in "23456789" %}
+                    <tr>
+                        <td class="text-center">{{ forloop.counter|add:1 }}</td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                        <td></td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Sección de Firmas -->
+        <div class="cedula-firmas mt-5">
+            <table class="table table-bordered" style="font-size: 12px;">
+                <thead style="background-color: #f0f0f0;">
+                    <tr>
+                        <th class="text-center" style="width: 50%;">PROVEEDOR / OPERADOR LOGÍSTICO</th>
+                        <th class="text-center" style="width: 50%;">ALMACÉN QUE REALIZA EL RECHAZO</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td style="height: 120px; vertical-align: top; padding: 10px;">
+                            <p style="font-size: 11px;"><strong>Nombre y firma de quien realiza la entrega:</strong></p>
+                            <div style="height: 80px;"></div>
+                        </td>
+                        <td style="height: 120px; vertical-align: top; padding: 10px;">
+                            <p style="font-size: 11px;"><strong>Sello del almacén:</strong></p>
+                            <div style="height: 30px; margin-bottom: 10px;"></div>
+                            <p style="font-size: 11px; margin-bottom: 5px;"><strong>Nombre:</strong></p>
+                            <p style="font-size: 11px; margin-bottom: 5px;"><strong>Cargo:</strong></p>
+                            <p style="font-size: 11px;"><strong>Firma:</strong></p>
+                        </td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Pie de página -->
+        <div class="text-center mt-4" style="font-size: 11px; color: #666;">
+            <p>Este documento es un comprobante oficial de rechazo de entrada de insumos</p>
+            <p>Generado: {{ "now"|date:"d/m/Y H:i" }}</p>
+        </div>
+    </div>
+</div>
+
+<style>
+    @media print {
+        body {
+            margin: 0;
+            padding: 0;
+        }
+        .btn, .row:first-child {
+            display: none !important;
+        }
+        .cedula-container {
+            max-width: 100%;
+            margin: 0;
+            padding: 0;
+        }
+        .table {
+            page-break-inside: avoid;
+        }
+    }
+
+    .cedula-container {
+        background: white;
+        padding: 20px;
+        max-width: 900px;
+        margin: 0 auto;
+    }
+
+    .cedula-header {
+        border-bottom: 2px solid #8B1538;
+        padding-bottom: 15px;
+    }
+
+    .cedula-table {
+        overflow-x: auto;
+    }
+
+    .table {
+        margin-bottom: 0;
+    }
+
+    .table th {
+        font-weight: bold;
+        text-align: center;
+    }
+
+    .table td {
+        padding: 8px;
+        vertical-align: middle;
+    }
+
+    .cedula-firmas {
+        margin-top: 30px;
+    }
+</style>
+{% endblock %}
