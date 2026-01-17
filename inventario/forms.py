@@ -1143,6 +1143,78 @@ class ItemTrasladoForm(forms.ModelForm):
         return cleaned_data
 
 
+
+class ItemRevisionForm(forms.ModelForm):
+    """Formulario para cada item de revisión"""
+    class Meta:
+        model = ItemRevision
+        fields = ['resultado', 'observaciones']
+        widgets = {
+            'resultado': forms.RadioSelect(choices=[
+                ('si', '✓ SI'),
+                ('no', '✗ NO'),
+                ('na', '- N/A'),
+            ], attrs={
+                'class': 'form-check-input',
+            }),
+            'observaciones': forms.Textarea(attrs={
+                'class': 'form-control form-control-sm',
+                'rows': 2,
+                'placeholder': 'Observaciones adicionales (opcional)'
+            }),
+        }
+
+
+class ListaRevisionForm(forms.ModelForm):
+    """Formulario para la lista de revisión"""
+    class Meta:
+        model = ListaRevision
+        fields = ['tipo_documento', 'numero_documento', 'fecha_documento', 'observaciones']
+        widgets = {
+            'tipo_documento': forms.Select(attrs={
+                'class': 'form-control form-control-lg',
+            }),
+            'numero_documento': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Número de documento'
+            }),
+            'fecha_documento': forms.DateInput(attrs={
+                'class': 'form-control',
+                'type': 'date'
+            }),
+            'observaciones': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Observaciones generales'
+            }),
+        }
+
+
+class ValidarEntradaForm(forms.Form):
+    """Formulario para validar entrada (aprobación)"""
+    observaciones = forms.CharField(
+        label='Observaciones Finales',
+        required=False,
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 3,
+            'placeholder': 'Observaciones finales de la validación'
+        })
+    )
+
+
+class RechazarEntradaForm(forms.Form):
+    """Formulario para rechazar entrada"""
+    justificacion = forms.CharField(
+        label='Justificación del Rechazo',
+        required=True,
+        widget=forms.Textarea(attrs={
+            'class': 'form-control',
+            'rows': 4,
+            'placeholder': 'Explique por qué se rechaza la entrada'
+        })
+    )
+
 class ValidarItemTrasladoForm(forms.ModelForm):
     """Formulario para validar items recibidos en un traslado"""
     

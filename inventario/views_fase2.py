@@ -15,11 +15,13 @@ from datetime import datetime
 from .models import (
     CitaProveedor, OrdenTraslado, ItemTraslado, 
     ConteoFisico, ItemConteoFisico, Folio, TipoEntrega,
-    Lote, Almacen, Proveedor
+    Lote, Almacen, Proveedor, ListaRevision, ItemRevision
 )
 from .forms import (
-    CitaProveedorForm, OrdenTrasladoForm, LogisticaTrasladoForm
-, CargaMasivaCitasForm, CitaProveedorEditForm)
+    CitaProveedorForm, OrdenTrasladoForm, LogisticaTrasladoForm,
+    CargaMasivaCitasForm, CitaProveedorEditForm, ValidarEntradaForm, RechazarEntradaForm
+)
+from .servicio_lista_revision import ServicioListaRevision
 from .servicios_notificaciones import notificaciones
 
 
@@ -228,28 +230,78 @@ def editar_cita(request, pk):
         'cita': cita
     })
 
+
 @login_required
-def autorizar_cita(request, pk):
-    """Autorizar una cita (cambiar estado a 'autorizada')"""
+def validar_entrada(request, pk):
+    """Validar entrada de una cita (nueva lista de revisión)"""
     cita = get_object_or_404(CitaProveedor, pk=pk)
     
+    # Solo permitir validar si está en estado 'programada'
     if cita.estado != 'programada':
-        messages.warning(request, f'Solo se pueden autorizar citas en estado "Programada"')
+        messages.warning(request, f'Solo se pueden validar citas en estado "Programada"')
         return redirect('logistica:detalle_cita', pk=pk)
+    
+    # Crear o obtener lista de revisión
+    lista_revision, creada = ListaRevision.objects.get_or_create(
+        cita=cita,
+        defaults={
+            'folio': cita.folio,
+            'tipo_documento': 'factura',
+            'proveedor': cita.proveedor.razon_social,
+            'numero_contrato': cita.numero_contrato or '',
+            'usuario_creacion': request.user,
+        }
+    )
+    
+    # Si es nueva, crear los items
+    if creada:
+        from .servicio_lista_revision import ServicioListaRevision
+        lista_revision = ServicioListaRevision.crear_lista_revision(cita, request.user)
     
     if request.method == 'POST':
-        cita.estado = 'autorizada'
-        cita.fecha_autorizacion = timezone.now()
-        cita.usuario_autorizacion = request.user
-        cita.save()
+        # Procesar items de revisión
+        for item in lista_revision.items.all():
+            resultado_key = f'item_{item.id}_resultado'
+            observaciones_key = f'item_{item.id}_observaciones'
+            
+            if resultado_key in request.POST:
+                item.resultado = request.POST[resultado_key]
+                item.observaciones = request.POST.get(observaciones_key, '')
+                item.save()
         
-        # Enviar notificación
-        notificaciones.notificar_cita_autorizada(cita)
+        # Determinar si es aprobación o rechazo
+        if 'aprobar' in request.POST:
+            form = ValidarEntradaForm(request.POST)
+            if form.is_valid():
+                ServicioListaRevision.validar_entrada(
+                    lista_revision,
+                    request.user,
+                    form.cleaned_data.get('observaciones', '')
+                )
+                messages.success(request, '✓ Entrada validada exitosamente. La cita está autorizada.')
+                return redirect('logistica:lista_citas')
         
-        messages.success(request, f'✓ Cita autorizada: {cita.proveedor.razon_social}')
-        return redirect('logistica:detalle_cita', pk=pk)
+        elif 'rechazar' in request.POST:
+            form = RechazarEntradaForm(request.POST)
+            if form.is_valid():
+                ServicioListaRevision.rechazar_entrada(
+                    lista_revision,
+                    request.user,
+                    form.cleaned_data['justificacion']
+                )
+                messages.warning(request, '✗ Entrada rechazada. La cita ha sido cancelada.')
+                return redirect('logistica:lista_citas')
     
-    return render(request, 'inventario/citas/autorizar.html', {'cita': cita})
+    # Preparar contexto
+    context = {
+        'cita': cita,
+        'lista_revision': lista_revision,
+        'items': lista_revision.items.all(),
+        'form_validar': ValidarEntradaForm(),
+        'form_rechazar': RechazarEntradaForm(),
+    }
+    
+    return render(request, 'inventario/citas/validar_entrada.html', context)
 
 
 @login_required

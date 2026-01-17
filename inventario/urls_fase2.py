@@ -18,7 +18,7 @@ urlpatterns = [
     path('citas/crear/', views_fase2.crear_cita, name='crear_cita'),
     path('citas/<int:pk>/', views_fase2.detalle_cita, name='detalle_cita'),
     path('citas/<int:pk>/editar/', views_fase2.editar_cita, name='editar_cita'),
-    path('citas/<int:pk>/autorizar/', views_fase2.autorizar_cita, name='autorizar_cita'),
+    path('citas/<int:pk>/validar-entrada/', views_fase2.validar_entrada, name='validar_entrada'),
     path('citas/<int:pk>/cancelar/', views_fase2.cancelar_cita, name='cancelar_cita'),
     
     # ========================================================================

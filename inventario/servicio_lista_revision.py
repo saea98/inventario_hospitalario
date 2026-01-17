@@ -1,0 +1,106 @@
+"""
+Servicio para gestionar listas de revisión de citas
+"""
+from django.utils import timezone
+from .models import ListaRevision, ItemRevision
+
+
+class ServicioListaRevision:
+    """Servicio para crear y gestionar listas de revisión"""
+    
+    # Criterios de revisión por defecto
+    CRITERIOS_DEFECTO = [
+        "CLUES correcto",
+        "Certificado analítico por lote",
+        "Lotes corresponden con certificado analítico",
+        "Registro Sanitario vigente o prórroga",
+        "Permiso de importación",
+        "Registro Sanitario extranjero equivalente",
+        "Carta canje con detalle de lotes y piezas",
+        "Carta de vicios ocultos con detalle de lotes",
+    ]
+    
+    @staticmethod
+    def crear_lista_revision(cita, usuario):
+        """
+        Crear una nueva lista de revisión para una cita.
+        
+        Args:
+            cita: Instancia de CitaProveedor
+            usuario: Usuario que crea la lista
+            
+        Returns:
+            Instancia de ListaRevision con items creados
+        """
+        # Crear lista de revisión
+        lista = ListaRevision.objects.create(
+            cita=cita,
+            folio=cita.folio,  # Usar el mismo folio de la cita
+            tipo_documento='factura',
+            proveedor=cita.proveedor.razon_social,
+            numero_contrato=cita.numero_contrato or '',
+            usuario_creacion=usuario,
+        )
+        
+        # Crear items de revisión con criterios por defecto
+        items = []
+        for orden, criterio in enumerate(ServicioListaRevision.CRITERIOS_DEFECTO, 1):
+            item = ItemRevision.objects.create(
+                lista_revision=lista,
+                descripcion=criterio,
+                resultado='si',  # Por defecto marcado como SI
+                orden=orden
+            )
+            items.append(item)
+        
+        return lista
+    
+    @staticmethod
+    def validar_entrada(lista_revision, usuario, observaciones=''):
+        """
+        Validar (aprobar) una entrada.
+        
+        Args:
+            lista_revision: Instancia de ListaRevision
+            usuario: Usuario que valida
+            observaciones: Observaciones finales
+        """
+        lista_revision.estado = 'aprobada'
+        lista_revision.usuario_validacion = usuario
+        lista_revision.fecha_validacion = timezone.now()
+        lista_revision.observaciones = observaciones
+        lista_revision.save()
+        
+        # Actualizar estado de la cita a autorizada
+        cita = lista_revision.cita
+        cita.estado = 'autorizada'
+        cita.usuario_autorizacion = usuario
+        cita.fecha_autorizacion = timezone.now()
+        cita.save()
+        
+        return lista_revision
+    
+    @staticmethod
+    def rechazar_entrada(lista_revision, usuario, justificacion):
+        """
+        Rechazar una entrada.
+        
+        Args:
+            lista_revision: Instancia de ListaRevision
+            usuario: Usuario que rechaza
+            justificacion: Justificación del rechazo
+        """
+        lista_revision.estado = 'rechazada'
+        lista_revision.usuario_validacion = usuario
+        lista_revision.fecha_validacion = timezone.now()
+        lista_revision.justificacion_rechazo = justificacion
+        lista_revision.save()
+        
+        # Actualizar estado de la cita a cancelada
+        cita = lista_revision.cita
+        cita.estado = 'cancelada'
+        cita.usuario_cancelacion = usuario
+        cita.fecha_cancelacion = timezone.now()
+        cita.save()
+        
+        return lista_revision

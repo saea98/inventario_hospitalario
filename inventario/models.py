@@ -2168,3 +2168,99 @@ class RegistroConteoFisico(models.Model):
             1 if self.tercer_conteo is not None else 0,
         ])
         return f"{conteos_capturados}/3"
+
+
+class ListaRevision(models.Model):
+    """
+    Lista de Revisión para validar entrada de citas.
+    Se genera cuando se inicia el proceso de validación de una cita.
+    """
+    ESTADO_CHOICES = [
+        ('pendiente', 'Pendiente'),
+        ('aprobada', 'Aprobada'),
+        ('rechazada', 'Rechazada'),
+    ]
+    
+    cita = models.OneToOneField(CitaProveedor, on_delete=models.CASCADE, related_name='lista_revision')
+    folio = models.CharField(max_length=100, unique=True, db_index=True)
+    
+    # Información de documento
+    tipo_documento = models.CharField(
+        max_length=20,
+        choices=[('factura', 'Factura'), ('remision', 'Remisión')],
+        default='factura'
+    )
+    numero_documento = models.CharField(max_length=100, blank=True)
+    fecha_documento = models.DateField(null=True, blank=True)
+    
+    # Información del proveedor
+    proveedor = models.CharField(max_length=255)
+    numero_control = models.CharField(max_length=100, blank=True)
+    numero_prealta = models.CharField(max_length=100, blank=True)
+    numero_alta = models.CharField(max_length=100, blank=True)
+    numero_contrato = models.CharField(max_length=100, blank=True)
+    pedido = models.CharField(max_length=100, blank=True)
+    
+    # Origen
+    origen = models.CharField(
+        max_length=20,
+        choices=[('imss', 'IMSS Bienestar'), ('transferencia', 'Transferencia'), ('otro', 'Otro')],
+        default='imss'
+    )
+    
+    # Estado de la revisión
+    estado = models.CharField(max_length=20, choices=ESTADO_CHOICES, default='pendiente')
+    
+    # Justificación en caso de rechazo
+    justificacion_rechazo = models.TextField(blank=True, null=True)
+    
+    # Información de usuario
+    usuario_creacion = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, related_name='listas_revision_creadas')
+    fecha_creacion = models.DateTimeField(auto_now_add=True)
+    
+    usuario_validacion = models.ForeignKey(User, on_delete=models.SET_NULL, null=True, blank=True, related_name='listas_revision_validadas')
+    fecha_validacion = models.DateTimeField(null=True, blank=True)
+    
+    # Observaciones
+    observaciones = models.TextField(blank=True)
+    
+    class Meta:
+        ordering = ['-fecha_creacion']
+        verbose_name = 'Lista de Revisión'
+        verbose_name_plural = 'Listas de Revisión'
+    
+    def __str__(self):
+        return f"Lista de Revisión - {self.folio}"
+
+
+class ItemRevision(models.Model):
+    """
+    Cada criterio de revisión en la lista de revisión.
+    """
+    RESULTADO_CHOICES = [
+        ('si', 'SI'),
+        ('no', 'NO'),
+        ('na', 'N/A'),
+    ]
+    
+    lista_revision = models.ForeignKey(ListaRevision, on_delete=models.CASCADE, related_name='items')
+    
+    # Descripción del criterio
+    descripcion = models.CharField(max_length=500)
+    
+    # Resultado de la revisión
+    resultado = models.CharField(max_length=10, choices=RESULTADO_CHOICES, default='si')
+    
+    # Observaciones específicas
+    observaciones = models.TextField(blank=True)
+    
+    # Orden de presentación
+    orden = models.PositiveIntegerField(default=0)
+    
+    class Meta:
+        ordering = ['orden']
+        verbose_name = 'Item de Revisión'
+        verbose_name_plural = 'Items de Revisión'
+    
+    def __str__(self):
+        return f"{self.descripcion} - {self.get_resultado_display()}"
