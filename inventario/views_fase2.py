@@ -8,6 +8,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.views.decorators.http import require_http_methods
 from django.db.models import Q
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.utils import timezone
 from datetime import datetime
 
@@ -28,7 +29,7 @@ from .servicios_notificaciones import notificaciones
 
 @login_required
 def lista_citas(request):
-    """Lista todas las citas programadas"""
+    """Lista todas las citas programadas con paginación"""
     citas = CitaProveedor.objects.all().order_by('-fecha_cita')
     
     # Filtros
@@ -41,23 +42,36 @@ def lista_citas(request):
     if proveedor:
         citas = citas.filter(proveedor__razon_social__icontains=proveedor)
     
-    # Contar por estado
+    # Contar por estado (antes de paginar)
     estados_count = {
-        'programada': citas.filter(estado='programada').count(),
-        'autorizada': citas.filter(estado='autorizada').count(),
-        'completada': citas.filter(estado='completada').count(),
-        'cancelada': citas.filter(estado='cancelada').count(),
+        'programada': CitaProveedor.objects.filter(estado='programada').count(),
+        'autorizada': CitaProveedor.objects.filter(estado='autorizada').count(),
+        'completada': CitaProveedor.objects.filter(estado='completada').count(),
+        'cancelada': CitaProveedor.objects.filter(estado='cancelada').count(),
     }
     
+    # Paginación
+    paginator = Paginator(citas, 15)  # 15 citas por página
+    page = request.GET.get('page')
+    
+    try:
+        citas_page = paginator.page(page)
+    except PageNotAnInteger:
+        citas_page = paginator.page(1)
+    except EmptyPage:
+        citas_page = paginator.page(paginator.num_pages)
+    
     context = {
-        'citas': citas,
+        'citas': citas_page,
+        'paginator': paginator,
+        'page_obj': citas_page,
         'estados': CitaProveedor.ESTADOS_CITA,
         'estados_count': estados_count,
         'estado_seleccionado': estado,
         'proveedor_seleccionado': proveedor,
+        'total_citas': paginator.count,
     }
     return render(request, 'inventario/citas/lista.html', context)
-
 
 @login_required
 def crear_cita(request):

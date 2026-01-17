@@ -9,7 +9,7 @@
     <div class="row mb-4">
         <div class="col-md-8">
             <h2><i class="fas fa-calendar-check text-primary"></i> Citas de Proveedores</h2>
-            <p class="text-muted">Gestión de citas programadas con proveedores</p>
+            <p class="text-muted">Gestión de citas programadas con proveedores (Total: {{ total_citas }})</p>
         </div>
         <div class="col-md-4 text-end">
             <a href="{% url 'logistica:crear_cita' %}" class="btn btn-primary btn-lg">
@@ -80,6 +80,16 @@
         </div>
     </div>
 
+    <!-- Información de Paginación -->
+    {% if paginator.num_pages > 1 %}
+    <div class="alert alert-info mb-3">
+        <small>
+            Mostrando página <strong>{{ page_obj.number }}</strong> de <strong>{{ paginator.num_pages }}</strong>
+            ({{ paginator.count }} citas en total)
+        </small>
+    </div>
+    {% endif %}
+
     <!-- Tabla de Citas -->
     <div class="card">
         <div class="table-responsive">
@@ -143,5 +153,92 @@
             </table>
         </div>
     </div>
+
+    <!-- Paginación -->
+    {% if paginator.num_pages > 1 %}
+    <nav aria-label="Paginación" class="mt-4">
+        <ul class="pagination justify-content-center">
+            <!-- Primera página -->
+            {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1{% if estado_seleccionado %}&estado={{ estado_seleccionado }}{% endif %}{% if proveedor_seleccionado %}&proveedor={{ proveedor_seleccionado }}{% endif %}" aria-label="Primera">
+                        <span aria-hidden="true"><i class="fas fa-chevron-left"></i> Primera</span>
+                    </a>
+                </li>
+            {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link"><i class="fas fa-chevron-left"></i> Primera</span>
+                </li>
+            {% endif %}
+
+            <!-- Página anterior -->
+            {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if estado_seleccionado %}&estado={{ estado_seleccionado }}{% endif %}{% if proveedor_seleccionado %}&proveedor={{ proveedor_seleccionado }}{% endif %}" aria-label="Anterior">
+                        <span aria-hidden="true">&laquo;</span>
+                    </a>
+                </li>
+            {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">&laquo;</span>
+                </li>
+            {% endif %}
+
+            <!-- Números de página -->
+            {% for num in paginator.page_range %}
+                {% if page_obj.number == num %}
+                    <li class="page-item active">
+                        <span class="page-link">
+                            {{ num }}
+                            <span class="visually-hidden">(actual)</span>
+                        </span>
+                    </li>
+                {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% if estado_seleccionado %}&estado={{ estado_seleccionado }}{% endif %}{% if proveedor_seleccionado %}&proveedor={{ proveedor_seleccionado }}{% endif %}">
+                            {{ num }}
+                        </a>
+                    </li>
+                {% elif num == 1 or num == paginator.num_pages %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ num }}{% if estado_seleccionado %}&estado={{ estado_seleccionado }}{% endif %}{% if proveedor_seleccionado %}&proveedor={{ proveedor_seleccionado }}{% endif %}">
+                            {{ num }}
+                        </a>
+                    </li>
+                {% elif num == page_obj.number|add:'-4' or num == page_obj.number|add:'4' %}
+                    <li class="page-item disabled">
+                        <span class="page-link">...</span>
+                    </li>
+                {% endif %}
+            {% endfor %}
+
+            <!-- Página siguiente -->
+            {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if estado_seleccionado %}&estado={{ estado_seleccionado }}{% endif %}{% if proveedor_seleccionado %}&proveedor={{ proveedor_seleccionado }}{% endif %}" aria-label="Siguiente">
+                        <span aria-hidden="true">&raquo;</span>
+                    </a>
+                </li>
+            {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">&raquo;</span>
+                </li>
+            {% endif %}
+
+            <!-- Última página -->
+            {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ paginator.num_pages }}{% if estado_seleccionado %}&estado={{ estado_seleccionado }}{% endif %}{% if proveedor_seleccionado %}&proveedor={{ proveedor_seleccionado }}{% endif %}" aria-label="Última">
+                        <span aria-hidden="true">Última <i class="fas fa-chevron-right"></i></span>
+                    </a>
+                </li>
+            {% else %}
+                <li class="page-item disabled">
+                    <span class="page-link">Última <i class="fas fa-chevron-right"></i></span>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
 </div>
 {% endblock %}
