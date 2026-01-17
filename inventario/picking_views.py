@@ -298,7 +298,8 @@ def imprimir_hoja_surtido(request, propuesta_id):
 @login_required
 def exportar_picking_excel(request, propuesta_id):
     """
-    Genera un archivo Excel con la hoja de picking ordenada por ubicación
+    Genera un archivo Excel con la hoja de picking ordenada por ubicación.
+    Versión 2.0: Sin template, con encabezados en fila 8.
     """
     propuesta = get_object_or_404(PropuestaPedido, id=propuesta_id)
     
@@ -327,7 +328,7 @@ def exportar_picking_excel(request, propuesta_id):
     # Ordenar por ubicación
     items_picking.sort(key=lambda x: (x['almacen_id'], x['ubicacion_id']))
     
-    # Crear workbook
+    # Crear workbook - Versión sin template
     wb = Workbook()
     ws = wb.active
     ws.title = "Picking"
