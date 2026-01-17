@@ -151,8 +151,12 @@
             margin: 0;
             padding: 0;
         }
-        .btn, .row:first-child {
+        .btn, .row:first-child, .container-fluid > .row:first-of-type {
             display: none !important;
+        }
+        .container-fluid {
+            margin-top: 0 !important;
+            padding-top: 0 !important;
         }
         .cedula-container {
             max-width: 100%;
