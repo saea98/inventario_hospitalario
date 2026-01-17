@@ -47,7 +47,20 @@ def convertir_acuse_excel_a_pdf(excel_buffer):
             for col_idx in range(1, 12):
                 celda = worksheet.cell(row=row_idx, column=col_idx)
                 valor = _obtener_valor_celda(celda)
-                fila.append(valor if valor else "")
+                
+                # Para la columna DESCRIPCIÓN (3), usar Paragraph para mejor ajuste
+                if col_idx == 3 and valor:
+                    # Crear un Paragraph con el texto
+                    style = ParagraphStyle(
+                        'DescripcionStyle',
+                        fontSize=7,
+                        leading=9,
+                        alignment=TA_LEFT,
+                        fontName='Helvetica'
+                    )
+                    fila.append(Paragraph(valor, style))
+                else:
+                    fila.append(valor if valor else "")
             
             # Si la fila tiene contenido, agregarla
             if any(fila):
@@ -141,10 +154,10 @@ def convertir_acuse_excel_a_pdf(excel_buffer):
         encabezados = ['#', 'CLAVE CNIS', 'DESCRIPCIÓN', 'U.M.', 'TIPO', 'LOTE', 'CADUCIDAD', 'CLASIFICACIÓN', 'UBICACIÓN', 'CANTIDAD', 'FOLIO PEDIDO']
         datos_completos = [encabezados] + datos_tabla
         
-        items_table = Table(
-            datos_completos,
-            colWidths=[0.35*inch, 0.85*inch, 1.9*inch, 0.75*inch, 0.75*inch, 0.85*inch, 0.85*inch, 0.85*inch, 0.85*inch, 0.75*inch, 1.5*inch]
-        )
+        # Definir anchos de columnas
+        col_widths = [0.35*inch, 0.85*inch, 1.9*inch, 0.75*inch, 0.75*inch, 0.85*inch, 0.85*inch, 0.85*inch, 0.85*inch, 0.75*inch, 1.5*inch]
+        
+        items_table = Table(datos_completos, colWidths=col_widths)
         
         items_table.setStyle(TableStyle([
             # Encabezado
@@ -156,11 +169,20 @@ def convertir_acuse_excel_a_pdf(excel_buffer):
             ('FONTSIZE', (0, 0), (-1, 0), 7),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 6),
             
-            # Datos
-            ('ALIGN', (0, 1), (-1, -1), 'CENTER'),
+            # Datos - Alineación
+            ('ALIGN', (0, 1), (0, -1), 'CENTER'),
+            ('ALIGN', (1, 1), (1, -1), 'CENTER'),
+            ('ALIGN', (2, 1), (2, -1), 'LEFT'),
+            ('ALIGN', (3, 1), (-1, -1), 'CENTER'),
+            
+            # Datos - Alineación vertical
+            ('VALIGN', (0, 1), (-1, -1), 'TOP'),
+            
+            # Datos - Estilos de fuente
             ('FONTSIZE', (0, 1), (-1, -1), 7),
+            
+            # Datos - Colores de fondo
             ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f0f0f0')]),
-            ('VALIGN', (0, 1), (-1, -1), 'MIDDLE'),
             
             # Bordes
             ('GRID', (0, 0), (-1, -1), 1, colors.black),
@@ -170,6 +192,15 @@ def convertir_acuse_excel_a_pdf(excel_buffer):
             ('RIGHTPADDING', (0, 0), (-1, -1), 3),
             ('TOPPADDING', (0, 0), (-1, -1), 3),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
+            
+            # Especial para columna DESCRIPCIÓN - permitir wrap
+            ('LEFTPADDING', (2, 1), (2, -1), 5),
+            ('RIGHTPADDING', (2, 1), (2, -1), 5),
+            ('TOPPADDING', (2, 1), (2, -1), 5),
+            ('BOTTOMPADDING', (2, 1), (2, -1), 5),
+            
+            # Altura de filas para mejor legibilidad
+            ('ROWHEIGHT', (0, 1), (-1, -1), 18*mm),
         ]))
         
         story.append(items_table)
