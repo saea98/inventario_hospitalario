@@ -19,7 +19,7 @@ from .models import (
 )
 from .forms import (
     CitaProveedorForm, OrdenTrasladoForm, LogisticaTrasladoForm
-, CargaMasivaCitasForm)
+, CargaMasivaCitasForm, CitaProveedorEditForm)
 from .servicios_notificaciones import notificaciones
 
 
@@ -203,32 +203,18 @@ def editar_cita(request, pk):
         return redirect('logistica:lista_citas')
     
     if request.method == 'POST':
-        form = CitaProveedorForm(request.POST, instance=cita)
+        form = CitaProveedorEditForm(request.POST, instance=cita)
         if form.is_valid():
             form.save()
             messages.success(request, '✓ Cita actualizada exitosamente')
             return redirect('logistica:lista_citas')
     else:
-        form = CitaProveedorForm(instance=cita)
+        form = CitaProveedorEditForm(instance=cita)
     
     return render(request, 'inventario/citas/editar.html', {
         'form': form,
         'cita': cita
     })
-
-
-@login_required
-def detalle_cita(request, pk):
-    """Ver detalles de una cita"""
-    cita = get_object_or_404(CitaProveedor, pk=pk)
-    
-    context = {
-        'cita': cita,
-        'puede_autorizar': cita.estado == 'programada',
-        'puede_completar': cita.estado == 'autorizada',
-    }
-    return render(request, 'inventario/citas/detalle.html', context)
-
 
 @login_required
 def autorizar_cita(request, pk):

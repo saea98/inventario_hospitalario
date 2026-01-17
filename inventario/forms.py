@@ -718,6 +718,133 @@ class CargaMasivaCitasForm(forms.Form):
         return archivo
 
 
+class CitaProveedorEditForm(forms.ModelForm):
+    """
+    Formulario para editar citas con proveedores.
+    
+    Permite editar todos los campos sin restricción de fechas pasadas,
+    ya que es necesario actualizar información de semanas anteriores.
+    """
+    
+    class Meta:
+        model = CitaProveedor
+        fields = [
+            'proveedor', 'fecha_cita', 'almacen', 'observaciones',
+            'numero_orden_suministro', 'numero_contrato', 'clave_medicamento',
+            'tipo_transporte', 'fecha_expedicion', 'fecha_limite_entrega',
+            'numero_orden_remision'
+        ]
+        widgets = {
+            'proveedor': forms.Select(attrs={
+                'class': 'form-control form-control-lg',
+                'required': True,
+                'placeholder': 'Seleccione un proveedor'
+            }),
+            'fecha_cita': forms.DateTimeInput(attrs={
+                'class': 'form-control form-control-lg',
+                'type': 'datetime-local',
+                'required': True,
+                'placeholder': 'Seleccione fecha y hora'
+            }),
+            'almacen': forms.Select(attrs={
+                'class': 'form-control form-control-lg',
+                'required': True,
+                'placeholder': 'Seleccione almacén'
+            }),
+            'observaciones': forms.Textarea(attrs={
+                'class': 'form-control',
+                'rows': 3,
+                'placeholder': 'Observaciones adicionales sobre la cita (opcional)',
+                'maxlength': 500
+            }),
+            'numero_orden_suministro': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ej: IMBB-09-02-2025-09263560-U013'
+            }),
+            'numero_contrato': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ej: IB/2164/2025'
+            }),
+            'clave_medicamento': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ej: 010.000.0569.00'
+            }),
+            'tipo_transporte': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Ej: Temperatura ambiente'
+            }),
+            'fecha_expedicion': forms.DateInput(attrs={
+                'class': 'form-control',
+                'type': 'date'
+            }),
+            'fecha_limite_entrega': forms.DateInput(attrs={
+                'class': 'form-control',
+                'type': 'date'
+            }),
+            'numero_orden_remision': forms.TextInput(attrs={
+                'class': 'form-control',
+                'placeholder': 'Número de orden de remisión'
+            }),
+        }
+        labels = {
+            'proveedor': '👥 Proveedor',
+            'fecha_cita': '📅 Fecha y Hora de Cita',
+            'almacen': '🏢 Almacén de Recepción',
+            'observaciones': '📝 Observaciones',
+            'numero_orden_suministro': '📋 Número de Orden de Suministro',
+            'numero_contrato': '📄 Número de Contrato',
+            'clave_medicamento': '💊 Clave de Medicamento (CNIS)',
+            'tipo_transporte': '🚚 Tipo de Transporte',
+            'fecha_expedicion': '📅 Fecha de Expedición',
+            'fecha_limite_entrega': '📅 Fecha Límite de Entrega',
+            'numero_orden_remision': '📦 Número de Orden de Remisión',
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.form_method = 'post'
+        self.helper.layout = Layout(
+            HTML('<h5 class="mb-3">Información Principal</h5>'),
+            Row(
+                Column('proveedor', css_class='form-group col-md-6 mb-3'),
+                Column('almacen', css_class='form-group col-md-6 mb-3'),
+                css_class='form-row'
+            ),
+            Row(
+                Column('fecha_cita', css_class='form-group col-md-12 mb-3'),
+                css_class='form-row'
+            ),
+            'observaciones',
+            
+            HTML('<hr class="my-4">'),
+            HTML('<h5 class="mb-3">Información de Orden de Suministro</h5>'),
+            Row(
+                Column('numero_orden_suministro', css_class='form-group col-md-6 mb-3'),
+                Column('numero_contrato', css_class='form-group col-md-6 mb-3'),
+                css_class='form-row'
+            ),
+            Row(
+                Column('clave_medicamento', css_class='form-group col-md-6 mb-3'),
+                Column('tipo_transporte', css_class='form-group col-md-6 mb-3'),
+                css_class='form-row'
+            ),
+            Row(
+                Column('fecha_expedicion', css_class='form-group col-md-6 mb-3'),
+                Column('fecha_limite_entrega', css_class='form-group col-md-6 mb-3'),
+                css_class='form-row'
+            ),
+            'numero_orden_remision',
+            
+            HTML('<hr class="my-4">'),
+            Submit('submit', '✓ Guardar Cambios', css_class='btn btn-primary btn-lg w-100')
+        )
+    
+    def clean(self):
+        # No hay restricción de fechas en edición
+        # Permitir cualquier fecha para actualizar información de semanas pasadas
+        return super().clean()
+
 class OrdenTrasladoForm(forms.ModelForm):
     """
     Formulario para crear órdenes de traslado entre almacenes.
