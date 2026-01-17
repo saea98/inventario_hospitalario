@@ -95,33 +95,33 @@
             <div class="card-body">
                 <form method="GET" class="row g-3">
                     <!-- Mantener filtros básicos -->
-                    <input type="hidden" name="estado" value="{{ estado_seleccionado }}">
-                    <input type="hidden" name="proveedor" value="{{ proveedor_seleccionado }}">
+                    <input type="hidden" name="estado" value="{{ estado_seleccionado|default:'' }}">
+                    <input type="hidden" name="proveedor" value="{{ proveedor_seleccionado|default:'' }}">
                     
                     <div class="col-md-3">
                         <label class="form-label">Fecha Desde</label>
-                        <input type="date" name="fecha_desde" class="form-control" value="{{ fecha_desde_seleccionada }}">
+                        <input type="date" name="fecha_desde" class="form-control" value="{{ fecha_desde_seleccionada|default:'' }}">
                     </div>
                     <div class="col-md-3">
                         <label class="form-label">Fecha Hasta</label>
-                        <input type="date" name="fecha_hasta" class="form-control" value="{{ fecha_hasta_seleccionada }}">
+                        <input type="date" name="fecha_hasta" class="form-control" value="{{ fecha_hasta_seleccionada|default:'' }}">
                     </div>
                     <div class="col-md-3">
                         <label class="form-label">Orden de Suministro</label>
-                        <input type="text" name="numero_orden" class="form-control" placeholder="Número de orden..." value="{{ numero_orden_seleccionado }}">
+                        <input type="text" name="numero_orden" class="form-control" placeholder="Número de orden..." value="{{ numero_orden_seleccionado|default:'' }}">
                     </div>
                     <div class="col-md-3">
                         <label class="form-label">Orden de Remisión</label>
-                        <input type="text" name="numero_remision" class="form-control" placeholder="Número de remisión..." value="{{ numero_remision_seleccionado }}">
+                        <input type="text" name="numero_remision" class="form-control" placeholder="Número de remisión..." value="{{ numero_remision_seleccionado|default:'' }}">
                     </div>
                     
                     <div class="col-md-3">
                         <label class="form-label">Número de Contrato</label>
-                        <input type="text" name="numero_contrato" class="form-control" placeholder="Número de contrato..." value="{{ numero_contrato_seleccionado }}">
+                        <input type="text" name="numero_contrato" class="form-control" placeholder="Número de contrato..." value="{{ numero_contrato_seleccionado|default:'' }}">
                     </div>
                     <div class="col-md-3">
                         <label class="form-label">Clave de Medicamento</label>
-                        <input type="text" name="clave_medicamento" class="form-control" placeholder="Clave CNIS..." value="{{ clave_medicamento_seleccionada }}">
+                        <input type="text" name="clave_medicamento" class="form-control" placeholder="Clave CNIS..." value="{{ clave_medicamento_seleccionada|default:'' }}">
                     </div>
                     <div class="col-md-6 d-flex align-items-end gap-2">
                         <button type="submit" class="btn btn-success flex-grow-1">
