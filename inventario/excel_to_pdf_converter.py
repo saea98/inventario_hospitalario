@@ -52,7 +52,19 @@ def convertir_excel_a_pdf(excel_buffer):
             for col_idx in range(1, 8):
                 celda = worksheet.cell(row=row_idx, column=col_idx)
                 valor = _obtener_valor_celda(celda)
-                fila.append(valor if valor else "")
+                # Para la columna PRODUCTO (3), usar Paragraph para mejor ajuste
+                if col_idx == 3 and valor:
+                    # Crear un Paragraph con el texto
+                    style = ParagraphStyle(
+                        'ProductoStyle',
+                        fontSize=8,
+                        leading=10,
+                        alignment=TA_LEFT,
+                        fontName='Helvetica'
+                    )
+                    fila.append(Paragraph(valor, style))
+                else:
+                    fila.append(valor if valor else "")
             
             # Si la fila tiene contenido, agregarla
             if any(fila):
@@ -116,22 +128,23 @@ def convertir_excel_a_pdf(excel_buffer):
         encabezados = ['UBICACIÓN', 'CLAVE CNIS', 'PRODUCTO', 'CADUCIDAD', 'LOTE', 'CANTIDAD', 'CANTIDAD SURTIDA']
         datos_completos = [encabezados] + datos_tabla
         
-        items_table = Table(
-            datos_completos,
-            colWidths=[15*mm, 20*mm, 100*mm, 18*mm, 18*mm, 18*mm, 25*mm]
-        )
+        # Definir anchos de columnas
+        col_widths = [15*mm, 20*mm, 100*mm, 18*mm, 18*mm, 18*mm, 25*mm]
+        
+        items_table = Table(datos_completos, colWidths=col_widths)
         
         items_table.setStyle(TableStyle([
             # Encabezado
             ('BACKGROUND', (0, 0), (-1, 0), colors.HexColor('#1f77b4')),
             ('TEXTCOLOR', (0, 0), (-1, 0), colors.whitesmoke),
             ('ALIGN', (0, 0), (-1, 0), 'CENTER'),
+            ('VALIGN', (0, 0), (-1, 0), 'MIDDLE'),
             ('FONTNAME', (0, 0), (-1, 0), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, 0), 9),
             ('BOTTOMPADDING', (0, 0), (-1, 0), 5),
             ('TOPPADDING', (0, 0), (-1, 0), 5),
             
-            # Datos
+            # Datos - Alineación
             ('ALIGN', (0, 1), (0, -1), 'CENTER'),
             ('ALIGN', (1, 1), (1, -1), 'CENTER'),
             ('ALIGN', (2, 1), (2, -1), 'LEFT'),
@@ -140,24 +153,38 @@ def convertir_excel_a_pdf(excel_buffer):
             ('ALIGN', (5, 1), (5, -1), 'CENTER'),
             ('ALIGN', (6, 1), (6, -1), 'CENTER'),
             
+            # Datos - Alineación vertical
+            ('VALIGN', (0, 1), (-1, -1), 'TOP'),
+            
+            # Datos - Estilos de fuente
             ('FONTNAME', (0, 1), (0, -1), 'Helvetica-Bold'),
             ('FONTNAME', (5, 1), (5, -1), 'Helvetica-Bold'),
-            
             ('FONTSIZE', (0, 1), (-1, -1), 8),
             
+            # Datos - Colores de fondo
             ('BACKGROUND', (5, 1), (5, -1), colors.HexColor('#e8f4f8')),
-            
-            ('GRID', (0, 0), (-1, -1), 1, colors.grey),
-            
             ('ROWBACKGROUNDS', (0, 1), (-1, -1), [colors.white, colors.HexColor('#f9f9f9')]),
             
+            # Bordes
+            ('GRID', (0, 0), (-1, -1), 1, colors.grey),
+            
+            # Padding
             ('LEFTPADDING', (0, 0), (-1, -1), 3),
             ('RIGHTPADDING', (0, 0), (-1, -1), 3),
             ('TOPPADDING', (0, 0), (-1, -1), 3),
             ('BOTTOMPADDING', (0, 0), (-1, -1), 3),
             
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
+            # Especial para columna PRODUCTO - permitir wrap
+            ('LEFTPADDING', (2, 1), (2, -1), 5),
+            ('RIGHTPADDING', (2, 1), (2, -1), 5),
+            ('TOPPADDING', (2, 1), (2, -1), 5),
+            ('BOTTOMPADDING', (2, 1), (2, -1), 5),
         ]))
+        
+        # Configurar altura mínima de filas para mejor legibilidad
+        items_table.setStyle(TableStyle([
+            ('ROWHEIGHT', (0, 1), (-1, -1), 20*mm),
+        ]), start=1)
         
         story.append(items_table)
         
