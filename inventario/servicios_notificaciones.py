@@ -369,13 +369,19 @@ class ServicioNotificaciones:
         
         asunto = f"✗ Cita Cancelada: {cita.proveedor.razon_social}"
         
+        # Obtener usuario que cancela
+        usuario_cancelacion = cita.usuario_cancelacion or cita.usuario_creacion
+        usuario_nombre = "No especificado"
+        if usuario_cancelacion:
+            usuario_nombre = usuario_cancelacion.get_full_name() or usuario_cancelacion.username
+        
         # Mensaje para Email (HTML)
         mensaje_email = f"""
         <h3>Cita Cancelada</h3>
         <p><strong>Proveedor:</strong> {cita.proveedor.razon_social}</p>
         <p><strong>Fecha y Hora (Original):</strong> {cita.fecha_cita.strftime('%d/%m/%Y %H:%M')}</p>
         <p><strong>Almacén:</strong> {cita.almacen.nombre}</p>
-        <p><strong>Cancelado por:</strong> {cita.usuario_creacion.get_full_name() or cita.usuario_creacion.username}</p>
+        <p><strong>Cancelado por:</strong> {usuario_nombre}</p>
         """
         
         # Mensaje para Telegram (Markdown)
@@ -384,7 +390,7 @@ class ServicioNotificaciones:
 *Proveedor:* {cita.proveedor.razon_social}
 *Fecha y Hora (Original):* {cita.fecha_cita.strftime('%d/%m/%Y %H:%M')}
 *Almacén:* {cita.almacen.nombre}
-*Cancelado por:* {cita.usuario_creacion.get_full_name() or cita.usuario_creacion.username}"""
+*Cancelado por:* {usuario_nombre}"""
         
         return self.enviar_notificacion(
             asunto=asunto,
