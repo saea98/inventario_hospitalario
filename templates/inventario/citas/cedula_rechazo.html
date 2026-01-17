@@ -139,7 +139,15 @@
 
 <style>
     @media print {
+        * {
+            margin: 0 !important;
+            padding: 0 !important;
+        }
         body {
+            margin: 0;
+            padding: 0;
+        }
+        @page {
             margin: 0;
             padding: 0;
         }
@@ -148,8 +156,9 @@
         }
         .cedula-container {
             max-width: 100%;
-            margin: 0;
-            padding: 0;
+            margin: 0 !important;
+            padding: 20px !important;
+            page-break-inside: avoid;
         }
         .table {
             page-break-inside: avoid;
