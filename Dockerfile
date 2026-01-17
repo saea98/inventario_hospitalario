@@ -7,7 +7,6 @@ ENV PYTHONPATH=/app
 RUN apt-get update && apt-get install -y \
     build-essential libpq-dev curl \
     libcairo2-dev pkg-config python3-dev \
-    libreoffice \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
