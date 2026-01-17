@@ -371,9 +371,9 @@ def exportar_picking_excel(request, propuesta_id):
     # Definir anchos de columnas
     ws.column_dimensions['A'].width = 12
     ws.column_dimensions['B'].width = 12
-    ws.column_dimensions['C'].width = 12
+    ws.column_dimensions['C'].width = 12 * 6  # Aumentar 6 veces el ancho para PRODUCTO
     ws.column_dimensions['D'].width = 12
-    ws.column_dimensions['E'].width = 30 * 6  # Aumentar 6 veces el ancho
+    ws.column_dimensions['E'].width = 30
     ws.column_dimensions['F'].width = 12
     ws.column_dimensions['G'].width = 20
     
