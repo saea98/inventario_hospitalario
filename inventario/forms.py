@@ -11,7 +11,8 @@ from .models import (
     Institucion, Producto, Proveedor, Lote, OrdenSuministro,
     CategoriaProducto, Alcaldia, TipoInstitucion, FuenteFinanciamiento,
     MovimientoInventario, CargaInventario, TipoInstitucion, UbicacionAlmacen,
-    CitaProveedor, OrdenTraslado, ItemTraslado, ConteoFisico, ItemConteoFisico, TipoRed, TipoEntrega
+    CitaProveedor, OrdenTraslado, ItemTraslado, ConteoFisico, ItemConteoFisico, TipoRed, TipoEntrega,
+    ListaRevision, ItemRevision
 )
 #from .models import Institucion, Alcaldia, TipoInstitucion
 
