@@ -829,6 +829,49 @@ class CitaProveedor(models.Model):
     )
     
     fecha_creacion = models.DateTimeField(auto_now_add=True)
+    
+    # Campos para carga masiva desde órdenes de suministro
+    numero_orden_suministro = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        verbose_name="Número de Orden de Suministro"
+    )
+    numero_contrato = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        verbose_name="Número de Contrato"
+    )
+    clave_medicamento = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        verbose_name="Clave de Medicamento (CNIS)"
+    )
+    tipo_transporte = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        verbose_name="Tipo de Transporte"
+    )
+    fecha_expedicion = models.DateField(
+        blank=True,
+        null=True,
+        verbose_name="Fecha de Expedición"
+    )
+    fecha_limite_entrega = models.DateField(
+        blank=True,
+        null=True,
+        verbose_name="Fecha Límite de Entrega"
+    )
+    numero_orden_remision = models.CharField(
+        max_length=100,
+        blank=True,
+        null=True,
+        verbose_name="Número de Orden de Remisión"
+    )
+    
     fecha_actualizacion = models.DateTimeField(auto_now=True)
 
     class Meta:
