@@ -9,7 +9,7 @@ class ServicioListaRevision:
     """Servicio para crear y gestionar listas de revisión"""
     
     # Criterios de revisión por defecto
-    [
+    CRITERIOS_DEFECTO = [
         ("CLUES correcto", "radio"),
         ("Certificado analítico por lote", "radio"),
         ("Lotes corresponden con certificado analítico", "radio"),
