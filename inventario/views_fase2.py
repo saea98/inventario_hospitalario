@@ -193,6 +193,18 @@ def crear_cita(request):
     return render(request, 'inventario/citas/crear.html', context)
 
 @login_required
+def detalle_cita(request, pk):
+    """Ver detalles de una cita"""
+    cita = get_object_or_404(CitaProveedor, pk=pk)
+    
+    context = {
+        'cita': cita,
+        'puede_autorizar': cita.estado == 'programada',
+        'puede_completar': cita.estado == 'autorizada',
+    }
+    return render(request, 'inventario/citas/detalle.html', context)
+
+@login_required
 def editar_cita(request, pk):
     """Editar una cita existente"""
     cita = get_object_or_404(CitaProveedor, pk=pk)
