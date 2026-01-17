@@ -121,10 +121,19 @@ def convertir_acuse_excel_a_pdf(excel_buffer):
         story.append(Spacer(1, 0.1*inch))
         
         # Tabla de firmas
+        # Crear Paragraph para la institución para que se ajuste al ancho
+        institucion_style = ParagraphStyle(
+            'InstitucionStyle',
+            fontSize=8,
+            leading=10,
+            alignment=TA_LEFT,
+            fontName='Helvetica'
+        )
+        
         firma_data = [
             ['UNIDAD DE DESTINO', 'RECIBE (UNIDAD DE DESTINO)', 'AUTORIZA (ALMACEN)', 'ENTREGA (ALMACEN)'],
             [
-                f'INSTITUCIÓN: {institucion}',
+                Paragraph(f'INSTITUCIÓN: {institucion}', institucion_style),
                 'NOMBRE: __________________\n\nPUESTO: __________________\n\nFIRMA: __________________',
                 'NOMBRE: Gerardo Anaya\n\nPUESTO: MESA DE CONTROL\n\nFIRMA: __________________',
                 'NOMBRE: __________________\n\nPUESTO: __________________\n\nFIRMA: __________________'
@@ -145,6 +154,12 @@ def convertir_acuse_excel_a_pdf(excel_buffer):
             ('GRID', (0, 0), (-1, -1), 1, colors.black),
             ('TOPPADDING', (0, 1), (-1, -1), 10),
             ('BOTTOMPADDING', (0, 1), (-1, -1), 40),
+            # Especial para columna UNIDAD DE DESTINO
+            ('LEFTPADDING', (0, 1), (0, 1), 5),
+            ('RIGHTPADDING', (0, 1), (0, 1), 5),
+            ('TOPPADDING', (0, 1), (0, 1), 5),
+            ('BOTTOMPADDING', (0, 1), (0, 1), 5),
+            ('VALIGN', (0, 1), (0, 1), 'TOP'),
         ]))
         
         story.append(firma_table)
