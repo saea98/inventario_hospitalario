@@ -2254,10 +2254,22 @@ class ItemRevision(models.Model):
         ('na', 'N/A'),
     ]
     
+    TIPO_CONTROL_CHOICES = [
+        ('radio', 'Radio Button (SI/NO/N/A)'),
+        ('checkbox', 'Checkbox (Aplica/No Aplica)'),
+    ]
+    
     lista_revision = models.ForeignKey(ListaRevision, on_delete=models.CASCADE, related_name='items')
     
     # Descripción del criterio
     descripcion = models.CharField(max_length=500)
+    
+    # Tipo de control (radio o checkbox)
+    tipo_control = models.CharField(
+        max_length=20,
+        choices=TIPO_CONTROL_CHOICES,
+        default='radio'
+    )
     
     # Resultado de la revisión
     resultado = models.CharField(max_length=10, choices=RESULTADO_CHOICES, default='si')

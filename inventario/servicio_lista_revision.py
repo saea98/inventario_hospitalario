@@ -10,14 +10,15 @@ class ServicioListaRevision:
     
     # Criterios de revisión por defecto
     CRITERIOS_DEFECTO = [
-        "CLUES correcto",
-        "Certificado analítico por lote",
-        "Lotes corresponden con certificado analítico",
-        "Registro Sanitario vigente o prórroga",
-        "Permiso de importación",
-        "Registro Sanitario extranjero equivalente",
-        "Carta canje con detalle de lotes y piezas",
-        "Carta de vicios ocultos con detalle de lotes",
+        ("CLUES correcto", "radio"),
+        ("Certificado analítico por lote", "radio"),
+        ("Lotes corresponden con certificado analítico", "radio"),
+        ("Registro Sanitario vigente o prórroga", "radio"),
+        ("Permiso de importación", "radio"),
+        ("LAS CONDICIONES FÍSICAS DEL INSUMO SE REVISAN DE ACUERDO A GUÍA TÉCNICA", "checkbox"),
+        ("Registro Sanitario extranjero equivalente", "radio"),
+        ("Carta canje con detalle de lotes y piezas", "radio"),
+        ("Carta de vicios ocultos con detalle de lotes", "radio"),
     ]
     
     @staticmethod
@@ -44,10 +45,11 @@ class ServicioListaRevision:
         
         # Crear items de revisión con criterios por defecto
         items = []
-        for orden, criterio in enumerate(ServicioListaRevision.CRITERIOS_DEFECTO, 1):
+        for orden, (criterio, tipo_control) in enumerate(ServicioListaRevision.CRITERIOS_DEFECTO, 1):
             item = ItemRevision.objects.create(
                 lista_revision=lista,
                 descripcion=criterio,
+                tipo_control=tipo_control,
                 resultado='si',  # Por defecto marcado como SI
                 orden=orden
             )
