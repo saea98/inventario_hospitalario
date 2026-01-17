@@ -179,12 +179,16 @@ def convertir_excel_a_pdf(excel_buffer):
             ('RIGHTPADDING', (2, 1), (2, -1), 5),
             ('TOPPADDING', (2, 1), (2, -1), 5),
             ('BOTTOMPADDING', (2, 1), (2, -1), 5),
+            
+            # Altura de filas para mejor legibilidad
+            ('ROWHEIGHT', (0, 1), (-1, -1), 20*mm),
         ]))
         
         # Configurar altura mínima de filas para mejor legibilidad
+        # Aplicar altura de filas directamente en el primer setStyle
         items_table.setStyle(TableStyle([
             ('ROWHEIGHT', (0, 1), (-1, -1), 20*mm),
-        ]), start=1)
+        ]))
         
         story.append(items_table)
         
