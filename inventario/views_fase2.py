@@ -250,19 +250,10 @@ def validar_entrada(request, pk):
         return redirect('logistica:detalle_cita', pk=pk)
     
     # Crear o obtener lista de revisión
-    lista_revision, creada = ListaRevision.objects.get_or_create(
-        cita=cita,
-        defaults={
-            'folio': cita.folio,
-            'tipo_documento': 'factura',
-            'proveedor': cita.proveedor.razon_social,
-            'numero_contrato': cita.numero_contrato or '',
-            'usuario_creacion': request.user,
-        }
-    )
-    
-    # Si es nueva, crear los items
-    if creada:
+    try:
+        lista_revision = ListaRevision.objects.get(cita=cita)
+    except ListaRevision.DoesNotExist:
+        # Crear nueva lista de revisión
         from .servicio_lista_revision import ServicioListaRevision
         lista_revision = ServicioListaRevision.crear_lista_revision(cita, request.user)
     
