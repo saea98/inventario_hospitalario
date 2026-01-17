@@ -24,6 +24,7 @@ from .pedidos_models import PropuestaPedido, ItemPropuesta, LoteAsignado
 from .models import Lote, UbicacionAlmacen, Almacen
 from .decorators_roles import requiere_rol
 from .fase5_utils import generar_movimientos_suministro
+from .excel_to_pdf import convertir_excel_a_pdf
 
 
 # ============================================================
@@ -235,7 +236,8 @@ def marcar_item_recogido(request, lote_asignado_id):
 @login_required
 def imprimir_hoja_surtido(request, propuesta_id):
     """
-    Genera un PDF con la hoja de surtido ordenada por ubicación
+    Genera un PDF con la hoja de picking ordenada por ubicación.
+    Genera el Excel primero y luego lo convierte a PDF.
     """
     propuesta = get_object_or_404(PropuestaPedido, id=propuesta_id)
     
@@ -264,31 +266,151 @@ def imprimir_hoja_surtido(request, propuesta_id):
     # Ordenar por ubicación
     items_picking.sort(key=lambda x: (x['almacen_id'], x['ubicacion_id']))
     
-    template_path = 'inventario/picking/picking_pdf.html'
-    # Obtener URL del logo
-    logo_path = os.path.join(settings.BASE_DIR, 'templates', 'inventario', 'images', 'logo_imss.jpg')
-    logo_url = f'file://{logo_path}' if os.path.exists(logo_path) else None
+    try:
+        # Generar Excel
+        excel_buffer = exportar_picking_excel_interno(propuesta, items_picking)
+        
+        # Convertir Excel a PDF
+        pdf_buffer = convertir_excel_a_pdf(excel_buffer)
+        
+        # Retornar PDF
+        response = HttpResponse(pdf_buffer.getvalue(), content_type='application/pdf')
+        response['Content-Disposition'] = f'attachment; filename="picking_{propuesta.solicitud.folio}.pdf"'
+        return response
+        
+    except Exception as e:
+        return HttpResponse(f'Error al generar PDF: {str(e)}', status=500)
+
+
+# ============================================================
+# FUNCIÓN INTERNA PARA GENERAR EXCEL
+# ============================================================
+
+def exportar_picking_excel_interno(propuesta, items_picking):
+    """
+    Función interna que genera el Excel sin retornar HttpResponse.
+    Usada tanto por exportar_picking_excel como por imprimir_hoja_surtido.
     
-    context = {
-        'propuesta': propuesta,
-        'items_picking': items_picking,
-        'total_items': len(items_picking),
-        'fecha': datetime.now().strftime('%d/%m/%Y %H:%M'),
-        'logo_url': logo_url
-    }
-
-    response = HttpResponse(content_type='application/pdf')
-    response['Content-Disposition'] = f'attachment; filename=picking_{propuesta.solicitud.folio}.pdf'
-
-    template = get_template(template_path)
-    html = template.render(context)
-
-    pisa_status = pisa.CreatePDF(html, dest=response)
-
-    if pisa_status.err:
-        return HttpResponse('We had some errors <pre>' + html + '</pre>')
-    return response
-
+    Returns:
+        BytesIO: Buffer con el contenido del Excel
+    """
+    # Crear workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Picking"
+    
+    # Definir estilos
+    header_fill = PatternFill(start_color="1f77b4", end_color="1f77b4", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF", size=11)
+    header_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    
+    border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+    
+    center_alignment = Alignment(horizontal="center", vertical="center")
+    
+    # Agregar información de la propuesta
+    ws['A1'] = "HOJA DE PICKING"
+    ws['A1'].font = Font(bold=True, size=14, color="8B1538")
+    ws.merge_cells('A1:G1')
+    
+    ws['A3'] = "Propuesta:"
+    ws['B3'] = str(propuesta.solicitud.folio)
+    ws['C3'] = "Institución Solicitante:"
+    ws['D3'] = propuesta.solicitud.institucion_solicitante.denominacion if propuesta.solicitud.institucion_solicitante else "N/A"
+    
+    ws['A4'] = "Fecha:"
+    ws['B4'] = datetime.now().strftime('%d/%m/%Y %H:%M')
+    ws['C4'] = "Folio de Pedido:"
+    ws['D4'] = propuesta.solicitud.observaciones_solicitud or "N/A"
+    
+    ws['A5'] = "Área:"
+    ws['B5'] = propuesta.solicitud.almacen_destino.nombre if propuesta.solicitud.almacen_destino else "N/A"
+    ws['C5'] = "Total Items:"
+    ws['D5'] = len(items_picking)
+    
+    # Definir anchos de columnas
+    ws.column_dimensions['A'].width = 12
+    ws.column_dimensions['B'].width = 12
+    ws.column_dimensions['C'].width = 12 * 6  # Aumentar 6 veces el ancho para PRODUCTO
+    ws.column_dimensions['D'].width = 12
+    ws.column_dimensions['E'].width = 30
+    ws.column_dimensions['F'].width = 12
+    ws.column_dimensions['G'].width = 20
+    
+    # Agregar encabezados
+    headers = ['UBICACIÓN', 'CLAVE CNIS', 'PRODUCTO', 'CADUCIDAD', 'LOTE', 'CANTIDAD', 'CANTIDAD SURTIDA']
+    header_row = 8
+    
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=header_row, column=col_num)
+        cell.value = header
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = header_alignment
+        cell.border = border
+    
+    ws.row_dimensions[header_row].height = 25
+    
+    # Agregar datos
+    for row_num, item in enumerate(items_picking, header_row + 1):
+        # Ubicación
+        cell_a = ws.cell(row=row_num, column=1)
+        cell_a.value = item['ubicacion']
+        cell_a.alignment = center_alignment
+        cell_a.font = Font(bold=True)
+        cell_a.border = border
+        
+        # Clave CNIS
+        cell_b = ws.cell(row=row_num, column=2)
+        cell_b.value = item['clave_cnis']
+        cell_b.alignment = center_alignment
+        cell_b.border = border
+        
+        # Producto
+        cell_c = ws.cell(row=row_num, column=3)
+        cell_c.value = item['producto']
+        cell_c.alignment = Alignment(horizontal="left", vertical="top", wrap_text=True)
+        cell_c.border = border
+        num_lines = len(str(item['producto']).split('\n')) + (len(str(item['producto'])) // 100)
+        ws.row_dimensions[row_num].height = max(25, num_lines * 15)
+        
+        # Caducidad
+        cell_d = ws.cell(row=row_num, column=4)
+        cell_d.value = item['caducidad']
+        cell_d.alignment = center_alignment
+        cell_d.border = border
+        
+        # Lote
+        cell_e = ws.cell(row=row_num, column=5)
+        cell_e.value = item['lote_numero']
+        cell_e.alignment = center_alignment
+        cell_e.border = border
+        
+        # Cantidad
+        cell_f = ws.cell(row=row_num, column=6)
+        cell_f.value = item['cantidad']
+        cell_f.alignment = center_alignment
+        cell_f.font = Font(bold=True)
+        cell_f.fill = PatternFill(start_color="e8f4f8", end_color="e8f4f8", fill_type="solid")
+        cell_f.border = border
+        
+        # Cantidad Surtida (vacío)
+        cell_g = ws.cell(row=row_num, column=7)
+        cell_g.value = ""
+        cell_g.alignment = center_alignment
+        cell_g.border = border
+    
+    # Crear respuesta
+    output = BytesIO()
+    wb.save(output)
+    output.seek(0)
+    
+    return output
 
 
 # ============================================================
