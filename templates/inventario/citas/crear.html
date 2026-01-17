@@ -7,44 +7,136 @@
 {% block content %}
 <div class="container-fluid mt-4">
     <div class="row">
-        <div class="col-md-8 offset-md-2">
+        <div class="col-md-10 offset-md-1">
             <!-- Encabezado -->
             <div class="mb-4">
                 <h2><i class="fas fa-calendar-plus text-primary"></i> Crear Nueva Cita</h2>
-                <p class="text-muted">Programa una cita con un proveedor para recepción de mercancía</p>
+                <p class="text-muted">Programa una cita con un proveedor para recepción de mercancía o carga citas masivas desde archivo</p>
             </div>
 
-            <!-- Formulario -->
-            <div class="card">
-                <div class="card-body">
-                    <form method="POST" novalidate>
-                        {% csrf_token %}
-                        
-                        {{ form|crispy }}
-                        
-                        <div class="d-flex gap-2 mt-4">
-                            <button type="submit" class="btn btn-primary btn-lg">
-                                <i class="fas fa-save"></i> Guardar Cita
-                            </button>
-                            <a href="{% url 'logistica:lista_citas' %}" class="btn btn-secondary btn-lg">
-                                <i class="fas fa-times"></i> Cancelar
-                            </a>
+            <!-- Tabs para seleccionar tipo de operación -->
+            <ul class="nav nav-tabs mb-4" role="tablist">
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link {% if tipo_operacion == 'manual' %}active{% endif %}" 
+                            id="manual-tab" 
+                            data-bs-toggle="tab" 
+                            data-bs-target="#manual-content" 
+                            type="button" 
+                            role="tab">
+                        <i class="fas fa-keyboard"></i> Captura Manual
+                    </button>
+                </li>
+                <li class="nav-item" role="presentation">
+                    <button class="nav-link {% if tipo_operacion == 'masiva' %}active{% endif %}" 
+                            id="masiva-tab" 
+                            data-bs-toggle="tab" 
+                            data-bs-target="#masiva-content" 
+                            type="button" 
+                            role="tab">
+                        <i class="fas fa-file-upload"></i> Carga Masiva
+                    </button>
+                </li>
+            </ul>
+
+            <!-- Contenido de Tabs -->
+            <div class="tab-content">
+                <!-- Tab: Captura Manual -->
+                <div class="tab-pane fade {% if tipo_operacion == 'manual' %}show active{% endif %}" 
+                     id="manual-content" 
+                     role="tabpanel">
+                    <div class="card">
+                        <div class="card-body">
+                            <form method="POST" novalidate>
+                                {% csrf_token %}
+                                <input type="hidden" name="tipo_operacion" value="manual">
+                                
+                                {{ form_manual|crispy }}
+                                
+                                <div class="d-flex gap-2 mt-4">
+                                    <button type="submit" class="btn btn-primary btn-lg">
+                                        <i class="fas fa-save"></i> Guardar Cita
+                                    </button>
+                                    <a href="{% url 'logistica:lista_citas' %}" class="btn btn-secondary btn-lg">
+                                        <i class="fas fa-times"></i> Cancelar
+                                    </a>
+                                </div>
+                            </form>
                         </div>
-                    </form>
-                </div>
-            </div>
+                    </div>
 
-            <!-- Información de Ayuda -->
-            <div class="alert alert-info mt-4">
-                <h6><i class="fas fa-info-circle"></i> Información Importante</h6>
-                <ul class="mb-0">
-                    <li>La cita se creará en estado <strong>Programada</strong></li>
-                    <li>Será necesario <strong>autorizar</strong> la cita antes de la recepción</li>
-                    <li>Solo se pueden editar citas en estado <strong>Programada</strong></li>
-                    <li>La fecha debe ser posterior a la fecha actual</li>
-                </ul>
+                    <!-- Información de Ayuda -->
+                    <div class="alert alert-info mt-4">
+                        <h6><i class="fas fa-info-circle"></i> Información Importante</h6>
+                        <ul class="mb-0">
+                            <li>La cita se creará en estado <strong>Programada</strong></li>
+                            <li>Será necesario <strong>autorizar</strong> la cita antes de la recepción</li>
+                            <li>Solo se pueden editar citas en estado <strong>Programada</strong></li>
+                            <li>La fecha debe ser posterior a la fecha actual</li>
+                        </ul>
+                    </div>
+                </div>
+
+                <!-- Tab: Carga Masiva -->
+                <div class="tab-pane fade {% if tipo_operacion == 'masiva' %}show active{% endif %}" 
+                     id="masiva-content" 
+                     role="tabpanel">
+                    <div class="card">
+                        <div class="card-body">
+                            <form method="POST" enctype="multipart/form-data" novalidate>
+                                {% csrf_token %}
+                                <input type="hidden" name="tipo_operacion" value="masiva">
+                                
+                                {{ form_masiva|crispy }}
+                                
+                                <div class="d-flex gap-2 mt-4">
+                                    <button type="submit" class="btn btn-success btn-lg">
+                                        <i class="fas fa-upload"></i> Cargar Citas
+                                    </button>
+                                    <a href="{% url 'logistica:lista_citas' %}" class="btn btn-secondary btn-lg">
+                                        <i class="fas fa-times"></i> Cancelar
+                                    </a>
+                                </div>
+                            </form>
+                        </div>
+                    </div>
+
+                    <!-- Información de Ayuda -->
+                    <div class="alert alert-info mt-4">
+                        <h6><i class="fas fa-info-circle"></i> Instrucciones para Carga Masiva</h6>
+                        <ul class="mb-0">
+                            <li>El archivo debe ser de tipo <strong>CSV</strong> (separado por comas)</li>
+                            <li>Debe contener las siguientes columnas:
+                                <code>numero_orden_suministro, rfc_proveedor, clave_medicamento, codigo_almacen, fecha_limite_entrega</code>
+                            </li>
+                            <li>Columnas opcionales: <code>numero_contrato, tipo_transporte, fecha_expedicion, numero_orden_remision</code></li>
+                            <li>Las fechas pueden estar en formato: <code>DD/MM/YYYY</code> o <code>YYYY-MM-DD</code></li>
+                            <li>Solo se cargarán citas cuyo almacén exista en la base de datos</li>
+                            <li>Se evitarán duplicados automáticamente</li>
+                            <li>Tamaño máximo del archivo: <strong>5MB</strong></li>
+                        </ul>
+                    </div>
+
+                    <!-- Ejemplo de archivo -->
+                    <div class="alert alert-secondary mt-4">
+                        <h6><i class="fas fa-file-csv"></i> Ejemplo de Formato CSV</h6>
+                        <pre class="mb-0"><code>numero_orden_suministro,numero_contrato,rfc_proveedor,clave_medicamento,codigo_almacen,entidad,fecha_expedicion,tipo_transporte,fecha_expedicion,fecha_limite_entrega,numero_orden_remision
+IMBB-09-02-2025-09263560-U013,IB/2164/2025,ALT010926BY0,010.000.0569.00,XXXX010101,CIUDAD DE MEXICO,2025-12-11,Temperatura ambiente,11/12/2025,25/12/2025,1605901983
+IMBB-09-02-2025-09263215-U013,IB/3077/2025,LGR530810UU8,010.000.6329.00,XXXX010101,CIUDAD DE MEXICO,2025-12-11,Temperatura ambiente,11/12/2025,25/12/2025,3699284060</code></pre>
+                    </div>
+                </div>
             </div>
         </div>
     </div>
 </div>
+
+<script>
+    // Cambiar tab cuando se recarga la página
+    document.addEventListener('DOMContentLoaded', function() {
+        const tipoOperacion = '{{ tipo_operacion }}';
+        if (tipoOperacion === 'masiva') {
+            const tab = new bootstrap.Tab(document.getElementById('masiva-tab'));
+            tab.show();
+        }
+    });
+</script>
 {% endblock %}

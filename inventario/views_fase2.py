@@ -18,7 +18,7 @@ from .models import (
 )
 from .forms import (
     CitaProveedorForm, OrdenTrasladoForm, LogisticaTrasladoForm
-)
+, CargaMasivaCitasForm)
 from .servicios_notificaciones import notificaciones
 
 
@@ -61,26 +61,78 @@ def lista_citas(request):
 
 @login_required
 def crear_cita(request):
-    """Crear una nueva cita"""
-    if request.method == 'POST':
-        form = CitaProveedorForm(request.POST)
-        if form.is_valid():
-            cita = form.save(commit=False)
-            cita.usuario_creacion = request.user
-            cita.save()
-            
-            # Enviar notificación
-            notificaciones.notificar_cita_creada(cita)
-            
-            messages.success(request, f'✓ Cita creada exitosamente con {cita.proveedor.razon_social}')
-            return redirect('logistica:lista_citas')
-        else:
-            messages.error(request, 'Error al crear la cita. Verifica los datos.')
-    else:
-        form = CitaProveedorForm()
+    """Crear una nueva cita o cargar citas masivas"""
     
-    return render(request, 'inventario/citas/crear.html', {'form': form})
-
+    # Determinar qué tipo de operación se está realizando
+    tipo_operacion = request.POST.get('tipo_operacion', 'manual') if request.method == 'POST' else 'manual'
+    
+    if request.method == 'POST':
+        if tipo_operacion == 'masiva':
+            # Procesar carga masiva
+            form_masiva = CargaMasivaCitasForm(request.POST, request.FILES)
+            form_manual = CitaProveedorForm()
+            
+            if form_masiva.is_valid():
+                try:
+                    from .citas_masivas import CargaMasivaCitas
+                    
+                    archivo = request.FILES['archivo']
+                    cargador = CargaMasivaCitas()
+                    resultado = cargador.procesar_archivo(archivo)
+                    
+                    if resultado['exito']:
+                        messages.success(
+                            request,
+                            f"✓ Carga completada: {resultado['citas_creadas']} citas creadas"
+                        )
+                        
+                        if resultado['advertencias']:
+                            for adv in resultado['advertencias'][:5]:  # Mostrar primeras 5
+                                messages.warning(request, f"⚠️ {adv}")
+                            if len(resultado['advertencias']) > 5:
+                                messages.warning(request, f"⚠️ ...y {len(resultado['advertencias']) - 5} advertencias más")
+                        
+                        return redirect('logistica:lista_citas')
+                    else:
+                        for error in resultado['errores']:
+                            messages.error(request, f"❌ {error}")
+                        
+                        for adv in resultado['advertencias'][:5]:
+                            messages.warning(request, f"⚠️ {adv}")
+                
+                except Exception as e:
+                    messages.error(request, f"Error al procesar archivo: {str(e)}")
+            else:
+                messages.error(request, "Verifica el archivo seleccionado")
+        
+        else:
+            # Procesar captura manual
+            form_manual = CitaProveedorForm(request.POST)
+            form_masiva = CargaMasivaCitasForm()
+            
+            if form_manual.is_valid():
+                cita = form_manual.save(commit=False)
+                cita.usuario_creacion = request.user
+                cita.save()
+                
+                # Enviar notificación
+                notificaciones.notificar_cita_creada(cita)
+                
+                messages.success(request, f'✓ Cita creada exitosamente con {cita.proveedor.razon_social}')
+                return redirect('logistica:lista_citas')
+            else:
+                messages.error(request, 'Error al crear la cita. Verifica los datos.')
+    
+    else:
+        form_manual = CitaProveedorForm()
+        form_masiva = CargaMasivaCitasForm()
+    
+    context = {
+        'form_manual': form_manual,
+        'form_masiva': form_masiva,
+        'tipo_operacion': tipo_operacion,
+    }
+    return render(request, 'inventario/citas/crear.html', context)
 
 @login_required
 def editar_cita(request, pk):

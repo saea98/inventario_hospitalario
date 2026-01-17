@@ -616,6 +616,47 @@ class CitaProveedorForm(forms.ModelForm):
         return cleaned_data
 
 
+class CargaMasivaCitasForm(forms.Form):
+    """
+    Formulario para carga masiva de citas desde archivo CSV
+    """
+    archivo = forms.FileField(
+        label='📄 Archivo CSV',
+        help_text='Selecciona un archivo CSV con órdenes de suministro',
+        widget=forms.FileInput(attrs={
+            'class': 'form-control form-control-lg',
+            'accept': '.csv',
+            'required': True
+        })
+    )
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.helper = FormHelper()
+        self.helper.form_method = 'post'
+        self.helper.form_enctype = 'multipart/form-data'
+        self.helper.layout = Layout(
+            HTML('<div class="alert alert-info"><strong>ℹ️ Formato esperado:</strong><br>El archivo CSV debe contener las siguientes columnas:<br><code>numero_orden_suministro, rfc_proveedor, clave_medicamento, codigo_almacen, fecha_limite_entrega</code></div>'),
+            'archivo',
+            HTML('<hr class="my-4">'),
+            Submit('submit', '⬆️ Cargar Citas', css_class='btn btn-success btn-lg w-100')
+        )
+    
+    def clean_archivo(self):
+        archivo = self.cleaned_data.get('archivo')
+        
+        if archivo:
+            # Validar que sea un archivo CSV
+            if not archivo.name.endswith('.csv'):
+                raise forms.ValidationError('El archivo debe ser de tipo CSV (.csv)')
+            
+            # Validar tamaño (máximo 5MB)
+            if archivo.size > 5 * 1024 * 1024:
+                raise forms.ValidationError('El archivo no debe exceder 5MB')
+        
+        return archivo
+
+
 class OrdenTrasladoForm(forms.ModelForm):
     """
     Formulario para crear órdenes de traslado entre almacenes.
