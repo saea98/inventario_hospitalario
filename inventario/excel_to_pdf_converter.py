@@ -111,6 +111,7 @@ def convertir_excel_a_pdf(excel_buffer):
             ('BACKGROUND', (2, 0), (2, -1), colors.HexColor('#f0f0f0')),
             ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
             ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
+            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
             ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
             ('FONTNAME', (2, 0), (2, -1), 'Helvetica-Bold'),
             ('FONTSIZE', (0, 0), (-1, -1), 9),
@@ -119,6 +120,7 @@ def convertir_excel_a_pdf(excel_buffer):
             ('GRID', (0, 0), (-1, -1), 1, colors.grey),
             ('LEFTPADDING', (0, 0), (-1, -1), 3),
             ('RIGHTPADDING', (0, 0), (-1, -1), 3),
+            ('ROWHEIGHT', (0, 0), (-1, -1), 12*mm),
         ]))
         
         story.append(info_table)
