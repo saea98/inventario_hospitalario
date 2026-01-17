@@ -373,7 +373,7 @@ def exportar_picking_excel(request, propuesta_id):
     ws.column_dimensions['B'].width = 12
     ws.column_dimensions['C'].width = 12
     ws.column_dimensions['D'].width = 12
-    ws.column_dimensions['E'].width = 30
+    ws.column_dimensions['E'].width = 30 * 6  # Aumentar 6 veces el ancho
     ws.column_dimensions['F'].width = 12
     ws.column_dimensions['G'].width = 20
     
@@ -410,9 +410,11 @@ def exportar_picking_excel(request, propuesta_id):
         # Producto
         cell_c = ws.cell(row=row_num, column=3)
         cell_c.value = item['producto']
-        cell_c.alignment = Alignment(horizontal="left", vertical="center", wrap_text=True)
+        cell_c.alignment = Alignment(horizontal="left", vertical="top", wrap_text=True)
         cell_c.border = border
-        ws.row_dimensions[row_num].height = 25
+        # Calcular altura basada en el número de líneas de texto
+        num_lines = len(str(item['producto']).split('\n')) + (len(str(item['producto'])) // 100)
+        ws.row_dimensions[row_num].height = max(25, num_lines * 15)
         
         # Caducidad
         cell_d = ws.cell(row=row_num, column=4)
