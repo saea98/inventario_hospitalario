@@ -29,18 +29,56 @@ from .servicios_notificaciones import notificaciones
 
 @login_required
 def lista_citas(request):
-    """Lista todas las citas programadas con paginación"""
+    """Lista todas las citas programadas con paginación y filtros avanzados"""
+    from django.db.models import Q
+    
     citas = CitaProveedor.objects.all().order_by('-fecha_cita')
     
     # Filtros
     estado = request.GET.get('estado')
     proveedor = request.GET.get('proveedor')
+    fecha_desde = request.GET.get('fecha_desde')
+    fecha_hasta = request.GET.get('fecha_hasta')
+    numero_orden = request.GET.get('numero_orden')
+    numero_remision = request.GET.get('numero_remision')
+    numero_contrato = request.GET.get('numero_contrato')
+    clave_medicamento = request.GET.get('clave_medicamento')
     
+    # Aplicar filtros
     if estado:
         citas = citas.filter(estado=estado)
     
     if proveedor:
         citas = citas.filter(proveedor__razon_social__icontains=proveedor)
+    
+    if fecha_desde:
+        try:
+            from datetime import datetime
+            fecha_obj = datetime.strptime(fecha_desde, '%Y-%m-%d')
+            citas = citas.filter(fecha_cita__gte=fecha_obj)
+        except:
+            pass
+    
+    if fecha_hasta:
+        try:
+            from datetime import datetime, timedelta
+            fecha_obj = datetime.strptime(fecha_hasta, '%Y-%m-%d')
+            fecha_obj = fecha_obj + timedelta(days=1)  # Incluir todo el día
+            citas = citas.filter(fecha_cita__lt=fecha_obj)
+        except:
+            pass
+    
+    if numero_orden:
+        citas = citas.filter(numero_orden_suministro__icontains=numero_orden)
+    
+    if numero_remision:
+        citas = citas.filter(numero_orden_remision__icontains=numero_remision)
+    
+    if numero_contrato:
+        citas = citas.filter(numero_contrato__icontains=numero_contrato)
+    
+    if clave_medicamento:
+        citas = citas.filter(clave_medicamento__icontains=clave_medicamento)
     
     # Contar por estado (antes de paginar)
     estados_count = {
@@ -69,6 +107,12 @@ def lista_citas(request):
         'estados_count': estados_count,
         'estado_seleccionado': estado,
         'proveedor_seleccionado': proveedor,
+        'fecha_desde_seleccionada': fecha_desde,
+        'fecha_hasta_seleccionada': fecha_hasta,
+        'numero_orden_seleccionado': numero_orden,
+        'numero_remision_seleccionado': numero_remision,
+        'numero_contrato_seleccionado': numero_contrato,
+        'clave_medicamento_seleccionada': clave_medicamento,
         'total_citas': paginator.count,
     }
     return render(request, 'inventario/citas/lista.html', context)

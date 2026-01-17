@@ -54,11 +54,14 @@
         </div>
     </div>
 
-    <!-- Filtros -->
-    <div class="card mb-4">
+    <!-- Filtros Básicos -->
+    <div class="card mb-3">
+        <div class="card-header bg-light">
+            <h6 class="mb-0"><i class="fas fa-filter"></i> Filtros Básicos</h6>
+        </div>
         <div class="card-body">
             <form method="GET" class="row g-3">
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label class="form-label">Estado</label>
                     <select name="estado" class="form-select">
                         <option value="">Todos los estados</option>
@@ -67,16 +70,69 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-5">
+                <div class="col-md-4">
                     <label class="form-label">Proveedor</label>
                     <input type="text" name="proveedor" class="form-control" placeholder="Buscar por proveedor..." value="{{ proveedor_seleccionado }}">
                 </div>
-                <div class="col-md-3 d-flex align-items-end">
+                <div class="col-md-5 d-flex align-items-end">
                     <button type="submit" class="btn btn-primary w-100">
                         <i class="fas fa-search"></i> Filtrar
                     </button>
                 </div>
             </form>
+        </div>
+    </div>
+
+    <!-- Filtros Avanzados (Colapsable) -->
+    <div class="card mb-4">
+        <div class="card-header bg-light" role="button" data-bs-toggle="collapse" data-bs-target="#filtrosAvanzados">
+            <h6 class="mb-0 cursor-pointer">
+                <i class="fas fa-sliders-h"></i> Filtros Avanzados
+                <i class="fas fa-chevron-down float-end"></i>
+            </h6>
+        </div>
+        <div class="collapse" id="filtrosAvanzados">
+            <div class="card-body">
+                <form method="GET" class="row g-3">
+                    <!-- Mantener filtros básicos -->
+                    <input type="hidden" name="estado" value="{{ estado_seleccionado }}">
+                    <input type="hidden" name="proveedor" value="{{ proveedor_seleccionado }}">
+                    
+                    <div class="col-md-3">
+                        <label class="form-label">Fecha Desde</label>
+                        <input type="date" name="fecha_desde" class="form-control" value="{{ fecha_desde_seleccionada }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Fecha Hasta</label>
+                        <input type="date" name="fecha_hasta" class="form-control" value="{{ fecha_hasta_seleccionada }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Orden de Suministro</label>
+                        <input type="text" name="numero_orden" class="form-control" placeholder="Número de orden..." value="{{ numero_orden_seleccionado }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Orden de Remisión</label>
+                        <input type="text" name="numero_remision" class="form-control" placeholder="Número de remisión..." value="{{ numero_remision_seleccionado }}">
+                    </div>
+                    
+                    <div class="col-md-3">
+                        <label class="form-label">Número de Contrato</label>
+                        <input type="text" name="numero_contrato" class="form-control" placeholder="Número de contrato..." value="{{ numero_contrato_seleccionado }}">
+                    </div>
+                    <div class="col-md-3">
+                        <label class="form-label">Clave de Medicamento</label>
+                        <input type="text" name="clave_medicamento" class="form-control" placeholder="Clave CNIS..." value="{{ clave_medicamento_seleccionada }}">
+                    </div>
+                    <div class="col-md-6 d-flex align-items-end gap-2">
+                        <button type="submit" class="btn btn-success flex-grow-1">
+                            <i class="fas fa-search"></i> Aplicar Filtros
+                        </button>
+                        <a href="{% url 'logistica:lista_citas' %}" class="btn btn-secondary">
+                            <i class="fas fa-redo"></i> Limpiar
+                        </a>
+                    </div>
+                </form>
+            </div>
         </div>
     </div>
 
@@ -93,14 +149,15 @@
     <!-- Tabla de Citas -->
     <div class="card">
         <div class="table-responsive">
-            <table class="table table-hover mb-0">
+            <table class="table table-hover mb-0 table-sm">
                 <thead class="table-light">
                     <tr>
                         <th>Proveedor</th>
                         <th>Fecha y Hora</th>
                         <th>Almacén</th>
+                        <th>Orden Suministro</th>
+                        <th>Orden Remisión</th>
                         <th>Estado</th>
-                        <th>Usuario Creación</th>
                         <th>Acciones</th>
                     </tr>
                 </thead>
@@ -109,14 +166,30 @@
                         {% for cita in citas %}
                             <tr>
                                 <td>
-                                    <strong>{{ cita.proveedor.razon_social }}</strong>
+                                    <strong>{{ cita.proveedor.razon_social|truncatewords:3 }}</strong>
                                     <br>
                                     <small class="text-muted">{{ cita.proveedor.rfc }}</small>
                                 </td>
                                 <td>
-                                    {{ cita.fecha_cita|date:"d/m/Y H:i" }}
+                                    <small>{{ cita.fecha_cita|date:"d/m/Y H:i" }}</small>
                                 </td>
-                                <td>{{ cita.almacen.nombre }}</td>
+                                <td>
+                                    <small>{{ cita.almacen.nombre|truncatewords:2 }}</small>
+                                </td>
+                                <td>
+                                    {% if cita.numero_orden_suministro %}
+                                        <small class="badge bg-info">{{ cita.numero_orden_suministro|truncatewords:2 }}</small>
+                                    {% else %}
+                                        <small class="text-muted">-</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if cita.numero_orden_remision %}
+                                        <small class="badge bg-secondary">{{ cita.numero_orden_remision }}</small>
+                                    {% else %}
+                                        <small class="text-muted">-</small>
+                                    {% endif %}
+                                </td>
                                 <td>
                                     {% if cita.estado == 'programada' %}
                                         <span class="badge bg-warning">Programada</span>
@@ -128,7 +201,6 @@
                                         <span class="badge bg-secondary">Cancelada</span>
                                     {% endif %}
                                 </td>
-                                <td>{{ cita.usuario_creacion.username }}</td>
                                 <td>
                                     <a href="{% url 'logistica:detalle_cita' cita.pk %}" class="btn btn-sm btn-info" title="Ver detalles">
                                         <i class="fas fa-eye"></i>
@@ -143,9 +215,9 @@
                         {% endfor %}
                     {% else %}
                         <tr>
-                            <td colspan="6" class="text-center py-4">
+                            <td colspan="7" class="text-center py-4">
                                 <i class="fas fa-inbox text-muted" style="font-size: 2rem;"></i>
-                                <p class="text-muted mt-2">No hay citas registradas</p>
+                                <p class="text-muted mt-2">No hay citas registradas con los filtros seleccionados</p>
                             </td>
                         </tr>
                     {% endif %}
@@ -161,7 +233,7 @@
             <!-- Primera página -->
             {% if page_obj.has_previous %}
                 <li class="page-item">
-                    <a class="page-link" href="?page=1{% if estado_seleccionado %}&estado={{ estado_seleccionado }}{% endif %}{% if proveedor_seleccionado %}&proveedor={{ proveedor_seleccionado }}{% endif %}" aria-label="Primera">
+                    <a class="page-link" href="?page=1{% if estado_seleccionado %}&estado={{ estado_seleccionado }}{% endif %}{% if proveedor_seleccionado %}&proveedor={{ proveedor_seleccionado }}{% endif %}{% if fecha_desde_seleccionada %}&fecha_desde={{ fecha_desde_seleccionada }}{% endif %}{% if fecha_hasta_seleccionada %}&fecha_hasta={{ fecha_hasta_seleccionada }}{% endif %}{% if numero_orden_seleccionado %}&numero_orden={{ numero_orden_seleccionado }}{% endif %}{% if numero_remision_seleccionado %}&numero_remision={{ numero_remision_seleccionado }}{% endif %}{% if numero_contrato_seleccionado %}&numero_contrato={{ numero_contrato_seleccionado }}{% endif %}{% if clave_medicamento_seleccionada %}&clave_medicamento={{ clave_medicamento_seleccionada }}{% endif %}" aria-label="Primera">
                         <span aria-hidden="true"><i class="fas fa-chevron-left"></i> Primera</span>
                     </a>
                 </li>
@@ -174,7 +246,7 @@
             <!-- Página anterior -->
             {% if page_obj.has_previous %}
                 <li class="page-item">
-                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if estado_seleccionado %}&estado={{ estado_seleccionado }}{% endif %}{% if proveedor_seleccionado %}&proveedor={{ proveedor_seleccionado }}{% endif %}" aria-label="Anterior">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if estado_seleccionado %}&estado={{ estado_seleccionado }}{% endif %}{% if proveedor_seleccionado %}&proveedor={{ proveedor_seleccionado }}{% endif %}{% if fecha_desde_seleccionada %}&fecha_desde={{ fecha_desde_seleccionada }}{% endif %}{% if fecha_hasta_seleccionada %}&fecha_hasta={{ fecha_hasta_seleccionada }}{% endif %}{% if numero_orden_seleccionado %}&numero_orden={{ numero_orden_seleccionado }}{% endif %}{% if numero_remision_seleccionado %}&numero_remision={{ numero_remision_seleccionado }}{% endif %}{% if numero_contrato_seleccionado %}&numero_contrato={{ numero_contrato_seleccionado }}{% endif %}{% if clave_medicamento_seleccionada %}&clave_medicamento={{ clave_medicamento_seleccionada }}{% endif %}" aria-label="Anterior">
                         <span aria-hidden="true">&laquo;</span>
                     </a>
                 </li>
@@ -195,13 +267,13 @@
                     </li>
                 {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ num }}{% if estado_seleccionado %}&estado={{ estado_seleccionado }}{% endif %}{% if proveedor_seleccionado %}&proveedor={{ proveedor_seleccionado }}{% endif %}">
+                        <a class="page-link" href="?page={{ num }}{% if estado_seleccionado %}&estado={{ estado_seleccionado }}{% endif %}{% if proveedor_seleccionado %}&proveedor={{ proveedor_seleccionado }}{% endif %}{% if fecha_desde_seleccionada %}&fecha_desde={{ fecha_desde_seleccionada }}{% endif %}{% if fecha_hasta_seleccionada %}&fecha_hasta={{ fecha_hasta_seleccionada }}{% endif %}{% if numero_orden_seleccionado %}&numero_orden={{ numero_orden_seleccionado }}{% endif %}{% if numero_remision_seleccionado %}&numero_remision={{ numero_remision_seleccionado }}{% endif %}{% if numero_contrato_seleccionado %}&numero_contrato={{ numero_contrato_seleccionado }}{% endif %}{% if clave_medicamento_seleccionada %}&clave_medicamento={{ clave_medicamento_seleccionada }}{% endif %}">
                             {{ num }}
                         </a>
                     </li>
                 {% elif num == 1 or num == paginator.num_pages %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ num }}{% if estado_seleccionado %}&estado={{ estado_seleccionado }}{% endif %}{% if proveedor_seleccionado %}&proveedor={{ proveedor_seleccionado }}{% endif %}">
+                        <a class="page-link" href="?page={{ num }}{% if estado_seleccionado %}&estado={{ estado_seleccionado }}{% endif %}{% if proveedor_seleccionado %}&proveedor={{ proveedor_seleccionado }}{% endif %}{% if fecha_desde_seleccionada %}&fecha_desde={{ fecha_desde_seleccionada }}{% endif %}{% if fecha_hasta_seleccionada %}&fecha_hasta={{ fecha_hasta_seleccionada }}{% endif %}{% if numero_orden_seleccionado %}&numero_orden={{ numero_orden_seleccionado }}{% endif %}{% if numero_remision_seleccionado %}&numero_remision={{ numero_remision_seleccionado }}{% endif %}{% if numero_contrato_seleccionado %}&numero_contrato={{ numero_contrato_seleccionado }}{% endif %}{% if clave_medicamento_seleccionada %}&clave_medicamento={{ clave_medicamento_seleccionada }}{% endif %}">
                             {{ num }}
                         </a>
                     </li>
@@ -215,7 +287,7 @@
             <!-- Página siguiente -->
             {% if page_obj.has_next %}
                 <li class="page-item">
-                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if estado_seleccionado %}&estado={{ estado_seleccionado }}{% endif %}{% if proveedor_seleccionado %}&proveedor={{ proveedor_seleccionado }}{% endif %}" aria-label="Siguiente">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if estado_seleccionado %}&estado={{ estado_seleccionado }}{% endif %}{% if proveedor_seleccionado %}&proveedor={{ proveedor_seleccionado }}{% endif %}{% if fecha_desde_seleccionada %}&fecha_desde={{ fecha_desde_seleccionada }}{% endif %}{% if fecha_hasta_seleccionada %}&fecha_hasta={{ fecha_hasta_seleccionada }}{% endif %}{% if numero_orden_seleccionado %}&numero_orden={{ numero_orden_seleccionado }}{% endif %}{% if numero_remision_seleccionado %}&numero_remision={{ numero_remision_seleccionado }}{% endif %}{% if numero_contrato_seleccionado %}&numero_contrato={{ numero_contrato_seleccionado }}{% endif %}{% if clave_medicamento_seleccionada %}&clave_medicamento={{ clave_medicamento_seleccionada }}{% endif %}" aria-label="Siguiente">
                         <span aria-hidden="true">&raquo;</span>
                     </a>
                 </li>
@@ -228,7 +300,7 @@
             <!-- Última página -->
             {% if page_obj.has_next %}
                 <li class="page-item">
-                    <a class="page-link" href="?page={{ paginator.num_pages }}{% if estado_seleccionado %}&estado={{ estado_seleccionado }}{% endif %}{% if proveedor_seleccionado %}&proveedor={{ proveedor_seleccionado }}{% endif %}" aria-label="Última">
+                    <a class="page-link" href="?page={{ paginator.num_pages }}{% if estado_seleccionado %}&estado={{ estado_seleccionado }}{% endif %}{% if proveedor_seleccionado %}&proveedor={{ proveedor_seleccionado }}{% endif %}{% if fecha_desde_seleccionada %}&fecha_desde={{ fecha_desde_seleccionada }}{% endif %}{% if fecha_hasta_seleccionada %}&fecha_hasta={{ fecha_hasta_seleccionada }}{% endif %}{% if numero_orden_seleccionado %}&numero_orden={{ numero_orden_seleccionado }}{% endif %}{% if numero_remision_seleccionado %}&numero_remision={{ numero_remision_seleccionado }}{% endif %}{% if numero_contrato_seleccionado %}&numero_contrato={{ numero_contrato_seleccionado }}{% endif %}{% if clave_medicamento_seleccionada %}&clave_medicamento={{ clave_medicamento_seleccionada }}{% endif %}" aria-label="Última">
                         <span aria-hidden="true">Última <i class="fas fa-chevron-right"></i></span>
                     </a>
                 </li>
@@ -241,4 +313,10 @@
     </nav>
     {% endif %}
 </div>
+
+<style>
+    .cursor-pointer {
+        cursor: pointer;
+    }
+</style>
 {% endblock %}
