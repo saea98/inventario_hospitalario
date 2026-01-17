@@ -801,6 +801,17 @@ class CitaProveedor(models.Model):
     
     observaciones = models.TextField(blank=True, null=True, verbose_name="Observaciones")
     
+    
+    # Folio único para la cita (formato: IB-YYYY-000001)
+    folio = models.CharField(
+        max_length=20,
+        unique=True,
+        db_index=True,
+        blank=True,
+        null=True,
+        verbose_name="Folio"
+    )
+    
     usuario_creacion = models.ForeignKey(
         User,
         on_delete=models.SET_NULL,

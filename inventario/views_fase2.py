@@ -22,6 +22,7 @@ from .forms import (
     CargaMasivaCitasForm, CitaProveedorEditForm, ValidarEntradaForm, RechazarEntradaForm
 )
 from .servicio_lista_revision import ServicioListaRevision
+from .servicio_folio import ServicioFolio
 from .servicios_notificaciones import notificaciones
 
 
@@ -175,6 +176,9 @@ def crear_cita(request):
                 cita.usuario_creacion = request.user
                 cita.save()
                 
+                # Generar folio si no existe
+                ServicioFolio.asignar_folio_a_cita(cita)
+                
                 # Enviar notificación
                 notificaciones.notificar_cita_creada(cita)
                 
@@ -235,6 +239,10 @@ def editar_cita(request, pk):
 def validar_entrada(request, pk):
     """Validar entrada de una cita (nueva lista de revisión)"""
     cita = get_object_or_404(CitaProveedor, pk=pk)
+    
+    # Generar folio si no existe
+    if not cita.folio:
+        ServicioFolio.asignar_folio_a_cita(cita)
     
     # Solo permitir validar si está en estado 'programada'
     if cita.estado != 'programada':
