@@ -470,6 +470,10 @@ function updateFormCount() {
 }
 
 function addFieldValidation(row1, row2) {
+    var formIndex = row1.data('form-index');
+    var row2Actual = $('tr.row-precios[data-form-index="' + formIndex + '"]');
+    alert('addFieldValidation ejecutado para formIndex: ' + formIndex);
+    alert('row2Actual encontrado: ' + row2Actual.length);
     // Validar cantidad_recibida <= cantidad_emitida
     row1.find('.cantidad-recibida').on('change', function() {
         var cantEmitida = row1.find('input[name$="-cantidad_emitida"]').val();
@@ -496,15 +500,15 @@ function addFieldValidation(row1, row2) {
     });
     
     // Calcular precios cuando cambia precio unitario
-    row2.find('.precio-unitario').on('change', function() {
+    row2Actual.find('.precio-unitario').on('change', function() {
         alert('Evento change en precio_unitario: ' + $(this).val());
-        calculatePrices(row1, row2);
+        calculatePrices(row1, row2Actual);
     });
     
-    // Calcular precios cuando cambia cantidad recibida
+    // Calcular precios cuando cambia cantidad recibida (agregar alert)
     row1.find('.cantidad-recibida').on('change', function() {
         alert('Evento change en cantidad_recibida: ' + $(this).val());
-        calculatePrices(row1, row2);
+        calculatePrices(row1, row2Actual);
     });
 }
 
