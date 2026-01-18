@@ -226,7 +226,7 @@
                                     </td>
                                     <td style="display: none;"><small class="text-muted d-block mb-1">Emitida</small>{{ form.cantidad_emitida }}</td>
                                     <td><small class="text-muted d-block mb-1">Recibida</small>{{ form.cantidad_recibida }}</td>
-                                    <td><small class="text-muted d-block mb-1">Piezas/Lote</small>{{ form.piezas_por_lote }}</td>
+                                    <td style="display: none;"><small class="text-muted d-block mb-1">Piezas/Lote</small>{{ form.piezas_por_lote }}</td>
                                     <td></td>
                                 </tr>
                                 
@@ -497,11 +497,13 @@ function addFieldValidation(row1, row2) {
     
     // Calcular precios cuando cambia precio unitario
     row2.find('.precio-unitario').on('change', function() {
+        alert('Evento change en precio_unitario: ' + $(this).val());
         calculatePrices(row1, row2);
     });
     
     // Calcular precios cuando cambia cantidad recibida
     row1.find('.cantidad-recibida').on('change', function() {
+        alert('Evento change en cantidad_recibida: ' + $(this).val());
         calculatePrices(row1, row2);
     });
 }
