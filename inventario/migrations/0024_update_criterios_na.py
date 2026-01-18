@@ -20,6 +20,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('inventario', '0020_configuracionnotificaciones_lognotificaciones'),
+        ('inventario', '0022_cleanup_and_create_pedidos'),
     ]
 
     operations = [
