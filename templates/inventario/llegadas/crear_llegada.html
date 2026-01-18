@@ -224,7 +224,7 @@
                                             <button type="button" class="btn-remove-item" onclick="removeRow(this)">Eliminar</button>
                                         {% endif %}
                                     </td>
-                                    <td><small class="text-muted d-block mb-1">Emitida</small>{{ form.cantidad_emitida }}</td>
+                                    <td style="display: none;"><small class="text-muted d-block mb-1">Emitida</small>{{ form.cantidad_emitida }}</td>
                                     <td><small class="text-muted d-block mb-1">Recibida</small>{{ form.cantidad_recibida }}</td>
                                     <td><small class="text-muted d-block mb-1">Piezas/Lote</small>{{ form.piezas_por_lote }}</td>
                                     <td></td>
@@ -499,6 +499,11 @@ function addFieldValidation(row1, row2) {
     row2.find('.precio-unitario').on('change', function() {
         calculatePrices(row1, row2);
     });
+    
+    // Calcular precios cuando cambia cantidad recibida
+    row1.find('.cantidad-recibida').on('change', function() {
+        calculatePrices(row1, row2);
+    });
 }
 
 function calculatePrices(row1, row2) {
@@ -506,14 +511,14 @@ function calculatePrices(row1, row2) {
     var porcentajeIva = parseFloat(row2.find('.porcentaje-iva').val()) || 0;
     var cantRecibida = parseInt(row1.find('.cantidad-recibida').val()) || 0;
     
-    // Calcular precio con IVA
-    var precioConIva = precioUnitario * (1 + (porcentajeIva / 100));
+    // Calcular precio con IVA (porcentajeIva ya está en formato 0.16 o 0.00)
+    var precioConIva = precioUnitario * (1 + porcentajeIva);
     
     // Calcular subtotal (precio unitario * cantidad)
     var subtotal = precioUnitario * cantRecibida;
     
-    // Calcular importe IVA
-    var importeIva = subtotal * (porcentajeIva / 100);
+    // Calcular importe IVA (porcentajeIva ya está en formato 0.16 o 0.00)
+    var importeIva = subtotal * porcentajeIva;
     
     // Calcular importe total
     var importeTotal = subtotal + importeIva;
