@@ -208,37 +208,7 @@
                 
                 <div class="table-responsive">
                     <table class="table-items">
-                        <thead>
-                            <tr>
-                                <th colspan="8" style="background-color: #e8f4f8; text-align: center; font-weight: bold;">DATOS DEL LOTE</th>
-                                <th colspan="4" style="background-color: #fff3cd; text-align: center; font-weight: bold;">CANTIDADES</th>
-                            </tr>
-                            <tr>
-                                <th style="width: 15%;">Producto (CNIS)</th>
-                                <th style="width: 12%;">Lote</th>
-                                <th style="width: 10%;">Marca</th>
-                                <th style="width: 12%;">Fabricante</th>
-                                <th style="width: 10%;">F. Elaboración</th>
-                                <th style="width: 10%;">F. Caducidad</th>
-                                <th style="width: 6%;">Acción</th>
-                                <th style="width: 6%;">Emitida</th>
-                                <th style="width: 6%;">Recibida</th>
-                                <th style="width: 7%;">Piezas/Lote</th>
-                                <th style="width: 6%;"></th>
-                            </tr>
-                            <tr>
-                                <th colspan="8" style="background-color: #e8f4f8; text-align: center; font-weight: bold;">PRECIOS E IVA</th>
-                            </tr>
-                            <tr>
-                                <th style="width: 12%;">P. Unitario</th>
-                                <th style="width: 8%;">% IVA</th>
-                                <th style="width: 10%;">P. c/IVA</th>
-                                <th style="width: 10%;">Subtotal</th>
-                                <th style="width: 10%;">Importe IVA</th>
-                                <th style="width: 10%;">Total</th>
-                                <th colspan="2"></th>
-                            </tr>
-                        </thead>
+                        <thead style="display: none;"></thead>
                         <tbody id="items-tbody">
                             {% for form in formset %}
                                 <!-- FILA 1: Datos del Lote y Cantidades -->
