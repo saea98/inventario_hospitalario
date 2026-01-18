@@ -41,6 +41,8 @@ class LlegadaProveedorForm(forms.ModelForm):
             "numero_piezas_recibidas",
             "almacen",
             "tipo_red",
+            "numero_orden_suministro",
+            "numero_contrato",
             "observaciones_recepcion",
         ]
         widgets = {
@@ -49,6 +51,8 @@ class LlegadaProveedorForm(forms.ModelForm):
             "numero_piezas_recibidas": forms.NumberInput(attrs={"class": "form-control"}),
             "almacen": forms.Select(attrs={"class": "form-control select2-single"}),
             "tipo_red": forms.Select(attrs={"class": "form-control"}),
+            "numero_orden_suministro": forms.TextInput(attrs={"class": "form-control"}),
+            "numero_contrato": forms.TextInput(attrs={"class": "form-control"}),
             "observaciones_recepcion": forms.Textarea(attrs={"class": "form-control", "rows": 3}),
         }
 
