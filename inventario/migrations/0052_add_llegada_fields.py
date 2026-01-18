@@ -2,7 +2,6 @@
 
 from django.db import migrations, models
 import django.db.models.deletion
-import django.utils.timezone
 import django.core.validators
 
 
@@ -17,11 +16,6 @@ class Migration(migrations.Migration):
             model_name='llegadaproveedor',
             name='folio_validacion',
             field=models.CharField(blank=True, max_length=50, null=True),
-        ),
-        migrations.AddField(
-            model_name='llegadaproveedor',
-            name='fecha_llegada_real',
-            field=models.DateTimeField(default=django.utils.timezone.now),
         ),
         migrations.AddField(
             model_name='llegadaproveedor',
