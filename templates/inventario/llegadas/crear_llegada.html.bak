@@ -444,8 +444,23 @@ function addItemRow() {
     
     $('#id_items-TOTAL_FORMS').val(newFormIndex + 1);
     
-    // Cargar opciones de productos
+    // Inicializar Select2 para el nuevo producto
     var newSelect = newRow1.find('select[id$="-producto"]');
+    newSelect.select2({
+        dropdownParent: $('body'),
+        width: '100%',
+        placeholder: 'Selecciona un producto...'
+    });
+    
+    // Agregar eventos para calcular IVA
+    newSelect.on('select2:select', function() {
+        calcularIVADelProducto($(this));
+    });
+    newSelect.on('change', function() {
+        calcularIVADelProducto($(this));
+    });
+    
+    // Cargar opciones de productos
     $.ajax({
         url: '/logistica/llegadas/api/productos/',
         type: 'GET',
@@ -453,34 +468,6 @@ function addItemRow() {
             $.each(data, function(index, producto) {
                 newSelect.append('<option value="' + producto.id + '">' + producto.descripcion + '</option>');
             });
-            
-            // Inicializar Select2 DESPUES de cargar opciones
-            newSelect.select2({
-                dropdownParent: $('body'),
-                width: '100%',
-                placeholder: 'Selecciona un producto...'
-            });
-            
-            // Agregar eventos para calcular IVA
-            newSelect.on('select2:select', function() {
-                calcularIVADelProducto($(this));
-            });
-            newSelect.on('change', function() {
-                calcularIVADelProducto($(this));
-            });
-            
-            // Pre-seleccionar producto si hay clave de medicamento
-            if (window.citaClaveDefault) {
-                var $option = newSelect.find('option').filter(function() {
-                    return $(this).text().includes(window.citaClaveDefault);
-                }).first();
-                if ($option.length) {
-                    newSelect.val($option.val()).trigger('change');
-                }
-            }
-        },
-        error: function() {
-            console.log('Error al cargar productos');
         }
     });
     
