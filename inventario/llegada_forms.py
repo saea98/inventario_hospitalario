@@ -408,12 +408,7 @@ class UbicacionItemForm(forms.Form):
         return cantidad
 
 
-# Formset para ubicaciones
-UbicacionFormSet = inlineformset_factory(
-    LlegadaProveedor,
-    ItemLlegada,
-    form=UbicacionItemForm,
-    extra=0,
-    can_delete=False,
-    fk_name="llegada",
-)
+# Formset para ubicaciones - Dummy para compatibilidad
+class UbicacionFormSet:
+    """Placeholder para compatibilidad con llegada_views"""
+    pass
