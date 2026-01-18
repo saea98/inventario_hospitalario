@@ -318,7 +318,7 @@ $(document).ready(function() {
         var citaId = $(this).val();
         if (citaId) {
             $.ajax({
-                url: '/api/cita/' + citaId + '/folio/',
+                url: '/logistica/llegadas/api/cita/' + citaId + '/folio/',
                 type: 'GET',
                 success: function(data) {
                     $('#folio-display').text(data.folio || 'Se genera automáticamente');
@@ -386,7 +386,7 @@ function addItemRow() {
     
     // Cargar opciones de productos
     $.ajax({
-        url: '/api/productos/',
+        url: '/logistica/llegadas/api/productos/',
         type: 'GET',
         success: function(data) {
             $.each(data, function(index, producto) {
