@@ -372,12 +372,16 @@ function calcularIVADelProducto($selectProducto) {
     // Agregar eventos para calcular precios
     var $precioUnitario = $('input[name="items-' + formIndex + '-precio_unitario_sin_iva"]');
     $precioUnitario.off('change').on('change', function() {
-        calcularPreciosDelItem(formIndex);
+        var row1 = $('tr.row-principal[data-form-index="' + formIndex + '"]');
+        var row2 = $('tr.row-precios[data-form-index="' + formIndex + '"]');
+        calculatePrices(row1, row2);
     });
     
     var $cantidadRecibida = $('input[name="items-' + formIndex + '-cantidad_recibida"]');
     $cantidadRecibida.off('change').on('change', function() {
-        calcularPreciosDelItem(formIndex);
+        var row1 = $('tr.row-principal[data-form-index="' + formIndex + '"]');
+        var row2 = $('tr.row-precios[data-form-index="' + formIndex + '"]');
+        calculatePrices(row1, row2);
     });
 }
 
