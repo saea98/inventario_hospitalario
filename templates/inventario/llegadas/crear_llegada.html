@@ -409,7 +409,7 @@ function addItemRow() {
     
     // FILA 1: Datos del Lote
     var newRow1 = $('<tr class="item-row row-principal" data-form-index="' + newFormIndex + '">' +
-        '<td><small class="text-muted d-block mb-1">Producto</small><select id="id_items-' + newFormIndex + '-producto" name="items-' + newFormIndex + '-producto" class="form-control"></select></td>' +
+        '<td><small class="text-muted d-block mb-1">Producto</small><select id="id_items-' + newFormIndex + '-producto" name="items-' + newFormIndex + '-producto" class="form-control select2-single" data-placeholder="-- Selecciona un producto --"></select></td>' +
         '<td><small class="text-muted d-block mb-1">Lote</small><input type="text" id="id_items-' + newFormIndex + '-numero_lote" name="items-' + newFormIndex + '-numero_lote" class="form-control numero-lote"></td>' +
         '<td><small class="text-muted d-block mb-1">Marca</small><input type="text" id="id_items-' + newFormIndex + '-marca" name="items-' + newFormIndex + '-marca" class="form-control"></td>' +
         '<td><small class="text-muted d-block mb-1">Fabricante</small><input type="text" id="id_items-' + newFormIndex + '-fabricante" name="items-' + newFormIndex + '-fabricante" class="form-control"></td>' +
@@ -471,11 +471,16 @@ function addItemRow() {
             
             // Pre-seleccionar producto si hay clave de medicamento
             if (window.citaClaveDefault) {
-                var $option = newSelect.find('option').filter(function() {
-                    return $(this).text().includes(window.citaClaveDefault);
-                }).first();
-                if ($option.length) {
-                    newSelect.val($option.val()).trigger('change');
+                // Buscar por clave_cnis en los datos originales
+                var productoEncontrado = null;
+                $.each(data, function(index, producto) {
+                    if (producto.clave_cnis === window.citaClaveDefault) {
+                        productoEncontrado = producto.id;
+                        return false; // break
+                    }
+                });
+                if (productoEncontrado) {
+                    newSelect.val(productoEncontrado).trigger('change');
                 }
             }
         },
