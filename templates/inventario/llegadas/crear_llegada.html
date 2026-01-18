@@ -1,4 +1,3 @@
-{% extends "base.html" %}
 {% load crispy_forms_tags %}
 
 {% block extra_css %}
@@ -48,54 +47,31 @@
         background-color: #ffffff;
     }
     
-    .row-precios {
-        background-color: #f9f9f9;
-    }
-    
-    .btn-remove-item {
-        background-color: #dc3545;
-        color: white;
-        border: none;
-        padding: 4px 8px;
-        cursor: pointer;
+    .folio-display {
+        padding: 8px 12px;
+        background-color: #f8f9fa;
+        border: 1px solid #ced4da;
         border-radius: 3px;
-        font-size: 0.85rem;
-    }
-    
-    .btn-remove-item:hover {
-        background-color: #c82333;
+        color: #495057;
     }
     
     .validation-error {
         color: #dc3545;
-        font-size: 0.8rem;
+        font-size: 0.875rem;
         margin-top: 0.25rem;
-    }
-    
-    .campo-calculado {
-        background-color: #f0f0f0;
-        font-weight: bold;
-    }
-    
-    .campo-editable {
-        background-color: #ffffff;
-    }
-    
-    .folio-display {
-        background-color: #e8f4f8;
-        padding: 8px;
-        border-radius: 3px;
-        font-weight: bold;
-        color: #0066cc;
     }
 </style>
 {% endblock %}
 
 {% block content %}
 <div class="container-fluid">
-    <h1 class="h3 mb-2 text-gray-800">Registrar Nueva Llegada de Proveedor</h1>
-    <p class="mb-4">Completa los datos para registrar una nueva llegada. Los campos verdes son de captura obligatoria.</p>
-
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <h2 class="mb-0">📥 Crear Nueva Llegada de Proveedor</h2>
+            <p class="text-muted">Fase 2.2.2 - Recepción de Mercancía</p>
+        </div>
+    </div>
+    
     <form method="post" id="llegada-form">
         {% csrf_token %}
         
@@ -175,6 +151,21 @@
                         </div>
                     </div>
                     
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label><strong>Orden de Suministro (Referencia)</strong></label>
+                                <div class="form-control" id="orden-suministro-ref" style="background-color: #f8f9fa; color: #666;">-</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label><strong>Clave de Producto (Referencia)</strong></label>
+                                <div class="form-control" id="clave-producto-ref" style="background-color: #f8f9fa; color: #666;">-</div>
+                            </div>
+                        </div>
+                    </div>
+                    
                     <div class="form-group">
                         <label for="id_observaciones_recepcion"><strong>Observaciones</strong></label>
                         {{ form.observaciones_recepcion }}
@@ -199,118 +190,70 @@
                                 <th colspan="4" style="background-color: #fff3cd; text-align: center; font-weight: bold;">CANTIDADES</th>
                             </tr>
                             <tr>
-                                <th style="width: 12%;">Producto (CNIS)</th>
-                                <th style="width: 8%;">Clave</th>
-                                <th style="width: 10%;">Lote</th>
-                                <th style="width: 8%;">Marca</th>
-                                <th style="width: 10%;">Fabricante</th>
-                                <th style="width: 8%;">F. Elaboración</th>
-                                <th style="width: 8%;">F. Caducidad</th>
-                                <th style="width: 6%;">Acción</th>
-                                <th style="width: 6%;">Emitida</th>
-                                <th style="width: 6%;">Recibida</th>
-                                <th style="width: 8%;">Piezas/Lote</th>
-                                <th style="width: 6%;"></th>
-                            </tr>
-                            <tr>
-                                <th colspan="8" style="background-color: #e8f4f8; text-align: center; font-weight: bold;">PRECIOS E IVA</th>
-                            </tr>
-                            <tr>
-                                <th style="width: 12%;">P. Unitario</th>
-                                <th style="width: 8%;">% IVA</th>
-                                <th style="width: 10%;">P. c/IVA</th>
-                                <th style="width: 10%;">Subtotal</th>
-                                <th style="width: 10%;">Importe IVA</th>
-                                <th style="width: 10%;">Total</th>
-                                <th colspan="2"></th>
+                                <th>Producto</th>
+                                <th>Clave CNIS</th>
+                                <th>Lote</th>
+                                <th>Fabricante</th>
+                                <th>Fecha Fab.</th>
+                                <th>% IVA</th>
+                                <th>P. Unitario</th>
+                                <th>P. c/IVA</th>
+                                <th>Emitidas</th>
+                                <th>Recibidas</th>
+                                <th>Piezas/Lote</th>
+                                <th>Acción</th>
                             </tr>
                         </thead>
                         <tbody id="items-tbody">
                             {% for form in formset %}
-                                <!-- FILA 1: Datos del Lote y Cantidades -->
-                                <tr class="item-row row-principal" data-form-index="{{ forloop.counter0 }}">
+                                {% if not form.instance.pk %}
+                                <tr class="row-principal">
                                     <td>{{ form.producto }}</td>
-                                    <td>{{ form.clave }}</td>
+                                    <td><input type="text" id="id_{{ forloop.counter0 }}-clave" name="{{ forloop.counter0 }}-clave" class="form-control clave-input" placeholder="Clave"></td>
                                     <td>{{ form.numero_lote }}</td>
-                                    <td>{{ form.marca }}</td>
-                                    <td>{{ form.fabricante }}</td>
-                                    <td>{{ form.fecha_elaboracion }}</td>
-                                    <td>{{ form.fecha_caducidad }}</td>
-                                    <td>
-                                        {% if not forloop.first %}
-                                            <button type="button" class="btn-remove-item" onclick="removeRow(this)">Eliminar</button>
-                                        {% endif %}
-                                    </td>
+                                    <td><input type="text" id="id_{{ forloop.counter0 }}-fabricante" name="{{ forloop.counter0 }}-fabricante" class="form-control" placeholder="Fabricante"></td>
+                                    <td><input type="date" id="id_{{ forloop.counter0 }}-fecha-fab" name="{{ forloop.counter0 }}-fecha-fab" class="form-control"></td>
+                                    <td><input type="number" id="id_{{ forloop.counter0 }}-iva-pct" name="{{ forloop.counter0 }}-iva-pct" class="form-control iva-pct" value="0" readonly></td>
+                                    <td><input type="number" id="id_{{ forloop.counter0 }}-precio-unitario" name="{{ forloop.counter0 }}-precio-unitario" class="form-control precio-unitario" step="0.01" placeholder="0.00"></td>
+                                    <td><input type="number" id="id_{{ forloop.counter0 }}-precio-iva" name="{{ forloop.counter0 }}-precio-iva" class="form-control precio-iva" step="0.01" readonly></td>
                                     <td>{{ form.cantidad_emitida }}</td>
                                     <td>{{ form.cantidad_recibida }}</td>
                                     <td>{{ form.piezas_por_lote }}</td>
-                                    <td></td>
+                                    <td><button type="button" class="btn btn-sm btn-danger" onclick="removeItem(this)">✕</button></td>
                                 </tr>
-                                
-                                <!-- FILA 2: Precios e IVA -->
-                                <tr class="item-row row-precios" data-form-index="{{ forloop.counter0 }}">
-                                    <td>{{ form.precio_unitario_sin_iva }}</td>
-                                    <td>{{ form.porcentaje_iva }}</td>
-                                    <td>{{ form.precio_unitario_con_iva }}</td>
-                                    <td>{{ form.subtotal }}</td>
-                                    <td>{{ form.importe_iva }}</td>
-                                    <td>{{ form.importe_total }}</td>
-                                    <td colspan="2"></td>
-                                </tr>
-                                
-                                {% if form.non_field_errors %}
-                                    <tr>
-                                        <td colspan="12" class="alert alert-danger">
-                                            {{ form.non_field_errors }}
-                                        </td>
-                                    </tr>
                                 {% endif %}
                             {% endfor %}
                         </tbody>
                     </table>
                 </div>
                 
-                <button type="button" id="add-item-btn" class="btn btn-success btn-sm mt-3">+ Agregar Lote</button>
-                <div id="validation-message" class="alert alert-warning mt-3" style="display: none;"></div>
+                <button type="button" class="btn btn-sm btn-primary mt-3" onclick="addItem()">+ Agregar Item</button>
             </div>
         </div>
-
-        <div class="form-group">
-            <button type="submit" class="btn btn-primary btn-lg">💾 Guardar Llegada</button>
-            <a href="{% url 'logistica:llegadas:lista_llegadas' %}" class="btn btn-secondary btn-lg">Cancelar</a>
+        
+        <!-- Botones -->
+        <div class="row mb-4">
+            <div class="col-md-12">
+                <button type="submit" class="btn btn-success btn-lg">
+                    <i class="fas fa-save"></i> Guardar Llegada
+                </button>
+                <a href="{% url 'logistica:llegadas:lista_llegadas' %}" class="btn btn-secondary btn-lg">
+                    <i class="fas fa-times"></i> Cancelar
+                </a>
+            </div>
         </div>
     </form>
 </div>
 
-{% block extra_js %}
+<script src="https://code.jquery.com/jquery-3.7.0.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.1.0-rc.0/js/select2.min.js"></script>
+
 <script>
 $(document).ready(function() {
     // Inicializar Select2
-    $('#id_cita').select2({
-        dropdownParent: $('body'),
-        width: '100%'
-    });
-    
-    $('#id_almacen').select2({
-        dropdownParent: $('body'),
-        width: '100%'
-    });
-    
-    initializeProductSelect2();
-    
-    // Agregar nueva fila
-    $('#add-item-btn').click(function(e) {
-        e.preventDefault();
-        addItemRow();
-    });
-    
-    // Validar al enviar
-    $('#llegada-form').on('submit', function(e) {
-        if (!validatePiezasSum()) {
-            e.preventDefault();
-            showValidationMessage('La suma de piezas por lote debe ser igual a la cantidad recibida en cada item.');
-        }
+    $('#id_cita, #id_almacen').select2({
+        width: '100%',
+        language: 'es'
     });
     
     // Cargar datos de cita cuando se selecciona
@@ -323,9 +266,22 @@ $(document).ready(function() {
                 success: function(data) {
                     $('#folio-display').text(data.folio || 'Se genera automáticamente');
                     if (data.remision) $('#id_remision').val(data.remision);
-                    if (data.orden_suministro) $('#id_numero_orden_suministro').val(data.orden_suministro);
+                    if (data.orden_suministro) {
+                        $('#id_numero_orden_suministro').val(data.orden_suministro);
+                        $('#orden-suministro-ref').text(data.orden_suministro);
+                    }
                     if (data.contrato) $('#id_numero_contrato').val(data.contrato);
                     if (data.almacen_id) $('#id_almacen').val(data.almacen_id).trigger('change');
+                    if (data.clave_medicamento) {
+                        $('#clave-producto-ref').text(data.clave_medicamento);
+                        window.citaClaveDefault = data.clave_medicamento;
+                        // Llenar clave en todos los inputs
+                        $('.clave-input').each(function() {
+                            if (!$(this).val()) {
+                                $(this).val(data.clave_medicamento);
+                            }
+                        });
+                    }
                 },
                 error: function() {
                     console.log('Error al cargar datos de cita');
@@ -333,178 +289,50 @@ $(document).ready(function() {
             });
         }
     });
-});
-
-function initializeProductSelect2() {
-    $('select[id$="-producto"]').each(function() {
-        if (!$(this).hasClass('select2-hidden-accessible')) {
-            $(this).select2({
-                dropdownParent: $('body'),
-                width: '100%',
-                placeholder: 'Selecciona un producto...'
-            });
-        }
-    });
-}
-
-function addItemRow() {
-    var formCount = $('#id_items-TOTAL_FORMS').val();
-    var newFormIndex = parseInt(formCount);
     
-    // FILA 1: Datos del Lote
-    var newRow1 = $('<tr class="item-row row-principal" data-form-index="' + newFormIndex + '">' +
-        '<td><select id="id_items-' + newFormIndex + '-producto" name="items-' + newFormIndex + '-producto" class="form-control"></select></td>' +
-        '<td><input type="text" id="id_items-' + newFormIndex + '-clave" name="items-' + newFormIndex + '-clave" class="form-control clave-cnis" placeholder="CNIS"></td>' +
-        '<td><input type="text" id="id_items-' + newFormIndex + '-numero_lote" name="items-' + newFormIndex + '-numero_lote" class="form-control numero-lote"></td>' +
-        '<td><input type="text" id="id_items-' + newFormIndex + '-marca" name="items-' + newFormIndex + '-marca" class="form-control"></td>' +
-        '<td><input type="text" id="id_items-' + newFormIndex + '-fabricante" name="items-' + newFormIndex + '-fabricante" class="form-control"></td>' +
-        '<td><input type="date" id="id_items-' + newFormIndex + '-fecha_elaboracion" name="items-' + newFormIndex + '-fecha_elaboracion" class="form-control"></td>' +
-        '<td><input type="date" id="id_items-' + newFormIndex + '-fecha_caducidad" name="items-' + newFormIndex + '-fecha_caducidad" class="form-control"></td>' +
-        '<td><button type="button" class="btn-remove-item" onclick="removeRow(this)">Eliminar</button></td>' +
-        '<td><input type="number" id="id_items-' + newFormIndex + '-cantidad_emitida" name="items-' + newFormIndex + '-cantidad_emitida" class="form-control cantidad-emitida"></td>' +
-        '<td><input type="number" id="id_items-' + newFormIndex + '-cantidad_recibida" name="items-' + newFormIndex + '-cantidad_recibida" class="form-control cantidad-recibida"></td>' +
-        '<td><input type="number" id="id_items-' + newFormIndex + '-piezas_por_lote" name="items-' + newFormIndex + '-piezas_por_lote" class="form-control piezas-por-lote" min="1" value="1"></td>' +
-        '<td></td>' +
-        '</tr>');
-    
-    // FILA 2: Precios e IVA
-    var newRow2 = $('<tr class="item-row row-precios" data-form-index="' + newFormIndex + '">' +
-        '<td><input type="number" id="id_items-' + newFormIndex + '-precio_unitario_sin_iva" name="items-' + newFormIndex + '-precio_unitario_sin_iva" class="form-control precio-unitario" step="0.01" placeholder="0.00"></td>' +
-        '<td><input type="number" id="id_items-' + newFormIndex + '-porcentaje_iva" name="items-' + newFormIndex + '-porcentaje_iva" class="form-control porcentaje-iva" step="0.01" placeholder="0.00" readonly></td>' +
-        '<td><input type="number" id="id_items-' + newFormIndex + '-precio_unitario_con_iva" name="items-' + newFormIndex + '-precio_unitario_con_iva" class="form-control precio-con-iva" step="0.01" placeholder="0.00" readonly></td>' +
-        '<td><input type="number" id="id_items-' + newFormIndex + '-subtotal" name="items-' + newFormIndex + '-subtotal" class="form-control subtotal" step="0.01" placeholder="0.00" readonly></td>' +
-        '<td><input type="number" id="id_items-' + newFormIndex + '-importe_iva" name="items-' + newFormIndex + '-importe_iva" class="form-control importe-iva" step="0.01" placeholder="0.00" readonly></td>' +
-        '<td><input type="number" id="id_items-' + newFormIndex + '-importe_total" name="items-' + newFormIndex + '-importe_total" class="form-control importe-total" step="0.01" placeholder="0.00" readonly></td>' +
-        '<td colspan="2"></td>' +
-        '</tr>');
-    
-    $('#items-tbody').append(newRow1);
-    $('#items-tbody').append(newRow2);
-    
-    $('#id_items-TOTAL_FORMS').val(newFormIndex + 1);
-    
-    // Inicializar Select2 para el nuevo producto
-    var newSelect = newRow1.find('select[id$="-producto"]');
-    newSelect.select2({
-        dropdownParent: $('body'),
-        width: '100%',
-        placeholder: 'Selecciona un producto...'
-    });
-    
-    // Cargar opciones de productos
-    $.ajax({
-        url: '/logistica/llegadas/api/productos/',
-        type: 'GET',
-        success: function(data) {
-            $.each(data, function(index, producto) {
-                newSelect.append('<option value="' + producto.id + '">' + producto.descripcion + '</option>');
-            });
-        }
-    });
-    
-    // Agregar validaciones
-    addFieldValidation(newRow1, newRow2);
-}
-
-function removeRow(btn) {
-    var row = $(btn).closest('tr');
-    var formIndex = row.data('form-index');
-    
-    // Eliminar ambas filas (principal y precios)
-    $('#items-tbody tr[data-form-index="' + formIndex + '"]').remove();
-    updateFormCount();
-}
-
-function updateFormCount() {
-    var count = $('#items-tbody tr.row-principal').length;
-    $('#id_items-TOTAL_FORMS').val(count);
-}
-
-function addFieldValidation(row1, row2) {
-    // Validar cantidad_recibida <= cantidad_emitida
-    row1.find('.cantidad-recibida').on('change', function() {
-        var cantEmitida = row1.find('input[name$="-cantidad_emitida"]').val();
-        var cantRecibida = $(this).val();
-        if (parseInt(cantRecibida) > parseInt(cantEmitida)) {
-            $(this).css('border-color', 'red');
-        } else {
-            $(this).css('border-color', '');
-        }
-    });
-    
-    // Calcular IVA automático según clave
-    row1.find('.clave-cnis').on('change', function() {
+    // Calcular IVA según clave
+    $(document).on('change', '.clave-input', function() {
         var clave = $(this).val();
-        var ivaField = row2.find('.porcentaje-iva');
+        var row = $(this).closest('tr');
+        var ivaInput = row.find('.iva-pct');
         
-        if (clave.startsWith('060') || clave.startsWith('080') || clave.startsWith('130') || clave.startsWith('379')) {
-            ivaField.val('16.00');
+        if (clave && (clave.startsWith('060') || clave.startsWith('080') || clave.startsWith('130') || clave.startsWith('379'))) {
+            ivaInput.val(16);
         } else {
-            ivaField.val('0.00');
+            ivaInput.val(0);
         }
         
-        calculatePrices(row1, row2);
+        // Recalcular precio con IVA
+        calcularPrecioConIVA(row);
     });
-    
-    // Calcular precios cuando cambia precio unitario
-    row2.find('.precio-unitario').on('change', function() {
-        calculatePrices(row1, row2);
-    });
-}
-
-function calculatePrices(row1, row2) {
-    var precioUnitario = parseFloat(row2.find('.precio-unitario').val()) || 0;
-    var porcentajeIva = parseFloat(row2.find('.porcentaje-iva').val()) || 0;
-    var cantRecibida = parseInt(row1.find('.cantidad-recibida').val()) || 0;
     
     // Calcular precio con IVA
-    var precioConIva = precioUnitario * (1 + (porcentajeIva / 100));
-    
-    // Calcular subtotal (precio unitario * cantidad)
-    var subtotal = precioUnitario * cantRecibida;
-    
-    // Calcular importe IVA
-    var importeIva = subtotal * (porcentajeIva / 100);
-    
-    // Calcular importe total
-    var importeTotal = subtotal + importeIva;
-    
-    row2.find('.precio-con-iva').val(precioConIva.toFixed(2));
-    row2.find('.subtotal').val(subtotal.toFixed(2));
-    row2.find('.importe-iva').val(importeIva.toFixed(2));
-    row2.find('.importe-total').val(importeTotal.toFixed(2));
-}
-
-function validatePiezasSum() {
-    var isValid = true;
-    var errorMessages = [];
-    
-    $('#items-tbody tr.row-principal').each(function() {
-        var cantRecibida = parseInt($(this).find('input[name$="-cantidad_recibida"]').val()) || 0;
-        var piezasLote = parseInt($(this).find('input[name$="-piezas_por_lote"]').val()) || 0;
-        
-        if (cantRecibida > 0 && piezasLote !== cantRecibida) {
-            $(this).find('input[name$="-piezas_por_lote"]').css('border-color', 'red');
-            errorMessages.push('Lote: La suma de piezas por lote debe ser igual a la cantidad recibida');
-            isValid = false;
-        } else {
-            $(this).find('input[name$="-piezas_por_lote"]').css('border-color', '');
-        }
+    $(document).on('change', '.precio-unitario, .iva-pct', function() {
+        var row = $(this).closest('tr');
+        calcularPrecioConIVA(row);
     });
     
-    if (!isValid) {
-        showValidationMessage(errorMessages.join('<br>'));
+    function calcularPrecioConIVA(row) {
+        var precioUnitario = parseFloat(row.find('.precio-unitario').val()) || 0;
+        var ivaPct = parseFloat(row.find('.iva-pct').val()) || 0;
+        var precioConIVA = precioUnitario * (1 + (ivaPct / 100));
+        row.find('.precio-iva').val(precioConIVA.toFixed(2));
     }
+});
+
+function addItem() {
+    // Agregar nuevo item
+    var newRow = '<tr class="row-principal"><td><input type="text" class="form-control" placeholder="Producto"></td><td><input type="text" class="form-control clave-input" placeholder="Clave"></td><td><input type="text" class="form-control" placeholder="Lote"></td><td><input type="text" class="form-control" placeholder="Fabricante"></td><td><input type="date" class="form-control"></td><td><input type="number" class="form-control iva-pct" value="0" readonly></td><td><input type="number" class="form-control precio-unitario" step="0.01" placeholder="0.00"></td><td><input type="number" class="form-control precio-iva" step="0.01" readonly></td><td><input type="number" class="form-control" placeholder="0"></td><td><input type="number" class="form-control" placeholder="0"></td><td><input type="number" class="form-control" placeholder="0"></td><td><button type="button" class="btn btn-sm btn-danger" onclick="removeItem(this)">✕</button></td></tr>';
+    $('#items-tbody').append(newRow);
     
-    return isValid;
+    // Llenar clave default si existe
+    if (window.citaClaveDefault) {
+        $('#items-tbody tr:last .clave-input').val(window.citaClaveDefault);
+    }
 }
 
-function showValidationMessage(message) {
-    var msgDiv = $('#validation-message');
-    msgDiv.html(message);
-    msgDiv.show();
-    $('html, body').animate({scrollTop: msgDiv.offset().top - 100}, 'slow');
+function removeItem(btn) {
+    $(btn).closest('tr').remove();
 }
 </script>
-{% endblock %}
 {% endblock %}
