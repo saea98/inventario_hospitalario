@@ -284,6 +284,9 @@ $(document).ready(function() {
     // Calcular total de piezas recibidas al cargar la página
     updateTotalPiezasRecibidas();
     
+    // Llenar precios unitarios con el valor del item anterior
+    fillPreciosFromPreviousItem();
+    
     // Agregar evento global para cambios en cantidad_recibida
     $(document).on('change', '.cantidad-recibida', function() {
         console.log('Cambio detectado en cantidad_recibida:', $(this).val());
@@ -527,6 +530,22 @@ function addFieldValidation(row1, row2) {
     row1.find('.cantidad-recibida').on('change', function() {
         calculatePrices(row1, row2Actual);
         updateTotalPiezasRecibidas();
+    });
+}
+
+function fillPreciosFromPreviousItem() {
+    var precioAnterior = '';
+    $('#items-tbody tr.row-precios').each(function(index) {
+        var $precioActual = $(this).find('.precio-unitario');
+        
+        if (index > 0 && precioAnterior) {
+            if (!$precioActual.val()) {
+                $precioActual.val(precioAnterior);
+                console.log('Precio del item ' + index + ' llenado con:', precioAnterior);
+            }
+        }
+        
+        precioAnterior = $precioActual.val();
     });
 }
 
