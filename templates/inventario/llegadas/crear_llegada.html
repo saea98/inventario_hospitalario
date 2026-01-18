@@ -48,6 +48,40 @@
         background-color: #ffffff;
     }
     
+    /* Estilos para campos obligatorios */
+    .required-field .form-control,
+    .required-field .select2-container--default .select2-selection--single {
+        border: 2px solid #ffc107 !important;
+        background-color: #fffbf0 !important;
+    }
+    
+    .required-field.filled .form-control,
+    .required-field.filled .select2-container--default .select2-selection--single {
+        border: 2px solid #28a745 !important;
+        background-color: #f0fff4 !important;
+    }
+    
+    .required-field label::after {
+        content: " *";
+        color: #dc3545;
+        font-weight: bold;
+    }
+    
+    .form-group.required-field {
+        padding: 10px;
+        border-radius: 4px;
+        background-color: rgba(255, 193, 7, 0.05);
+    }
+    
+    .form-group.required-field.filled {
+        background-color: rgba(40, 167, 69, 0.05);
+    }
+    
+    .validation-error-highlight {
+        border: 2px solid #dc3545 !important;
+        background-color: #fff5f5 !important;
+    }
+    
     .row-precios {
         background-color: #f9f9f9;
     }
@@ -133,8 +167,8 @@
                 <div class="datos-llegada-section">
                     <div class="row">
                         <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="id_cita"><strong>Cita Autorizada *</strong></label>
+                            <div class="form-group required-field" data-field="cita">
+                                <label for="id_cita"><strong>Cita Autorizada</strong></label>
                                 {{ form.cita }}
                                 {% if form.cita.errors %}
                                     <div class="alert alert-danger mt-2">{{ form.cita.errors }}</div>
@@ -151,8 +185,8 @@
                     
                     <div class="row">
                         <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="id_remision"><strong>Remisión *</strong></label>
+                            <div class="form-group required-field" data-field="remision">
+                                <label for="id_remision"><strong>Remisión</strong></label>
                                 {{ form.remision }}
                                 {% if form.remision.errors %}
                                     <div class="alert alert-danger mt-2">{{ form.remision.errors }}</div>
@@ -160,8 +194,8 @@
                             </div>
                         </div>
                         <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="id_almacen"><strong>Almacén *</strong></label>
+                            <div class="form-group required-field" data-field="almacen">
+                                <label for="id_almacen"><strong>Almacén</strong></label>
                                 {{ form.almacen }}
                                 {% if form.almacen.errors %}
                                     <div class="alert alert-danger mt-2">{{ form.almacen.errors }}</div>
@@ -172,8 +206,8 @@
                     
                     <div class="row">
                         <div class="col-md-4">
-                            <div class="form-group">
-                                <label for="id_numero_piezas_emitidas"><strong>Piezas Emitidas *</strong></label>
+                            <div class="form-group required-field" data-field="numero_piezas_emitidas">
+                                <label for="id_numero_piezas_emitidas"><strong>Piezas Emitidas</strong></label>
                                 {{ form.numero_piezas_emitidas }}
                                 {% if form.numero_piezas_emitidas.errors %}
                                     <div class="alert alert-danger mt-2">{{ form.numero_piezas_emitidas.errors }}</div>
@@ -181,8 +215,8 @@
                             </div>
                         </div>
                         <div class="col-md-4">
-                            <div class="form-group">
-                                <label for="id_numero_piezas_recibidas"><strong>Piezas Recibidas *</strong></label>
+                            <div class="form-group required-field" data-field="numero_piezas_recibidas">
+                                <label for="id_numero_piezas_recibidas"><strong>Piezas Recibidas</strong></label>
                                 {{ form.numero_piezas_recibidas }}
                                 <small class="form-text text-muted">Se calcula automáticamente desde los items</small>
                                 {% if form.numero_piezas_recibidas.errors %}
@@ -329,11 +363,51 @@ $(document).ready(function() {
         addItemRow();
     });
     
+    // Validar campos obligatorios y mostrar visualmente cuales faltan
+    function validateRequiredFields() {
+        var requiredFields = ['cita', 'remision', 'numero_piezas_emitidas', 'numero_piezas_recibidas', 'almacen'];
+        var emptyFields = [];
+        
+        requiredFields.forEach(function(fieldName) {
+            var $field = $('[name="' + fieldName + '"]');
+            var $formGroup = $field.closest('.form-group');
+            var value = $field.val();
+            
+            if (!value || value.trim() === '') {
+                emptyFields.push(fieldName);
+                $formGroup.addClass('validation-error-highlight');
+            } else {
+                $formGroup.removeClass('validation-error-highlight');
+            }
+        });
+        
+        if (emptyFields.length > 0) {
+            var fieldLabels = emptyFields.map(function(f) {
+                return $('[name="' + f + '"]').closest('.form-group').find('label').text() || f;
+            }).join(', ');
+            showValidationMessage('Campos obligatorios faltantes: ' + fieldLabels);
+            return false;
+        }
+        return true;
+    }
+    
+    // Monitorear cambios en campos obligatorios
+    $('.required-field').each(function() {
+        var $field = $(this).find('input, select, textarea');
+        $field.on('change input', function() {
+            var value = $(this).val();
+            if (value && value.trim() !== '') {
+                $(this).closest('.form-group').addClass('filled').removeClass('validation-error-highlight');
+            } else {
+                $(this).closest('.form-group').removeClass('filled');
+            }
+        });
+    });
+    
     // Validar al enviar
     $('#llegada-form').on('submit', function(e) {
-        if (!validatePiezasSum()) {
+        if (!validateRequiredFields() || !validatePiezasSum()) {
             e.preventDefault();
-            showValidationMessage('La suma de piezas por lote debe ser igual a la cantidad recibida en cada item.');
         }
     });
     
