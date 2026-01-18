@@ -41,12 +41,16 @@ class LlegadaProveedorForm(forms.ModelForm):
             "remision",
             "numero_piezas_emitidas",
             "numero_piezas_recibidas",
+            "almacen",
+            "tipo_red",
             "observaciones_recepcion",
         ]
         widgets = {
             "remision": forms.TextInput(attrs={"class": "form-control"}),
             "numero_piezas_emitidas": forms.NumberInput(attrs={"class": "form-control"}),
             "numero_piezas_recibidas": forms.NumberInput(attrs={"class": "form-control"}),
+            "almacen": forms.Select(attrs={"class": "form-control select2-single"}),
+            "tipo_red": forms.Select(attrs={"class": "form-control"}),
             "observaciones_recepcion": forms.Textarea(attrs={"class": "form-control", "rows": 3}),
         }
 
@@ -80,6 +84,7 @@ class ItemLlegadaForm(forms.ModelForm):
             "fecha_caducidad",
             "cantidad_emitida",
             "cantidad_recibida",
+            "piezas_por_lote",
             "marca",
             "fabricante",
             "fecha_elaboracion",
@@ -89,6 +94,7 @@ class ItemLlegadaForm(forms.ModelForm):
             "fecha_caducidad": forms.DateInput(attrs={"class": "form-control", "type": "date"}),
             "cantidad_emitida": forms.NumberInput(attrs={"class": "form-control"}),
             "cantidad_recibida": forms.NumberInput(attrs={"class": "form-control"}),
+            "piezas_por_lote": forms.NumberInput(attrs={"class": "form-control", "min": "1"}),
             "marca": forms.TextInput(attrs={"class": "form-control"}),
             "fabricante": forms.TextInput(attrs={"class": "form-control"}),
             "fecha_elaboracion": forms.DateInput(attrs={"class": "form-control", "type": "date"}),
