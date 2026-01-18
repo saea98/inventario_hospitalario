@@ -214,17 +214,16 @@
                                 <th colspan="4" style="background-color: #fff3cd; text-align: center; font-weight: bold;">CANTIDADES</th>
                             </tr>
                             <tr>
-                                <th style="width: 12%;">Producto (CNIS)</th>
-                                <th style="width: 8%;">Clave</th>
-                                <th style="width: 10%;">Lote</th>
-                                <th style="width: 8%;">Marca</th>
-                                <th style="width: 10%;">Fabricante</th>
-                                <th style="width: 8%;">F. Elaboración</th>
-                                <th style="width: 8%;">F. Caducidad</th>
+                                <th style="width: 15%;">Producto (CNIS)</th>
+                                <th style="width: 12%;">Lote</th>
+                                <th style="width: 10%;">Marca</th>
+                                <th style="width: 12%;">Fabricante</th>
+                                <th style="width: 10%;">F. Elaboración</th>
+                                <th style="width: 10%;">F. Caducidad</th>
                                 <th style="width: 6%;">Acción</th>
                                 <th style="width: 6%;">Emitida</th>
                                 <th style="width: 6%;">Recibida</th>
-                                <th style="width: 8%;">Piezas/Lote</th>
+                                <th style="width: 7%;">Piezas/Lote</th>
                                 <th style="width: 6%;"></th>
                             </tr>
                             <tr>
@@ -245,7 +244,6 @@
                                 <!-- FILA 1: Datos del Lote y Cantidades -->
                                 <tr class="item-row row-principal" data-form-index="{{ forloop.counter0 }}">
                                     <td>{{ form.producto }}</td>
-                                    <td>{{ form.clave }}</td>
                                     <td>{{ form.numero_lote }}</td>
                                     <td>{{ form.marca }}</td>
                                     <td>{{ form.fabricante }}</td>
@@ -347,8 +345,15 @@ $(document).ready(function() {
                     if (data.clave_medicamento) {
                         $('#clave-producto-ref').text(data.clave_medicamento);
                         window.citaClaveDefault = data.clave_medicamento;
-                        $('input[id$="-clave"]').each(function() {
-                            if (!$(this).val()) $(this).val(data.clave_medicamento);
+                        // Pre-seleccionar producto con esta clave en todos los selects
+                        $('select[id$="-producto"]').each(function() {
+                            var $select = $(this);
+                            var $option = $select.find('option').filter(function() {
+                                return $(this).text().includes(data.clave_medicamento);
+                            }).first();
+                            if ($option.length) {
+                                $select.val($option.val()).trigger('change');
+                            }
                         });
                     }
                 },
