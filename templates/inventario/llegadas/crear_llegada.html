@@ -183,7 +183,8 @@
                         <div class="col-md-4">
                             <div class="form-group">
                                 <label for="id_numero_piezas_recibidas"><strong>Piezas Recibidas *</strong></label>
-                                <input type="number" id="total-piezas-recibidas" class="form-control" readonly>
+                                {{ form.numero_piezas_recibidas }}
+                                <small class="form-text text-muted">Se calcula automáticamente desde los items</small>
                                 {% if form.numero_piezas_recibidas.errors %}
                                     <div class="alert alert-danger mt-2">{{ form.numero_piezas_recibidas.errors }}</div>
                                 {% endif %}
@@ -606,12 +607,9 @@ function updateTotalPiezasRecibidas() {
     var total = 0;
     $('#items-tbody tr.row-principal').each(function() {
         var cantidad = parseInt($(this).find('input[name$="-cantidad_recibida"]').val()) || 0;
-        console.log('Cantidad encontrada:', cantidad);
         total += cantidad;
     });
-    console.log('Total calculado:', total);
-    $('#total-piezas-recibidas').val(total);
-    console.log('Campo actualizado con valor:', total);
+    // Actualizar el campo del formulario Django
     $('#id_numero_piezas_recibidas').val(total);
 }
 
