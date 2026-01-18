@@ -228,16 +228,23 @@ def api_ubicaciones_por_almacen(request):
 @require_GET
 def api_cita_folio(request, cita_id):
     """
-    API que devuelve el folio de una cita específica.
+    API que devuelve los datos de una cita específica.
     URL: /logistica/llegadas/api/cita/<cita_id>/folio/
+    Devuelve: folio, remisión, orden de suministro, almacén
     """
     try:
-        # Generar folio temporal basado en la cita
-        folio = f"TEMP-{cita_id}"
+        from django.apps import apps
+        CitaProveedor = apps.get_model('inventario', 'CitaProveedor')
+        
+        cita = CitaProveedor.objects.get(id=cita_id)
         
         return JsonResponse({
-            'folio': folio,
+            'folio': cita.folio or f"TEMP-{cita_id}",
+            'remision': cita.numero_orden_remision or '',
+            'orden_suministro': cita.numero_orden_suministro or '',
+            'contrato': cita.numero_contrato or '',
+            'almacen_id': cita.almacen_id or '',
             'cita_id': cita_id
         })
     except Exception as e:
-        return JsonResponse({'error': 'Error al obtener folio'}, status=500)
+        return JsonResponse({'error': 'Cita no encontrada'}, status=404)

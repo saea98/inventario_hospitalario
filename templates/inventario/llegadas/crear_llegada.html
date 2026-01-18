@@ -313,7 +313,7 @@ $(document).ready(function() {
         }
     });
     
-    // Cargar folio cuando se selecciona cita
+    // Cargar datos de cita cuando se selecciona
     $('#id_cita').on('change', function() {
         var citaId = $(this).val();
         if (citaId) {
@@ -322,6 +322,13 @@ $(document).ready(function() {
                 type: 'GET',
                 success: function(data) {
                     $('#folio-display').text(data.folio || 'Se genera automáticamente');
+                    if (data.remision) $('#id_remision').val(data.remision);
+                    if (data.orden_suministro) $('#id_numero_orden_suministro').val(data.orden_suministro);
+                    if (data.contrato) $('#id_numero_contrato').val(data.contrato);
+                    if (data.almacen_id) $('#id_almacen').val(data.almacen_id).trigger('change');
+                },
+                error: function() {
+                    console.log('Error al cargar datos de cita');
                 }
             });
         }
