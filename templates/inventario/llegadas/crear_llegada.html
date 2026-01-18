@@ -374,7 +374,28 @@ function initializeProductSelect2() {
                 placeholder: 'Selecciona un producto...'
             });
         }
+        $(this).on('change', function() {
+            calcularIVADelProducto($(this));
+        });
     });
+}
+
+function calcularIVADelProducto($selectProducto) {
+    var selectedText = $selectProducto.find('option:selected').text();
+    var clave = extraerClaveDelProducto(selectedText);
+    var fila = $selectProducto.closest('tr');
+    var $ivaInput = fila.find('input[id$="-porcentaje_iva"]');
+    
+    if (clave && (clave.startsWith('060') || clave.startsWith('080') || clave.startsWith('130') || clave.startsWith('379'))) {
+        $ivaInput.val('0.16');
+    } else {
+        $ivaInput.val('0.00');
+    }
+}
+
+function extraerClaveDelProducto(texto) {
+    var match = texto.match(/-(\d{3})/);
+    return match ? match[1] : null;
 }
 
 function addItemRow() {
