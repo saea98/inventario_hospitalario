@@ -40,6 +40,11 @@
     .btn-remove-item:hover {
         background-color: #c82333;
     }
+    .validation-error {
+        color: #dc3545;
+        font-size: 0.875rem;
+        margin-top: 0.25rem;
+    }
 </style>
 {% endblock %}
 
@@ -97,6 +102,26 @@
                         </div>
                     </div>
                 </div>
+                <div class="row">
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="id_almacen">Almacén *</label>
+                            {{ form.almacen }}
+                            {% if form.almacen.errors %}
+                                <div class="alert alert-danger mt-2">{{ form.almacen.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-md-6">
+                        <div class="form-group">
+                            <label for="id_tipo_red">Tipo de Red</label>
+                            {{ form.tipo_red }}
+                            {% if form.tipo_red.errors %}
+                                <div class="alert alert-danger mt-2">{{ form.tipo_red.errors }}</div>
+                            {% endif %}
+                        </div>
+                    </div>
+                </div>
                 <div class="form-group">
                     <label for="id_observaciones_recepcion">Observaciones</label>
                     {{ form.observaciones_recepcion }}
@@ -116,13 +141,14 @@
                     <table class="table-items">
                         <thead>
                             <tr>
-                                <th style="width: 20%;">Producto (CNIS)</th>
-                                <th style="width: 15%;">Lote</th>
-                                <th style="width: 12%;">Caducidad</th>
-                                <th style="width: 10%;">Cant. Emitida</th>
-                                <th style="width: 10%;">Cant. Recibida</th>
-                                <th style="width: 15%;">Marca</th>
-                                <th style="width: 10%;">Acción</th>
+                                <th style="width: 18%;">Producto (CNIS)</th>
+                                <th style="width: 12%;">Lote</th>
+                                <th style="width: 10%;">Caducidad</th>
+                                <th style="width: 8%;">Cant. Emitida</th>
+                                <th style="width: 8%;">Cant. Recibida</th>
+                                <th style="width: 8%;">Piezas/Lote</th>
+                                <th style="width: 12%;">Marca</th>
+                                <th style="width: 8%;">Acción</th>
                             </tr>
                         </thead>
                         <tbody id="items-tbody">
@@ -133,6 +159,7 @@
                                     <td>{{ form.fecha_caducidad }}</td>
                                     <td>{{ form.cantidad_emitida }}</td>
                                     <td>{{ form.cantidad_recibida }}</td>
+                                    <td>{{ form.piezas_por_lote }}</td>
                                     <td>{{ form.marca }}</td>
                                     <td>
                                         {% if not forloop.first %}
@@ -142,7 +169,7 @@
                                 </tr>
                                 {% if form.non_field_errors %}
                                     <tr>
-                                        <td colspan="7" class="alert alert-danger">
+                                        <td colspan="8" class="alert alert-danger">
                                             {{ form.non_field_errors }}
                                         </td>
                                     </tr>
@@ -173,6 +200,12 @@ $(document).ready(function() {
         width: '100%'
     });
     
+    // Inicializar Select2 para el campo de almacen
+    $('#id_almacen').select2({
+        dropdownParent: $('body'),
+        width: '100%'
+    });
+    
     // Inicializar Select2 para todos los campos de producto
     initializeProductSelect2();
     
@@ -180,6 +213,14 @@ $(document).ready(function() {
     $('#add-item-btn').click(function(e) {
         e.preventDefault();
         addItemRow();
+    });
+    
+    // Validar suma de piezas_por_lote al enviar
+    $('#llegada-form').on('submit', function(e) {
+        if (!validatePiezasSum()) {
+            e.preventDefault();
+            alert('La suma de piezas por lote debe ser igual a la cantidad recibida en cada item.');
+        }
     });
 });
 
@@ -199,13 +240,14 @@ function addItemRow() {
     var formCount = $('#id_items-TOTAL_FORMS').val();
     var newFormIndex = parseInt(formCount);
     
-    // Crear nueva fila
+    // Crear nueva fila con todos los campos
     var newRow = $('<tr class="item-row" data-form-index="' + newFormIndex + '">' +
         '<td><select id="id_items-' + newFormIndex + '-producto" name="items-' + newFormIndex + '-producto" class="form-control"></select></td>' +
         '<td><input type="text" id="id_items-' + newFormIndex + '-numero_lote" name="items-' + newFormIndex + '-numero_lote" class="form-control"></td>' +
         '<td><input type="date" id="id_items-' + newFormIndex + '-fecha_caducidad" name="items-' + newFormIndex + '-fecha_caducidad" class="form-control"></td>' +
         '<td><input type="number" id="id_items-' + newFormIndex + '-cantidad_emitida" name="items-' + newFormIndex + '-cantidad_emitida" class="form-control"></td>' +
-        '<td><input type="number" id="id_items-' + newFormIndex + '-cantidad_recibida" name="items-' + newFormIndex + '-cantidad_recibida" class="form-control"></td>' +
+        '<td><input type="number" id="id_items-' + newFormIndex + '-cantidad_recibida" name="items-' + newFormIndex + '-cantidad_recibida" class="form-control cantidad-recibida"></td>' +
+        '<td><input type="number" id="id_items-' + newFormIndex + '-piezas_por_lote" name="items-' + newFormIndex + '-piezas_por_lote" class="form-control piezas-por-lote" min="1" value="1"></td>' +
         '<td><input type="text" id="id_items-' + newFormIndex + '-marca" name="items-' + newFormIndex + '-marca" class="form-control"></td>' +
         '<td><button type="button" class="btn-remove-item" onclick="removeRow(this)">Eliminar</button></td>' +
         '</tr>');
@@ -233,6 +275,9 @@ function addItemRow() {
             });
         }
     });
+    
+    // Agregar validación a los nuevos campos
+    addFieldValidation(newRow);
 }
 
 function removeRow(btn) {
@@ -243,6 +288,38 @@ function removeRow(btn) {
 function updateFormCount() {
     var count = $('#items-tbody tr').length;
     $('#id_items-TOTAL_FORMS').val(count);
+}
+
+function addFieldValidation(row) {
+    // Validar que cantidad_recibida <= cantidad_emitida
+    row.find('.cantidad-recibida').on('change', function() {
+        var cantEmitida = row.find('input[name$="-cantidad_emitida"]').val();
+        var cantRecibida = $(this).val();
+        if (parseInt(cantRecibida) > parseInt(cantEmitida)) {
+            $(this).css('border-color', 'red');
+            $(this).after('<div class="validation-error">No puede ser mayor a cantidad emitida</div>');
+        } else {
+            $(this).css('border-color', '');
+            $(this).siblings('.validation-error').remove();
+        }
+    });
+}
+
+function validatePiezasSum() {
+    // Validar que la suma de piezas_por_lote sea igual a cantidad_recibida
+    var isValid = true;
+    $('#items-tbody tr').each(function() {
+        var cantRecibida = parseInt($(this).find('input[name$="-cantidad_recibida"]').val()) || 0;
+        var piezasLote = parseInt($(this).find('input[name$="-piezas_por_lote"]').val()) || 0;
+        
+        if (cantRecibida > 0 && piezasLote !== cantRecibida) {
+            $(this).find('input[name$="-piezas_por_lote"]').css('border-color', 'red');
+            isValid = false;
+        } else {
+            $(this).find('input[name$="-piezas_por_lote"]').css('border-color', '');
+        }
+    });
+    return isValid;
 }
 </script>
 {% endblock %}
