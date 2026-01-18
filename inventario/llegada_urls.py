@@ -14,6 +14,7 @@ from .llegada_views import (
     SubirDocumentoView,
     api_productos,
     api_ubicaciones_por_almacen,
+    api_cita_folio,
 )
 
 app_name = 'llegadas'
@@ -23,6 +24,7 @@ urlpatterns = [
     path('crear/', CrearLlegadaView.as_view(), name='crear_llegada'),
     path('api/productos/', api_productos, name='api_productos'),
     path('api/ubicaciones-por-almacen/', api_ubicaciones_por_almacen, name='api_ubicaciones_por_almacen'),
+    path('api/cita/<int:cita_id>/folio/', api_cita_folio, name='api_cita_folio'),
     path('<uuid:pk>/', DetalleLlegadaView.as_view(), name='detalle_llegada'),
     path('<uuid:pk>/calidad/', ControlCalidadView.as_view(), name='control_calidad'),
     path('<uuid:pk>/facturacion/', FacturacionView.as_view(), name='facturacion'),

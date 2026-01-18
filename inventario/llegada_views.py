@@ -398,3 +398,32 @@ def api_ubicaciones_por_almacen(request):
     return JsonResponse({
         'ubicaciones': list(ubicaciones)
     })
+
+
+@require_GET
+def api_cita_folio(request, cita_id):
+    """
+    API que devuelve el folio de una cita específica.
+    URL: /api/cita/<cita_id>/folio/
+    """
+    from django.apps import apps
+    CitaProveedor = apps.get_model('inventario', 'CitaProveedor')
+    
+    try:
+        cita = CitaProveedor.objects.get(id=cita_id)
+        # Si la cita tiene una llegada asociada, devolver el folio de esa llegada
+        if hasattr(cita, 'llegada_proveedor') and cita.llegada_proveedor:
+            folio = cita.llegada_proveedor.folio
+        else:
+            # Si no tiene llegada, generar un folio temporal
+            folio = f"TEMP-{cita_id}"
+        
+        return JsonResponse({
+            'folio': folio,
+            'cita_id': cita_id,
+            'proveedor': cita.proveedor.nombre if cita.proveedor else 'N/A'
+        })
+    except CitaProveedor.DoesNotExist:
+        return JsonResponse({'error': 'Cita no encontrada'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
