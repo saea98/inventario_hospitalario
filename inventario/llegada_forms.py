@@ -406,3 +406,14 @@ class UbicacionItemForm(forms.Form):
                 f"La cantidad no puede exceder {self.cantidad_maxima}"
             )
         return cantidad
+
+
+# Formset para ubicaciones
+UbicacionFormSet = inlineformset_factory(
+    LlegadaProveedor,
+    ItemLlegada,
+    form=UbicacionItemForm,
+    extra=0,
+    can_delete=False,
+    fk_name="llegada",
+)
