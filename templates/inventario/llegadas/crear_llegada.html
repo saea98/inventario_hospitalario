@@ -355,22 +355,31 @@ function initializeProductSelect2() {
 
 function calcularIVADelProducto($selectProducto) {
     var selectedText = $selectProducto.find('option:selected').text();
-    alert('Texto seleccionado: ' + selectedText);
+
     var clave = extraerClaveDelProducto(selectedText);
-    alert('Clave extraída: ' + clave);
+
     var filaActual = $selectProducto.closest('tr');
     var formIndex = filaActual.data('form-index');
-    alert('Form Index: ' + formIndex);
+
     var $ivaInput = $('input[name="items-' + formIndex + '-porcentaje_iva"]');
-    alert('IVA Input encontrado: ' + $ivaInput.length + ', ID: ' + $ivaInput.attr('id'));
+
     
     if (clave && (clave.startsWith('060') || clave.startsWith('080') || clave.startsWith('130') || clave.startsWith('379'))) {
-        alert('Asignando IVA: 0.16');
         $ivaInput.val('0.16');
     } else {
-        alert('Asignando IVA: 0.00');
         $ivaInput.val('0.00');
     }
+    
+    // Agregar eventos para calcular precios
+    var $precioUnitario = $('input[name="items-' + formIndex + '-precio_unitario_sin_iva"]');
+    $precioUnitario.off('change').on('change', function() {
+        calcularPreciosDelItem(formIndex);
+    });
+    
+    var $cantidadRecibida = $('input[name="items-' + formIndex + '-cantidad_recibida"]');
+    $cantidadRecibida.off('change').on('change', function() {
+        calcularPreciosDelItem(formIndex);
+    });
 }
 
 function extraerClaveDelProducto(texto) {
@@ -548,3 +557,32 @@ function showValidationMessage(message) {
 </script>
 {% endblock %}
 {% endblock %}
+
+function calcularPreciosDelItem(formIndex) {
+    // Obtener valores
+    var $precioUnitario = $('input[name="items-' + formIndex + '-precio_unitario_sin_iva"]');
+    var $porcentajeIva = $('input[name="items-' + formIndex + '-porcentaje_iva"]');
+    var $cantidadRecibida = $('input[name="items-' + formIndex + '-cantidad_recibida"]');
+    
+    var precioUnitario = parseFloat($precioUnitario.val()) || 0;
+    var porcentajeIva = parseFloat($porcentajeIva.val()) || 0;
+    var cantidadRecibida = parseFloat($cantidadRecibida.val()) || 0;
+    
+    // Calcular IVA (valor)
+    var importeIva = precioUnitario * porcentajeIva;
+    
+    // Calcular Precio Unitario con IVA
+    var precioConIva = precioUnitario + importeIva;
+    
+    // Calcular Subtotal
+    var subtotal = precioUnitario * cantidadRecibida;
+    
+    // Calcular Importe Total
+    var importeTotal = subtotal + (subtotal * porcentajeIva);
+    
+    // Asignar valores a los campos
+    $('input[name="items-' + formIndex + '-precio_unitario_con_iva"]').val(precioConIva.toFixed(2));
+    $('input[name="items-' + formIndex + '-subtotal"]').val(subtotal.toFixed(2));
+    $('input[name="items-' + formIndex + '-importe_iva"]').val(importeIva.toFixed(2));
+    $('input[name="items-' + formIndex + '-importe_total"]').val(importeTotal.toFixed(2));
+}
