@@ -355,13 +355,18 @@ function initializeProductSelect2() {
 
 function calcularIVADelProducto($selectProducto) {
     var selectedText = $selectProducto.find('option:selected').text();
+    alert('Texto seleccionado: ' + selectedText);
     var clave = extraerClaveDelProducto(selectedText);
+    alert('Clave extraída: ' + clave);
     var fila = $selectProducto.closest('tr');
     var $ivaInput = fila.find('input[id$="-porcentaje_iva"]');
+    alert('IVA Input encontrado: ' + $ivaInput.length);
     
     if (clave && (clave.startsWith('060') || clave.startsWith('080') || clave.startsWith('130') || clave.startsWith('379'))) {
+        alert('Asignando IVA: 0.16');
         $ivaInput.val('0.16');
     } else {
+        alert('Asignando IVA: 0.00');
         $ivaInput.val('0.00');
     }
 }
