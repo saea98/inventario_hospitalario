@@ -1,0 +1,50 @@
+[DEBUG] 14/01/2026 09:00:32 django.utils.autoreload - File /usr/local/lib/python3.11/site-packages/pytz/exceptions.py first seen with mtime 1766777296.0
+[DEBUG] 14/01/2026 09:00:32 django.utils.autoreload - File /usr/local/lib/python3.11/site-packages/django/template/exceptions.py first seen with mtime 1766777303.0
+[DEBUG] 14/01/2026 09:00:32 django.utils.autoreload - File /usr/local/lib/python3.11/site-packages/pandas/util/_exceptions.py first seen with mtime 1766777305.0
+[DEBUG] 14/01/2026 09:00:32 django.utils.autoreload - File /usr/local/lib/python3.11/site-packages/django/core/handlers/exception.py first seen with mtime 1766777302.0
+[DEBUG] 14/01/2026 09:00:32 django.utils.autoreload - File /usr/local/lib/python3.11/site-packages/crispy_forms/exceptions.py first seen with mtime 1766777309.0
+[DEBUG] 14/01/2026 09:00:32 django.utils.autoreload - File /usr/local/lib/python3.11/site-packages/django/contrib/admin/exceptions.py first seen with mtime 1766777301.0
+[DEBUG] 14/01/2026 09:00:32 django.utils.autoreload - File /usr/local/lib/python3.11/site-packages/psycopg2/errors.py first seen with mtime 1766777297.0
+[DEBUG] 14/01/2026 09:00:32 django.utils.autoreload - File /usr/local/lib/python3.11/site-packages/django/urls/exceptions.py first seen with mtime 1766777303.0
+[DEBUG] 14/01/2026 09:00:32 django.utils.autoreload - File /usr/local/lib/python3.11/site-packages/numpy/_core/_exceptions.py first seen with mtime 1766777297.0
+[DEBUG] 14/01/2026 09:00:32 django.utils.autoreload - File /usr/local/lib/python3.11/site-packages/numpy/exceptions.py first seen with mtime 1766777297.0
+[DEBUG] 14/01/2026 09:00:32 django.utils.autoreload - File /usr/local/lib/python3.11/email/errors.py first seen with mtime 1765237803.0
+Exception in thread django-main-thread:
+Traceback (most recent call last):
+    self.check(display_num_errors=True)
+    new_errors = check(app_configs=app_configs, databases=databases)
+[DEBUG] 14/01/2026 09:00:32 django.utils.autoreload - File /usr/local/lib/python3.11/site-packages/crispy_bootstrap5/templates/bootstrap5/errors.html first seen with mtime 1766777310.0
+[DEBUG] 14/01/2026 09:00:32 django.utils.autoreload - File /usr/local/lib/python3.11/site-packages/crispy_bootstrap5/templates/bootstrap5/errors_formset.html first seen with mtime 1766777310.0
+AttributeError: type object 'Lote' has no attribute 'ESTADOS'
+[DEBUG] 14/01/2026 09:00:32 django.utils.autoreload - File /usr/local/lib/python3.11/site-packages/crispy_bootstrap5/templates/bootstrap5/layout/field_errors_block.html first seen with mtime 1766777310.0
+[DEBUG] 14/01/2026 09:00:32 django.utils.autoreload - File /usr/local/lib/python3.11/site-packages/crispy_bootstrap5/templates/bootstrap5/layout/field_errors.html first seen with mtime 1766777310.0
+[DEBUG] 14/01/2026 09:00:32 django.utils.autoreload - File /usr/local/lib/python3.11/site-packages/crispy_bootstrap5/templates/bootstrap5/layout/help_text_and_errors.html first seen with mtime 1766777310.0
+[DEBUG] 14/01/2026 09:00:57 django.utils.autoreload - File /usr/local/lib/python3.11/site-packages/crispy_forms/exceptions.py first seen with mtime 1766777309.0
+[DEBUG] 14/01/2026 09:00:57 django.utils.autoreload - File /usr/local/lib/python3.11/site-packages/sqlparse/exceptions.py first seen with mtime 1766777296.0
+[DEBUG] 14/01/2026 09:00:57 django.utils.autoreload - File /usr/local/lib/python3.11/email/errors.py first seen with mtime 1765237803.0
+[DEBUG] 14/01/2026 09:00:57 django.utils.autoreload - File /usr/local/lib/python3.11/site-packages/numpy/exceptions.py first seen with mtime 1766777297.0
+[DEBUG] 14/01/2026 09:00:57 django.utils.autoreload - File /usr/local/lib/python3.11/site-packages/django/template/exceptions.py first seen with mtime 1766777303.0
+[DEBUG] 14/01/2026 09:00:57 django.utils.autoreload - File /usr/local/lib/python3.11/urllib/error.py first seen with mtime 1765237804.0
+[DEBUG] 14/01/2026 09:00:57 django.utils.autoreload - File /usr/local/lib/python3.11/site-packages/django/urls/exceptions.py first seen with mtime 1766777303.0
+[DEBUG] 14/01/2026 09:00:57 django.utils.autoreload - File /usr/local/lib/python3.11/site-packages/django/core/handlers/exception.py first seen with mtime 1766777302.0
+[DEBUG] 14/01/2026 09:00:57 django.utils.autoreload - File /usr/local/lib/python3.11/site-packages/pandas/errors/__init__.py first seen with mtime 1766777304.0
+[DEBUG] 14/01/2026 09:00:57 django.utils.autoreload - File /usr/local/lib/python3.11/site-packages/psycopg2/errors.py first seen with mtime 1766777297.0
+[DEBUG] 14/01/2026 09:00:57 django.utils.autoreload - File /usr/local/lib/python3.11/site-packages/django/contrib/sessions/exceptions.py first seen with mtime 1766777302.0
+[DEBUG] 14/01/2026 09:00:57 django.utils.autoreload - File /usr/local/lib/python3.11/site-packages/numpy/_core/_exceptions.py first seen with mtime 1766777297.0
+[DEBUG] 14/01/2026 09:00:57 django.utils.autoreload - File /usr/local/lib/python3.11/site-packages/pandas/util/_exceptions.py first seen with mtime 1766777305.0
+[DEBUG] 14/01/2026 09:00:57 django.utils.autoreload - File /usr/local/lib/python3.11/site-packages/pytz/exceptions.py first seen with mtime 1766777296.0
+[DEBUG] 14/01/2026 09:00:57 django.utils.autoreload - File /usr/local/lib/python3.11/site-packages/django/core/exceptions.py first seen with mtime 1766777302.0
+[DEBUG] 14/01/2026 09:00:57 django.utils.autoreload - File /usr/local/lib/python3.11/site-packages/django/contrib/admin/exceptions.py first seen with mtime 1766777301.0
+[DEBUG] 14/01/2026 09:00:57 django.utils.autoreload - File /usr/local/lib/python3.11/site-packages/django/db/migrations/exceptions.py first seen with mtime 1766777302.0
+[DEBUG] 14/01/2026 09:00:57 django.utils.autoreload - File /usr/local/lib/python3.11/asyncio/exceptions.py first seen with mtime 1765237803.0
+[DEBUG] 14/01/2026 09:00:57 django.utils.autoreload - File /usr/local/lib/python3.11/traceback.py first seen with mtime 1765237803.0
+Exception in thread django-main-thread:
+Traceback (most recent call last):
+    self.check(display_num_errors=True)
+    new_errors = check(app_configs=app_configs, databases=databases)
+AttributeError: type object 'Lote' has no attribute 'ESTADOS'
+[DEBUG] 14/01/2026 09:00:57 django.utils.autoreload - File /usr/local/lib/python3.11/site-packages/crispy_bootstrap5/templates/bootstrap5/errors.html first seen with mtime 1766777310.0
+[DEBUG] 14/01/2026 09:00:57 django.utils.autoreload - File /usr/local/lib/python3.11/site-packages/crispy_bootstrap5/templates/bootstrap5/errors_formset.html first seen with mtime 1766777310.0
+[DEBUG] 14/01/2026 09:00:57 django.utils.autoreload - File /usr/local/lib/python3.11/site-packages/crispy_bootstrap5/templates/bootstrap5/layout/field_errors_block.html first seen with mtime 1766777310.0
+[DEBUG] 14/01/2026 09:00:57 django.utils.autoreload - File /usr/local/lib/python3.11/site-packages/crispy_bootstrap5/templates/bootstrap5/layout/field_errors.html first seen with mtime 1766777310.0
+[DEBUG] 14/01/2026 09:00:57 django.utils.autoreload - File /usr/local/lib/python3.11/site-packages/crispy_bootstrap5/templates/bootstrap5/layout/help_text_and_errors.html first seen with mtime 1766777310.0

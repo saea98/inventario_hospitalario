@@ -1,0 +1,382 @@
+[0;34m════════════════════════════════════════════════════[0m
+[0;34m🚀 Iniciando contenedor Django[0m
+[0;34m════════════════════════════════════════════════════[0m
+[1;33m⏳ Esperando a que la base de datos esté lista...[0m
+[1;33m🔄 Ejecutando migraciones...[0m
+  No migrations to apply.
+[0;32m✓ Migraciones completadas[0m
+[1;33m📦 Recolectando archivos estáticos...[0m
+137 static files copied to '/app/staticfiles'.
+[0;32m✓ Archivos estáticos recolectados[0m
+[0;34m════════════════════════════════════════════════════[0m
+[0;32m🚀 Iniciando en modo DESARROLLO con Django[0m
+[0;34m════════════════════════════════════════════════════[0m
+Performing system checks...
+
+January 13, 2026 - 14:52:40
+Django version 4.2.16, using settings 'inventario_hospitalario.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+Performing system checks...
+
+January 13, 2026 - 14:56:48
+Django version 4.2.16, using settings 'inventario_hospitalario.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+[0;34m════════════════════════════════════════════════════[0m
+[0;34m🚀 Iniciando contenedor Django[0m
+[0;34m════════════════════════════════════════════════════[0m
+[1;33m⏳ Esperando a que la base de datos esté lista...[0m
+[1;33m🔄 Ejecutando migraciones...[0m
+  No migrations to apply.
+[0;32m✓ Migraciones completadas[0m
+[1;33m📦 Recolectando archivos estáticos...[0m
+137 static files copied to '/app/staticfiles'.
+[0;32m✓ Archivos estáticos recolectados[0m
+[0;34m════════════════════════════════════════════════════[0m
+[0;32m🚀 Iniciando en modo DESARROLLO con Django[0m
+[0;34m════════════════════════════════════════════════════[0m
+Performing system checks...
+
+January 13, 2026 - 14:57:01
+Django version 4.2.16, using settings 'inventario_hospitalario.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+Performing system checks...
+
+[0;34m════════════════════════════════════════════════════[0m
+[0;34m🚀 Iniciando contenedor Django[0m
+[0;34m════════════════════════════════════════════════════[0m
+[1;33m⏳ Esperando a que la base de datos esté lista...[0m
+[1;33m🔄 Ejecutando migraciones...[0m
+  No migrations to apply.
+[0;32m✓ Migraciones completadas[0m
+[1;33m📦 Recolectando archivos estáticos...[0m
+137 static files copied to '/app/staticfiles'.
+[0;32m✓ Archivos estáticos recolectados[0m
+[0;34m════════════════════════════════════════════════════[0m
+[0;32m🚀 Iniciando en modo DESARROLLO con Django[0m
+[0;34m════════════════════════════════════════════════════[0m
+Performing system checks...
+
+January 13, 2026 - 15:05:37
+Django version 4.2.16, using settings 'inventario_hospitalario.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+[0;34m════════════════════════════════════════════════════[0m
+[0;34m🚀 Iniciando contenedor Django[0m
+[0;34m════════════════════════════════════════════════════[0m
+[1;33m⏳ Esperando a que la base de datos esté lista...[0m
+[1;33m🔄 Ejecutando migraciones...[0m
+  No migrations to apply.
+[0;32m✓ Migraciones completadas[0m
+[1;33m📦 Recolectando archivos estáticos...[0m
+137 static files copied to '/app/staticfiles'.
+[0;32m✓ Archivos estáticos recolectados[0m
+[0;34m════════════════════════════════════════════════════[0m
+[0;32m🚀 Iniciando en modo DESARROLLO con Django[0m
+[0;34m════════════════════════════════════════════════════[0m
+Performing system checks...
+
+January 13, 2026 - 15:47:23
+Django version 4.2.16, using settings 'inventario_hospitalario.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+[0;34m════════════════════════════════════════════════════[0m
+[0;34m🚀 Iniciando contenedor Django[0m
+[0;34m════════════════════════════════════════════════════[0m
+[1;33m⏳ Esperando a que la base de datos esté lista...[0m
+[1;33m🔄 Ejecutando migraciones...[0m
+  No migrations to apply.
+[0;32m✓ Migraciones completadas[0m
+[1;33m📦 Recolectando archivos estáticos...[0m
+137 static files copied to '/app/staticfiles'.
+[0;32m✓ Archivos estáticos recolectados[0m
+[0;34m════════════════════════════════════════════════════[0m
+[0;32m🚀 Iniciando en modo DESARROLLO con Django[0m
+[0;34m════════════════════════════════════════════════════[0m
+Performing system checks...
+
+January 13, 2026 - 15:52:17
+Django version 4.2.16, using settings 'inventario_hospitalario.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+Performing system checks...
+
+January 13, 2026 - 16:04:40
+Django version 4.2.16, using settings 'inventario_hospitalario.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+[0;34m════════════════════════════════════════════════════[0m
+[0;34m🚀 Iniciando contenedor Django[0m
+[0;34m════════════════════════════════════════════════════[0m
+[1;33m⏳ Esperando a que la base de datos esté lista...[0m
+[1;33m🔄 Ejecutando migraciones...[0m
+  No migrations to apply.
+[0;32m✓ Migraciones completadas[0m
+[1;33m📦 Recolectando archivos estáticos...[0m
+137 static files copied to '/app/staticfiles'.
+[0;32m✓ Archivos estáticos recolectados[0m
+[0;34m════════════════════════════════════════════════════[0m
+[0;32m🚀 Iniciando en modo DESARROLLO con Django[0m
+[0;34m════════════════════════════════════════════════════[0m
+Performing system checks...
+
+January 13, 2026 - 16:04:57
+Django version 4.2.16, using settings 'inventario_hospitalario.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+Performing system checks...
+
+[0;34m════════════════════════════════════════════════════[0m
+[0;34m🚀 Iniciando contenedor Django[0m
+[0;34m════════════════════════════════════════════════════[0m
+[1;33m⏳ Esperando a que la base de datos esté lista...[0m
+[1;33m🔄 Ejecutando migraciones...[0m
+[0;32m✓ Migraciones completadas[0m
+[1;33m📦 Recolectando archivos estáticos...[0m
+137 static files copied to '/app/staticfiles'.
+[0;32m✓ Archivos estáticos recolectados[0m
+[0;34m════════════════════════════════════════════════════[0m
+[0;32m🚀 Iniciando en modo DESARROLLO con Django[0m
+[0;34m════════════════════════════════════════════════════[0m
+Performing system checks...
+
+Performing system checks...
+
+[0;34m════════════════════════════════════════════════════[0m
+[0;34m🚀 Iniciando contenedor Django[0m
+[0;34m════════════════════════════════════════════════════[0m
+[1;33m⏳ Esperando a que la base de datos esté lista...[0m
+[1;33m🔄 Ejecutando migraciones...[0m
+  No migrations to apply.
+[0;32m✓ Migraciones completadas[0m
+[1;33m📦 Recolectando archivos estáticos...[0m
+137 static files copied to '/app/staticfiles'.
+[0;32m✓ Archivos estáticos recolectados[0m
+[0;34m════════════════════════════════════════════════════[0m
+[0;32m🚀 Iniciando en modo DESARROLLO con Django[0m
+[0;34m════════════════════════════════════════════════════[0m
+Performing system checks...
+
+January 13, 2026 - 16:38:20
+Django version 4.2.16, using settings 'inventario_hospitalario.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+Performing system checks...
+
+[0;34m════════════════════════════════════════════════════[0m
+[0;34m🚀 Iniciando contenedor Django[0m
+[0;34m════════════════════════════════════════════════════[0m
+[1;33m⏳ Esperando a que la base de datos esté lista...[0m
+[1;33m🔄 Ejecutando migraciones...[0m
+  No migrations to apply.
+[0;32m✓ Migraciones completadas[0m
+[1;33m📦 Recolectando archivos estáticos...[0m
+137 static files copied to '/app/staticfiles'.
+[0;32m✓ Archivos estáticos recolectados[0m
+[0;34m════════════════════════════════════════════════════[0m
+[0;32m🚀 Iniciando en modo DESARROLLO con Django[0m
+[0;34m════════════════════════════════════════════════════[0m
+Performing system checks...
+
+January 13, 2026 - 17:04:53
+Django version 4.2.16, using settings 'inventario_hospitalario.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+[0;34m════════════════════════════════════════════════════[0m
+[0;34m🚀 Iniciando contenedor Django[0m
+[0;34m════════════════════════════════════════════════════[0m
+[1;33m⏳ Esperando a que la base de datos esté lista...[0m
+[1;33m🔄 Ejecutando migraciones...[0m
+  No migrations to apply.
+[0;32m✓ Migraciones completadas[0m
+[1;33m📦 Recolectando archivos estáticos...[0m
+137 static files copied to '/app/staticfiles'.
+[0;32m✓ Archivos estáticos recolectados[0m
+[0;34m════════════════════════════════════════════════════[0m
+[0;32m🚀 Iniciando en modo DESARROLLO con Django[0m
+[0;34m════════════════════════════════════════════════════[0m
+Performing system checks...
+
+January 13, 2026 - 17:50:23
+Django version 4.2.16, using settings 'inventario_hospitalario.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+Performing system checks...
+
+[0;34m════════════════════════════════════════════════════[0m
+[0;34m🚀 Iniciando contenedor Django[0m
+[0;34m════════════════════════════════════════════════════[0m
+[1;33m⏳ Esperando a que la base de datos esté lista...[0m
+[1;33m🔄 Ejecutando migraciones...[0m
+  No migrations to apply.
+[0;32m✓ Migraciones completadas[0m
+[1;33m📦 Recolectando archivos estáticos...[0m
+137 static files copied to '/app/staticfiles'.
+[0;32m✓ Archivos estáticos recolectados[0m
+[0;34m════════════════════════════════════════════════════[0m
+[0;32m🚀 Iniciando en modo DESARROLLO con Django[0m
+[0;34m════════════════════════════════════════════════════[0m
+Performing system checks...
+
+January 13, 2026 - 17:55:27
+Django version 4.2.16, using settings 'inventario_hospitalario.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+[0;34m════════════════════════════════════════════════════[0m
+[0;34m🚀 Iniciando contenedor Django[0m
+[0;34m════════════════════════════════════════════════════[0m
+[1;33m⏳ Esperando a que la base de datos esté lista...[0m
+[1;33m🔄 Ejecutando migraciones...[0m
+  No migrations to apply.
+[0;32m✓ Migraciones completadas[0m
+[1;33m📦 Recolectando archivos estáticos...[0m
+137 static files copied to '/app/staticfiles'.
+[0;32m✓ Archivos estáticos recolectados[0m
+[0;34m════════════════════════════════════════════════════[0m
+[0;32m🚀 Iniciando en modo DESARROLLO con Django[0m
+[0;34m════════════════════════════════════════════════════[0m
+Performing system checks...
+
+January 13, 2026 - 18:02:21
+Django version 4.2.16, using settings 'inventario_hospitalario.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+[0;34m════════════════════════════════════════════════════[0m
+[0;34m🚀 Iniciando contenedor Django[0m
+[0;34m════════════════════════════════════════════════════[0m
+[1;33m⏳ Esperando a que la base de datos esté lista...[0m
+[1;33m🔄 Ejecutando migraciones...[0m
+  No migrations to apply.
+[0;32m✓ Migraciones completadas[0m
+[1;33m📦 Recolectando archivos estáticos...[0m
+137 static files copied to '/app/staticfiles'.
+[0;32m✓ Archivos estáticos recolectados[0m
+[0;34m════════════════════════════════════════════════════[0m
+[0;32m🚀 Iniciando en modo DESARROLLO con Django[0m
+[0;34m════════════════════════════════════════════════════[0m
+Performing system checks...
+
+January 13, 2026 - 18:05:11
+Django version 4.2.16, using settings 'inventario_hospitalario.settings'
+Starting development server at http://0.0.0.0:8000/
+Quit the server with CONTROL-C.
+
+[0;34m════════════════════════════════════════════════════[0m
+[0;34m🚀 Iniciando contenedor Django[0m
+[0;34m════════════════════════════════════════════════════[0m
+[1;33m⏳ Esperando a que la base de datos esté lista...[0m
+[1;33m🔄 Ejecutando migraciones...[0m
+[0;32m✓ Migraciones completadas[0m
+[1;33m📦 Recolectando archivos estáticos...[0m
+137 static files copied to '/app/staticfiles'.
+[0;32m✓ Archivos estáticos recolectados[0m
+[0;34m════════════════════════════════════════════════════[0m
+[0;32m🚀 Iniciando en modo DESARROLLO con Django[0m
+[0;34m════════════════════════════════════════════════════[0m
+Performing system checks...
+
+Performing system checks...
+
+[0;34m════════════════════════════════════════════════════[0m
+[0;34m🚀 Iniciando contenedor Django[0m
+[0;34m════════════════════════════════════════════════════[0m
+[1;33m⏳ Esperando a que la base de datos esté lista...[0m
+[1;33m🔄 Ejecutando migraciones...[0m
+[0;32m✓ Migraciones completadas[0m
+[1;33m📦 Recolectando archivos estáticos...[0m
+137 static files copied to '/app/staticfiles'.
+[0;32m✓ Archivos estáticos recolectados[0m
+[0;34m════════════════════════════════════════════════════[0m
+[0;32m🚀 Iniciando en modo DESARROLLO con Django[0m
+[0;34m════════════════════════════════════════════════════[0m
+Performing system checks...
+
+[0;34m════════════════════════════════════════════════════[0m
+[0;34m🚀 Iniciando contenedor Django[0m
+[0;34m════════════════════════════════════════════════════[0m
+[1;33m⏳ Esperando a que la base de datos esté lista...[0m
+[1;33m🔄 Ejecutando migraciones...[0m
+[0;32m✓ Migraciones completadas[0m
+[1;33m📦 Recolectando archivos estáticos...[0m
+137 static files copied to '/app/staticfiles'.
+[0;32m✓ Archivos estáticos recolectados[0m
+[0;34m════════════════════════════════════════════════════[0m
+[0;32m🚀 Iniciando en modo DESARROLLO con Django[0m
+[0;34m════════════════════════════════════════════════════[0m
+Performing system checks...
+
+[0;34m════════════════════════════════════════════════════[0m
+[0;34m🚀 Iniciando contenedor Django[0m
+[0;34m════════════════════════════════════════════════════[0m
+[1;33m⏳ Esperando a que la base de datos esté lista...[0m
+[1;33m🔄 Ejecutando migraciones...[0m
+[0;32m✓ Migraciones completadas[0m
+[1;33m📦 Recolectando archivos estáticos...[0m
+137 static files copied to '/app/staticfiles'.
+[0;32m✓ Archivos estáticos recolectados[0m
+[0;34m════════════════════════════════════════════════════[0m
+[0;32m🚀 Iniciando en modo DESARROLLO con Django[0m
+[0;34m════════════════════════════════════════════════════[0m
+Performing system checks...
+
+[0;34m════════════════════════════════════════════════════[0m
+[0;34m🚀 Iniciando contenedor Django[0m
+[0;34m════════════════════════════════════════════════════[0m
+[1;33m⏳ Esperando a que la base de datos esté lista...[0m
+[1;33m🔄 Ejecutando migraciones...[0m
+[0;32m✓ Migraciones completadas[0m
+[1;33m📦 Recolectando archivos estáticos...[0m
+137 static files copied to '/app/staticfiles'.
+[0;32m✓ Archivos estáticos recolectados[0m
+[0;34m════════════════════════════════════════════════════[0m
+[0;32m🚀 Iniciando en modo DESARROLLO con Django[0m
+[0;34m════════════════════════════════════════════════════[0m
+Performing system checks...
+
+Performing system checks...
+
+[0;34m════════════════════════════════════════════════════[0m
+[0;34m🚀 Iniciando contenedor Django[0m
+[0;34m════════════════════════════════════════════════════[0m
+[1;33m⏳ Esperando a que la base de datos esté lista...[0m
+[1;33m🔄 Ejecutando migraciones...[0m
+[0;32m✓ Migraciones completadas[0m
+[1;33m📦 Recolectando archivos estáticos...[0m
+137 static files copied to '/app/staticfiles'.
+[0;32m✓ Archivos estáticos recolectados[0m
+[0;34m════════════════════════════════════════════════════[0m
+[0;32m🚀 Iniciando en modo DESARROLLO con Django[0m
+[0;34m════════════════════════════════════════════════════[0m
+Performing system checks...
+
+Performing system checks...
+
+[0;34m════════════════════════════════════════════════════[0m
+[0;34m🚀 Iniciando contenedor Django[0m
+[0;34m════════════════════════════════════════════════════[0m
+[1;33m⏳ Esperando a que la base de datos esté lista...[0m
+[1;33m🔄 Ejecutando migraciones...[0m
+[0;32m✓ Migraciones completadas[0m
+[1;33m📦 Recolectando archivos estáticos...[0m
+137 static files copied to '/app/staticfiles'.
+[0;32m✓ Archivos estáticos recolectados[0m
+[0;34m════════════════════════════════════════════════════[0m
+[0;32m🚀 Iniciando en modo DESARROLLO con Django[0m
+[0;34m════════════════════════════════════════════════════[0m
+Performing system checks...
+
