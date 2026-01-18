@@ -219,15 +219,14 @@
                                     <td><small class="text-muted d-block mb-1">Fabricante</small>{{ form.fabricante }}</td>
                                     <td><small class="text-muted d-block mb-1">F. Elab.</small>{{ form.fecha_elaboracion }}</td>
                                     <td><small class="text-muted d-block mb-1">F. Caduc.</small>{{ form.fecha_caducidad }}</td>
+                                    <td style="display: none;"><small class="text-muted d-block mb-1">Emitida</small>{{ form.cantidad_emitida }}</td>
+                                    <td><small class="text-muted d-block mb-1">Recibida</small>{{ form.cantidad_recibida }}</td>
+                                    <td style="display: none;"><small class="text-muted d-block mb-1">Piezas/Lote</small>{{ form.piezas_por_lote }}</td>
                                     <td>
                                         {% if not forloop.first %}
                                             <button type="button" class="btn-remove-item" onclick="removeRow(this)">Eliminar</button>
                                         {% endif %}
                                     </td>
-                                    <td style="display: none;"><small class="text-muted d-block mb-1">Emitida</small>{{ form.cantidad_emitida }}</td>
-                                    <td><small class="text-muted d-block mb-1">Recibida</small>{{ form.cantidad_recibida }}</td>
-                                    <td style="display: none;"><small class="text-muted d-block mb-1">Piezas/Lote</small>{{ form.piezas_por_lote }}</td>
-                                    <td></td>
                                 </tr>
                                 
                                 <!-- FILA 2: Precios e IVA -->
@@ -569,31 +568,3 @@ function showValidationMessage(message) {
 {% endblock %}
 {% endblock %}
 
-function calcularPreciosDelItem(formIndex) {
-    // Obtener valores
-    var $precioUnitario = $('input[name="items-' + formIndex + '-precio_unitario_sin_iva"]');
-    var $porcentajeIva = $('input[name="items-' + formIndex + '-porcentaje_iva"]');
-    var $cantidadRecibida = $('input[name="items-' + formIndex + '-cantidad_recibida"]');
-    
-    var precioUnitario = parseFloat($precioUnitario.val()) || 0;
-    var porcentajeIva = parseFloat($porcentajeIva.val()) || 0;
-    var cantidadRecibida = parseFloat($cantidadRecibida.val()) || 0;
-    
-    // Calcular IVA (valor)
-    var importeIva = precioUnitario * porcentajeIva;
-    
-    // Calcular Precio Unitario con IVA
-    var precioConIva = precioUnitario + importeIva;
-    
-    // Calcular Subtotal
-    var subtotal = precioUnitario * cantidadRecibida;
-    
-    // Calcular Importe Total
-    var importeTotal = subtotal + (subtotal * porcentajeIva);
-    
-    // Asignar valores a los campos
-    $('input[name="items-' + formIndex + '-precio_unitario_con_iva"]').val(precioConIva.toFixed(2));
-    $('input[name="items-' + formIndex + '-subtotal"]').val(subtotal.toFixed(2));
-    $('input[name="items-' + formIndex + '-importe_iva"]').val(importeIva.toFixed(2));
-    $('input[name="items-' + formIndex + '-importe_total"]').val(importeTotal.toFixed(2));
-}
