@@ -45,10 +45,21 @@ class LlegadaProveedor(models.Model):
     proveedor = models.ForeignKey('inventario.Proveedor', on_delete=models.PROTECT)
     
     # Datos de Llegada (Captura Almacenero - CAMPOS VERDES)
+    folio_validacion = models.CharField(max_length=50, blank=True, null=True)  # Folio heredado de validación
     fecha_llegada_real = models.DateTimeField(default=timezone.now)
     remision = models.CharField(max_length=100)
     numero_piezas_emitidas = models.IntegerField(validators=[MinValueValidator(1)])
     numero_piezas_recibidas = models.IntegerField(validators=[MinValueValidator(0)])
+    almacen = models.ForeignKey('inventario.Almacen', on_delete=models.PROTECT, related_name='llegadas_proveedor')
+    tipo_red = models.CharField(
+        max_length=20,
+        choices=[
+            ('FRIA', 'Red Fría'),
+            ('SECA', 'Red Seca'),
+        ],
+        blank=True,
+        null=True
+    )
     observaciones_recepcion = models.TextField(blank=True, null=True)
     
     # Control de Calidad (CAMPOS VERDES)
@@ -198,6 +209,7 @@ class ItemLlegada(models.Model):
     # Cantidades (CAMPOS VERDES)
     cantidad_emitida = models.IntegerField(validators=[MinValueValidator(1)])
     cantidad_recibida = models.IntegerField(validators=[MinValueValidator(0)])
+    piezas_por_lote = models.IntegerField(validators=[MinValueValidator(1)], default=1)  # Piezas por lote
     
     # Precios (Captura Facturación)
     precio_unitario_sin_iva = models.DecimalField(
@@ -262,15 +274,25 @@ class ItemLlegada(models.Model):
     def __str__(self):
         return f"{self.producto.descripcion} - Lote {self.numero_lote}"
     
+    def calcular_iva_automatico(self):
+        """Calcula el IVA automático según la clave"""
+        if self.clave and self.clave.startswith(("060", "080", "130", "379")):
+            return 16.00
+        return 0.00
+    
     def calcular_precios(self):
         """Calcula precios con IVA automáticamente"""
+        # Calcular IVA automático si no está establecido
+        if self.porcentaje_iva == 0:
+            self.porcentaje_iva = self.calcular_iva_automatico()
+        
         if self.precio_unitario_sin_iva:
             # Calcular precio con IVA
             factor_iva = 1 + (self.porcentaje_iva / 100)
             self.precio_unitario_con_iva = self.precio_unitario_sin_iva * factor_iva
             
             # Calcular totales
-            self.subtotal = self.precio_unitario_sin_iva * self.cantidad_recibida
+            self.subtotal = self.precio_unitario_sin_iva * self.piezas_por_lote
             self.importe_iva = self.subtotal * (self.porcentaje_iva / 100)
             self.importe_total = self.subtotal + self.importe_iva
     
