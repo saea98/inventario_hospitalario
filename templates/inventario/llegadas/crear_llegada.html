@@ -511,13 +511,11 @@ function addFieldValidation(row1, row2) {
     
     // Calcular precios cuando cambia precio unitario
     row2Actual.find('.precio-unitario').on('change', function() {
-        alert('Evento change en precio_unitario: ' + $(this).val());
         calculatePrices(row1, row2Actual);
     });
     
-    // Calcular precios cuando cambia cantidad recibida (agregar alert)
+    // Calcular precios cuando cambia cantidad recibida
     row1.find('.cantidad-recibida').on('change', function() {
-        alert('Evento change en cantidad_recibida: ' + $(this).val());
         calculatePrices(row1, row2Actual);
         updateTotalPiezasRecibidas();
     });
