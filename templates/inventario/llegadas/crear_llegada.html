@@ -158,7 +158,7 @@
                         <div class="col-md-4">
                             <div class="form-group">
                                 <label for="id_numero_piezas_recibidas"><strong>Piezas Recibidas *</strong></label>
-                                {{ form.numero_piezas_recibidas }}
+                                <input type="number" id="total-piezas-recibidas" class="form-control" readonly>
                                 {% if form.numero_piezas_recibidas.errors %}
                                     <div class="alert alert-danger mt-2">{{ form.numero_piezas_recibidas.errors }}</div>
                                 {% endif %}
@@ -412,8 +412,15 @@ function addItemRow() {
         '</tr>');
     
     // FILA 2: Precios e IVA
+    // Obtener el precio del item anterior si existe
+    var precioAnterior = '';
+    var ultimoRow2 = $('#items-tbody tr.row-precios').last();
+    if (ultimoRow2.length > 0) {
+        precioAnterior = ultimoRow2.find('.precio-unitario').val();
+    }
+    
     var newRow2 = $('<tr class="item-row row-precios" data-form-index="' + newFormIndex + '">' +
-        '<td><input type="number" id="id_items-' + newFormIndex + '-precio_unitario_sin_iva" name="items-' + newFormIndex + '-precio_unitario_sin_iva" class="form-control precio-unitario" step="0.01" placeholder="0.00"></td>' +
+        '<td><input type="number" id="id_items-' + newFormIndex + '-precio_unitario_sin_iva" name="items-' + newFormIndex + '-precio_unitario_sin_iva" class="form-control precio-unitario" step="0.01" placeholder="0.00" value="' + precioAnterior + '"></td>' +
         '<td><input type="number" id="id_items-' + newFormIndex + '-porcentaje_iva" name="items-' + newFormIndex + '-porcentaje_iva" class="form-control porcentaje-iva" step="0.01" placeholder="0.00" readonly></td>' +
         '<td><input type="number" id="id_items-' + newFormIndex + '-precio_unitario_con_iva" name="items-' + newFormIndex + '-precio_unitario_con_iva" class="form-control precio-con-iva" step="0.01" placeholder="0.00" readonly></td>' +
         '<td><input type="number" id="id_items-' + newFormIndex + '-subtotal" name="items-' + newFormIndex + '-subtotal" class="form-control subtotal" step="0.01" placeholder="0.00" readonly></td>' +
@@ -512,7 +519,18 @@ function addFieldValidation(row1, row2) {
     row1.find('.cantidad-recibida').on('change', function() {
         alert('Evento change en cantidad_recibida: ' + $(this).val());
         calculatePrices(row1, row2Actual);
+        updateTotalPiezasRecibidas();
     });
+}
+
+function updateTotalPiezasRecibidas() {
+    var total = 0;
+    $('#items-tbody tr.row-principal').each(function() {
+        var cantidad = parseInt($(this).find('input[name$="-cantidad_recibida"]').val()) || 0;
+        total += cantidad;
+    });
+    $('#total-piezas-recibidas').val(total);
+    $('#id_numero_piezas_recibidas').val(total);
 }
 
 function calculatePrices(row1, row2) {
