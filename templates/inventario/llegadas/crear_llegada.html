@@ -528,9 +528,12 @@ function updateTotalPiezasRecibidas() {
     var total = 0;
     $('#items-tbody tr.row-principal').each(function() {
         var cantidad = parseInt($(this).find('input[name$="-cantidad_recibida"]').val()) || 0;
+        console.log('Cantidad encontrada:', cantidad);
         total += cantidad;
     });
+    console.log('Total calculado:', total);
     $('#total-piezas-recibidas').val(total);
+    console.log('Campo actualizado con valor:', total);
     $('#id_numero_piezas_recibidas').val(total);
 }
 
