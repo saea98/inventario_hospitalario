@@ -284,6 +284,12 @@ $(document).ready(function() {
     // Calcular total de piezas recibidas al cargar la página
     updateTotalPiezasRecibidas();
     
+    // Agregar evento global para cambios en cantidad_recibida
+    $(document).on('change', '.cantidad-recibida', function() {
+        console.log('Cambio detectado en cantidad_recibida:', $(this).val());
+        updateTotalPiezasRecibidas();
+    });
+    
     // Agregar nueva fila
     $('#add-item-btn').click(function(e) {
         e.preventDefault();
