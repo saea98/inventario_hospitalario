@@ -610,27 +610,21 @@ function calculatePrices(row1, row2) {
 }
 
 function validatePiezasSum() {
-    var isValid = true;
-    var errorMessages = [];
-    
+    // Validar que al menos haya un item con cantidad recibida
+    var hasItems = false;
     $('#items-tbody tr.row-principal').each(function() {
         var cantRecibida = parseInt($(this).find('input[name$="-cantidad_recibida"]').val()) || 0;
-        var piezasLote = parseInt($(this).find('input[name$="-piezas_por_lote"]').val()) || 0;
-        
-        if (cantRecibida > 0 && piezasLote !== cantRecibida) {
-            $(this).find('input[name$="-piezas_por_lote"]').css('border-color', 'red');
-            errorMessages.push('Lote: La suma de piezas por lote debe ser igual a la cantidad recibida');
-            isValid = false;
-        } else {
-            $(this).find('input[name$="-piezas_por_lote"]').css('border-color', '');
+        if (cantRecibida > 0) {
+            hasItems = true;
         }
     });
     
-    if (!isValid) {
-        showValidationMessage(errorMessages.join('<br>'));
+    if (!hasItems) {
+        showValidationMessage('Debe haber al menos un item con cantidad recibida mayor a 0.');
+        return false;
     }
     
-    return isValid;
+    return true;
 }
 
 function showValidationMessage(message) {
