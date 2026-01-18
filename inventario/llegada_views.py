@@ -193,8 +193,16 @@ def api_productos(request):
     from django.apps import apps
     Producto = apps.get_model('inventario', 'Producto')
     
-    productos = Producto.objects.all().values('id', 'descripcion', 'clave_cnis').order_by('descripcion')
-    return JsonResponse(list(productos), safe=False)
+    productos = Producto.objects.all().order_by('descripcion')
+    data = []
+    for producto in productos:
+        data.append({
+            'id': producto.id,
+            'clave_cnis': producto.clave_cnis,
+            'descripcion': f"{producto.clave_cnis} - {producto.descripcion[:50]}...",
+            'iva': float(producto.iva)
+        })
+    return JsonResponse(data, safe=False)
 
 
 @require_GET
