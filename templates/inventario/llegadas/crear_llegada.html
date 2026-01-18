@@ -243,31 +243,31 @@
                             {% for form in formset %}
                                 <!-- FILA 1: Datos del Lote y Cantidades -->
                                 <tr class="item-row row-principal" data-form-index="{{ forloop.counter0 }}">
-                                    <td>{{ form.producto }}</td>
-                                    <td>{{ form.numero_lote }}</td>
-                                    <td>{{ form.marca }}</td>
-                                    <td>{{ form.fabricante }}</td>
-                                    <td>{{ form.fecha_elaboracion }}</td>
-                                    <td>{{ form.fecha_caducidad }}</td>
+                                    <td><small class="text-muted d-block mb-1">Producto</small>{{ form.producto }}</td>
+                                    <td><small class="text-muted d-block mb-1">Lote</small>{{ form.numero_lote }}</td>
+                                    <td><small class="text-muted d-block mb-1">Marca</small>{{ form.marca }}</td>
+                                    <td><small class="text-muted d-block mb-1">Fabricante</small>{{ form.fabricante }}</td>
+                                    <td><small class="text-muted d-block mb-1">F. Elab.</small>{{ form.fecha_elaboracion }}</td>
+                                    <td><small class="text-muted d-block mb-1">F. Caduc.</small>{{ form.fecha_caducidad }}</td>
                                     <td>
                                         {% if not forloop.first %}
                                             <button type="button" class="btn-remove-item" onclick="removeRow(this)">Eliminar</button>
                                         {% endif %}
                                     </td>
-                                    <td>{{ form.cantidad_emitida }}</td>
-                                    <td>{{ form.cantidad_recibida }}</td>
-                                    <td>{{ form.piezas_por_lote }}</td>
+                                    <td><small class="text-muted d-block mb-1">Emitida</small>{{ form.cantidad_emitida }}</td>
+                                    <td><small class="text-muted d-block mb-1">Recibida</small>{{ form.cantidad_recibida }}</td>
+                                    <td><small class="text-muted d-block mb-1">Piezas/Lote</small>{{ form.piezas_por_lote }}</td>
                                     <td></td>
                                 </tr>
                                 
                                 <!-- FILA 2: Precios e IVA -->
                                 <tr class="item-row row-precios" data-form-index="{{ forloop.counter0 }}">
-                                    <td><input type="number" id="{{ form.precio_unitario_sin_iva.id_for_label }}" name="{{ form.precio_unitario_sin_iva.html_name }}" class="form-control precio-unitario" step="0.01" placeholder="0.00" value="{{ form.precio_unitario_sin_iva.value|default:'' }}"></td>
-                                    <td><input type="number" id="{{ form.porcentaje_iva.id_for_label }}" name="{{ form.porcentaje_iva.html_name }}" class="form-control porcentaje-iva" step="0.01" placeholder="0.00" value="{{ form.porcentaje_iva.value|default:'' }}" readonly></td>
-                                    <td><input type="number" id="{{ form.precio_unitario_con_iva.id_for_label }}" name="{{ form.precio_unitario_con_iva.html_name }}" class="form-control precio-con-iva" step="0.01" placeholder="0.00" value="{{ form.precio_unitario_con_iva.value|default:'' }}" readonly></td>
-                                    <td><input type="number" id="{{ form.subtotal.id_for_label }}" name="{{ form.subtotal.html_name }}" class="form-control subtotal" step="0.01" placeholder="0.00" value="{{ form.subtotal.value|default:'' }}" readonly></td>
-                                    <td><input type="number" id="{{ form.importe_iva.id_for_label }}" name="{{ form.importe_iva.html_name }}" class="form-control importe-iva" step="0.01" placeholder="0.00" value="{{ form.importe_iva.value|default:'' }}" readonly></td>
-                                    <td><input type="number" id="{{ form.importe_total.id_for_label }}" name="{{ form.importe_total.html_name }}" class="form-control importe-total" step="0.01" placeholder="0.00" value="{{ form.importe_total.value|default:'' }}" readonly></td>
+                                    <td><small class="text-muted d-block mb-1">P. Unitario</small><input type="number" id="{{ form.precio_unitario_sin_iva.id_for_label }}" name="{{ form.precio_unitario_sin_iva.html_name }}" class="form-control precio-unitario" step="0.01" placeholder="0.00" value="{{ form.precio_unitario_sin_iva.value|default:'' }}"></td>
+                                    <td><small class="text-muted d-block mb-1">% IVA</small><input type="number" id="{{ form.porcentaje_iva.id_for_label }}" name="{{ form.porcentaje_iva.html_name }}" class="form-control porcentaje-iva" step="0.01" placeholder="0.00" value="{{ form.porcentaje_iva.value|default:'' }}" readonly></td>
+                                    <td><small class="text-muted d-block mb-1">P. c/IVA</small><input type="number" id="{{ form.precio_unitario_con_iva.id_for_label }}" name="{{ form.precio_unitario_con_iva.html_name }}" class="form-control precio-con-iva" step="0.01" placeholder="0.00" value="{{ form.precio_unitario_con_iva.value|default:'' }}" readonly></td>
+                                    <td><small class="text-muted d-block mb-1">Subtotal</small><input type="number" id="{{ form.subtotal.id_for_label }}" name="{{ form.subtotal.html_name }}" class="form-control subtotal" step="0.01" placeholder="0.00" value="{{ form.subtotal.value|default:'' }}" readonly></td>
+                                    <td><small class="text-muted d-block mb-1">Importe IVA</small><input type="number" id="{{ form.importe_iva.id_for_label }}" name="{{ form.importe_iva.html_name }}" class="form-control importe-iva" step="0.01" placeholder="0.00" value="{{ form.importe_iva.value|default:'' }}" readonly></td>
+                                    <td><small class="text-muted d-block mb-1">Total</small><input type="number" id="{{ form.importe_total.id_for_label }}" name="{{ form.importe_total.html_name }}" class="form-control importe-total" step="0.01" placeholder="0.00" value="{{ form.importe_total.value|default:'' }}" readonly></td>
                                     <td colspan="2"></td>
                                 </tr>
                                 
