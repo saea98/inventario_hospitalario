@@ -14,7 +14,7 @@ class LlegadaProveedorForm(forms.ModelForm):
     """
     
     cita = forms.ModelChoiceField(
-        queryset=None,  # Se inicializa en __init__
+        queryset=None,
         label="Cita Autorizada",
         widget=forms.Select(attrs={
             "class": "form-control select2-single",
@@ -24,10 +24,8 @@ class LlegadaProveedorForm(forms.ModelForm):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Inicializar queryset dinámicamente
         from django.apps import apps
         CitaProveedor = apps.get_model('inventario', 'CitaProveedor')
-        # Filtrar citas autorizadas que no tengan llegada registrada
         self.fields['cita'].queryset = CitaProveedor.objects.filter(
             estado='autorizada'
         ).exclude(
@@ -58,10 +56,11 @@ class LlegadaProveedorForm(forms.ModelForm):
 class ItemLlegadaForm(forms.ModelForm):
     """
     Formulario para cada item en la llegada.
+    Incluye campos para cálculos de IVA y precios.
     """
     
     producto = forms.ModelChoiceField(
-        queryset=None,  # Se inicializa en __init__
+        queryset=None,
         label="Producto",
         widget=forms.Select(attrs={
             "class": "form-control select2-single",
@@ -69,9 +68,17 @@ class ItemLlegadaForm(forms.ModelForm):
         })
     )
     
+    clave = forms.CharField(
+        label="Clave CNIS",
+        required=True,
+        widget=forms.TextInput(attrs={
+            "class": "form-control clave-cnis",
+            "placeholder": "Heredada de la cita"
+        })
+    )
+    
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Inicializar queryset dinámicamente
         from django.apps import apps
         Producto = apps.get_model('inventario', 'Producto')
         self.fields['producto'].queryset = Producto.objects.all().order_by('descripcion')
@@ -80,24 +87,66 @@ class ItemLlegadaForm(forms.ModelForm):
         model = ItemLlegada
         fields = [
             "producto",
+            "clave",
             "numero_lote",
+            "marca",
+            "fabricante",
+            "fecha_elaboracion",
             "fecha_caducidad",
             "cantidad_emitida",
             "cantidad_recibida",
             "piezas_por_lote",
-            "marca",
-            "fabricante",
-            "fecha_elaboracion",
+            "precio_unitario_sin_iva",
+            "porcentaje_iva",
+            "precio_unitario_con_iva",
+            "subtotal",
+            "importe_iva",
+            "importe_total",
         ]
         widgets = {
-            "numero_lote": forms.TextInput(attrs={"class": "form-control"}),
-            "fecha_caducidad": forms.DateInput(attrs={"class": "form-control", "type": "date"}),
-            "cantidad_emitida": forms.NumberInput(attrs={"class": "form-control"}),
-            "cantidad_recibida": forms.NumberInput(attrs={"class": "form-control"}),
-            "piezas_por_lote": forms.NumberInput(attrs={"class": "form-control", "min": "1"}),
+            "numero_lote": forms.TextInput(attrs={"class": "form-control numero-lote"}),
             "marca": forms.TextInput(attrs={"class": "form-control"}),
             "fabricante": forms.TextInput(attrs={"class": "form-control"}),
             "fecha_elaboracion": forms.DateInput(attrs={"class": "form-control", "type": "date"}),
+            "fecha_caducidad": forms.DateInput(attrs={"class": "form-control", "type": "date"}),
+            "cantidad_emitida": forms.NumberInput(attrs={"class": "form-control cantidad-emitida"}),
+            "cantidad_recibida": forms.NumberInput(attrs={"class": "form-control cantidad-recibida"}),
+            "piezas_por_lote": forms.NumberInput(attrs={"class": "form-control piezas-por-lote", "min": "1"}),
+            "precio_unitario_sin_iva": forms.NumberInput(attrs={
+                "class": "form-control precio-unitario",
+                "step": "0.01",
+                "placeholder": "0.00"
+            }),
+            "porcentaje_iva": forms.NumberInput(attrs={
+                "class": "form-control porcentaje-iva",
+                "step": "0.01",
+                "placeholder": "0.00",
+                "readonly": "readonly"
+            }),
+            "precio_unitario_con_iva": forms.NumberInput(attrs={
+                "class": "form-control precio-con-iva",
+                "step": "0.01",
+                "placeholder": "0.00",
+                "readonly": "readonly"
+            }),
+            "subtotal": forms.NumberInput(attrs={
+                "class": "form-control subtotal",
+                "step": "0.01",
+                "placeholder": "0.00",
+                "readonly": "readonly"
+            }),
+            "importe_iva": forms.NumberInput(attrs={
+                "class": "form-control importe-iva",
+                "step": "0.01",
+                "placeholder": "0.00",
+                "readonly": "readonly"
+            }),
+            "importe_total": forms.NumberInput(attrs={
+                "class": "form-control importe-total",
+                "step": "0.01",
+                "placeholder": "0.00",
+                "readonly": "readonly"
+            }),
         }
 
 
@@ -129,7 +178,7 @@ class ControlCalidadForm(forms.ModelForm):
         widgets = {
             "estado_calidad": forms.Select(attrs={"class": "form-control"}),
             "observaciones_calidad": forms.Textarea(attrs={"class": "form-control", "rows": 3}),
-            "firma_calidad": forms.HiddenInput(),  # Se capturará con JS
+            "firma_calidad": forms.HiddenInput(),
         }
 
 
@@ -193,28 +242,21 @@ class ItemFacturacionForm(forms.ModelForm):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        # Establecer IVA inicial segun la clave del producto
         if self.instance and self.instance.producto:
             clave = self.instance.producto.clave_cnis or ''
-            # Claves exentas de IVA
             if any(clave.startswith(prefix) for prefix in ['010', '020', '030', '040']):
                 self.fields['porcentaje_iva'].initial = Decimal('0.00')
-            # Todas las demas claves con IVA 0.16
             else:
                 self.fields['porcentaje_iva'].initial = Decimal('0.16')
     
     def clean_porcentaje_iva(self):
         """
-        Sobrescribir el valor del IVA con el que corresponde segun la clave CNIS,
-        sin importar lo que el usuario haya ingresado.
-        El valor se devuelve como decimal (0.00 para 0%, 0.16 para 16%).
+        Sobrescribir el valor del IVA con el que corresponde segun la clave CNIS.
         """
         if self.instance and self.instance.producto:
             clave = self.instance.producto.clave_cnis or ''
-            # Claves exentas de IVA
             if any(clave.startswith(prefix) for prefix in ['010', '020', '030', '040']):
                 return Decimal('0.00')
-            # Todas las demas claves con IVA 0.16
             else:
                 return Decimal('0.16')
         return self.cleaned_data.get('porcentaje_iva')
@@ -264,14 +306,9 @@ class DocumentoLlegadaForm(forms.ModelForm):
         }
 
 
-# ============================================================================
-# FORMULARIOS PARA ASIGNACIÓN DE UBICACIÓN
-# ============================================================================
-
 class UbicacionDetalleForm(forms.Form):
     """
     Formulario para asignar una ubicación y cantidad a un lote.
-    Permite múltiples ubicaciones por lote (split).
     """
     
     ubicacion = forms.ModelChoiceField(
@@ -299,7 +336,6 @@ class UbicacionDetalleForm(forms.Form):
         from django.apps import apps
         UbicacionAlmacen = apps.get_model('inventario', 'UbicacionAlmacen')
         
-        # Filtrar ubicaciones por almacén si se proporciona
         if almacen:
             self.fields['ubicacion'].queryset = UbicacionAlmacen.objects.filter(
                 almacen=almacen
@@ -307,7 +343,6 @@ class UbicacionDetalleForm(forms.Form):
         else:
             self.fields['ubicacion'].queryset = UbicacionAlmacen.objects.all().order_by('codigo')
         
-        # Guardar cantidad máxima para validación
         self.cantidad_maxima = cantidad_maxima
     
     def clean_cantidad(self):
@@ -322,8 +357,6 @@ class UbicacionDetalleForm(forms.Form):
 class UbicacionItemForm(forms.Form):
     """
     Formulario para asignar ubicación a un item de llegada.
-    Este formulario NO es un ModelForm porque los campos almacen y ubicacion
-    no pertenecen a ItemLlegada, sino al modelo Lote que se crea después.
     """
     
     almacen = forms.ModelChoiceField(
@@ -373,10 +406,3 @@ class UbicacionItemForm(forms.Form):
                 f"La cantidad no puede exceder {self.cantidad_maxima}"
             )
         return cantidad
-
-
-class UbicacionFormSet(forms.Form):
-    """
-    Formulario para múltiples ubicaciones en un item.
-    """
-    pass
