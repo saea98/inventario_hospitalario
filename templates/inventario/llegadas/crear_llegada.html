@@ -99,6 +99,31 @@
     <form method="post" id="llegada-form">
         {% csrf_token %}
         
+        <!-- Mostrar errores generales del formulario -->
+        {% if form.non_field_errors %}
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <h5>Errores en el formulario:</h5>
+                {% for error in form.non_field_errors %}
+                    <div>• {{ error }}</div>
+                {% endfor %}
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+        {% endif %}
+        
+        <!-- Mostrar errores de campos individuales -->
+        {% for field in form %}
+            {% if field.errors %}
+                <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                    <strong>{{ field.label|default:field.name }}:</strong> {{ field.errors }}
+                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+            {% endif %}
+        {% endfor %}
+        
         <!-- Datos de Llegada -->
         <div class="card shadow mb-4">
             <div class="card-header py-3">
