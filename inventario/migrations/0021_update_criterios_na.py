@@ -19,7 +19,7 @@ def reverse_update(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('inventario', '0020_citaproveedor_tipo_entrega'),
+        ('inventario', '0020_configuracionnotificaciones_lognotificaciones'),
     ]
 
     operations = [
