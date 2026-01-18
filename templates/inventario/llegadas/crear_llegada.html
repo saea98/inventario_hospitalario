@@ -281,6 +281,9 @@ $(document).ready(function() {
     
     initializeProductSelect2();
     
+    // Calcular total de piezas recibidas al cargar la página
+    updateTotalPiezasRecibidas();
+    
     // Agregar nueva fila
     $('#add-item-btn').click(function(e) {
         e.preventDefault();
