@@ -364,7 +364,8 @@ function calcularIVADelProducto($selectProducto) {
 }
 
 function extraerClaveDelProducto(texto) {
-    var match = texto.match(/-(\d{3})/);
+    // Extrae los primeros 3 dígitos de la clave (formato: "Producto - 060.830.7070" o similar)
+    var match = texto.match(/(\d{3})/);
     return match ? match[1] : null;
 }
 
