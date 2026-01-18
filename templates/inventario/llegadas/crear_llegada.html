@@ -344,6 +344,9 @@ function initializeProductSelect2() {
                 placeholder: 'Selecciona un producto...'
             });
         }
+        $(this).on('select2:select', function() {
+            calcularIVADelProducto($(this));
+        });
         $(this).on('change', function() {
             calcularIVADelProducto($(this));
         });
@@ -411,6 +414,14 @@ function addItemRow() {
         dropdownParent: $('body'),
         width: '100%',
         placeholder: 'Selecciona un producto...'
+    });
+    
+    // Agregar eventos para calcular IVA
+    newSelect.on('select2:select', function() {
+        calcularIVADelProducto($(this));
+    });
+    newSelect.on('change', function() {
+        calcularIVADelProducto($(this));
     });
     
     // Cargar opciones de productos
