@@ -157,7 +157,6 @@
                         <th>Almacén</th>
                         <th>Orden Suministro</th>
                         <th>Orden Remisión</th>
-                        <th>Clave</th>
                         <th>Estado</th>
                         <th>Acciones</th>
                     </tr>
@@ -165,117 +164,58 @@
                 <tbody>
                     {% if citas %}
                         {% for cita in citas %}
-                            {% if cita.detalles_json %}
-                                {% for detalle in cita.detalles_json %}
-                                    <tr>
-                                        <td>
-                                            <strong>{{ cita.proveedor.razon_social|truncatewords:3 }}</strong>
-                                            <br>
-                                            <small class="text-muted">{{ cita.proveedor.rfc }}</small>
-                                        </td>
-                                        <td>
-                                            <small>{{ cita.fecha_cita|date:"d/m/Y H:i" }}</small>
-                                        </td>
-                                        <td>
-                                            <small>{{ cita.almacen.nombre|truncatewords:2 }}</small>
-                                        </td>
-                                        <td>
-                                            {% if cita.numero_orden_suministro %}
-                                                <small class="badge bg-info">{{ cita.numero_orden_suministro|truncatewords:2 }}</small>
-                                            {% else %}
-                                                <small class="text-muted">-</small>
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            <small class="badge bg-secondary">{{ detalle.numero_orden_remision }}</small>
-                                        </td>
-                                        <td>
-                                            <small class="text-muted">{{ detalle.clave_medicamento }}</small>
-                                        </td>
-                                        <td>
-                                            {% if cita.estado == 'programada' %}
-                                                <span class="badge bg-warning">Programada</span>
-                                            {% elif cita.estado == 'autorizada' %}
-                                                <span class="badge bg-success">Autorizada</span>
-                                            {% elif cita.estado == 'completada' %}
-                                                <span class="badge bg-info">Completada</span>
-                                            {% elif cita.estado == 'cancelada' %}
-                                                <span class="badge bg-secondary">Cancelada</span>
-                                            {% endif %}
-                                        </td>
-                                        <td>
-                                            <a href="{% url 'logistica:detalle_cita' cita.pk %}" class="btn btn-sm btn-info" title="Ver detalles">
-                                                <i class="fas fa-eye"></i>
-                                            </a>
-                                            {% if cita.estado == 'programada' %}
-                                                <a href="{% url 'logistica:editar_cita' cita.pk %}" class="btn btn-sm btn-warning" title="Editar">
-                                                    <i class="fas fa-edit"></i>
-                                                </a>
-                                            {% endif %}
-                                        </td>
-                                    </tr>
-                                {% endfor %}
-                            {% else %}
-                                <tr>
-                                    <td>
-                                        <strong>{{ cita.proveedor.razon_social|truncatewords:3 }}</strong>
-                                        <br>
-                                        <small class="text-muted">{{ cita.proveedor.rfc }}</small>
-                                    </td>
-                                    <td>
-                                        <small>{{ cita.fecha_cita|date:"d/m/Y H:i" }}</small>
-                                    </td>
-                                    <td>
-                                        <small>{{ cita.almacen.nombre|truncatewords:2 }}</small>
-                                    </td>
-                                    <td>
-                                        {% if cita.numero_orden_suministro %}
-                                            <small class="badge bg-info">{{ cita.numero_orden_suministro|truncatewords:2 }}</small>
-                                        {% else %}
-                                            <small class="text-muted">-</small>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if cita.numero_orden_remision %}
-                                            <small class="badge bg-secondary">{{ cita.numero_orden_remision }}</small>
-                                        {% else %}
-                                            <small class="text-muted">-</small>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if cita.clave_medicamento %}
-                                            <small class="text-muted">{{ cita.clave_medicamento }}</small>
-                                        {% else %}
-                                            <small class="text-muted">-</small>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        {% if cita.estado == 'programada' %}
-                                            <span class="badge bg-warning">Programada</span>
-                                        {% elif cita.estado == 'autorizada' %}
-                                            <span class="badge bg-success">Autorizada</span>
-                                        {% elif cita.estado == 'completada' %}
-                                            <span class="badge bg-info">Completada</span>
-                                        {% elif cita.estado == 'cancelada' %}
-                                            <span class="badge bg-secondary">Cancelada</span>
-                                        {% endif %}
-                                    </td>
-                                    <td>
-                                        <a href="{% url 'logistica:detalle_cita' cita.pk %}" class="btn btn-sm btn-info" title="Ver detalles">
-                                            <i class="fas fa-eye"></i>
+                            <tr>
+                                <td>
+                                    <strong>{{ cita.proveedor.razon_social|truncatewords:3 }}</strong>
+                                    <br>
+                                    <small class="text-muted">{{ cita.proveedor.rfc }}</small>
+                                </td>
+                                <td>
+                                    <small>{{ cita.fecha_cita|date:"d/m/Y H:i" }}</small>
+                                </td>
+                                <td>
+                                    <small>{{ cita.almacen.nombre|truncatewords:2 }}</small>
+                                </td>
+                                <td>
+                                    {% if cita.numero_orden_suministro %}
+                                        <small class="badge bg-info">{{ cita.numero_orden_suministro|truncatewords:2 }}</small>
+                                    {% else %}
+                                        <small class="text-muted">-</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if cita.numero_orden_remision %}
+                                        <small class="badge bg-secondary">{{ cita.numero_orden_remision }}</small>
+                                    {% else %}
+                                        <small class="text-muted">-</small>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    {% if cita.estado == 'programada' %}
+                                        <span class="badge bg-warning">Programada</span>
+                                    {% elif cita.estado == 'autorizada' %}
+                                        <span class="badge bg-success">Autorizada</span>
+                                    {% elif cita.estado == 'completada' %}
+                                        <span class="badge bg-info">Completada</span>
+                                    {% elif cita.estado == 'cancelada' %}
+                                        <span class="badge bg-secondary">Cancelada</span>
+                                    {% endif %}
+                                </td>
+                                <td>
+                                    <a href="{% url 'logistica:detalle_cita' cita.pk %}" class="btn btn-sm btn-info" title="Ver detalles">
+                                        <i class="fas fa-eye"></i>
+                                    </a>
+                                    {% if cita.estado == 'programada' %}
+                                        <a href="{% url 'logistica:editar_cita' cita.pk %}" class="btn btn-sm btn-warning" title="Editar">
+                                            <i class="fas fa-edit"></i>
                                         </a>
-                                        {% if cita.estado == 'programada' %}
-                                            <a href="{% url 'logistica:editar_cita' cita.pk %}" class="btn btn-sm btn-warning" title="Editar">
-                                                <i class="fas fa-edit"></i>
-                                            </a>
-                                        {% endif %}
-                                    </td>
-                                </tr>
-                            {% endif %}
+                                    {% endif %}
+                                </td>
+                            </tr>
                         {% endfor %}
                     {% else %}
                         <tr>
-                            <td colspan="8" class="text-center py-4">
+                            <td colspan="7" class="text-center py-4">
                                 <i class="fas fa-inbox text-muted" style="font-size: 2rem;"></i>
                                 <p class="text-muted mt-2">No hay citas registradas con los filtros seleccionados</p>
                             </td>

@@ -66,7 +66,7 @@ def crear_cita_paso2(request):
     - Remisión
     - Clave de Producto
     
-    Permite agregar múltiples líneas dinámicamente
+    Crea UNA CITA POR CADA REMISIÓN capturada
     """
     
     # Verificar que vienen del paso 1
@@ -94,53 +94,54 @@ def crear_cita_paso2(request):
             messages.error(request, 'Debes agregar al menos un detalle (remisión y clave de producto).')
             return redirect('logistica:crear_cita_paso2')
         
-        # Crear la cita con los datos del paso 1
+        # Crear múltiples citas (una por cada remisión)
         try:
             proveedor = Proveedor.objects.get(id=cita_data['proveedor_id'])
             almacen = Almacen.objects.get(id=cita_data['almacen_id'])
             fecha_cita = datetime.fromisoformat(cita_data['fecha_cita'])
             
-            # Crear la cita base
-            cita = CitaProveedor(
-                proveedor=proveedor,
-                fecha_cita=fecha_cita,
-                almacen=almacen,
-                tipo_entrega=cita_data['tipo_entrega'],
-                numero_orden_suministro=cita_data['numero_orden_suministro'],
-                usuario_creacion=request.user,
-                # Los siguientes campos quedan en blanco como se solicita
-                numero_contrato='',
-                tipo_transporte='',
-                fecha_expedicion=None,
-                fecha_limite_entrega=None,
-            )
-            cita.save()
+            citas_creadas = []
             
-            # Generar folio
-            ServicioFolio.asignar_folio_a_cita(cita)
-            
-            # Guardar todos los detalles en JSON
-            cita.detalles_json = detalles
-            
-            # Guardar el primer detalle en los campos simples (para compatibilidad)
-            if detalles:
-                primer_detalle = detalles[0]
-                cita.numero_orden_remision = primer_detalle.get('numero_orden_remision', '').strip()
-                cita.clave_medicamento = primer_detalle.get('clave_medicamento', '').strip()
-            
-            cita.save()
-            print(f'[CREAR_CITA_PASO2] Cita guardada con ID {cita.id}')
-            print(f'[CREAR_CITA_PASO2] detalles_json en BD: {cita.detalles_json}')
+            # Crear una cita por cada remisión/detalle
+            for i, detalle in enumerate(detalles):
+                cita = CitaProveedor(
+                    proveedor=proveedor,
+                    fecha_cita=fecha_cita,
+                    almacen=almacen,
+                    tipo_entrega=cita_data['tipo_entrega'],
+                    numero_orden_suministro=cita_data['numero_orden_suministro'],
+                    usuario_creacion=request.user,
+                    # Guardar los datos de esta remisión específica
+                    numero_orden_remision=detalle.get('numero_orden_remision', '').strip(),
+                    clave_medicamento=detalle.get('clave_medicamento', '').strip(),
+                    # Los siguientes campos quedan en blanco como se solicita
+                    numero_contrato='',
+                    tipo_transporte='',
+                    fecha_expedicion=None,
+                    fecha_limite_entrega=None,
+                    # Guardar todos los detalles en JSON para referencia
+                    detalles_json=detalles,
+                )
+                cita.save()
+                
+                # Generar folio
+                ServicioFolio.asignar_folio_a_cita(cita)
+                citas_creadas.append(cita)
+                
+                print(f'[CREAR_CITA_PASO2] Cita {i+1} guardada con ID {cita.id}')
+                print(f'[CREAR_CITA_PASO2]   Remisión: {detalle.get("numero_orden_remision")}, Clave: {detalle.get("clave_medicamento")}')
             
             # Enviar notificación
-            notificaciones.notificar_cita_creada(cita)
+            for cita in citas_creadas:
+                notificaciones.notificar_cita_creada(cita)
             
             # Limpiar sesión
             if 'cita_paso1_data' in request.session:
                 del request.session['cita_paso1_data']
             request.session.modified = True
             
-            messages.success(request, f'✓ Cita creada exitosamente con {cita.proveedor.razon_social}')
+            cantidad = len(citas_creadas)
+            messages.success(request, f'✓ {cantidad} cita(s) creada(s) exitosamente con {proveedor.razon_social}')
             return redirect('logistica:lista_citas')
         
         except (Proveedor.DoesNotExist, Almacen.DoesNotExist) as e:
@@ -279,45 +280,29 @@ def crear_cita_masiva(request):
             except Exception as e:
                 messages.error(request, f"Error al procesar archivo: {str(e)}")
         else:
-            messages.error(request, "Verifica el archivo seleccionado")
+            messages.error(request, 'Formulario inválido.')
     else:
         form = CargaMasivaCitasForm()
     
-    context = {
-        'form': form,
-        'page_title': 'Crear Cita - Carga Masiva'
-    }
-    return render(request, 'inventario/citas/crear_masiva.html', context)
+    return render(request, 'inventario/citas/crear_masiva.html', {'form': form})
 
-
-# ============================================================
-# VISTAS PARA EDICIÓN DE CITAS CON FLUJO DE DOS PASOS
-# ============================================================
 
 @login_required
 def editar_cita_paso1(request, pk):
     """
-    PASO 1: Editar datos generales de la cita
-    - Proveedor
-    - Fecha y Hora
-    - Almacén
-    - Tipo de Entrega
-    - Número de Orden de Suministro
+    PASO 1 EDICIÓN: Editar datos generales de la cita
     """
-    
     cita = get_object_or_404(CitaProveedor, pk=pk)
     
-    # Solo permitir editar si está en estado 'programada'
     if cita.estado != 'programada':
         messages.warning(request, f'No se puede editar una cita en estado {cita.get_estado_display()}')
-        return redirect('logistica:detalle_cita', pk=pk)
+        return redirect('logistica:lista_citas')
     
     if request.method == 'POST':
         form = CitaProveedorPaso1Form(request.POST)
         
         if form.is_valid():
-            # Guardar en sesión los datos del paso 1 y el ID de la cita
-            request.session['cita_editar_id'] = pk
+            # Guardar en sesión los datos del paso 1
             request.session['cita_paso1_data'] = {
                 'proveedor_id': form.cleaned_data['proveedor'].id,
                 'fecha_cita': form.cleaned_data['fecha_cita'].isoformat(),
@@ -325,6 +310,7 @@ def editar_cita_paso1(request, pk):
                 'tipo_entrega': form.cleaned_data['tipo_entrega'],
                 'numero_orden_suministro': form.cleaned_data['numero_orden_suministro'] or '',
             }
+            request.session['cita_edicion_id'] = pk
             request.session.modified = True
             
             # Ir al paso 2
@@ -332,73 +318,68 @@ def editar_cita_paso1(request, pk):
         else:
             messages.error(request, 'Error en los datos generales. Verifica los campos.')
     else:
-        # Cargar datos actuales en el formulario
-        initial_data = {
+        form = CitaProveedorPaso1Form(initial={
             'proveedor': cita.proveedor,
             'fecha_cita': cita.fecha_cita,
             'almacen': cita.almacen,
             'tipo_entrega': cita.tipo_entrega,
             'numero_orden_suministro': cita.numero_orden_suministro,
-        }
-        form = CitaProveedorPaso1Form(initial=initial_data)
+        })
     
     context = {
         'form': form,
-        'cita': cita,
         'paso': 1,
-        'page_title': f'Editar Cita - Paso 1'
+        'page_title': 'Editar Cita - Paso 1: Datos Generales',
+        'cita': cita,
     }
-    return render(request, 'inventario/citas/crear_paso1.html', context)
+    return render(request, 'inventario/citas/editar_paso1.html', context)
 
 
 @login_required
-def editar_cita_paso2(request, pk=None):
+def editar_cita_paso2(request, pk):
     """
-    PASO 2: Editar detalles de la cita (remisión y clave de producto)
+    PASO 2 EDICIÓN: Editar detalles de la cita
     """
+    cita = get_object_or_404(CitaProveedor, pk=pk)
     
-    # Obtener ID de la cita de la sesión o del parámetro
-    cita_id = pk or request.session.get('cita_editar_id')
-    
-    if not cita_id:
-        messages.error(request, 'Error: No se especificó la cita a editar')
-        return redirect('logistica:lista_citas')
-    
-    cita = get_object_or_404(CitaProveedor, pk=cita_id)
-    
-    # Solo permitir editar si está en estado 'programada'
     if cita.estado != 'programada':
         messages.warning(request, f'No se puede editar una cita en estado {cita.get_estado_display()}')
-        return redirect('logistica:detalle_cita', pk=cita_id)
+        return redirect('logistica:lista_citas')
+    
+    # Verificar que vienen del paso 1
+    cita_data = request.session.get('cita_paso1_data')
+    if not cita_data:
+        messages.error(request, 'Debes completar el paso 1 primero.')
+        return redirect('logistica:editar_cita', pk=pk)
     
     if request.method == 'POST':
+        # Obtener los detalles capturados
+        detalles_json = request.POST.get('detalles_json', '[]')
+        print(f'[EDITAR_CITA_PASO2] JSON recibido: {detalles_json}')
+        
         try:
-            # Obtener datos del paso 1
-            paso1_data = request.session.get('cita_paso1_data', {})
-            
-            # Actualizar datos generales
-            cita.proveedor_id = paso1_data.get('proveedor_id')
-            cita.fecha_cita = datetime.fromisoformat(paso1_data.get('fecha_cita'))
-            cita.almacen_id = paso1_data.get('almacen_id')
-            cita.tipo_entrega = paso1_data.get('tipo_entrega')
-            cita.numero_orden_suministro = paso1_data.get('numero_orden_suministro')
-            
-            # Procesar detalles (remisión y clave)
-            detalles_json = request.POST.get('detalles_json', '[]')
-            print(f'[EDITAR_CITA_PASO2] JSON recibido: {detalles_json}')
             detalles = json.loads(detalles_json)
             print(f'[EDITAR_CITA_PASO2] Detalles parseados: {len(detalles)} elementos')
+        except json.JSONDecodeError as e:
+            print(f'[EDITAR_CITA_PASO2] Error al parsear JSON: {e}')
+            detalles = []
+        
+        # Validar que haya al menos un detalle
+        if not detalles:
+            messages.error(request, 'Debes agregar al menos un detalle (remisión y clave de producto).')
+            return redirect('logistica:editar_cita_paso2', pk=pk)
+        
+        # Actualizar la cita
+        try:
+            proveedor = Proveedor.objects.get(id=cita_data['proveedor_id'])
+            almacen = Almacen.objects.get(id=cita_data['almacen_id'])
+            fecha_cita = datetime.fromisoformat(cita_data['fecha_cita'])
             
-            if not detalles:
-                messages.error(request, 'Debes agregar al menos un detalle (remisión o clave de producto)')
-                return render(request, 'inventario/citas/editar_paso2.html', {
-                    'cita': cita,
-                    'proveedor': cita.proveedor,
-                    'almacen': cita.almacen,
-                    'fecha_cita': cita.fecha_cita.strftime('%d/%m/%Y %H:%M'),
-                    'tipo_entrega': cita.get_tipo_entrega_display(),
-                    'numero_orden_suministro': cita.numero_orden_suministro,
-                })
+            cita.proveedor = proveedor
+            cita.fecha_cita = fecha_cita
+            cita.almacen = almacen
+            cita.tipo_entrega = cita_data['tipo_entrega']
+            cita.numero_orden_suministro = cita_data['numero_orden_suministro']
             
             # Guardar todos los detalles en JSON
             cita.detalles_json = detalles
@@ -406,37 +387,42 @@ def editar_cita_paso2(request, pk=None):
             # Guardar el primer detalle en los campos simples (para compatibilidad)
             if detalles:
                 primer_detalle = detalles[0]
-                cita.numero_orden_remision = primer_detalle.get('numero_orden_remision', '')
-                cita.clave_medicamento = primer_detalle.get('clave_medicamento', '')
+                cita.numero_orden_remision = primer_detalle.get('numero_orden_remision', '').strip()
+                cita.clave_medicamento = primer_detalle.get('clave_medicamento', '').strip()
             
             cita.save()
             print(f'[EDITAR_CITA_PASO2] Cita actualizada con ID {cita.id}')
-            print(f'[EDITAR_CITA_PASO2] detalles_json en BD: {cita.detalles_json}')
             
             # Limpiar sesión
-            request.session.pop('cita_paso1_data', None)
-            request.session.pop('cita_editar_id', None)
+            if 'cita_paso1_data' in request.session:
+                del request.session['cita_paso1_data']
+            if 'cita_edicion_id' in request.session:
+                del request.session['cita_edicion_id']
             request.session.modified = True
             
-            messages.success(request, '✓ Cita actualizada exitosamente')
-            return redirect('logistica:detalle_cita', pk=cita_id)
+            messages.success(request, f'✓ Cita actualizada exitosamente')
+            return redirect('logistica:lista_citas')
         
+        except (Proveedor.DoesNotExist, Almacen.DoesNotExist) as e:
+            messages.error(request, f'Error: Proveedor o Almacén no encontrado.')
+            return redirect('logistica:editar_cita', pk=pk)
         except Exception as e:
-            messages.error(request, f'Error al guardar la cita: {str(e)}')
-            return redirect('logistica:detalle_cita', pk=cita_id)
+            messages.error(request, f'Error al actualizar la cita: {str(e)}')
+            return redirect('logistica:editar_cita', pk=pk)
     
-    else:
-        # Mostrar datos actuales
-        context = {
-            'cita': cita,
-            'proveedor': cita.proveedor,
-            'almacen': cita.almacen,
-            'fecha_cita': cita.fecha_cita.strftime('%d/%m/%Y %H:%M'),
-            'tipo_entrega': cita.get_tipo_entrega_display(),
-            'numero_orden_suministro': cita.numero_orden_suministro,
-            'numero_orden_remision': cita.numero_orden_remision or '',
-            'clave_medicamento': cita.clave_medicamento or '',
-            'paso': 2,
-            'page_title': f'Editar Cita - Paso 2'
-        }
-        return render(request, 'inventario/citas/editar_paso2.html', context)
+    # Preparar contexto con datos del paso 1
+    proveedor = Proveedor.objects.get(id=cita_data['proveedor_id'])
+    almacen = Almacen.objects.get(id=cita_data['almacen_id'])
+    
+    context = {
+        'paso': 2,
+        'page_title': 'Editar Cita - Paso 2: Detalles',
+        'proveedor': proveedor,
+        'almacen': almacen,
+        'numero_orden_suministro': cita_data['numero_orden_suministro'],
+        'tipo_entrega': cita_data['tipo_entrega'],
+        'fecha_cita': cita_data['fecha_cita'],
+        'cita': cita,
+        'detalles_json': json.dumps(cita.detalles_json) if cita.detalles_json else '[]',
+    }
+    return render(request, 'inventario/citas/editar_paso2.html', context)
