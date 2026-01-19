@@ -64,10 +64,12 @@
                                     </div>
                                     <div class="col-md-5">
                                         <label class="form-label">💊 Clave de Producto (CNIS)</label>
-                                        <input type="text" 
-                                               class="form-control clave_medicamento" 
-                                               placeholder="Ej: 010.000.0569.00"
-                                               data-linea="1">
+                                        <select class="form-control clave_medicamento select2-busqueda" 
+                                                placeholder="Buscar por clave o descripción..."
+                                                data-linea="1"
+                                                style="width: 100%;">
+                                            <option></option>
+                                        </select>
                                     </div>
                                     <div class="col-md-2 d-flex align-items-end">
                                         <button type="button" class="btn btn-danger btn-sm w-100 eliminar-linea" 
@@ -110,6 +112,7 @@
                 <h6><i class="fas fa-info-circle"></i> Instrucciones</h6>
                 <ul class="mb-0">
                     <li>Captura el <strong>número de remisión</strong> y la <strong>clave de producto</strong></li>
+                    <li>Usa el buscador de clave para encontrar productos por CNIS o descripción</li>
                     <li>Puedes agregar múltiples detalles si es necesario</li>
                     <li>Al guardar, la cita se creará con los datos capturados</li>
                     <li>Los campos de contrato, transporte y fechas se capturan después en la entrada</li>
@@ -121,6 +124,34 @@
 
 <script>
     let numeroLinea = 1;
+    
+    // Inicializar Select2 en la primera línea
+    inicializar_select2(1);
+    
+    function inicializar_select2(linea) {
+        const selector = `.detalle-linea[data-linea="${linea}"] .select2-busqueda`;
+        $(selector).select2({
+            placeholder: 'Buscar por clave o descripción...',
+            allowClear: true,
+            ajax: {
+                url: '{% url "logistica:buscar_productos_cita" %}',
+                dataType: 'json',
+                delay: 250,
+                data: function(params) {
+                    return {
+                        q: params.term
+                    };
+                },
+                processResults: function(data) {
+                    return {
+                        results: data.results
+                    };
+                },
+                cache: true
+            },
+            minimumInputLength: 2
+        });
+    }
     
     // Agregar nuevo detalle
     document.getElementById('btn-agregar-detalle').addEventListener('click', function() {
@@ -141,10 +172,12 @@
                 </div>
                 <div class="col-md-5">
                     <label class="form-label">💊 Clave de Producto (CNIS)</label>
-                    <input type="text" 
-                           class="form-control clave_medicamento" 
-                           placeholder="Ej: 010.000.0569.00"
-                           data-linea="${numeroLinea}">
+                    <select class="form-control clave_medicamento select2-busqueda" 
+                            placeholder="Buscar por clave o descripción..."
+                            data-linea="${numeroLinea}"
+                            style="width: 100%;">
+                        <option></option>
+                    </select>
                 </div>
                 <div class="col-md-2 d-flex align-items-end">
                     <button type="button" class="btn btn-danger btn-sm w-100 eliminar-linea" 
@@ -156,6 +189,9 @@
         `;
         
         container.appendChild(nuevoDetalle);
+        
+        // Inicializar Select2 en la nueva línea
+        inicializar_select2(numeroLinea);
         
         // Agregar evento al botón eliminar
         nuevoDetalle.querySelector('.eliminar-linea').addEventListener('click', function() {
@@ -185,7 +221,8 @@
         const detalles = [];
         document.querySelectorAll('.detalle-linea').forEach(linea => {
             const remision = linea.querySelector('.numero_orden_remision').value.trim();
-            const clave = linea.querySelector('.clave_medicamento').value.trim();
+            const claveSelect = linea.querySelector('.clave_medicamento');
+            const clave = claveSelect.value ? claveSelect.value.trim() : '';
             
             if (remision || clave) {
                 detalles.push({
@@ -227,6 +264,16 @@
         font-weight: 600;
         margin-bottom: 8px;
         font-size: 14px;
+    }
+    
+    .select2-container .select2-selection--single {
+        height: 38px;
+        border: 1px solid #ced4da;
+        border-radius: 0.25rem;
+    }
+    
+    .select2-container .select2-selection--single .select2-selection__rendered {
+        line-height: 36px;
     }
 </style>
 {% endblock %}

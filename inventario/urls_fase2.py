@@ -20,6 +20,7 @@ urlpatterns = [
     path('citas/crear/paso2/', views_citas_dos_pasos.crear_cita_paso2, name='crear_cita_paso2'),
     path('citas/crear/masiva/', views_citas_dos_pasos.crear_cita_masiva, name='crear_cita_masiva'),
     path('citas/agregar-detalle/', views_citas_dos_pasos.agregar_detalle_cita, name='agregar_detalle_cita'),
+    path('citas/buscar-productos/', views_citas_dos_pasos.buscar_productos_cita, name='buscar_productos_cita'),
     path('citas/<int:pk>/', views_fase2.detalle_cita, name='detalle_cita'),
     path('citas/<int:pk>/editar/', views_fase2.editar_cita, name='editar_cita'),
     path('citas/<int:pk>/validar-entrada/', views_fase2.validar_entrada, name='validar_entrada'),

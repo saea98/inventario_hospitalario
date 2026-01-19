@@ -8,6 +8,7 @@ from django.contrib import messages
 from django.http import JsonResponse
 from django.views.decorators.http import require_http_methods
 from django.utils import timezone
+from django.db.models import Q
 from datetime import datetime
 import json
 
@@ -198,6 +199,40 @@ def agregar_detalle_cita(request):
     '''
     
     return JsonResponse({'html': html, 'numero_linea': numero_linea})
+
+
+@login_required
+@require_http_methods(["GET"])
+def buscar_productos_cita(request):
+    """
+    API para buscar productos por clave CNIS
+    Retorna lista de productos para Select2
+    """
+    
+    try:
+        busqueda = request.GET.get('q', '').strip()
+        
+        # Necesita al menos 2 caracteres
+        if len(busqueda) < 2:
+            return JsonResponse({'results': []})
+        
+        # Buscar productos por clave CNIS o descripción
+        productos = Producto.objects.filter(
+            Q(clave_cnis__icontains=busqueda) | Q(descripcion__icontains=busqueda)
+        ).values('id', 'clave_cnis', 'descripcion').order_by('clave_cnis')[:20]
+        
+        # Formatear para Select2
+        results = []
+        for producto in productos:
+            results.append({
+                'id': producto['clave_cnis'],
+                'text': f"{producto['clave_cnis']} - {producto['descripcion'][:60]}"
+            })
+        
+        return JsonResponse({'results': results})
+    
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
 
 
 @login_required
