@@ -22,7 +22,7 @@ from .pedidos_forms import (
     BulkUploadForm
 )
 from .propuesta_generator import PropuestaGenerator
-from .propuesta_utils import cancelar_propuesta, validar_disponibilidad_producto
+from .propuesta_utils import cancelar_propuesta, validar_disponibilidad_para_propuesta
 from .pedidos_utils import registrar_error_pedido
 from django.db import models
 
@@ -251,7 +251,7 @@ def validar_solicitud(request, solicitud_id):
                 errores_disponibilidad = []
                 for item in solicitud.items.all():
                     if item.cantidad_aprobada > 0:
-                        resultado = validar_disponibilidad_producto(
+                        resultado = validar_disponibilidad_para_propuesta(
                             item.producto.id,
                             item.cantidad_aprobada,
                             solicitud.institucion_solicitante.id
