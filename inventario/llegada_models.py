@@ -149,23 +149,12 @@ class LlegadaProveedor(models.Model):
         return f"{self.folio} - {self.proveedor.nombre}"
     
     def save(self, *args, **kwargs):
-        """Generar folio automáticamente si no existe y llenar folio_validacion desde la cita"""
-        # Generar folio si no existe
-        if not self.folio:
-            from inventario.models import Folio
-            try:
-                # Obtener el tipo de entrega para generar el folio
-                folio_obj = Folio.objects.first()  # O buscar por tipo específico
-                if folio_obj:
-                    self.folio = folio_obj.generar_folio()
-                else:
-                    # Si no existe, usar un folio temporal
-                    self.folio = f"IB-{timezone.now().year}-{str(self.id)[:8].upper()}"
-            except Exception:
-                # Fallback: usar un folio temporal
-                self.folio = f"IB-{timezone.now().year}-{str(self.id)[:8].upper()}"
+        """Heredar folio y folio_validacion desde la cita"""
+        # Heredar folio desde la cita si no existe
+        if not self.folio and self.cita:
+            self.folio = self.cita.folio
         
-        # Llenar folio_validacion desde la cita si no existe
+        # Heredar folio_validacion desde la cita si no existe
         if not self.folio_validacion and self.cita:
             self.folio_validacion = self.cita.folio
         
