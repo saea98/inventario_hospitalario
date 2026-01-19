@@ -22,7 +22,7 @@ from .pedidos_forms import (
     BulkUploadForm
 )
 from .propuesta_generator import PropuestaGenerator
-from .propuesta_utils import cancelar_propuesta
+from .propuesta_utils import cancelar_propuesta, validar_disponibilidad_producto
 from .pedidos_utils import registrar_error_pedido
 from django.db import models
 
@@ -247,15 +247,36 @@ def validar_solicitud(request, solicitud_id):
                 messages.warning(request, f"Solicitud {solicitud.folio} ha sido rechazada.")
                 solicitud.save()
             else:
-                solicitud.estado = 'VALIDADA'
-                solicitud.save()
+                # Validar disponibilidad ANTES de generar la propuesta
+                errores_disponibilidad = []
+                for item in solicitud.items.all():
+                    if item.cantidad_aprobada > 0:
+                        resultado = validar_disponibilidad_producto(
+                            item.producto.id,
+                            item.cantidad_aprobada,
+                            solicitud.institucion_solicitante.id
+                        )
+                        if not resultado['disponible']:
+                            errores_disponibilidad.append(
+                                f"Producto {item.producto.clave_cnis}: Se requieren {item.cantidad_aprobada} pero solo hay {resultado['cantidad_disponible']} disponibles."
+                            )
                 
-                try:
-                    generator = PropuestaGenerator(solicitud.id, request.user)
-                    propuesta = generator.generate()
-                    messages.success(request, f"Solicitud {solicitud.folio} validada y propuesta de pedido generada.")
-                except Exception as e:
-                    messages.error(request, f"Error al generar la propuesta: {str(e)}")
+                if errores_disponibilidad:
+                    messages.error(request, "No se puede generar la propuesta por falta de disponibilidad:")
+                    for error in errores_disponibilidad:
+                        messages.error(request, f"  - {error}")
+                    solicitud.estado = 'VALIDADA'
+                    solicitud.save()
+                else:
+                    solicitud.estado = 'VALIDADA'
+                    solicitud.save()
+                    
+                    try:
+                        generator = PropuestaGenerator(solicitud.id, request.user)
+                        propuesta = generator.generate()
+                        messages.success(request, f"Solicitud {solicitud.folio} validada y propuesta de pedido generada.")
+                    except Exception as e:
+                        messages.error(request, f"Error al generar la propuesta: {str(e)}")
             
             return redirect('logistica:detalle_pedido', solicitud_id=solicitud.id)
     else:
