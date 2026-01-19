@@ -127,7 +127,7 @@ def crear_solicitud(request):
                                 messages.warning(request, f"Clave {clave} no existe")
                                 continue
                             
-                            existencia = producto.lotes.filter(estado=1).aggregate(
+                            existencia = producto.lote_set.filter(estado=1).aggregate(
                                 total=models.Sum('cantidad_disponible')
                             )['total'] or 0
                             
