@@ -125,8 +125,10 @@
 <script>
     let numeroLinea = 1;
     
-    // Inicializar Select2 en la primera línea
-    inicializar_select2(1);
+    // Esperar a que jQuery y Select2 estén listos
+    $(document).ready(function() {
+        // Inicializar Select2 en la primera línea
+        inicializar_select2(1);
     
     function inicializar_select2(linea) {
         const selector = `.detalle-linea[data-linea="${linea}"] .select2-busqueda`;
@@ -243,6 +245,7 @@
         
         // Enviar formulario
         this.submit();
+    });
     });
 </script>
 
