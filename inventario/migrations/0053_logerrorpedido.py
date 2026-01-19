@@ -9,7 +9,7 @@ import uuid
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('inventario', '0025_merge_0024_migrations'),
+        ('inventario', '0052_add_llegada_fields_fixed'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
 
