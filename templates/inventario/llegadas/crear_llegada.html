@@ -48,20 +48,20 @@
         background-color: #ffffff;
     }
     
-    /* Estilos para campos obligatorios */
-    .required-field .form-control,
-    .required-field .select2-container--default .select2-selection--single {
+    /* Estilos para campos obligatorios - FORCE UPDATE v2 */
+    .form-group.required-field .form-control,
+    .form-group.required-field .select2-container--default .select2-selection--single {
         border: 2px solid #ffc107 !important;
         background-color: #fffbf0 !important;
     }
     
-    .required-field.filled .form-control,
-    .required-field.filled .select2-container--default .select2-selection--single {
+    .form-group.required-field.filled .form-control,
+    .form-group.required-field.filled .select2-container--default .select2-selection--single {
         border: 2px solid #28a745 !important;
         background-color: #f0fff4 !important;
     }
     
-    .required-field label::after {
+    .form-group.required-field label::after {
         content: " *";
         color: #dc3545;
         font-weight: bold;
