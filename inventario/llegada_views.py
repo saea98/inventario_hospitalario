@@ -130,22 +130,42 @@ class ControlCalidadView(LoginRequiredMixin, PermissionRequiredMixin, View):
         return render(request, "inventario/llegadas/control_calidad.html", {"llegada": llegada, "form": form})
     
     def post(self, request, pk):
+        from django.db import transaction
+        from .models import Lote
+        
         llegada = get_object_or_404(LlegadaProveedor, pk=pk)
         form = ControlCalidadForm(request.POST, instance=llegada)
         
         if form.is_valid():
-            llegada = form.save(commit=False)
-            llegada.usuario_calidad = request.user
-            llegada.fecha_validacion_calidad = timezone.now()
+            with transaction.atomic():
+                llegada = form.save(commit=False)
+                llegada.usuario_calidad = request.user
+                llegada.fecha_validacion_calidad = timezone.now()
+                
+                # Si se aprueba la inspeccion visual, cambiar estado a UBICACION y crear lotes
+                if llegada.estado_calidad == 'APROBADO':
+                    llegada.estado = 'UBICACION'
+                    llegada.save()
+                    
+                    # Crear lotes para cada item si no existen
+                    for item in llegada.items.all():
+                        if not item.lote_creado:
+                            lote = Lote.objects.create(
+                                producto=item.producto,
+                                numero_lote=item.numero_lote,
+                                fecha_caducidad=item.fecha_caducidad,
+                                cantidad=item.cantidad_recibida,
+                                almacen=llegada.almacen,
+                                estado='DISPONIBLE'
+                            )
+                            item.lote_creado = lote
+                            item.save()
+                    
+                    messages.success(request, "Inspeccion visual aprobada. Lotes creados. Pendiente de asignacion de ubicacion")
+                else:
+                    llegada.save()
+                    messages.warning(request, "Inspeccion visual rechazada")
             
-            # Si se aprueba la inspeccion visual, cambiar estado a UBICACION
-            if llegada.estado_calidad == 'APROBADO':
-                llegada.estado = 'UBICACION'
-                messages.success(request, "Inspeccion visual aprobada. Pendiente de asignacion de ubicacion")
-            else:
-                messages.warning(request, "Inspeccion visual rechazada")
-            
-            llegada.save()
             return redirect('logistica:llegadas:detalle_llegada', pk=llegada.pk)
         
         return render(request, "inventario/llegadas/control_calidad.html", {"llegada": llegada, "form": form})
