@@ -166,7 +166,7 @@ class LlegadaProveedor(models.Model):
     
     def puede_validar_calidad(self):
         """Verifica si está lista para control de calidad"""
-        return self.estado == 'EN_RECEPCION' and self.items.exists()
+        return self.estado == 'CONTROL_CALIDAD' and self.items.exists()
     
     def puede_facturar(self):
         """Verifica si está aprobada por calidad"""
@@ -177,8 +177,8 @@ class LlegadaProveedor(models.Model):
         return self.numero_factura and self.numero_procedimiento
     
     def puede_ubicar(self):
-        """Verifica si está validada por supervisión"""
-        return self.estado_supervision == 'VALIDADO'
+        """Verifica si está lista para asignar ubicación"""
+        return self.estado == 'UBICACION' and self.items.exists()
 
 
 class ItemLlegada(models.Model):

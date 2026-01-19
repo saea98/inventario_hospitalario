@@ -137,8 +137,15 @@ class ControlCalidadView(LoginRequiredMixin, PermissionRequiredMixin, View):
             llegada = form.save(commit=False)
             llegada.usuario_calidad = request.user
             llegada.fecha_validacion_calidad = timezone.now()
+            
+            # Si se aprueba la inspeccion visual, cambiar estado a UBICACION
+            if llegada.estado_calidad == 'APROBADO':
+                llegada.estado = 'UBICACION'
+                messages.success(request, "Inspeccion visual aprobada. Pendiente de asignacion de ubicacion")
+            else:
+                messages.warning(request, "Inspeccion visual rechazada")
+            
             llegada.save()
-            messages.success(request, "Control de calidad registrado")
             return redirect('logistica:llegadas:detalle_llegada', pk=llegada.pk)
         
         return render(request, "inventario/llegadas/control_calidad.html", {"llegada": llegada, "form": form})
