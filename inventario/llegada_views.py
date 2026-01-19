@@ -371,8 +371,7 @@ class UbicacionView(LoginRequiredMixin, PermissionRequiredMixin, View):
                             lote=lote,
                             ubicacion=ubicacion,
                             cantidad=ubi_data['cantidad'],
-                            asignado_por=request.user,
-                            fecha_asignacion=timezone.now()
+                            usuario_asignacion=request.user
                         )
                 
                 # Marcar llegada como completada
