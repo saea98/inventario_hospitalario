@@ -106,9 +106,6 @@
         console.log('Selector:', selector);
         console.log('Elementos encontrados:', $(selector).length);
         
-        // Destruir Select2 anterior si existe
-        $(selector).select2('destroy');
-        
         $(selector).select2({
             placeholder: 'Buscar por clave o descripción...',
             allowClear: true,
