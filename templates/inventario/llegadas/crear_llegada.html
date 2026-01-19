@@ -158,6 +158,35 @@
             {% endif %}
         {% endfor %}
         
+        <!-- Mostrar errores del formset items -->
+        {% if formset.non_form_errors %}
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <h5>Errores en los items:</h5>
+                {% for error in formset.non_form_errors %}
+                    <div>• {{ error }}</div>
+                {% endfor %}
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+        {% endif %}
+        
+        {% for form_item in formset %}
+            {% if form_item.errors %}
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <h5>Error en item:</h5>
+                    {% for field in form_item %}
+                        {% if field.errors %}
+                            <div><strong>{{ field.label|default:field.name }}:</strong> {{ field.errors }}</div>
+                        {% endif %}
+                    {% endfor %}
+                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+            {% endif %}
+        {% endfor %}
+        
         <!-- Datos de Llegada -->
         <div class="card shadow mb-4">
             <div class="card-header py-3">
