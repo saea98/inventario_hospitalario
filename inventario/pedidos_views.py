@@ -126,11 +126,14 @@ def crear_solicitud(request):
                                 messages.warning(request, f"Clave {clave} no existe")
                                 continue
                             
-                            existencia = producto.lote_set.filter(estado=1).aggregate(
-                                total=models.Sum('cantidad_disponible')
-                            )['total'] or 0
+                            resultado_validacion = validar_disponibilidad_para_propuesta(
+                                producto.id,
+                                cantidad_int,
+                                None
+                            )
+                            existencia = resultado_validacion['cantidad_disponible']
                             
-                            if existencia < cantidad_int:
+                            if not resultado_validacion['disponible']:
                                 registrar_error_pedido(
                                     usuario=request.user,
                                     tipo_error='SIN_EXISTENCIA',
