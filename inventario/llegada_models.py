@@ -294,18 +294,21 @@ class ItemLlegada(models.Model):
     
     def calcular_precios(self):
         """Calcula precios con IVA automáticamente"""
+        from decimal import Decimal
+        
         # Calcular IVA automático si no está establecido
         if self.porcentaje_iva == 0:
             self.porcentaje_iva = self.calcular_iva_automatico()
         
         if self.precio_unitario_sin_iva:
             # Calcular precio con IVA
-            factor_iva = 1 + (self.porcentaje_iva / 100)
+            porcentaje_iva_decimal = Decimal(str(self.porcentaje_iva))
+            factor_iva = 1 + (porcentaje_iva_decimal / Decimal('100'))
             self.precio_unitario_con_iva = self.precio_unitario_sin_iva * factor_iva
             
             # Calcular totales
-            self.subtotal = self.precio_unitario_sin_iva * self.piezas_por_lote
-            self.importe_iva = self.subtotal * (self.porcentaje_iva / 100)
+            self.subtotal = self.precio_unitario_sin_iva * Decimal(str(self.cantidad_recibida))
+            self.importe_iva = self.subtotal * (porcentaje_iva_decimal / Decimal('100'))
             self.importe_total = self.subtotal + self.importe_iva
     
     def es_caducidad_valida(self):
