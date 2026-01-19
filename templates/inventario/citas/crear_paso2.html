@@ -32,7 +32,7 @@
                         </div>
                         <div class="col-md-6">
                             <p><strong>📅 Fecha y Hora:</strong> {{ fecha_cita }}</p>
-                            <p><strong>🚚 Tipo de Entrega:</strong> {{ get_tipo_entrega_display }}</p>
+                            <p><strong>🚚 Tipo de Entrega:</strong> {{ tipo_entrega }}</p>
                         </div>
                     </div>
                     {% if numero_orden_suministro %}
@@ -125,11 +125,7 @@
 <script>
     let numeroLinea = 1;
     
-    // Esperar a que jQuery y Select2 estén listos
-    $(document).ready(function() {
-        // Inicializar Select2 en la primera línea
-        inicializar_select2(1);
-    
+    // Definir función ANTES de usarla
     function inicializar_select2(linea) {
         const selector = `.detalle-linea[data-linea="${linea}"] .select2-busqueda`;
         $(selector).select2({
@@ -154,6 +150,11 @@
             minimumInputLength: 2
         });
     }
+    
+    // Esperar a que jQuery y Select2 estén listos
+    $(document).ready(function() {
+        // Inicializar Select2 en la primera línea
+        inicializar_select2(1);
     
     // Agregar nuevo detalle
     document.getElementById('btn-agregar-detalle').addEventListener('click', function() {
