@@ -839,6 +839,31 @@ class CitaProveedor(models.Model):
         help_text="Usuario que autorizó la cita"
     )
     
+    # Campos de cancelación
+    fecha_cancelacion = models.DateTimeField(
+        blank=True,
+        null=True,
+        verbose_name="Fecha de Cancelación",
+        help_text="Fecha y hora cuando se canceló la cita"
+    )
+    
+    usuario_cancelacion = models.ForeignKey(
+        User,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='citas_canceladas',
+        verbose_name="Usuario que Cancela",
+        help_text="Usuario que canceló la cita"
+    )
+    
+    razon_cancelacion = models.TextField(
+        blank=True,
+        null=True,
+        verbose_name="Razón de Cancelación",
+        help_text="Motivo por el cual se canceló la cita"
+    )
+    
     fecha_creacion = models.DateTimeField(auto_now_add=True)
     
     # Campos para carga masiva desde órdenes de suministro
