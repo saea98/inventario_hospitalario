@@ -284,3 +284,148 @@ def crear_cita_masiva(request):
         'page_title': 'Crear Cita - Carga Masiva'
     }
     return render(request, 'inventario/citas/crear_masiva.html', context)
+
+
+# ============================================================
+# VISTAS PARA EDICIÓN DE CITAS CON FLUJO DE DOS PASOS
+# ============================================================
+
+@login_required
+def editar_cita_paso1(request, pk):
+    """
+    PASO 1: Editar datos generales de la cita
+    - Proveedor
+    - Fecha y Hora
+    - Almacén
+    - Tipo de Entrega
+    - Número de Orden de Suministro
+    """
+    
+    cita = get_object_or_404(CitaProveedor, pk=pk)
+    
+    # Solo permitir editar si está en estado 'programada'
+    if cita.estado != 'programada':
+        messages.warning(request, f'No se puede editar una cita en estado {cita.get_estado_display()}')
+        return redirect('logistica:detalle_cita', pk=pk)
+    
+    if request.method == 'POST':
+        form = CitaProveedorPaso1Form(request.POST)
+        
+        if form.is_valid():
+            # Guardar en sesión los datos del paso 1 y el ID de la cita
+            request.session['cita_editar_id'] = pk
+            request.session['cita_paso1_data'] = {
+                'proveedor_id': form.cleaned_data['proveedor'].id,
+                'fecha_cita': form.cleaned_data['fecha_cita'].isoformat(),
+                'almacen_id': form.cleaned_data['almacen'].id,
+                'tipo_entrega': form.cleaned_data['tipo_entrega'],
+                'numero_orden_suministro': form.cleaned_data['numero_orden_suministro'] or '',
+            }
+            request.session.modified = True
+            
+            # Ir al paso 2
+            return redirect('logistica:editar_cita_paso2')
+        else:
+            messages.error(request, 'Error en los datos generales. Verifica los campos.')
+    else:
+        # Cargar datos actuales en el formulario
+        initial_data = {
+            'proveedor': cita.proveedor,
+            'fecha_cita': cita.fecha_cita,
+            'almacen': cita.almacen,
+            'tipo_entrega': cita.tipo_entrega,
+            'numero_orden_suministro': cita.numero_orden_suministro,
+        }
+        form = CitaProveedorPaso1Form(initial=initial_data)
+    
+    context = {
+        'form': form,
+        'cita': cita,
+        'paso': 1,
+        'page_title': f'Editar Cita - Paso 1'
+    }
+    return render(request, 'inventario/citas/crear_paso1.html', context)
+
+
+@login_required
+def editar_cita_paso2(request, pk=None):
+    """
+    PASO 2: Editar detalles de la cita (remisión y clave de producto)
+    """
+    
+    # Obtener ID de la cita de la sesión o del parámetro
+    cita_id = pk or request.session.get('cita_editar_id')
+    
+    if not cita_id:
+        messages.error(request, 'Error: No se especificó la cita a editar')
+        return redirect('logistica:lista_citas')
+    
+    cita = get_object_or_404(CitaProveedor, pk=cita_id)
+    
+    # Solo permitir editar si está en estado 'programada'
+    if cita.estado != 'programada':
+        messages.warning(request, f'No se puede editar una cita en estado {cita.get_estado_display()}')
+        return redirect('logistica:detalle_cita', pk=cita_id)
+    
+    if request.method == 'POST':
+        try:
+            # Obtener datos del paso 1
+            paso1_data = request.session.get('cita_paso1_data', {})
+            
+            # Actualizar datos generales
+            cita.proveedor_id = paso1_data.get('proveedor_id')
+            cita.fecha_cita = datetime.fromisoformat(paso1_data.get('fecha_cita'))
+            cita.almacen_id = paso1_data.get('almacen_id')
+            cita.tipo_entrega = paso1_data.get('tipo_entrega')
+            cita.numero_orden_suministro = paso1_data.get('numero_orden_suministro')
+            
+            # Procesar detalles (remisión y clave)
+            detalles_json = request.POST.get('detalles_json', '[]')
+            detalles = json.loads(detalles_json)
+            
+            if not detalles:
+                messages.error(request, 'Debes agregar al menos un detalle (remisión o clave de producto)')
+                return render(request, 'inventario/citas/editar_paso2.html', {
+                    'cita': cita,
+                    'proveedor': cita.proveedor,
+                    'almacen': cita.almacen,
+                    'fecha_cita': cita.fecha_cita.strftime('%d/%m/%Y %H:%M'),
+                    'tipo_entrega': cita.get_tipo_entrega_display(),
+                    'numero_orden_suministro': cita.numero_orden_suministro,
+                })
+            
+            # Actualizar primer detalle (o crear si es nueva)
+            if detalles:
+                primer_detalle = detalles[0]
+                cita.numero_orden_remision = primer_detalle.get('numero_orden_remision', '')
+                cita.clave_medicamento = primer_detalle.get('clave_medicamento', '')
+            
+            cita.save()
+            
+            # Limpiar sesión
+            request.session.pop('cita_paso1_data', None)
+            request.session.pop('cita_editar_id', None)
+            request.session.modified = True
+            
+            messages.success(request, '✓ Cita actualizada exitosamente')
+            return redirect('logistica:detalle_cita', pk=cita_id)
+        
+        except Exception as e:
+            messages.error(request, f'Error al guardar la cita: {str(e)}')
+            return redirect('logistica:detalle_cita', pk=cita_id)
+    
+    else:
+        # Mostrar datos actuales
+        context = {
+            'cita': cita,
+            'proveedor': cita.proveedor,
+            'almacen': cita.almacen,
+            'fecha_cita': cita.fecha_cita.strftime('%d/%m/%Y %H:%M'),
+            'tipo_entrega': cita.get_tipo_entrega_display(),
+            'numero_orden_suministro': cita.numero_orden_suministro,
+            'numero_orden_remision': cita.numero_orden_remision,
+            'clave_medicamento': cita.clave_medicamento,
+            'paso': 2,
+            'page_title': f'Editar Cita - Paso 2'
+        }
+        return render(request, 'inventario/citas/editar_paso2.html', context)

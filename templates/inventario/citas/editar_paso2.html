@@ -1,0 +1,327 @@
+{% extends 'base.html' %}
+
+{% block title %}Editar Cita - Paso 2{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-md-10 offset-md-1">
+            <!-- Encabezado -->
+            <div class="mb-4">
+                <h2><i class="fas fa-calendar-edit text-primary"></i> Editar Cita</h2>
+                <p class="text-muted">Paso 2 de 2: Detalles (Remisión y Clave de Producto)</p>
+            </div>
+
+            <!-- Indicador de Progreso -->
+            <div class="progress mb-4" style="height: 25px;">
+                <div class="progress-bar bg-warning" role="progressbar" style="width: 100%;" aria-valuenow="100" aria-valuemin="0" aria-valuemax="100">
+                    <span class="progress-text">Paso 2/2: Detalles</span>
+                </div>
+            </div>
+
+            <!-- Resumen de Datos del Paso 1 -->
+            <div class="card shadow mb-4">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="fas fa-info-circle"></i> Resumen de Datos Generales</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>👥 Proveedor:</strong> {{ proveedor.razon_social }}</p>
+                            <p><strong>🏢 Almacén:</strong> {{ almacen.nombre }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>📅 Fecha y Hora:</strong> {{ fecha_cita }}</p>
+                            <p><strong>🚚 Tipo de Entrega:</strong> {{ tipo_entrega }}</p>
+                        </div>
+                    </div>
+                    {% if numero_orden_suministro %}
+                    <p><strong>📋 Orden de Suministro:</strong> {{ numero_orden_suministro }}</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- Formulario Paso 2 -->
+            <div class="card shadow mb-4">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="fas fa-list"></i> Detalles de la Cita</h6>
+                </div>
+                <div class="card-body">
+                    <form method="POST" id="form-detalles" novalidate>
+                        {% csrf_token %}
+                        
+                        <!-- Contenedor de detalles dinámicos -->
+                        <div id="detalles-container">
+                            <!-- Los detalles se agregan aquí dinámicamente -->
+                        </div>
+
+                        <!-- Botón para agregar detalles -->
+                        <div class="mb-4">
+                            <button type="button" class="btn btn-primary btn-lg" id="btn-agregar-detalle">
+                                <i class="fas fa-plus"></i> Agregar Detalle (Remisión y Clave)
+                            </button>
+                        </div>
+
+                        <!-- Campo oculto para enviar detalles como JSON -->
+                        <input type="hidden" id="detalles_json" name="detalles_json" value="[]">
+
+                        <!-- Botones de acción -->
+                        <div class="d-flex gap-2 mt-4">
+                            <button type="submit" class="btn btn-success btn-lg">
+                                <i class="fas fa-save"></i> Guardar Cambios
+                            </button>
+                            <button type="button" class="btn btn-warning btn-lg" id="btn-volver">
+                                <i class="fas fa-arrow-left"></i> Volver al Paso 1
+                            </button>
+                            <a href="{% url 'logistica:detalle_cita' cita.pk %}" class="btn btn-secondary btn-lg">
+                                <i class="fas fa-times"></i> Cancelar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Información de Ayuda -->
+            <div class="alert alert-info">
+                <h6><i class="fas fa-info-circle"></i> Instrucciones</h6>
+                <ul class="mb-0">
+                    <li>Haz clic en <strong>"Agregar Detalle"</strong> para capturar remisión y clave de producto</li>
+                    <li>Puedes agregar múltiples detalles si es necesario</li>
+                    <li>Usa el buscador de clave para encontrar productos por CNIS o descripción</li>
+                    <li>Al guardar, la cita se actualizará con los datos capturados</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+    let numeroLinea = 0;
+    
+    // Cargar detalles existentes si los hay
+    const numeroRemisionExistente = '{{ numero_orden_remision|escapejs }}';
+    const claveExistente = '{{ clave_medicamento|escapejs }}';
+    
+    // Definir función ANTES de usarla
+    function inicializar_select2(linea) {
+        const selector = `.detalle-linea[data-linea="${linea}"] .select2-busqueda`;
+        console.log('Inicializando Select2 para linea:', linea);
+        console.log('Selector:', selector);
+        console.log('Elementos encontrados:', $(selector).length);
+        
+        $(selector).select2({
+            placeholder: 'Buscar por clave o descripción...',
+            allowClear: true,
+            ajax: {
+                url: '{% url "logistica:buscar_productos_cita" %}',
+                dataType: 'json',
+                delay: 250,
+                data: function(params) {
+                    return {
+                        q: params.term
+                    };
+                },
+                processResults: function(data) {
+                    return {
+                        results: data.results
+                    };
+                },
+                cache: true
+            },
+            minimumInputLength: 2
+        });
+    }
+    
+    // Esperar a que jQuery y Select2 estén listos
+    $(document).ready(function() {
+        // Si hay detalles existentes, cargarlos
+        if (numeroRemisionExistente || claveExistente) {
+            numeroLinea++;
+            
+            const container = document.getElementById('detalles-container');
+            const detalle = document.createElement('div');
+            detalle.className = 'detalle-linea';
+            detalle.setAttribute('data-linea', numeroLinea);
+            detalle.innerHTML = `
+                <div class="row g-2 mb-3">
+                    <div class="col-md-5">
+                        <label class="form-label">📦 Número de Remisión</label>
+                        <input type="text" 
+                               class="form-control numero_orden_remision" 
+                               placeholder="Número de remisión"
+                               value="${numeroRemisionExistente}"
+                               data-linea="${numeroLinea}">
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label">💊 Clave de Producto (CNIS)</label>
+                        <select class="form-control clave_medicamento select2-busqueda select2" 
+                                placeholder="Buscar por clave o descripción..."
+                                data-linea="${numeroLinea}"
+                                style="width: 100%;">
+                            <option value="${claveExistente}">${claveExistente}</option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="button" class="btn btn-danger btn-sm w-100 eliminar-linea" 
+                                data-linea="${numeroLinea}">
+                            <i class="fas fa-trash"></i> Eliminar
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            container.appendChild(detalle);
+            
+            // Inicializar Select2 en la nueva línea con delay
+            setTimeout(function() {
+                inicializar_select2(numeroLinea);
+            }, 100);
+            
+            // Agregar evento al botón eliminar
+            detalle.querySelector('.eliminar-linea').addEventListener('click', function() {
+                detalle.remove();
+            });
+        }
+        
+        // Agregar nuevo detalle
+        document.getElementById('btn-agregar-detalle').addEventListener('click', function() {
+            numeroLinea++;
+            
+            const container = document.getElementById('detalles-container');
+            const nuevoDetalle = document.createElement('div');
+            nuevoDetalle.className = 'detalle-linea';
+            nuevoDetalle.setAttribute('data-linea', numeroLinea);
+            nuevoDetalle.innerHTML = `
+                <div class="row g-2 mb-3">
+                    <div class="col-md-5">
+                        <label class="form-label">📦 Número de Remisión</label>
+                        <input type="text" 
+                               class="form-control numero_orden_remision" 
+                               placeholder="Número de remisión"
+                               data-linea="${numeroLinea}">
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label">💊 Clave de Producto (CNIS)</label>
+                        <select class="form-control clave_medicamento select2-busqueda select2" 
+                                placeholder="Buscar por clave o descripción..."
+                                data-linea="${numeroLinea}"
+                                style="width: 100%;">
+                            <option></option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="button" class="btn btn-danger btn-sm w-100 eliminar-linea" 
+                                data-linea="${numeroLinea}">
+                            <i class="fas fa-trash"></i> Eliminar
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            container.appendChild(nuevoDetalle);
+            
+            // Inicializar Select2 en la nueva línea con delay
+            setTimeout(function() {
+                inicializar_select2(numeroLinea);
+            }, 100);
+            
+            // Agregar evento al botón eliminar
+            nuevoDetalle.querySelector('.eliminar-linea').addEventListener('click', function() {
+                nuevoDetalle.remove();
+            });
+        });
+    });
+    
+    // Eliminar detalle
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('eliminar-linea')) {
+            e.target.closest('.detalle-linea').remove();
+        }
+    });
+    
+    // Volver al paso 1
+    document.getElementById('btn-volver').addEventListener('click', function() {
+        window.location.href = '{% url "logistica:editar_cita_paso1" cita.pk %}';
+    });
+    
+    // Enviar formulario
+    document.getElementById('form-detalles').addEventListener('submit', function(e) {
+        e.preventDefault();
+        
+        // Recopilar detalles
+        const detalles = [];
+        document.querySelectorAll('.detalle-linea').forEach(linea => {
+            const remision = linea.querySelector('.numero_orden_remision').value.trim();
+            const claveSelect = linea.querySelector('.clave_medicamento');
+            const clave = claveSelect.value ? claveSelect.value.trim() : '';
+            
+            if (remision || clave) {
+                detalles.push({
+                    numero_orden_remision: remision,
+                    clave_medicamento: clave
+                });
+            }
+        });
+        
+        // Validar que haya al menos un detalle
+        if (detalles.length === 0) {
+            alert('Debes agregar al menos un detalle (remisión o clave de producto)');
+            return;
+        }
+        
+        // Guardar detalles en campo oculto
+        document.getElementById('detalles_json').value = JSON.stringify(detalles);
+        
+        // Enviar formulario
+        this.submit();
+    });
+</script>
+
+<style>
+    .progress-text {
+        color: white;
+        font-weight: bold;
+        font-size: 14px;
+    }
+    
+    .detalle-linea {
+        padding: 15px;
+        background-color: #f8f9fa;
+        border-radius: 5px;
+        margin-bottom: 15px;
+    }
+    
+    .form-label {
+        font-weight: 600;
+        margin-bottom: 8px;
+        font-size: 14px;
+    }
+    
+    .select2-container .select2-selection--single {
+        height: 38px;
+        border: 1px solid #ced4da;
+        border-radius: 0.25rem;
+    }
+    
+    .select2-container .select2-selection--single .select2-selection__rendered {
+        line-height: 36px;
+    }
+    
+    .select2-container--default .select2-selection--single {
+        background-color: #fff;
+        border: 1px solid #ced4da;
+        border-radius: 0.25rem;
+        height: 38px;
+    }
+    
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        color: #495057;
+        line-height: 36px;
+    }
+    
+    .select2-container--default.select2-container--focus .select2-selection--single {
+        border-color: #80bdff;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
+    }
+</style>
+{% endblock %}
