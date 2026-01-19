@@ -85,22 +85,6 @@
         </div>
     </div>
 
-    <!-- DEBUG: Informacion de roles y permisos -->
-    <div class="card shadow mb-4" style="background-color: #f0f0f0;">
-        <div class="card-body">
-            <h6>DEBUG INFO:</h6>
-            <p><strong>Usuario:</strong> {{ user.username }}</p>
-            <p><strong>Estado Llegada:</strong> {{ llegada.estado }}</p>
-            <p><strong>Estado Calidad:</strong> {{ llegada.estado_calidad }}</p>
-            <p><strong>Rol Entrada:</strong> {{ user|has_role:'Entrada' }}</p>
-            <p><strong>Rol Control Calidad:</strong> {{ user|has_role:'Control Calidad' }}</p>
-            <p><strong>Rol Almacen:</strong> {{ user|has_role:'Almacen' }}</p>
-            <p><strong>puede_editar_recepcion():</strong> {{ llegada.puede_editar_recepcion }}</p>
-            <p><strong>puede_validar_calidad():</strong> {{ llegada.puede_validar_calidad }}</p>
-            <p><strong>puede_ubicar():</strong> {{ llegada.puede_ubicar }}</p>
-        </div>
-    </div>
-    
     <!-- Acciones -->
     <div class="d-flex justify-content-end">
         {% if user|has_role:'Entrada' and llegada.puede_editar_recepcion %}
