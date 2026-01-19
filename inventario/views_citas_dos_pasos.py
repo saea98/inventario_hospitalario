@@ -14,7 +14,8 @@ import json
 from .models import CitaProveedor, Proveedor, Almacen, Producto
 from .forms import CitaProveedorPaso1Form, CitaProveedorDetalleForm, CargaMasivaCitasForm
 from .servicio_folio import ServicioFolio
-from . import notificaciones
+from .servicios_notificaciones import ServicioNotificaciones
+notificaciones = ServicioNotificaciones()
 
 
 @login_required
