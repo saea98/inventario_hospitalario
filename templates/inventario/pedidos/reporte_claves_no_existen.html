@@ -45,16 +45,16 @@
         <div class="col-md-4">
             <div class="card text-center border-danger">
                 <div class="card-body">
-                    <h5 class="card-title text-danger">Total de Solicitudes</h5>
-                    <h2 class="text-danger">{{ errores.count }}</h2>
+                    <h5 class="card-title text-danger">Total de Claves Faltantes</h5>
+                    <h2 class="text-danger">{{ total_claves }}</h2>
                 </div>
             </div>
         </div>
         <div class="col-md-4">
             <div class="card text-center border-info">
                 <div class="card-body">
-                    <h5 class="card-title text-info">Claves Diferentes</h5>
-                    <h2 class="text-info">{{ claves_unicas }}</h2>
+                    <h5 class="card-title text-info">Total de Solicitudes</h5>
+                    <h2 class="text-info">{{ total_solicitudes|default:0 }}</h2>
                 </div>
             </div>
         </div>
@@ -62,7 +62,7 @@
             <div class="card text-center border-secondary">
                 <div class="card-body">
                     <h5 class="card-title text-secondary">Cantidad Total Solicitada</h5>
-                    <h2 class="text-secondary">{{ cantidad_total }}</h2>
+                    <h2 class="text-secondary">{{ cantidad_total|default:0 }}</h2>
                 </div>
             </div>
         </div>
@@ -78,48 +78,48 @@
                 <thead class="table-light">
                     <tr>
                         <th>Clave Solicitada</th>
-                        <th>Cantidad Solicitada</th>
-                        <th>Primera Solicitud</th>
-                        <th>Última Solicitud</th>
+                        <th>Cantidad Total Solicitada</th>
                         <th>Total Solicitudes</th>
-                        <th>Usuario</th>
-                        <th>Institución</th>
+                        <th>Instituciones</th>
+                        <th>Última Solicitud</th>
                         <th>Acciones</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for error in errores %}
+                    {% for clave_data in claves_no_existen %}
                     <tr>
                         <td>
-                            <code class="text-danger">{{ error.clave_solicitada }}</code>
+                            <code class="text-danger">{{ clave_data.clave }}</code>
                         </td>
                         <td>
-                            <span class="badge bg-danger">{{ error.cantidad_solicitada }}</span>
+                            <span class="badge bg-danger">{{ clave_data.cantidad_total }}</span>
                         </td>
                         <td>
-                            <small>{{ error.primera_solicitud|date:"d/m/Y" }}</small>
+                            <span class="badge bg-warning text-dark">{{ clave_data.total_solicitudes }}</span>
                         </td>
                         <td>
-                            <small>{{ error.fecha_error|date:"d/m/Y H:i" }}</small>
+                            {% for institucion in clave_data.instituciones %}
+                                <span class="badge bg-secondary">{{ institucion }}</span>
+                            {% endfor %}
                         </td>
                         <td>
-                            <span class="badge bg-warning text-dark">{{ error.total_solicitudes }}</span>
+                            <small>
+                                {% if clave_data.ultimos_errores %}
+                                    {{ clave_data.ultimos_errores.0.fecha_error|date:"d/m/Y H:i" }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </small>
                         </td>
                         <td>
-                            <small>{{ error.usuario.get_full_name|default:error.usuario.username }}</small>
-                        </td>
-                        <td>
-                            <small>{{ error.institucion.nombre|default:"-" }}</small>
-                        </td>
-                        <td>
-                            <button class="btn btn-sm btn-outline-primary" onclick="crearProducto('{{ error.clave_solicitada }}')">
+                            <button class="btn btn-sm btn-outline-primary" onclick="crearProducto('{{ clave_data.clave }}')">
                                 <i class="fas fa-plus"></i> Crear
                             </button>
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="8" class="text-center text-muted py-4">
+                        <td colspan="6" class="text-center text-muted py-4">
                             <i class="fas fa-check-circle"></i> No hay claves faltantes en el catálogo en el período seleccionado
                         </td>
                     </tr>

@@ -45,16 +45,16 @@
         <div class="col-md-4">
             <div class="card text-center border-warning">
                 <div class="card-body">
-                    <h5 class="card-title text-warning">Total de Solicitudes</h5>
-                    <h2 class="text-warning">{{ errores.count }}</h2>
+                    <h5 class="card-title text-warning">Total de Claves</h5>
+                    <h2 class="text-warning">{{ total_claves }}</h2>
                 </div>
             </div>
         </div>
         <div class="col-md-4">
             <div class="card text-center border-info">
                 <div class="card-body">
-                    <h5 class="card-title text-info">Claves Diferentes</h5>
-                    <h2 class="text-info">{{ claves_unicas }}</h2>
+                    <h5 class="card-title text-info">Total de Solicitudes</h5>
+                    <h2 class="text-info">{{ total_solicitudes|default:0 }}</h2>
                 </div>
             </div>
         </div>
@@ -62,7 +62,7 @@
             <div class="card text-center border-secondary">
                 <div class="card-body">
                     <h5 class="card-title text-secondary">Cantidad Total Solicitada</h5>
-                    <h2 class="text-secondary">{{ cantidad_total }}</h2>
+                    <h2 class="text-secondary">{{ cantidad_total|default:0 }}</h2>
                 </div>
             </div>
         </div>
@@ -78,42 +78,42 @@
                 <thead class="table-light">
                     <tr>
                         <th>Clave</th>
-                        <th>Cantidad Solicitada</th>
-                        <th>Cantidad Disponible</th>
-                        <th>Faltante</th>
-                        <th>Última Solicitud</th>
+                        <th>Cantidad Total Solicitada</th>
                         <th>Total Solicitudes</th>
-                        <th>Institución</th>
+                        <th>Instituciones</th>
+                        <th>Última Solicitud</th>
                     </tr>
                 </thead>
                 <tbody>
-                    {% for error in errores %}
+                    {% for clave_data in claves_sin_existencia %}
                     <tr>
                         <td>
-                            <code>{{ error.clave_solicitada }}</code>
+                            <code>{{ clave_data.clave }}</code>
                         </td>
                         <td>
-                            <span class="badge bg-info">{{ error.cantidad_solicitada }}</span>
+                            <span class="badge bg-info">{{ clave_data.cantidad_total }}</span>
                         </td>
                         <td>
-                            <span class="badge bg-secondary">{{ error.cantidad_disponible|default:0 }}</span>
+                            <span class="badge bg-warning text-dark">{{ clave_data.total_solicitudes }}</span>
                         </td>
                         <td>
-                            <span class="badge bg-danger">{{ error.cantidad_faltante|default:error.cantidad_solicitada }}</span>
+                            {% for institucion in clave_data.instituciones %}
+                                <span class="badge bg-secondary">{{ institucion }}</span>
+                            {% endfor %}
                         </td>
                         <td>
-                            <small>{{ error.fecha_error|date:"d/m/Y H:i" }}</small>
-                        </td>
-                        <td>
-                            <span class="badge bg-warning text-dark">{{ error.total_solicitudes }}</span>
-                        </td>
-                        <td>
-                            <small>{{ error.institucion.nombre|default:"-" }}</small>
+                            <small>
+                                {% if clave_data.ultimos_errores %}
+                                    {{ clave_data.ultimos_errores.0.fecha_error|date:"d/m/Y H:i" }}
+                                {% else %}
+                                    -
+                                {% endif %}
+                            </small>
                         </td>
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="7" class="text-center text-muted py-4">
+                        <td colspan="5" class="text-center text-muted py-4">
                             <i class="fas fa-check-circle"></i> No hay claves sin existencia en el período seleccionado
                         </td>
                     </tr>
