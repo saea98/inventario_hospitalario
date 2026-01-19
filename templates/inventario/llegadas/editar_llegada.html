@@ -389,6 +389,12 @@ $(document).ready(function() {
     // Llenar precios unitarios con el valor del item anterior
     fillPreciosFromPreviousItem();
     
+    // En modo edición, disparar el evento change de la cita para llenar los campos de referencia
+    var citaValue = $('#id_cita').val();
+    if (citaValue) {
+        $('#id_cita').trigger('change');
+    }
+    
     // Agregar evento global para cambios en cantidad_recibida
     $(document).on('change', '.cantidad-recibida', function() {
         console.log('Cambio detectado en cantidad_recibida:', $(this).val());
