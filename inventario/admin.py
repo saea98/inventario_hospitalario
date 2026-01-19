@@ -446,3 +446,11 @@ class MenuItemRolAdmin(admin.ModelAdmin):
         count = obj.roles_permitidos.count()
         return f"{count} rol{'es' if count != 1 else ''}"
     roles_count.short_description = 'Roles Permitidos'
+
+
+# ============================================================================
+# ADMINISTRACIÓN DE PEDIDOS Y ERRORES
+# ============================================================================
+
+# Importar el admin de pedidos
+from .pedidos_admin import LogErrorPedidoAdmin

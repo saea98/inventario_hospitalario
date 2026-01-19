@@ -1,0 +1,21 @@
+"""
+URLs para el módulo de Gestión de Pedidos
+"""
+
+from django.urls import path
+from . import pedidos_views, pedidos_reports_views
+
+app_name = 'pedidos'
+
+urlpatterns = [
+    # Vistas de Pedidos
+    path('crear/', pedidos_views.crear_solicitud, name='crear_solicitud'),
+    path('lista/', pedidos_views.lista_solicitudes, name='lista_solicitudes'),
+    path('<uuid:solicitud_id>/', pedidos_views.detalle_solicitud, name='detalle_solicitud'),
+    path('<uuid:solicitud_id>/validar/', pedidos_views.validar_solicitud, name='validar_solicitud'),
+    
+    # Reportes de Errores
+    path('reportes/errores/', pedidos_reports_views.reporte_errores_pedidos, name='reporte_errores'),
+    path('reportes/claves-sin-existencia/', pedidos_reports_views.reporte_claves_sin_existencia, name='reporte_claves_sin_existencia'),
+    path('reportes/claves-no-existen/', pedidos_reports_views.reporte_claves_no_existen, name='reporte_claves_no_existen'),
+]

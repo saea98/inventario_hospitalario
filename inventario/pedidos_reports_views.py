@@ -1,0 +1,209 @@
+"""
+Vistas para reportes de errores en carga masiva de pedidos
+"""
+
+from django.shortcuts import render
+from django.contrib.auth.decorators import login_required
+from django.db.models import Count, Q
+from django.utils import timezone
+from datetime import timedelta
+from .pedidos_models import LogErrorPedido
+from .pedidos_utils import obtener_resumen_errores
+
+
+@login_required
+def reporte_errores_pedidos(request):
+    """
+    Muestra un reporte de los errores en carga masiva de pedidos.
+    Permite filtrar por fecha, tipo de error, institución, etc.
+    """
+    # Obtener parámetros de filtro
+    fecha_inicio = request.GET.get('fecha_inicio')
+    fecha_fin = request.GET.get('fecha_fin')
+    tipo_error = request.GET.get('tipo_error')
+    institucion = request.GET.get('institucion')
+    clave_solicitada = request.GET.get('clave_solicitada')
+    
+    # Base queryset
+    errores = LogErrorPedido.objects.select_related(
+        'usuario', 'institucion', 'almacen'
+    ).all()
+    
+    # Aplicar filtros
+    if fecha_inicio:
+        from datetime import datetime
+        fecha_inicio_dt = datetime.strptime(fecha_inicio, '%Y-%m-%d')
+        errores = errores.filter(fecha_error__gte=fecha_inicio_dt)
+    
+    if fecha_fin:
+        from datetime import datetime
+        fecha_fin_dt = datetime.strptime(fecha_fin, '%Y-%m-%d')
+        fecha_fin_dt = fecha_fin_dt.replace(hour=23, minute=59, second=59)
+        errores = errores.filter(fecha_error__lte=fecha_fin_dt)
+    
+    if tipo_error:
+        errores = errores.filter(tipo_error=tipo_error)
+    
+    if institucion:
+        errores = errores.filter(institucion__id=institucion)
+    
+    if clave_solicitada:
+        errores = errores.filter(clave_solicitada__icontains=clave_solicitada)
+    
+    # Obtener resumen
+    resumen = obtener_resumen_errores(
+        fecha_inicio=fecha_inicio,
+        fecha_fin=fecha_fin,
+        tipo_error=tipo_error
+    )
+    
+    # Estadísticas generales
+    total_errores = errores.count()
+    errores_hoy = errores.filter(
+        fecha_error__date=timezone.now().date()
+    ).count()
+    errores_semana = errores.filter(
+        fecha_error__gte=timezone.now() - timedelta(days=7)
+    ).count()
+    
+    # Errores sin alerta
+    errores_sin_alerta = errores.filter(alerta_enviada=False).count()
+    
+    # Claves más frecuentes con error
+    claves_frecuentes = errores.values('clave_solicitada').annotate(
+        count=Count('id')
+    ).order_by('-count')[:10]
+    
+    # Tipos de error más frecuentes
+    tipos_frecuentes = errores.values('tipo_error').annotate(
+        count=Count('id')
+    ).order_by('-count')
+    
+    # Instituciones con más errores
+    instituciones_frecuentes = errores.values(
+        'institucion__nombre'
+    ).annotate(
+        count=Count('id')
+    ).order_by('-count')[:10]
+    
+    # Usuarios con más errores
+    usuarios_frecuentes = errores.values(
+        'usuario__username', 'usuario__get_full_name'
+    ).annotate(
+        count=Count('id')
+    ).order_by('-count')[:10]
+    
+    context = {
+        'errores': errores[:100],  # Mostrar últimos 100
+        'total_errores': total_errores,
+        'errores_hoy': errores_hoy,
+        'errores_semana': errores_semana,
+        'errores_sin_alerta': errores_sin_alerta,
+        'claves_frecuentes': claves_frecuentes,
+        'tipos_frecuentes': tipos_frecuentes,
+        'instituciones_frecuentes': instituciones_frecuentes,
+        'usuarios_frecuentes': usuarios_frecuentes,
+        'resumen': resumen,
+        'tipo_error_choices': LogErrorPedido.TIPO_ERROR_CHOICES,
+        'page_title': 'Reporte de Errores en Carga Masiva de Pedidos'
+    }
+    
+    return render(request, 'inventario/pedidos/reporte_errores.html', context)
+
+
+@login_required
+def reporte_claves_sin_existencia(request):
+    """
+    Muestra un reporte de claves solicitadas sin existencia.
+    Útil para que el área médica genere oficios de solicitud.
+    """
+    # Obtener claves sin existencia
+    errores_sin_existencia = LogErrorPedido.objects.filter(
+        tipo_error='SIN_EXISTENCIA'
+    ).select_related('usuario', 'institucion').order_by('-fecha_error')
+    
+    # Agrupar por clave
+    claves_sin_existencia = {}
+    for error in errores_sin_existencia:
+        if error.clave_solicitada not in claves_sin_existencia:
+            claves_sin_existencia[error.clave_solicitada] = {
+                'clave': error.clave_solicitada,
+                'total_solicitudes': 0,
+                'cantidad_total': 0,
+                'instituciones': set(),
+                'ultimos_errores': []
+            }
+        
+        claves_sin_existencia[error.clave_solicitada]['total_solicitudes'] += 1
+        claves_sin_existencia[error.clave_solicitada]['cantidad_total'] += error.cantidad_solicitada or 0
+        if error.institucion:
+            claves_sin_existencia[error.clave_solicitada]['instituciones'].add(
+                error.institucion.nombre
+            )
+        claves_sin_existencia[error.clave_solicitada]['ultimos_errores'].append(error)
+    
+    # Convertir instituciones a lista
+    for clave_data in claves_sin_existencia.values():
+        clave_data['instituciones'] = list(clave_data['instituciones'])
+        clave_data['ultimos_errores'] = clave_data['ultimos_errores'][:5]
+    
+    context = {
+        'claves_sin_existencia': sorted(
+            claves_sin_existencia.values(),
+            key=lambda x: x['total_solicitudes'],
+            reverse=True
+        ),
+        'total_claves': len(claves_sin_existencia),
+        'page_title': 'Reporte de Claves sin Existencia'
+    }
+    
+    return render(request, 'inventario/pedidos/reporte_claves_sin_existencia.html', context)
+
+
+@login_required
+def reporte_claves_no_existen(request):
+    """
+    Muestra un reporte de claves que no existen en el catálogo.
+    Útil para que el área médica genere oficios de solicitud de nuevos productos.
+    """
+    # Obtener claves que no existen
+    errores_no_existen = LogErrorPedido.objects.filter(
+        tipo_error='CLAVE_NO_EXISTE'
+    ).select_related('usuario', 'institucion').order_by('-fecha_error')
+    
+    # Agrupar por clave
+    claves_no_existen = {}
+    for error in errores_no_existen:
+        if error.clave_solicitada not in claves_no_existen:
+            claves_no_existen[error.clave_solicitada] = {
+                'clave': error.clave_solicitada,
+                'total_solicitudes': 0,
+                'cantidad_total': 0,
+                'instituciones': set(),
+                'ultimos_errores': []
+            }
+        
+        claves_no_existen[error.clave_solicitada]['total_solicitudes'] += 1
+        claves_no_existen[error.clave_solicitada]['cantidad_total'] += error.cantidad_solicitada or 0
+        if error.institucion:
+            claves_no_existen[error.clave_solicitada]['instituciones'].add(
+                error.institucion.nombre
+            )
+        claves_no_existen[error.clave_solicitada]['ultimos_errores'].append(error)
+    
+    # Convertir instituciones a lista
+    for clave_data in claves_no_existen.values():
+        clave_data['instituciones'] = list(clave_data['instituciones'])
+        clave_data['ultimos_errores'] = clave_data['ultimos_errores'][:5]
+    
+    context = {
+        'claves_no_existen': sorted(
+            claves_no_existen.values(),
+            key=lambda x: x['total_solicitudes'],
+            reverse=True
+        ),
+        'total_claves': len(claves_no_existen),
+        'page_title': 'Reporte de Claves que no Existen en Catálogo'
+    }
+    
+    return render(request, 'inventario/pedidos/reporte_claves_no_existen.html', context)
