@@ -5,9 +5,16 @@ class UbicacionView(LoginRequiredMixin, View):
     
     def get(self, request, pk):
         from .models import Almacen
+        import logging
+        logger = logging.getLogger(__name__)
         
         llegada = get_object_or_404(LlegadaProveedor, pk=pk)
         items = list(llegada.items.all())
+        
+        logger.info(f"DEBUG: Llegada {llegada.pk} - Estado: {llegada.estado}")
+        logger.info(f"DEBUG: Total de items: {len(items)}")
+        for idx, item in enumerate(items):
+            logger.info(f"DEBUG: Item {idx} - Lote creado: {item.lote_creado}")
         
         # Obtener almacenes disponibles
         almacenes = Almacen.objects.all()
