@@ -113,7 +113,7 @@ def reporte_errores_pedidos(request):
         'page_title': 'Reporte de Errores en Carga Masiva de Pedidos'
     }
     
-    return render(request, 'inventario/pedidos/reporte_errores.html', context)
+    return render(request, 'inventario/pedidos/reporte_errores_pedidos.html', context)
 
 
 @login_required
