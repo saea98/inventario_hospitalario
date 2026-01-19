@@ -78,10 +78,15 @@ def crear_cita_paso2(request):
     if request.method == 'POST':
         # Obtener los detalles capturados
         detalles_json = request.POST.get('detalles_json', '[]')
+        print(f'[CREAR_CITA_PASO2] JSON recibido: {detalles_json}')
         
         try:
             detalles = json.loads(detalles_json)
-        except json.JSONDecodeError:
+            print(f'[CREAR_CITA_PASO2] Detalles parseados: {len(detalles)} elementos')
+            for i, detalle in enumerate(detalles):
+                print(f'[CREAR_CITA_PASO2]   Detalle {i+1}: remision={detalle.get("numero_orden_remision")}, clave={detalle.get("clave_medicamento")}')
+        except json.JSONDecodeError as e:
+            print(f'[CREAR_CITA_PASO2] Error al parsear JSON: {e}')
             detalles = []
         
         # Validar que haya al menos un detalle
@@ -124,6 +129,8 @@ def crear_cita_paso2(request):
                 cita.clave_medicamento = primer_detalle.get('clave_medicamento', '').strip()
             
             cita.save()
+            print(f'[CREAR_CITA_PASO2] Cita guardada con ID {cita.id}')
+            print(f'[CREAR_CITA_PASO2] detalles_json en BD: {cita.detalles_json}')
             
             # Enviar notificación
             notificaciones.notificar_cita_creada(cita)
@@ -378,7 +385,9 @@ def editar_cita_paso2(request, pk=None):
             
             # Procesar detalles (remisión y clave)
             detalles_json = request.POST.get('detalles_json', '[]')
+            print(f'[EDITAR_CITA_PASO2] JSON recibido: {detalles_json}')
             detalles = json.loads(detalles_json)
+            print(f'[EDITAR_CITA_PASO2] Detalles parseados: {len(detalles)} elementos')
             
             if not detalles:
                 messages.error(request, 'Debes agregar al menos un detalle (remisión o clave de producto)')
@@ -401,6 +410,8 @@ def editar_cita_paso2(request, pk=None):
                 cita.clave_medicamento = primer_detalle.get('clave_medicamento', '')
             
             cita.save()
+            print(f'[EDITAR_CITA_PASO2] Cita actualizada con ID {cita.id}')
+            print(f'[EDITAR_CITA_PASO2] detalles_json en BD: {cita.detalles_json}')
             
             # Limpiar sesión
             request.session.pop('cita_paso1_data', None)
