@@ -5,7 +5,7 @@ Incluye: Citas, Traslados y Conteo Físico
 """
 
 from django.urls import path, include
-from . import views_fase2, views_telegram_test, views_traslados_completo, views_conteo_fisico_v2, pedidos_views, views_dashboard_conteos, views_acuse_entrega, views_cedula_rechazo
+from . import views_fase2, views_telegram_test, views_traslados_completo, views_conteo_fisico_v2, pedidos_views, views_dashboard_conteos, views_acuse_entrega, views_cedula_rechazo, views_citas_dos_pasos
 from . import llegada_urls
 
 app_name = 'logistica'
@@ -15,7 +15,11 @@ urlpatterns = [
     # CITAS DE PROVEEDORES
     # ========================================================================
     path('citas/', views_fase2.lista_citas, name='lista_citas'),
-    path('citas/crear/', views_fase2.crear_cita, name='crear_cita'),
+    path('citas/crear/', views_citas_dos_pasos.crear_cita_paso1, name='crear_cita'),
+    path('citas/crear/paso1/', views_citas_dos_pasos.crear_cita_paso1, name='crear_cita_paso1'),
+    path('citas/crear/paso2/', views_citas_dos_pasos.crear_cita_paso2, name='crear_cita_paso2'),
+    path('citas/crear/masiva/', views_citas_dos_pasos.crear_cita_masiva, name='crear_cita_masiva'),
+    path('citas/agregar-detalle/', views_citas_dos_pasos.agregar_detalle_cita, name='agregar_detalle_cita'),
     path('citas/<int:pk>/', views_fase2.detalle_cita, name='detalle_cita'),
     path('citas/<int:pk>/editar/', views_fase2.editar_cita, name='editar_cita'),
     path('citas/<int:pk>/validar-entrada/', views_fase2.validar_entrada, name='validar_entrada'),

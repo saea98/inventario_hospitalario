@@ -1255,3 +1255,92 @@ class ValidarItemTrasladoForm(forms.ModelForm):
                 )
         
         return cleaned_data
+
+
+
+# ============================================================
+# FORMULARIOS PARA FLUJO DE DOS PASOS EN CITAS
+# ============================================================
+
+class CitaProveedorPaso1Form(forms.ModelForm):
+    """
+    Formulario para el PASO 1: Datos generales de la cita
+    Captura: Proveedor, Fecha/Hora, Orden de Suministro, Tipo de Entrega
+    """
+    
+    class Meta:
+        model = CitaProveedor
+        fields = [
+            'proveedor', 'fecha_cita', 'almacen', 'tipo_entrega',
+            'numero_orden_suministro'
+        ]
+        widgets = {
+            'proveedor': forms.Select(attrs={
+                'class': 'form-control form-control-lg',
+                'required': True,
+                'placeholder': 'Seleccione un proveedor'
+            }),
+            'fecha_cita': forms.DateTimeInput(attrs={
+                'class': 'form-control form-control-lg',
+                'type': 'datetime-local',
+                'required': True,
+                'placeholder': 'Seleccione fecha y hora'
+            }),
+            'almacen': forms.Select(attrs={
+                'class': 'form-control form-control-lg',
+                'required': True,
+                'placeholder': 'Seleccione almacén'
+            }),
+            'numero_orden_suministro': forms.TextInput(attrs={
+                'class': 'form-control form-control-lg',
+                'placeholder': 'Ej: IMBB-09-02-2025-09263560-U013'
+            }),
+            'tipo_entrega': forms.Select(attrs={
+                'class': 'form-control form-control-lg',
+                'required': True
+            }),
+        }
+        labels = {
+            'proveedor': '👥 Proveedor',
+            'fecha_cita': '📅 Fecha y Hora de Cita',
+            'almacen': '🏢 Almacén de Recepción',
+            'numero_orden_suministro': '📋 Número de Orden de Suministro',
+            'tipo_entrega': '🚚 Tipo de Entrega',
+        }
+    
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Establecer hora por defecto a las 08:00
+        from django.utils import timezone
+        from datetime import datetime, time
+        
+        if not self.instance.pk and not self.data:
+            ahora = timezone.now()
+            fecha_con_hora = datetime.combine(ahora.date(), time(8, 0))
+            self.fields['fecha_cita'].initial = fecha_con_hora
+
+
+class CitaProveedorDetalleForm(forms.Form):
+    """
+    Formulario para capturar detalles de la cita (líneas)
+    Captura: Remisión, Clave de Producto
+    """
+    numero_orden_remision = forms.CharField(
+        max_length=100,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Número de remisión'
+        }),
+        label='📦 Número de Remisión'
+    )
+    
+    clave_medicamento = forms.CharField(
+        max_length=100,
+        required=False,
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Ej: 010.000.0569.00'
+        }),
+        label='💊 Clave de Producto (CNIS)'
+    )
