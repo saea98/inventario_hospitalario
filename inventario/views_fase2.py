@@ -205,14 +205,14 @@ def detalle_cita(request, pk):
     
     cita = get_object_or_404(CitaProveedor, pk=pk)
     
-    # Verificar si el usuario tiene rol Control Calidad
-    es_control_calidad = usuario_tiene_rol(request.user, 'Control Calidad')
+    # Verificar si el usuario tiene rol Control Calidad o es Administrador
+    puede_validar = usuario_tiene_rol(request.user, 'Control Calidad', 'Administrador') or request.user.is_superuser
     
     context = {
         'cita': cita,
-        'puede_autorizar': cita.estado == 'programada' and es_control_calidad,
+        'puede_autorizar': cita.estado == 'programada' and puede_validar,
         'puede_completar': cita.estado == 'autorizada',
-        'es_control_calidad': es_control_calidad,
+        'puede_validar': puede_validar,
     }
     return render(request, 'inventario/citas/detalle.html', context)
 
