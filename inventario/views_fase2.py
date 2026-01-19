@@ -201,12 +201,18 @@ def crear_cita(request):
 @login_required
 def detalle_cita(request, pk):
     """Ver detalles de una cita"""
+    from .access_control import usuario_tiene_rol
+    
     cita = get_object_or_404(CitaProveedor, pk=pk)
+    
+    # Verificar si el usuario tiene rol Control Calidad
+    es_control_calidad = usuario_tiene_rol(request.user, 'Control Calidad')
     
     context = {
         'cita': cita,
-        'puede_autorizar': cita.estado == 'programada',
+        'puede_autorizar': cita.estado == 'programada' and es_control_calidad,
         'puede_completar': cita.estado == 'autorizada',
+        'es_control_calidad': es_control_calidad,
     }
     return render(request, 'inventario/citas/detalle.html', context)
 

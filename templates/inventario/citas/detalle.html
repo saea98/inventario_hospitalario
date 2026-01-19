@@ -189,7 +189,7 @@
 
             <!-- Acciones -->
             <div class="d-flex gap-2 mb-4 flex-wrap">
-                {% if puede_autorizar %}
+                {% if puede_autorizar and es_control_calidad %}
                     <a href="{% url 'logistica:validar_entrada' cita.pk %}" class="btn btn-success btn-lg">
                         <i class="fas fa-check"></i> Validar Entrada
                     </a>
