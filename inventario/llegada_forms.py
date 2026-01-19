@@ -25,12 +25,19 @@ class LlegadaProveedorForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         from django.apps import apps
+        from django.db.models import Q
         CitaProveedor = apps.get_model('inventario', 'CitaProveedor')
-        self.fields['cita'].queryset = CitaProveedor.objects.filter(
-            estado='autorizada'
-        ).exclude(
-            llegada_proveedor__isnull=False
-        ).select_related('proveedor')
+        
+        queryset = CitaProveedor.objects.filter(estado='autorizada').select_related('proveedor')
+        
+        if self.instance and self.instance.pk:
+            queryset = queryset.filter(
+                Q(llegada_proveedor__isnull=True) | Q(llegada_proveedor=self.instance)
+            )
+        else:
+            queryset = queryset.exclude(llegada_proveedor__isnull=False)
+        
+        self.fields['cita'].queryset = queryset.distinct()
     
     class Meta:
         model = LlegadaProveedor
