@@ -148,6 +148,23 @@ class LlegadaProveedor(models.Model):
     def __str__(self):
         return f"{self.folio} - {self.proveedor.nombre}"
     
+    def save(self, *args, **kwargs):
+        """Generar folio automáticamente si no existe"""
+        if not self.folio:
+            from inventario.models import Folio
+            try:
+                # Obtener el tipo de entrega para generar el folio
+                folio_obj = Folio.objects.first()  # O buscar por tipo específico
+                if folio_obj:
+                    self.folio = folio_obj.generar_folio()
+                else:
+                    # Si no existe, usar un folio temporal
+                    self.folio = f"IB-{timezone.now().year}-{str(self.id)[:8].upper()}"
+            except Exception:
+                # Fallback: usar un folio temporal
+                self.folio = f"IB-{timezone.now().year}-{str(self.id)[:8].upper()}"
+        super().save(*args, **kwargs)
+    
     def puede_editar_recepcion(self):
         """Verifica si aún se puede editar la recepción"""
         return self.estado == 'EN_RECEPCION'

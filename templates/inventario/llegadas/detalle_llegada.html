@@ -84,7 +84,7 @@
     <!-- Acciones -->
     <div class="d-flex justify-content-end">
         {% if user|has_role:'Control de Calidad' and llegada.puede_validar_calidad %}
-            <a href="{% url 'logistica:llegadas:control_calidad' pk=llegada.pk %}" class="btn btn-warning mr-2">Validar Calidad</a>
+            <a href="{% url 'logistica:llegadas:control_calidad' pk=llegada.pk %}" class="btn btn-warning mr-2">Validar entrada</a>
         {% endif %}
         {% if user|has_role:'Facturacion' and llegada.puede_facturar %}
             <a href="{% url 'logistica:llegadas:facturacion' pk=llegada.pk %}" class="btn btn-info mr-2">Capturar Facturación</a>
