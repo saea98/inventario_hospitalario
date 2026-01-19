@@ -11,10 +11,19 @@
             <h6 class="m-0 font-weight-bold text-primary">Información General</h6>
         </div>
         <div class="card-body">
-            <p><strong>Proveedor:</strong> {{ llegada.proveedor.razon_social|default:"No disponible" }}</p>
-            <p><strong>Fecha Llegada:</strong> {{ llegada.fecha_llegada_real|date:"d/m/Y H:i" }}</p>
+            <div class="row">
+                <div class="col-md-6">
+                    <p><strong>Folio:</strong> {{ llegada.folio }}</p>
+                    <p><strong>Proveedor:</strong> {{ llegada.proveedor.razon_social|default:"No disponible" }}</p>
+                    <p><strong>Remisión:</strong> {{ llegada.remision|default:"No disponible" }}</p>
+                </div>
+                <div class="col-md-6">
+                    <p><strong>Orden de Suministro:</strong> {{ llegada.numero_orden_suministro|default:"No disponible" }}</p>
+                    <p><strong>Contrato:</strong> {{ llegada.numero_contrato|default:"No disponible" }}</p>
+                    <p><strong>Fecha Llegada:</strong> {{ llegada.fecha_llegada_real|date:"d/m/Y H:i" }}</p>
+                </div>
+            </div>
             <p><strong>Estado:</strong> <span class="badge badge-info" style="color: black;">{{ llegada.get_estado_display }}</span></p>
-            <!-- Agrega más campos según sea necesario -->
         </div>
     </div>
 
