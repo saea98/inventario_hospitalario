@@ -150,13 +150,24 @@ class ControlCalidadView(LoginRequiredMixin, PermissionRequiredMixin, View):
                     # Crear lotes para cada item si no existen
                     for item in llegada.items.all():
                         if not item.lote_creado:
+                            from .models import Institucion
+                            # Obtener la institucion (usar la primera disponible)
+                            institucion = Institucion.objects.first()
+                            
                             lote = Lote.objects.create(
                                 producto=item.producto,
                                 numero_lote=item.numero_lote,
                                 fecha_caducidad=item.fecha_caducidad,
-                                cantidad=item.cantidad_recibida,
+                                fecha_fabricacion=item.fecha_elaboracion,
+                                cantidad_inicial=item.cantidad_recibida,
+                                cantidad_disponible=item.cantidad_recibida,
+                                cantidad_reservada=0,
                                 almacen=llegada.almacen,
-                                estado='DISPONIBLE'
+                                institucion=institucion,
+                                precio_unitario=item.precio_unitario_sin_iva or 0,
+                                valor_total=(item.precio_unitario_sin_iva or 0) * item.cantidad_recibida,
+                                fecha_recepcion=llegada.fecha_llegada_real.date(),
+                                estado=1
                             )
                             item.lote_creado = lote
                             item.save()
