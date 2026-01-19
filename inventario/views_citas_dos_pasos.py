@@ -114,19 +114,16 @@ def crear_cita_paso2(request):
             # Generar folio
             ServicioFolio.asignar_folio_a_cita(cita)
             
-            # Procesar detalles (remisión y clave de producto)
-            for detalle in detalles:
-                remision = detalle.get('numero_orden_remision', '').strip()
-                clave = detalle.get('clave_medicamento', '').strip()
-                
-                # Actualizar la cita con los datos del primer detalle
-                # (o crear múltiples citas si es necesario)
-                if remision or clave:
-                    # Por ahora, guardamos el primer detalle en la cita
-                    if not cita.numero_orden_remision:
-                        cita.numero_orden_remision = remision
-                        cita.clave_medicamento = clave
-                        cita.save()
+            # Guardar todos los detalles en JSON
+            cita.detalles_json = detalles
+            
+            # Guardar el primer detalle en los campos simples (para compatibilidad)
+            if detalles:
+                primer_detalle = detalles[0]
+                cita.numero_orden_remision = primer_detalle.get('numero_orden_remision', '').strip()
+                cita.clave_medicamento = primer_detalle.get('clave_medicamento', '').strip()
+            
+            cita.save()
             
             # Enviar notificación
             notificaciones.notificar_cita_creada(cita)
@@ -394,7 +391,10 @@ def editar_cita_paso2(request, pk=None):
                     'numero_orden_suministro': cita.numero_orden_suministro,
                 })
             
-            # Actualizar primer detalle (o crear si es nueva)
+            # Guardar todos los detalles en JSON
+            cita.detalles_json = detalles
+            
+            # Guardar el primer detalle en los campos simples (para compatibilidad)
             if detalles:
                 primer_detalle = detalles[0]
                 cita.numero_orden_remision = primer_detalle.get('numero_orden_remision', '')

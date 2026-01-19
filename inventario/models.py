@@ -908,6 +908,14 @@ class CitaProveedor(models.Model):
         verbose_name="Número de Orden de Remisión"
     )
     
+    # Detalles de la cita en formato JSON (múltiples remisiones y claves)
+    detalles_json = models.JSONField(
+        default=list,
+        blank=True,
+        verbose_name="Detalles de la Cita",
+        help_text="Lista de detalles con remisión y clave de producto en formato JSON"
+    )
+    
     # Tipo de entrega con nomenclatura de folios
     TIPOS_ENTREGA = [
         ('entrega_directa', 'Entrega Directa', 'IB'),

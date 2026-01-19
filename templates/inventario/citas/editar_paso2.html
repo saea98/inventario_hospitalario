@@ -50,30 +50,19 @@
                     <form method="POST" id="form-detalles" novalidate>
                         {% csrf_token %}
                         
-                        <!-- Detalle único -->
-                        <div class="detalle-linea">
-                            <div class="row g-2 mb-3">
-                                <div class="col-md-6">
-                                    <label class="form-label">📦 Número de Remisión</label>
-                                    <input type="text" 
-                                           class="form-control numero_orden_remision" 
-                                           placeholder="Número de remisión"
-                                           value="{{ numero_orden_remision }}"
-                                           name="numero_orden_remision">
-                                </div>
-                                <div class="col-md-6">
-                                    <label class="form-label">💊 Clave de Producto (CNIS)</label>
-                                    <select class="form-control clave_medicamento select2-busqueda select2" 
-                                            placeholder="Buscar por clave o descripción..."
-                                            name="clave_medicamento"
-                                            style="width: 100%;">
-                                        <option value="{{ clave_medicamento }}">{{ clave_medicamento }}</option>
-                                    </select>
-                                </div>
-                            </div>
+                        <!-- Contenedor de detalles dinámicos -->
+                        <div id="detalles-container">
+                            <!-- Los detalles se agregan aquí dinámicamente -->
                         </div>
 
-                        <!-- Campo oculto para compatibilidad con la vista -->
+                        <!-- Botón para agregar detalles -->
+                        <div class="mb-4">
+                            <button type="button" class="btn btn-primary btn-lg" id="btn-agregar-detalle">
+                                <i class="fas fa-plus"></i> Agregar Detalle (Remisión y Clave)
+                            </button>
+                        </div>
+
+                        <!-- Campo oculto para enviar detalles como JSON -->
                         <input type="hidden" id="detalles_json" name="detalles_json" value="[]">
 
                         <!-- Botones de acción -->
@@ -96,9 +85,10 @@
             <div class="alert alert-info">
                 <h6><i class="fas fa-info-circle"></i> Instrucciones</h6>
                 <ul class="mb-0">
-                    <li>Edita el <strong>número de remisión</strong> y la <strong>clave de producto</strong></li>
+                    <li>Haz clic en <strong>"Agregar Detalle"</strong> para capturar remisión y clave de producto</li>
+                    <li>Puedes agregar múltiples detalles si es necesario</li>
                     <li>Usa el buscador de clave para encontrar productos por CNIS o descripción</li>
-                    <li>Al guardar, la cita se actualizará con los datos capturados</li>
+                    <li>Al guardar, la cita se actualizará con todos los detalles capturados</li>
                 </ul>
             </div>
         </div>
@@ -106,10 +96,13 @@
 </div>
 
 <script>
+    let numeroLinea = 0;
+    
     // Definir función ANTES de usarla
-    function inicializar_select2() {
-        const selector = '.select2-busqueda';
-        console.log('Inicializando Select2');
+    function inicializar_select2(linea) {
+        const selector = `.detalle-linea[data-linea="${linea}"] .select2-busqueda`;
+        console.log('Inicializando Select2 para linea:', linea);
+        console.log('Selector:', selector);
         console.log('Elementos encontrados:', $(selector).length);
         
         $(selector).select2({
@@ -137,10 +130,113 @@
     
     // Esperar a que jQuery y Select2 estén listos
     $(document).ready(function() {
-        // Inicializar Select2
-        setTimeout(function() {
-            inicializar_select2();
-        }, 100);
+        // Cargar detalles existentes si los hay
+        const detallesExistentes = {{ detalles_json|safe }};
+        
+        if (detallesExistentes && detallesExistentes.length > 0) {
+            detallesExistentes.forEach(detalle => {
+                numeroLinea++;
+                
+                const container = document.getElementById('detalles-container');
+                const nuevoDetalle = document.createElement('div');
+                nuevoDetalle.className = 'detalle-linea';
+                nuevoDetalle.setAttribute('data-linea', numeroLinea);
+                nuevoDetalle.innerHTML = `
+                    <div class="row g-2 mb-3">
+                        <div class="col-md-5">
+                            <label class="form-label">📦 Número de Remisión</label>
+                            <input type="text" 
+                                   class="form-control numero_orden_remision" 
+                                   placeholder="Número de remisión"
+                                   value="${detalle.numero_orden_remision || ''}"
+                                   data-linea="${numeroLinea}">
+                        </div>
+                        <div class="col-md-5">
+                            <label class="form-label">💊 Clave de Producto (CNIS)</label>
+                            <select class="form-control clave_medicamento select2-busqueda select2" 
+                                    placeholder="Buscar por clave o descripción..."
+                                    data-linea="${numeroLinea}"
+                                    style="width: 100%;">
+                                <option value="${detalle.clave_medicamento || ''}">${detalle.clave_medicamento || ''}</option>
+                            </select>
+                        </div>
+                        <div class="col-md-2 d-flex align-items-end">
+                            <button type="button" class="btn btn-danger btn-sm w-100 eliminar-linea" 
+                                    data-linea="${numeroLinea}">
+                                <i class="fas fa-trash"></i> Eliminar
+                            </button>
+                        </div>
+                    </div>
+                `;
+                
+                container.appendChild(nuevoDetalle);
+                
+                // Inicializar Select2 en la nueva línea con delay
+                setTimeout(function() {
+                    inicializar_select2(numeroLinea);
+                }, 100);
+                
+                // Agregar evento al botón eliminar
+                nuevoDetalle.querySelector('.eliminar-linea').addEventListener('click', function() {
+                    nuevoDetalle.remove();
+                });
+            });
+        }
+        
+        // Agregar nuevo detalle
+        document.getElementById('btn-agregar-detalle').addEventListener('click', function() {
+            numeroLinea++;
+            
+            const container = document.getElementById('detalles-container');
+            const nuevoDetalle = document.createElement('div');
+            nuevoDetalle.className = 'detalle-linea';
+            nuevoDetalle.setAttribute('data-linea', numeroLinea);
+            nuevoDetalle.innerHTML = `
+                <div class="row g-2 mb-3">
+                    <div class="col-md-5">
+                        <label class="form-label">📦 Número de Remisión</label>
+                        <input type="text" 
+                               class="form-control numero_orden_remision" 
+                               placeholder="Número de remisión"
+                               data-linea="${numeroLinea}">
+                    </div>
+                    <div class="col-md-5">
+                        <label class="form-label">💊 Clave de Producto (CNIS)</label>
+                        <select class="form-control clave_medicamento select2-busqueda select2" 
+                                placeholder="Buscar por clave o descripción..."
+                                data-linea="${numeroLinea}"
+                                style="width: 100%;">
+                            <option></option>
+                        </select>
+                    </div>
+                    <div class="col-md-2 d-flex align-items-end">
+                        <button type="button" class="btn btn-danger btn-sm w-100 eliminar-linea" 
+                                data-linea="${numeroLinea}">
+                            <i class="fas fa-trash"></i> Eliminar
+                        </button>
+                    </div>
+                </div>
+            `;
+            
+            container.appendChild(nuevoDetalle);
+            
+            // Inicializar Select2 en la nueva línea con delay
+            setTimeout(function() {
+                inicializar_select2(numeroLinea);
+            }, 100);
+            
+            // Agregar evento al botón eliminar
+            nuevoDetalle.querySelector('.eliminar-linea').addEventListener('click', function() {
+                nuevoDetalle.remove();
+            });
+        });
+    });
+    
+    // Eliminar detalle
+    document.addEventListener('click', function(e) {
+        if (e.target.classList.contains('eliminar-linea')) {
+            e.target.closest('.detalle-linea').remove();
+        }
     });
     
     // Volver al paso 1
@@ -152,22 +248,28 @@
     document.getElementById('form-detalles').addEventListener('submit', function(e) {
         e.preventDefault();
         
-        // Recopilar detalle
-        const remision = document.querySelector('.numero_orden_remision').value.trim();
-        const claveSelect = document.querySelector('.clave_medicamento');
-        const clave = claveSelect.value ? claveSelect.value.trim() : '';
+        // Recopilar detalles
+        const detalles = [];
+        document.querySelectorAll('.detalle-linea').forEach(linea => {
+            const remision = linea.querySelector('.numero_orden_remision').value.trim();
+            const claveSelect = linea.querySelector('.clave_medicamento');
+            const clave = claveSelect.value ? claveSelect.value.trim() : '';
+            
+            if (remision || clave) {
+                detalles.push({
+                    numero_orden_remision: remision,
+                    clave_medicamento: clave
+                });
+            }
+        });
         
-        // Validar que haya al menos remisión o clave
-        if (!remision && !clave) {
-            alert('Debes capturar al menos remisión o clave de producto');
+        // Validar que haya al menos un detalle
+        if (detalles.length === 0) {
+            alert('Debes agregar al menos un detalle (remisión o clave de producto)');
             return;
         }
         
-        // Guardar detalle en campo oculto para compatibilidad
-        const detalles = [{
-            numero_orden_remision: remision,
-            clave_medicamento: clave
-        }];
+        // Guardar detalles en campo oculto
         document.getElementById('detalles_json').value = JSON.stringify(detalles);
         
         // Enviar formulario
