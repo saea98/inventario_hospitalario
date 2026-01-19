@@ -149,7 +149,8 @@ class LlegadaProveedor(models.Model):
         return f"{self.folio} - {self.proveedor.nombre}"
     
     def save(self, *args, **kwargs):
-        """Generar folio automáticamente si no existe"""
+        """Generar folio automáticamente si no existe y llenar folio_validacion desde la cita"""
+        # Generar folio si no existe
         if not self.folio:
             from inventario.models import Folio
             try:
@@ -163,6 +164,11 @@ class LlegadaProveedor(models.Model):
             except Exception:
                 # Fallback: usar un folio temporal
                 self.folio = f"IB-{timezone.now().year}-{str(self.id)[:8].upper()}"
+        
+        # Llenar folio_validacion desde la cita si no existe
+        if not self.folio_validacion and self.cita:
+            self.folio_validacion = self.cita.folio
+        
         super().save(*args, **kwargs)
     
     def puede_editar_recepcion(self):
