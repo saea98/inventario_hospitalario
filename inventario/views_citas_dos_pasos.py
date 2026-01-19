@@ -324,7 +324,7 @@ def editar_cita_paso1(request, pk):
             request.session.modified = True
             
             # Ir al paso 2
-            return redirect('logistica:editar_cita_paso2')
+            return redirect('logistica:editar_cita_paso2', pk=pk)
         else:
             messages.error(request, 'Error en los datos generales. Verifica los campos.')
     else:
