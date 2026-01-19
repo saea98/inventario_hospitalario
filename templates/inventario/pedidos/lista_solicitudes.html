@@ -57,7 +57,7 @@
                             <td>{{ solicitud.almacen_destino.nombre }}</td>
                             <td>{{ solicitud.fecha_solicitud|date:"d/m/Y H:i" }}</td>
                             <td>
-                                <span class="badge badge-{{ solicitud.get_estado_display|lower|slugify }}">{{ solicitud.get_estado_display }}</span>
+                                <span class="badge badge-{{ solicitud.get_estado_display|lower|slugify }}" style="color: #000;">{{ solicitud.get_estado_display }}</span>
                             </td>
                             <td>
                                 <a href="{% url 'logistica:detalle_pedido' solicitud.id %}" class="btn btn-info btn-circle btn-sm" title="Ver Detalle">
