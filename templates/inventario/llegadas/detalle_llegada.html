@@ -14,6 +14,7 @@
             <div class="row">
                 <div class="col-md-6">
                     <p><strong>Folio:</strong> {{ llegada.folio }}</p>
+                    <p><strong>Folio de Validación:</strong> {{ llegada.folio_validacion|default:"No disponible" }}</p>
                     <p><strong>Proveedor:</strong> {{ llegada.proveedor.razon_social|default:"No disponible" }}</p>
                     <p><strong>Remisión:</strong> {{ llegada.remision|default:"No disponible" }}</p>
                     <p><strong>Almacén:</strong> {{ llegada.almacen.nombre|default:"No disponible" }}</p>
@@ -38,6 +39,7 @@
                 <table class="table table-bordered">
                     <thead>
                         <tr>
+                            <th>Clave</th>
                             <th>Producto</th>
                             <th>Lote</th>
                             <th>Caducidad</th>
@@ -49,6 +51,7 @@
                     <tbody>
                         {% for item in llegada.items.all %}
                         <tr>
+                            <td>{{ item.clave|default:"No disponible" }}</td>
                             <td>{{ item.producto.descripcion }}</td>
                             <td>{{ item.numero_lote }}</td>
                             <td>{{ item.fecha_caducidad|date:"d/m/Y" }}</td>
