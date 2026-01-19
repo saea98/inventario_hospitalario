@@ -95,13 +95,7 @@
             </form>
         {% endif %}
         {% if user|has_role:'Control de Calidad' and llegada.puede_validar_calidad %}
-            <a href="{% url 'logistica:llegadas:control_calidad' pk=llegada.pk %}" class="btn btn-warning mr-2">Validar entrada</a>
-        {% endif %}
-        {% if user|has_role:'Facturacion' and llegada.puede_facturar %}
-            <a href="{% url 'logistica:llegadas:facturacion' pk=llegada.pk %}" class="btn btn-info mr-2">Capturar Facturación</a>
-        {% endif %}
-        {% if user|has_role:'Supervisor' and llegada.puede_supervisar %}
-            <a href="{% url 'logistica:llegadas:supervision' pk=llegada.pk %}" class="btn btn-success mr-2">Supervisar</a>
+            <a href="{% url 'logistica:llegadas:control_calidad' pk=llegada.pk %}" class="btn btn-warning mr-2">Aprobar Inspección Visual</a>
         {% endif %}
         {% if user|has_role:'Almacen' and llegada.puede_ubicar %}
             <a href="{% url 'logistica:llegadas:ubicacion' pk=llegada.pk %}" class="btn btn-primary mr-2">Asignar Ubicación</a>
