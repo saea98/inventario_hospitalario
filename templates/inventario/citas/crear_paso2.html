@@ -200,18 +200,27 @@
         
         // Recopilar detalles
         const detalles = [];
-        document.querySelectorAll('.detalle-linea').forEach(linea => {
+        console.log('[FORM_SUBMIT] Recopilando detalles...');
+        console.log('[FORM_SUBMIT] Total de .detalle-linea encontrados:', document.querySelectorAll('.detalle-linea').length);
+        
+        document.querySelectorAll('.detalle-linea').forEach((linea, index) => {
             const remision = linea.querySelector('.numero_orden_remision').value.trim();
             const claveSelect = linea.querySelector('.clave_medicamento');
             const clave = claveSelect.value ? claveSelect.value.trim() : '';
+            
+            console.log(`[FORM_SUBMIT] Linea ${index+1}: remision='${remision}', clave='${clave}'`);
             
             if (remision || clave) {
                 detalles.push({
                     numero_orden_remision: remision,
                     clave_medicamento: clave
                 });
+                console.log(`[FORM_SUBMIT] Linea ${index+1} agregada al array`);
             }
         });
+        
+        console.log('[FORM_SUBMIT] Total detalles recopilados:', detalles.length);
+        console.log('[FORM_SUBMIT] JSON a enviar:', JSON.stringify(detalles));
         
         // Validar que haya al menos un detalle
         if (detalles.length === 0) {
