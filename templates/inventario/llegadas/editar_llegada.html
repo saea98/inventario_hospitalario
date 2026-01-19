@@ -1,0 +1,814 @@
+{% extends "base.html" %}
+{% load crispy_forms_tags %}
+
+{% block extra_css %}
+<link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.1.0-rc.0/css/select2.min.css" rel="stylesheet" />
+<style>
+    .datos-llegada-section {
+        background-color: #e8f4f8;
+        padding: 15px;
+        border-left: 4px solid #0066cc;
+        margin-bottom: 20px;
+    }
+    
+    .table-items {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.9rem;
+    }
+    
+    .table-items th {
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        padding: 10px;
+        text-align: left;
+        font-weight: bold;
+        font-size: 0.85rem;
+    }
+    
+    .table-items td {
+        border: 1px solid #dee2e6;
+        padding: 6px;
+    }
+    
+    .table-items input,
+    .table-items select {
+        width: 100%;
+        padding: 4px;
+        border: 1px solid #ced4da;
+        border-radius: 3px;
+        font-size: 0.85rem;
+    }
+    
+    .table-items .select2-container {
+        width: 100% !important;
+    }
+    
+    .row-principal {
+        background-color: #ffffff;
+    }
+    
+    /* Estilos para campos obligatorios - FORCE UPDATE v2 */
+    .form-group.required-field .form-control,
+    .form-group.required-field .select2-container--default .select2-selection--single {
+        border: 2px solid #ffc107 !important;
+        background-color: #fffbf0 !important;
+    }
+    
+    .form-group.required-field.filled .form-control,
+    .form-group.required-field.filled .select2-container--default .select2-selection--single {
+        border: 2px solid #28a745 !important;
+        background-color: #f0fff4 !important;
+    }
+    
+    .form-group.required-field label::after {
+        content: " *";
+        color: #dc3545;
+        font-weight: bold;
+    }
+    
+    .form-group.required-field {
+        padding: 10px;
+        border-radius: 4px;
+        background-color: rgba(255, 193, 7, 0.05);
+    }
+    
+    .form-group.required-field.filled {
+        background-color: rgba(40, 167, 69, 0.05);
+    }
+    
+    .validation-error-highlight {
+        border: 2px solid #dc3545 !important;
+        background-color: #fff5f5 !important;
+    }
+    
+    .row-precios {
+        background-color: #f9f9f9;
+    }
+    
+    .btn-remove-item {
+        background-color: #dc3545;
+        color: white;
+        border: none;
+        padding: 4px 8px;
+        cursor: pointer;
+        border-radius: 3px;
+        font-size: 0.85rem;
+    }
+    
+    .btn-remove-item:hover {
+        background-color: #c82333;
+    }
+    
+    .validation-error {
+        color: #dc3545;
+        font-size: 0.8rem;
+        margin-top: 0.25rem;
+    }
+    
+    .campo-calculado {
+        background-color: #f0f0f0;
+        font-weight: bold;
+    }
+    
+    .campo-editable {
+        background-color: #ffffff;
+    }
+    
+    .folio-display {
+        background-color: #e8f4f8;
+        padding: 8px;
+        border-radius: 3px;
+        font-weight: bold;
+        color: #0066cc;
+    }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="h3 mb-2 text-gray-800">Registrar Nueva Llegada de Proveedor</h1>
+    <p class="mb-4">Completa los datos para registrar una nueva llegada. Los campos verdes son de captura obligatoria.</p>
+
+    <form method="post" id="llegada-form">
+        {% csrf_token %}
+        
+        <!-- Mostrar errores generales del formulario -->
+        {% if form.non_field_errors %}
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <h5>Errores en el formulario:</h5>
+                {% for error in form.non_field_errors %}
+                    <div>• {{ error }}</div>
+                {% endfor %}
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+        {% endif %}
+        
+        <!-- Mostrar errores de campos individuales -->
+        {% for field in form %}
+            {% if field.errors %}
+                <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                    <strong>{{ field.label|default:field.name }}:</strong> {{ field.errors }}
+                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+            {% endif %}
+        {% endfor %}
+        
+        <!-- Mostrar errores del formset items -->
+        {% if formset.non_form_errors %}
+            <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                <h5>Errores en los items:</h5>
+                {% for error in formset.non_form_errors %}
+                    <div>• {{ error }}</div>
+                {% endfor %}
+                <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                    <span aria-hidden="true">&times;</span>
+                </button>
+            </div>
+        {% endif %}
+        
+        {% for form_item in formset %}
+            {% if form_item.errors %}
+                <div class="alert alert-danger alert-dismissible fade show" role="alert">
+                    <h5>Error en item:</h5>
+                    {% for field in form_item %}
+                        {% if field.errors %}
+                            <div><strong>{{ field.label|default:field.name }}:</strong> {{ field.errors }}</div>
+                        {% endif %}
+                    {% endfor %}
+                    <button type="button" class="close" data-dismiss="alert" aria-label="Close">
+                        <span aria-hidden="true">&times;</span>
+                    </button>
+                </div>
+            {% endif %}
+        {% endfor %}
+        
+        <!-- Datos de Llegada -->
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">📋 Datos de la Llegada</h6>
+            </div>
+            <div class="card-body">
+                <div class="datos-llegada-section">
+                    <!-- Campo hidden para proveedor -->
+                    {{ form.proveedor }}
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group required-field" data-field="cita">
+                                <label for="id_cita"><strong>Cita Autorizada</strong></label>
+                                {{ form.cita }}
+                                {% if form.cita.errors %}
+                                    <div class="alert alert-danger mt-2">{{ form.cita.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label><strong>Folio de Llegada</strong></label>
+                                <div class="folio-display" id="folio-display">Se genera automáticamente</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group required-field" data-field="remision">
+                                <label for="id_remision"><strong>Remisión</strong></label>
+                                {{ form.remision }}
+                                {% if form.remision.errors %}
+                                    <div class="alert alert-danger mt-2">{{ form.remision.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group required-field" data-field="almacen">
+                                <label for="id_almacen"><strong>Almacén</strong></label>
+                                {{ form.almacen }}
+                                {% if form.almacen.errors %}
+                                    <div class="alert alert-danger mt-2">{{ form.almacen.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-4">
+                            <div class="form-group required-field" data-field="numero_piezas_emitidas">
+                                <label for="id_numero_piezas_emitidas"><strong>Piezas Emitidas</strong></label>
+                                {{ form.numero_piezas_emitidas }}
+                                {% if form.numero_piezas_emitidas.errors %}
+                                    <div class="alert alert-danger mt-2">{{ form.numero_piezas_emitidas.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group required-field" data-field="numero_piezas_recibidas">
+                                <label for="id_numero_piezas_recibidas"><strong>Piezas Recibidas</strong></label>
+                                {{ form.numero_piezas_recibidas }}
+                                <small class="form-text text-muted">Se calcula automáticamente desde los items</small>
+                                {% if form.numero_piezas_recibidas.errors %}
+                                    <div class="alert alert-danger mt-2">{{ form.numero_piezas_recibidas.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                        <div class="col-md-4">
+                            <div class="form-group">
+                                <label for="id_tipo_red"><strong>Tipo de Red</strong></label>
+                                {{ form.tipo_red }}
+                                {% if form.tipo_red.errors %}
+                                    <div class="alert alert-danger mt-2">{{ form.tipo_red.errors }}</div>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label><strong>Orden de Suministro (Referencia)</strong></label>
+                                <div class="form-control" id="orden-suministro-ref" style="background-color: #f8f9fa; color: #666; padding: 8px;">-</div>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label><strong>Clave de Producto (Referencia)</strong></label>
+                                <div class="form-control" id="clave-producto-ref" style="background-color: #f8f9fa; color: #666; padding: 8px;">-</div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="form-group">
+                        <label for="id_observaciones_recepcion"><strong>Observaciones</strong></label>
+                        {{ form.observaciones_recepcion }}
+                    </div>
+                    
+                    <!-- Campos ocultos para Orden de Suministro y Contrato -->
+                    {{ form.numero_orden_suministro }}
+                    {{ form.numero_contrato }}
+                </div>
+            </div>
+        </div>
+
+        <!-- Items de Llegada -->
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">📦 Items de la Llegada (Captura Rápida)</h6>
+            </div>
+            <div class="card-body">
+                {{ formset.management_form }}
+                
+                <div class="table-responsive">
+                    <table class="table-items">
+                        <thead style="display: none;"></thead>
+                        <tbody id="items-tbody">
+                            {% for form in formset %}
+                                <!-- FILA 1: Datos del Lote y Cantidades -->
+                                <tr class="item-row row-principal" data-form-index="{{ forloop.counter0 }}">
+                                    <td><small class="text-muted d-block mb-1">Producto</small>{{ form.producto }}</td>
+                                    <td><small class="text-muted d-block mb-1">Lote</small>{{ form.numero_lote }}</td>
+                                    <td><small class="text-muted d-block mb-1">Marca</small>{{ form.marca }}</td>
+                                    <td><small class="text-muted d-block mb-1">Fabricante</small>{{ form.fabricante }}</td>
+                                    <td><small class="text-muted d-block mb-1">F. Elab.</small>{{ form.fecha_elaboracion }}</td>
+                                    <td><small class="text-muted d-block mb-1">F. Caduc.</small>{{ form.fecha_caducidad }}</td>
+                                    <!-- Campo oculto para clave -->
+                                    <td style="display: none;">{{ form.clave }}</td>
+                                    <!-- Campo oculto para cantidad emitida -->
+                                    <td style="display: none;"><small class="text-muted d-block mb-1">Emitida</small>{{ form.cantidad_emitida }}</td>
+                                    <td><small class="text-muted d-block mb-1">Recibida</small>{{ form.cantidad_recibida }}</td>
+                                    <td style="display: none;"><small class="text-muted d-block mb-1">Piezas/Lote</small>{{ form.piezas_por_lote }}</td>
+                                    <td>
+                                        {% if not forloop.first %}
+                                            <button type="button" class="btn-remove-item" onclick="removeRow(this)">Eliminar</button>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                
+                                <!-- FILA 2: Precios e IVA -->
+                                <tr class="item-row row-precios" data-form-index="{{ forloop.counter0 }}">
+                                    <td><small class="text-muted d-block mb-1">P. Unitario</small><input type="number" id="{{ form.precio_unitario_sin_iva.id_for_label }}" name="{{ form.precio_unitario_sin_iva.html_name }}" class="form-control precio-unitario" step="0.01" placeholder="0.00" value="{{ form.precio_unitario_sin_iva.value|default:'' }}"></td>
+                                    <td><small class="text-muted d-block mb-1">% IVA</small><input type="number" id="{{ form.porcentaje_iva.id_for_label }}" name="{{ form.porcentaje_iva.html_name }}" class="form-control porcentaje-iva" step="0.01" placeholder="0.00" value="{{ form.porcentaje_iva.value|default:'' }}" readonly></td>
+                                    <td><small class="text-muted d-block mb-1">P. c/IVA</small><input type="number" id="{{ form.precio_unitario_con_iva.id_for_label }}" name="{{ form.precio_unitario_con_iva.html_name }}" class="form-control precio-con-iva" step="0.01" placeholder="0.00" value="{{ form.precio_unitario_con_iva.value|default:'' }}" readonly></td>
+                                    <td><small class="text-muted d-block mb-1">Subtotal</small><input type="number" id="{{ form.subtotal.id_for_label }}" name="{{ form.subtotal.html_name }}" class="form-control subtotal" step="0.01" placeholder="0.00" value="{{ form.subtotal.value|default:'' }}" readonly></td>
+                                    <td><small class="text-muted d-block mb-1">Importe IVA</small><input type="number" id="{{ form.importe_iva.id_for_label }}" name="{{ form.importe_iva.html_name }}" class="form-control importe-iva" step="0.01" placeholder="0.00" value="{{ form.importe_iva.value|default:'' }}" readonly></td>
+                                    <td><small class="text-muted d-block mb-1">Total</small><input type="number" id="{{ form.importe_total.id_for_label }}" name="{{ form.importe_total.html_name }}" class="form-control importe-total" step="0.01" placeholder="0.00" value="{{ form.importe_total.value|default:'' }}" readonly></td>
+                                    <td colspan="2"></td>
+                                </tr>
+                                
+                                {% if form.non_field_errors %}
+                                    <tr>
+                                        <td colspan="12" class="alert alert-danger">
+                                            {{ form.non_field_errors }}
+                                        </td>
+                                    </tr>
+                                {% endif %}
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                <button type="button" id="add-item-btn" class="btn btn-success btn-sm mt-3">+ Agregar Lote</button>
+                <div id="validation-message" class="alert alert-warning mt-3" style="display: none;"></div>
+            </div>
+        </div>
+
+        <div class="form-group">
+            <button type="submit" class="btn btn-primary btn-lg">💾 Guardar Llegada</button>
+            <a href="{% url 'logistica:llegadas:lista_llegadas' %}" class="btn btn-secondary btn-lg">Cancelar</a>
+        </div>
+    </form>
+</div>
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.1.0-rc.0/js/select2.min.js"></script>
+<script>
+$(document).ready(function() {
+    // Inicializar Select2
+    $('#id_cita').select2({
+        dropdownParent: $('body'),
+        width: '100%'
+    });
+    
+    $('#id_almacen').select2({
+        dropdownParent: $('body'),
+        width: '100%'
+    });
+    
+    initializeProductSelect2();
+    
+    // Llenar campos por defecto (clave y cantidad_emitida)
+    fillDefaultFieldValues();
+    
+    // Calcular total de piezas recibidas al cargar la página
+    updateTotalPiezasRecibidas();
+    
+    // Llenar precios unitarios con el valor del item anterior
+    fillPreciosFromPreviousItem();
+    
+    // Agregar evento global para cambios en cantidad_recibida
+    $(document).on('change', '.cantidad-recibida', function() {
+        console.log('Cambio detectado en cantidad_recibida:', $(this).val());
+        
+        // Actualizar cantidad_emitida con el mismo valor
+        var $row = $(this).closest('tr');
+        var formIndex = $row.data('form-index');
+        var cantidadRecibida = $(this).val();
+        var $cantidadEmitidaField = $row.find('input[name="items-' + formIndex + '-cantidad_emitida"]');
+        if ($cantidadEmitidaField.length) {
+            $cantidadEmitidaField.val(cantidadRecibida);
+        }
+        
+        updateTotalPiezasRecibidas();
+    });
+    
+    // Agregar nueva fila
+    $('#add-item-btn').click(function(e) {
+        e.preventDefault();
+        addItemRow();
+    });
+    
+    // Validar campos obligatorios y mostrar visualmente cuales faltan
+    function validateRequiredFields() {
+        var requiredFields = ['cita', 'remision', 'numero_piezas_emitidas', 'numero_piezas_recibidas', 'almacen'];
+        var emptyFields = [];
+        
+        requiredFields.forEach(function(fieldName) {
+            var $field = $('[name="' + fieldName + '"]');
+            var $formGroup = $field.closest('.form-group');
+            var value = $field.val();
+            
+            if (!value || value.trim() === '') {
+                emptyFields.push(fieldName);
+                $formGroup.addClass('validation-error-highlight');
+            } else {
+                $formGroup.removeClass('validation-error-highlight');
+            }
+        });
+        
+        if (emptyFields.length > 0) {
+            var fieldLabels = emptyFields.map(function(f) {
+                return $('[name="' + f + '"]').closest('.form-group').find('label').text() || f;
+            }).join(', ');
+            showValidationMessage('Campos obligatorios faltantes: ' + fieldLabels);
+            return false;
+        }
+        return true;
+    }
+    
+    // Monitorear cambios en campos obligatorios
+    $('.required-field').each(function() {
+        var $field = $(this).find('input, select, textarea');
+        $field.on('change input', function() {
+            var value = $(this).val();
+            if (value && value.trim() !== '') {
+                $(this).closest('.form-group').addClass('filled').removeClass('validation-error-highlight');
+            } else {
+                $(this).closest('.form-group').removeClass('filled');
+            }
+        });
+    });
+    
+    // Validar al enviar
+    $('#llegada-form').on('submit', function(e) {
+        if (!validateRequiredFields() || !validatePiezasSum()) {
+            e.preventDefault();
+        }
+    });
+    
+    // Cargar datos de cita cuando se selecciona
+    $('#id_cita').on('change', function() {
+        var citaId = $(this).val();
+        if (citaId) {
+            $.ajax({
+                url: '/logistica/llegadas/api/cita/' + citaId + '/folio/',
+                type: 'GET',
+                success: function(data) {
+                    $('#folio-display').text(data.folio || 'Se genera automáticamente');
+                    if (data.remision) $('#id_remision').val(data.remision);
+                    if (data.orden_suministro) {
+                        $('#id_numero_orden_suministro').val(data.orden_suministro);
+                        $('#orden-suministro-ref').text(data.orden_suministro);
+                    }
+                    if (data.contrato) $('#id_numero_contrato').val(data.contrato);
+                    if (data.almacen_id) $('#id_almacen').val(data.almacen_id).trigger('change');
+                    if (data.proveedor_id) $('#id_proveedor').val(data.proveedor_id);
+                    if (data.clave_medicamento) {
+                        $('#clave-producto-ref').text(data.clave_medicamento);
+                        window.citaClaveDefault = data.clave_medicamento;
+                        // Pre-seleccionar producto con esta clave en todos los selects
+                        $('select[id$="-producto"]').each(function() {
+                            var $select = $(this);
+                            var $option = $select.find('option').filter(function() {
+                                return $(this).text().includes(data.clave_medicamento);
+                            }).first();
+                            if ($option.length) {
+                                $select.val($option.val()).trigger('change');
+                            }
+                        });
+                    }
+                },
+                error: function() {
+                    console.log('Error al cargar datos de cita');
+                }
+            });
+        }
+    });
+});
+
+function initializeProductSelect2() {
+    $('select[id$="-producto"]').each(function() {
+        if (!$(this).hasClass('select2-hidden-accessible')) {
+            $(this).select2({
+                dropdownParent: $('body'),
+                width: '100%',
+                placeholder: 'Selecciona un producto...'
+            });
+        }
+        $(this).on('select2:select', function() {
+            calcularIVADelProducto($(this));
+        });
+        $(this).on('change', function() {
+            calcularIVADelProducto($(this));
+        });
+    });
+}
+
+function calcularIVADelProducto($selectProducto) {
+    var productoId = $selectProducto.val();
+    var filaActual = $selectProducto.closest('tr');
+    var formIndex = filaActual.data('form-index');
+    var $ivaInput = $('input[name="items-' + formIndex + '-porcentaje_iva"]');
+    
+    // Usar el IVA del producto desde los datos cargados
+    if (window.productosData && window.productosData[productoId]) {
+        var ivaProducto = window.productosData[productoId].iva / 100;
+        $ivaInput.val(ivaProducto.toFixed(2));
+    } else {
+        // Fallback: usar la logica de clave si no tenemos los datos
+        var selectedText = $selectProducto.find('option:selected').text();
+        var clave = extraerClaveDelProducto(selectedText);
+        if (clave && (clave.startsWith('060') || clave.startsWith('080') || clave.startsWith('130') || clave.startsWith('379'))) {
+            $ivaInput.val('0.16');
+        } else {
+            $ivaInput.val('0.00');
+        }
+    }
+    
+    // Agregar eventos para calcular precios
+    var $precioUnitario = $('input[name="items-' + formIndex + '-precio_unitario_sin_iva"]');
+    $precioUnitario.off('change').on('change', function() {
+        var row1 = $('tr.row-principal[data-form-index="' + formIndex + '"]');
+        var row2 = $('tr.row-precios[data-form-index="' + formIndex + '"]');
+        calculatePrices(row1, row2);
+    });
+    
+    var $cantidadRecibida = $('input[name="items-' + formIndex + '-cantidad_recibida"]');
+    $cantidadRecibida.off('change').on('change', function() {
+        var row1 = $('tr.row-principal[data-form-index="' + formIndex + '"]');
+        var row2 = $('tr.row-precios[data-form-index="' + formIndex + '"]');
+        calculatePrices(row1, row2);
+    });
+}
+
+function extraerClaveDelProducto(texto) {
+    // Extrae los primeros 3 dígitos de la clave (formato: "Producto - 060.830.7070" o similar)
+    var match = texto.match(/(\d{3})/);
+    return match ? match[1] : null;
+}
+
+function addItemRow() {
+    var formCount = $('#id_items-TOTAL_FORMS').val();
+    var newFormIndex = parseInt(formCount);
+    
+    // FILA 1: Datos del Lote
+    var newRow1 = $('<tr class="item-row row-principal" data-form-index="' + newFormIndex + '">' +
+        '<td><small class="text-muted d-block mb-1">Producto</small><select id="id_items-' + newFormIndex + '-producto" name="items-' + newFormIndex + '-producto" class="form-control select2-single" data-placeholder="-- Selecciona un producto --"></select></td>' +
+        '<td><small class="text-muted d-block mb-1">Lote</small><input type="text" id="id_items-' + newFormIndex + '-numero_lote" name="items-' + newFormIndex + '-numero_lote" class="form-control numero-lote"></td>' +
+        '<td><small class="text-muted d-block mb-1">Marca</small><input type="text" id="id_items-' + newFormIndex + '-marca" name="items-' + newFormIndex + '-marca" class="form-control"></td>' +
+        '<td><small class="text-muted d-block mb-1">Fabricante</small><input type="text" id="id_items-' + newFormIndex + '-fabricante" name="items-' + newFormIndex + '-fabricante" class="form-control"></td>' +
+        '<td><small class="text-muted d-block mb-1">F. Elab.</small><input type="date" id="id_items-' + newFormIndex + '-fecha_elaboracion" name="items-' + newFormIndex + '-fecha_elaboracion" class="form-control"></td>' +
+        '<td><small class="text-muted d-block mb-1">F. Caduc.</small><input type="date" id="id_items-' + newFormIndex + '-fecha_caducidad" name="items-' + newFormIndex + '-fecha_caducidad" class="form-control"></td>' +
+        '<td style="display: none;"><small class="text-muted d-block mb-1">Emitida</small><input type="number" id="id_items-' + newFormIndex + '-cantidad_emitida" name="items-' + newFormIndex + '-cantidad_emitida" class="form-control cantidad-emitida"></td>' +
+        '<td><small class="text-muted d-block mb-1">Recibida</small><input type="number" id="id_items-' + newFormIndex + '-cantidad_recibida" name="items-' + newFormIndex + '-cantidad_recibida" class="form-control cantidad-recibida"></td>' +
+        '<td style="display: none;"><small class="text-muted d-block mb-1">Piezas/Lote</small><input type="number" id="id_items-' + newFormIndex + '-piezas_por_lote" name="items-' + newFormIndex + '-piezas_por_lote" class="form-control piezas-por-lote" min="1" value="1"></td>' +
+        '<td><button type="button" class="btn-remove-item" onclick="removeRow(this)">Eliminar</button></td>' +
+        '</tr>');
+    
+    // FILA 2: Precios e IVA
+    // Obtener el precio del item anterior si existe
+    var precioAnterior = '';
+    var ultimoRow2 = $('#items-tbody tr.row-precios').last();
+    if (ultimoRow2.length > 0) {
+        precioAnterior = ultimoRow2.find('.precio-unitario').val();
+    }
+    
+    var newRow2 = $('<tr class="item-row row-precios" data-form-index="' + newFormIndex + '">' +
+        '<td><small class="text-muted d-block mb-1">P. Unitario</small><input type="number" id="id_items-' + newFormIndex + '-precio_unitario_sin_iva" name="items-' + newFormIndex + '-precio_unitario_sin_iva" class="form-control precio-unitario" step="0.01" placeholder="0.00" value="' + precioAnterior + '"></td>' +
+        '<td><small class="text-muted d-block mb-1">% IVA</small><input type="number" id="id_items-' + newFormIndex + '-porcentaje_iva" name="items-' + newFormIndex + '-porcentaje_iva" class="form-control porcentaje-iva" step="0.01" placeholder="0.00" readonly></td>' +
+        '<td><small class="text-muted d-block mb-1">P. con IVA</small><input type="number" id="id_items-' + newFormIndex + '-precio_unitario_con_iva" name="items-' + newFormIndex + '-precio_unitario_con_iva" class="form-control precio-con-iva" step="0.01" placeholder="0.00" readonly></td>' +
+        '<td><small class="text-muted d-block mb-1">Subtotal</small><input type="number" id="id_items-' + newFormIndex + '-subtotal" name="items-' + newFormIndex + '-subtotal" class="form-control subtotal" step="0.01" placeholder="0.00" readonly></td>' +
+        '<td><small class="text-muted d-block mb-1">Importe IVA</small><input type="number" id="id_items-' + newFormIndex + '-importe_iva" name="items-' + newFormIndex + '-importe_iva" class="form-control importe-iva" step="0.01" placeholder="0.00" readonly></td>' +
+        '<td><small class="text-muted d-block mb-1">Importe Total</small><input type="number" id="id_items-' + newFormIndex + '-importe_total" name="items-' + newFormIndex + '-importe_total" class="form-control importe-total" step="0.01" placeholder="0.00" readonly></td>' +
+        '<td colspan="2"></td>' +
+        '</tr>');
+    
+    $('#items-tbody').append(newRow1);
+    $('#items-tbody').append(newRow2);
+    
+    $('#id_items-TOTAL_FORMS').val(newFormIndex + 1);
+    
+    // Cargar opciones de productos
+    var newSelect = newRow1.find('select[id$="-producto"]');
+    $.ajax({
+        url: '/logistica/llegadas/api/productos/',
+        type: 'GET',
+        success: function(data) {
+            // Guardar los datos de productos para acceso posterior
+            if (!window.productosData) {
+                window.productosData = {};
+            }
+            
+            $.each(data, function(index, producto) {
+                newSelect.append('<option value="' + producto.id + '">' + producto.descripcion + '</option>');
+                window.productosData[producto.id] = producto;
+            });
+            
+            // Inicializar Select2 DESPUES de cargar opciones
+            newSelect.select2({
+                dropdownParent: $('body'),
+                width: '100%',
+                placeholder: 'Selecciona un producto...'
+            });
+            
+            // Agregar eventos para calcular IVA
+            newSelect.on('select2:select', function() {
+                calcularIVADelProducto($(this));
+            });
+            newSelect.on('change', function() {
+                calcularIVADelProducto($(this));
+            });
+            
+            // Pre-seleccionar producto si hay clave de medicamento
+            if (window.citaClaveDefault) {
+                // Buscar por clave_cnis en los datos originales
+                var productoEncontrado = null;
+                $.each(data, function(index, producto) {
+                    if (producto.clave_cnis === window.citaClaveDefault) {
+                        productoEncontrado = producto.id;
+                        return false; // break
+                    }
+                });
+                if (productoEncontrado) {
+                    newSelect.val(productoEncontrado).trigger('change');
+                }
+            }
+        },
+        error: function() {
+            console.log('Error al cargar productos');
+        }
+    });
+    
+    // Agregar validaciones
+    addFieldValidation(newRow1, newRow2);
+    
+    // Llenar campos por defecto
+    fillDefaultFieldValues();
+}
+
+function fillDefaultFieldValues() {
+    // Llenar campos por defecto para todos los items
+    $('#items-tbody tr.row-principal').each(function() {
+        var $row = $(this);
+        var formIndex = $row.data('form-index');
+        
+        // Llenar clave con valor por defecto si está vacío
+        var $claveField = $row.find('input[name="items-' + formIndex + '-clave"]');
+        if ($claveField.length && !$claveField.val()) {
+            $claveField.val('DEFAULT');
+        }
+        
+        // Llenar cantidad_emitida con la cantidad_recibida si está vacío
+        var $cantidadEmitidaField = $row.find('input[name="items-' + formIndex + '-cantidad_emitida"]');
+        var $cantidadRecibidaField = $row.find('input[name="items-' + formIndex + '-cantidad_recibida"]');
+        if ($cantidadEmitidaField.length && !$cantidadEmitidaField.val()) {
+            var cantidadRecibida = $cantidadRecibidaField.val() || '1';
+            $cantidadEmitidaField.val(cantidadRecibida);
+        }
+    });
+}
+
+function removeRow(btn) {
+    var row = $(btn).closest('tr');
+    var formIndex = row.data('form-index');
+    
+    // Eliminar ambas filas (principal y precios)
+    $('#items-tbody tr[data-form-index="' + formIndex + '"]').remove();
+    updateFormCount();
+}
+
+function updateFormCount() {
+    var count = $('#items-tbody tr.row-principal').length;
+    $('#id_items-TOTAL_FORMS').val(count);
+}
+
+function addFieldValidation(row1, row2) {
+    var formIndex = row1.data('form-index');
+    var row2Actual = $('tr.row-precios[data-form-index="' + formIndex + '"]');
+    // Validar cantidad_recibida <= cantidad_emitida
+    row1.find('.cantidad-recibida').on('change', function() {
+        var cantEmitida = row1.find('input[name$="-cantidad_emitida"]').val();
+        var cantRecibida = $(this).val();
+        if (parseInt(cantRecibida) > parseInt(cantEmitida)) {
+            $(this).css('border-color', 'red');
+        } else {
+            $(this).css('border-color', '');
+        }
+    });
+    
+    // Calcular IVA automático según clave
+    row1.find('.clave-cnis').on('change', function() {
+        var clave = $(this).val();
+        var ivaField = row2Actual.find('.porcentaje-iva');
+        
+        if (clave.startsWith('060') || clave.startsWith('080') || clave.startsWith('130') || clave.startsWith('379')) {
+            ivaField.val('16.00');
+        } else {
+            ivaField.val('0.00');
+        }
+        
+        calculatePrices(row1, row2);
+    });
+    
+    // Calcular precios cuando cambia precio unitario
+    row2Actual.find('.precio-unitario').on('change', function() {
+        calculatePrices(row1, row2Actual);
+    });
+    
+    // Calcular precios cuando cambia cantidad recibida
+    row1.find('.cantidad-recibida').on('change', function() {
+        calculatePrices(row1, row2Actual);
+        updateTotalPiezasRecibidas();
+    });
+}
+
+function fillPreciosFromPreviousItem() {
+    var precioAnterior = '';
+    $('#items-tbody tr.row-precios').each(function(index) {
+        var $precioActual = $(this).find('.precio-unitario');
+        
+        if (index > 0 && precioAnterior) {
+            if (!$precioActual.val()) {
+                $precioActual.val(precioAnterior);
+                console.log('Precio del item ' + index + ' llenado con:', precioAnterior);
+            }
+        }
+        
+        precioAnterior = $precioActual.val();
+    });
+}
+
+function updateTotalPiezasRecibidas() {
+    var total = 0;
+    $('#items-tbody tr.row-principal').each(function() {
+        var cantidad = parseInt($(this).find('input[name$="-cantidad_recibida"]').val()) || 0;
+        total += cantidad;
+    });
+    // Actualizar el campo del formulario Django
+    $('#id_numero_piezas_recibidas').val(total);
+}
+
+function calculatePrices(row1, row2) {
+    var precioUnitario = parseFloat(row2.find('.precio-unitario').val()) || 0;
+    var porcentajeIva = parseFloat(row2.find('.porcentaje-iva').val()) || 0;
+    var cantRecibida = parseInt(row1.find('.cantidad-recibida').val()) || 0;
+    
+    // Calcular precio con IVA (porcentajeIva ya está en formato 0.16 o 0.00)
+    var precioConIva = precioUnitario * (1 + porcentajeIva);
+    
+    // Calcular subtotal (precio unitario * cantidad)
+    var subtotal = precioUnitario * cantRecibida;
+    
+    // Calcular importe IVA (porcentajeIva ya está en formato 0.16 o 0.00)
+    var importeIva = subtotal * porcentajeIva;
+    
+    // Calcular importe total
+    var importeTotal = subtotal + importeIva;
+    
+    row2.find('.precio-con-iva').val(precioConIva.toFixed(2));
+    row2.find('.subtotal').val(subtotal.toFixed(2));
+    row2.find('.importe-iva').val(importeIva.toFixed(2));
+    row2.find('.importe-total').val(importeTotal.toFixed(2));
+}
+
+function validatePiezasSum() {
+    // Validar que al menos haya un item con cantidad recibida
+    var hasItems = false;
+    $('#items-tbody tr.row-principal').each(function() {
+        var cantRecibida = parseInt($(this).find('input[name$="-cantidad_recibida"]').val()) || 0;
+        if (cantRecibida > 0) {
+            hasItems = true;
+        }
+    });
+    
+    if (!hasItems) {
+        showValidationMessage('Debe haber al menos un item con cantidad recibida mayor a 0.');
+        return false;
+    }
+    
+    return true;
+}
+
+function showValidationMessage(message) {
+    var msgDiv = $('#validation-message');
+    msgDiv.html(message);
+    msgDiv.show();
+    $('html, body').animate({scrollTop: msgDiv.offset().top - 100}, 'slow');
+}
+</script>
+{% endblock %}
+{% endblock %}
+

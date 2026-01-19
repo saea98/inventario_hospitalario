@@ -6,7 +6,9 @@ from django.urls import path
 from .llegada_views import (
     ListaLlegadasView,
     CrearLlegadaView,
+    EditarLlegadaView,
     DetalleLlegadaView,
+    AprobarEntradaView,
     ControlCalidadView,
     FacturacionView,
     SupervisionView,
@@ -26,6 +28,8 @@ urlpatterns = [
     path('api/ubicaciones-por-almacen/', api_ubicaciones_por_almacen, name='api_ubicaciones_por_almacen'),
     path('api/cita/<int:cita_id>/folio/', api_cita_folio, name='api_cita_folio'),
     path('<uuid:pk>/', DetalleLlegadaView.as_view(), name='detalle_llegada'),
+    path('<uuid:pk>/editar/', EditarLlegadaView.as_view(), name='editar_llegada'),
+    path('<uuid:pk>/aprobar/', AprobarEntradaView.as_view(), name='aprobar_entrada'),
     path('<uuid:pk>/calidad/', ControlCalidadView.as_view(), name='control_calidad'),
     path('<uuid:pk>/facturacion/', FacturacionView.as_view(), name='facturacion'),
     path('<uuid:pk>/supervision/', SupervisionView.as_view(), name='supervision'),

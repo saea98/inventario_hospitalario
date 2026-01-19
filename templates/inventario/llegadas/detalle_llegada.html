@@ -16,6 +16,7 @@
                     <p><strong>Folio:</strong> {{ llegada.folio }}</p>
                     <p><strong>Proveedor:</strong> {{ llegada.proveedor.razon_social|default:"No disponible" }}</p>
                     <p><strong>Remisión:</strong> {{ llegada.remision|default:"No disponible" }}</p>
+                    <p><strong>Almacén:</strong> {{ llegada.almacen.nombre|default:"No disponible" }}</p>
                 </div>
                 <div class="col-md-6">
                     <p><strong>Orden de Suministro:</strong> {{ llegada.numero_orden_suministro|default:"No disponible" }}</p>
@@ -83,6 +84,13 @@
 
     <!-- Acciones -->
     <div class="d-flex justify-content-end">
+        {% if user|has_role:'Entrada' and llegada.puede_editar_recepcion %}
+            <a href="{% url 'logistica:llegadas:editar_llegada' pk=llegada.pk %}" class="btn btn-primary mr-2">Editar</a>
+            <form method="post" action="{% url 'logistica:llegadas:aprobar_entrada' pk=llegada.pk %}" style="display:inline;">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-success mr-2" onclick="return confirm('Aprobar esta entrada?')">Aprobar Entrada</button>
+            </form>
+        {% endif %}
         {% if user|has_role:'Control de Calidad' and llegada.puede_validar_calidad %}
             <a href="{% url 'logistica:llegadas:control_calidad' pk=llegada.pk %}" class="btn btn-warning mr-2">Validar entrada</a>
         {% endif %}

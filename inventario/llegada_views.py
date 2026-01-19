@@ -63,6 +63,55 @@ class CrearLlegadaView(LoginRequiredMixin, PermissionRequiredMixin, View):
         return render(request, "inventario/llegadas/crear_llegada.html", {"form": form, "formset": formset})
 
 
+class EditarLlegadaView(LoginRequiredMixin, PermissionRequiredMixin, View):
+    """Edita una llegada existente"""
+    permission_required = 'inventario.change_llegadaproveedor'
+    
+    def get(self, request, pk):
+        llegada = get_object_or_404(LlegadaProveedor, pk=pk)
+        if not llegada.puede_editar_recepcion():
+            messages.error(request, "No se puede editar esta llegada en su estado actual")
+            return redirect('logistica:llegadas:detalle_llegada', pk=pk)
+        
+        form = LlegadaProveedorForm(instance=llegada)
+        formset = ItemLlegadaFormSet(instance=llegada, prefix="items")
+        return render(request, "inventario/llegadas/editar_llegada.html", {"form": form, "formset": formset, "llegada": llegada})
+    
+    def post(self, request, pk):
+        llegada = get_object_or_404(LlegadaProveedor, pk=pk)
+        if not llegada.puede_editar_recepcion():
+            messages.error(request, "No se puede editar esta llegada en su estado actual")
+            return redirect('logistica:llegadas:detalle_llegada', pk=pk)
+        
+        form = LlegadaProveedorForm(request.POST, instance=llegada)
+        formset = ItemLlegadaFormSet(request.POST, instance=llegada, prefix="items")
+        
+        if form.is_valid() and formset.is_valid():
+            with transaction.atomic():
+                form.save()
+                formset.save()
+                messages.success(request, f"Llegada {llegada.folio} actualizada exitosamente")
+                return redirect('logistica:llegadas:detalle_llegada', pk=llegada.pk)
+        
+        return render(request, "inventario/llegadas/editar_llegada.html", {"form": form, "formset": formset, "llegada": llegada})
+
+
+class AprobarEntradaView(LoginRequiredMixin, PermissionRequiredMixin, View):
+    """Aprueba la entrada de una llegada"""
+    permission_required = 'inventario.change_llegadaproveedor'
+    
+    def post(self, request, pk):
+        llegada = get_object_or_404(LlegadaProveedor, pk=pk)
+        if not llegada.puede_editar_recepcion():
+            messages.error(request, "No se puede aprobar esta llegada en su estado actual")
+            return redirect('logistica:llegadas:detalle_llegada', pk=pk)
+        
+        llegada.estado = 'CONTROL_CALIDAD'
+        llegada.save()
+        messages.success(request, f"Llegada {llegada.folio} aprobada. Pendiente de validacion de calidad")
+        return redirect('logistica:llegadas:detalle_llegada', pk=pk)
+
+
 class DetalleLlegadaView(LoginRequiredMixin, View):
     """Muestra el detalle de una llegada"""
     
