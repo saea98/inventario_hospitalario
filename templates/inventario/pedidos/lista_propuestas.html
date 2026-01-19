@@ -4,11 +4,21 @@
 
 {% block extra_css %}
 <style>
-    .badge-generada { background-color: #17a2b8; color: white; }
+    .badge-generada { background-color: #17a2b8; color: black; }
     .badge-revisada { background-color: #ffc107; color: black; }
-    .badge-en-surtimiento { background-color: #fd7e14; color: white; }
-    .badge-surtida { background-color: #28a745; color: white; }
-    .badge-cancelada { background-color: #dc3545; color: white; }
+    .badge-en-surtimiento { background-color: #fd7e14; color: black; }
+    .badge-surtida { background-color: #28a745; color: black; }
+    .badge-cancelada { background-color: #dc3545; color: black; }
+    
+    .progress-bar {
+        transition: width 0.6s ease;
+        font-weight: bold;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        color: white;
+        text-shadow: 1px 1px 1px rgba(0,0,0,0.3);
+    }
 </style>
 {% endblock %}
 
