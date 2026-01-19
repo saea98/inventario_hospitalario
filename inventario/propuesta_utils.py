@@ -159,7 +159,10 @@ def obtener_cantidad_disponible_real(lote):
 
 def validar_disponibilidad_para_propuesta(producto_id, cantidad_requerida, institucion_id=None):
     """
-    Valida si hay suficiente cantidad disponible (sin reservas) para una nueva propuesta.
+    Valida si hay suficiente cantidad disponible para una nueva propuesta.
+    Suma el total disponible de TODOS los lotes del producto, considerando:
+    - cantidad_disponible total del producto
+    - cantidad_reservada total del producto
     
     Args:
         producto_id: ID del producto
@@ -174,8 +177,9 @@ def validar_disponibilidad_para_propuesta(producto_id, cantidad_requerida, insti
         }
     """
     from .models import Lote
+    from django.db.models import Sum
     
-    # Obtener lotes disponibles
+    # Obtener lotes disponibles del producto
     query = Lote.objects.filter(
         producto_id=producto_id,
         estado=1  # Solo lotes disponibles
@@ -184,9 +188,18 @@ def validar_disponibilidad_para_propuesta(producto_id, cantidad_requerida, insti
     if institucion_id:
         query = query.filter(institucion_id=institucion_id)
     
-    lotes_disponibles = []
-    cantidad_total_disponible = 0
+    # Calcular totales del producto
+    totales = query.aggregate(
+        total_cantidad_disponible=Sum('cantidad_disponible'),
+        total_cantidad_reservada=Sum('cantidad_reservada')
+    )
     
+    total_disponible = totales['total_cantidad_disponible'] or 0
+    total_reservada = totales['total_cantidad_reservada'] or 0
+    cantidad_total_disponible = total_disponible - total_reservada
+    
+    # Construir lista de lotes para referencia
+    lotes_disponibles = []
     for lote in query:
         cantidad_real = obtener_cantidad_disponible_real(lote)
         if cantidad_real > 0:
@@ -196,7 +209,6 @@ def validar_disponibilidad_para_propuesta(producto_id, cantidad_requerida, insti
                 'cantidad_disponible': cantidad_real,
                 'fecha_caducidad': lote.fecha_caducidad
             })
-            cantidad_total_disponible += cantidad_real
     
     return {
         'disponible': cantidad_total_disponible >= cantidad_requerida,
