@@ -10,6 +10,15 @@
                     <span class="icon text-white-50"><i class="fas fa-check"></i></span>
                     <span class="text">Validar Solicitud</span>
                 </a>
+            {% elif solicitud.estado == 'VALIDADA' %}
+                <a href="{% url 'logistica:editar_solicitud' solicitud.id %}" class="btn btn-warning btn-icon-split">
+                    <span class="icon text-white-50"><i class="fas fa-edit"></i></span>
+                    <span class="text">Editar Solicitud</span>
+                </a>
+                <a href="{% url 'logistica:cancelar_solicitud' solicitud.id %}" class="btn btn-danger btn-icon-split">
+                    <span class="icon text-white-50"><i class="fas fa-times"></i></span>
+                    <span class="text">Cancelar Solicitud</span>
+                </a>
             {% endif %}
             <a href="{% url 'logistica:lista_pedidos' %}" class="btn btn-secondary btn-icon-split">
                 <span class="icon text-white-50"><i class="fas fa-arrow-left"></i></span>

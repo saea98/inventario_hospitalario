@@ -13,6 +13,8 @@ urlpatterns = [
     path('lista/', pedidos_views.lista_solicitudes, name='lista_solicitudes'),
     path('<uuid:solicitud_id>/', pedidos_views.detalle_solicitud, name='detalle_solicitud'),
     path('<uuid:solicitud_id>/validar/', pedidos_views.validar_solicitud, name='validar_solicitud'),
+    path('<uuid:solicitud_id>/editar/', pedidos_views.editar_solicitud, name='editar_solicitud'),
+    path('<uuid:solicitud_id>/cancelar/', pedidos_views.cancelar_solicitud, name='cancelar_solicitud'),
     
     # Reportes de Errores
     path('reportes/errores/', pedidos_reports_views.reporte_errores_pedidos, name='reporte_errores'),

@@ -555,3 +555,153 @@ def cancelar_propuesta_view(request, propuesta_id):
         'items_count': propuesta.items.count()
     }
     return render(request, 'inventario/pedidos/cancelar_propuesta.html', context)
+
+
+# ============================================================================
+# VISTAS PARA EDITAR Y CANCELAR SOLICITUDES
+# ============================================================================
+
+@login_required
+@transaction.atomic
+def editar_solicitud(request, solicitud_id):
+    """
+    Permite editar los items de una solicitud VALIDADA que ya tiene una propuesta.
+    Si se edita, cancela la propuesta actual, recalcula y genera una nueva.
+    """
+    solicitud = get_object_or_404(
+        SolicitudPedido.objects.prefetch_related('items__producto'),
+        id=solicitud_id,
+        estado='VALIDADA'
+    )
+    
+    propuesta = PropuestaPedido.objects.filter(solicitud=solicitud).first()
+    if not propuesta:
+        messages.error(request, "No hay propuesta asociada a esta solicitud.")
+        return redirect('logistica:detalle_pedido', solicitud_id=solicitud.id)
+    
+    ItemSolicitudFormSet = inlineformset_factory(
+        SolicitudPedido, 
+        ItemSolicitud, 
+        form=ItemSolicitudForm, 
+        extra=0, 
+        can_delete=True
+    )
+    
+    if request.method == 'POST':
+        formset = ItemSolicitudFormSet(request.POST, instance=solicitud)
+        
+        if formset.is_valid():
+            # Primero, cancelar la propuesta actual (libera reservas)
+            resultado_cancelacion = cancelar_propuesta(propuesta.id, usuario=request.user)
+            
+            if not resultado_cancelacion['exito']:
+                messages.error(request, f"Error al cancelar propuesta anterior: {resultado_cancelacion['mensaje']}")
+                return redirect('logistica:detalle_pedido', solicitud_id=solicitud.id)
+            
+            # Guardar los cambios en los items
+            formset.save()
+            
+            # Validar disponibilidad ANTES de generar la nueva propuesta
+            errores_disponibilidad = []
+            for item in solicitud.items.all():
+                if item.cantidad_aprobada > 0:
+                    resultado = validar_disponibilidad_para_propuesta(
+                        item.producto.id,
+                        item.cantidad_aprobada,
+                        solicitud.institucion_solicitante.id
+                    )
+                    if not resultado['disponible']:
+                        errores_disponibilidad.append(
+                            f"Producto {item.producto.clave_cnis}: Se requieren {item.cantidad_aprobada} pero solo hay {resultado['cantidad_disponible']} disponibles."
+                        )
+            
+            if errores_disponibilidad:
+                messages.error(request, "No se puede generar la propuesta por falta de disponibilidad:")
+                for error in errores_disponibilidad:
+                    messages.error(request, f"  - {error}")
+                # La solicitud permanece en VALIDADA pero sin propuesta
+                return redirect('logistica:detalle_pedido', solicitud_id=solicitud.id)
+            
+            # Generar nueva propuesta
+            try:
+                generator = PropuestaGenerator(solicitud.id, request.user)
+                nueva_propuesta = generator.generate()
+                messages.success(request, f"Solicitud actualizada y nueva propuesta generada exitosamente.")
+            except Exception as e:
+                messages.error(request, f"Error al generar la nueva propuesta: {str(e)}")
+            
+            return redirect('logistica:detalle_pedido', solicitud_id=solicitud.id)
+        else:
+            messages.error(request, "Por favor, corrige los errores en los items.")
+    else:
+        formset = ItemSolicitudFormSet(instance=solicitud)
+    
+    context = {
+        'solicitud': solicitud,
+        'propuesta': propuesta,
+        'formset': formset,
+        'page_title': f"Editar Solicitud {solicitud.folio}"
+    }
+    return render(request, 'inventario/pedidos/editar_solicitud.html', context)
+
+
+@login_required
+@transaction.atomic
+def cancelar_solicitud(request, solicitud_id):
+    """
+    Cancela una solicitud VALIDADA.
+    Si tiene propuesta, libera todas las reservas antes de cancelar.
+    """
+    solicitud = get_object_or_404(
+        SolicitudPedido,
+        id=solicitud_id,
+        estado='VALIDADA'
+    )
+    
+    propuesta = PropuestaPedido.objects.filter(solicitud=solicitud).first()
+    
+    if request.method == 'POST':
+        try:
+            with transaction.atomic():
+                # Si hay propuesta, cancelarla primero (libera reservas)
+                if propuesta:
+                    resultado_cancelacion = cancelar_propuesta(propuesta.id, usuario=request.user)
+                    
+                    if not resultado_cancelacion['exito']:
+                        messages.error(
+                            request, 
+                            f"Error al liberar propuesta: {resultado_cancelacion['mensaje']}"
+                        )
+                        return redirect('logistica:detalle_pedido', solicitud_id=solicitud.id)
+                    
+                    # Eliminar la propuesta después de liberar
+                    propuesta.delete()
+                
+                # Cambiar estado de solicitud a CANCELADA
+                solicitud.estado = 'CANCELADA'
+                solicitud.save()
+                
+                messages.success(
+                    request, 
+                    f"Solicitud {solicitud.folio} cancelada exitosamente. Todas las reservas han sido liberadas."
+                )
+        except Exception as e:
+            messages.error(request, f"Error al cancelar la solicitud: {str(e)}")
+            return redirect('logistica:detalle_pedido', solicitud_id=solicitud.id)
+        
+        return redirect('logistica:lista_pedidos')
+    
+    # GET: Mostrar confirmación
+    cantidad_total_reservada = 0
+    if propuesta:
+        for item in propuesta.items.all():
+            for lote_asignado in item.lotes_asignados.all():
+                cantidad_total_reservada += lote_asignado.cantidad_asignada
+    
+    context = {
+        'solicitud': solicitud,
+        'propuesta': propuesta,
+        'cantidad_total_reservada': cantidad_total_reservada,
+        'page_title': f"Cancelar Solicitud {solicitud.folio}"
+    }
+    return render(request, 'inventario/pedidos/cancelar_solicitud.html', context)

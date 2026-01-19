@@ -1,0 +1,117 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-sm-flex align-items-center justify-content-between mb-4">
+        <h1 class="h3 mb-0 text-gray-800">{{ page_title }}</h1>
+        <a href="{% url 'logistica:detalle_pedido' solicitud.id %}" class="btn btn-secondary btn-icon-split">
+            <span class="icon text-white-50"><i class="fas fa-arrow-left"></i></span>
+            <span class="text">Volver</span>
+        </a>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-12">
+            <div class="card shadow mb-4">
+                <div class="card-header py-3">
+                    <h6 class="m-0 font-weight-bold text-primary">Información de la Solicitud</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <p><strong>Folio:</strong> {{ solicitud.folio }}</p>
+                            <p><strong>Institución Solicitante:</strong> {{ solicitud.institucion_solicitante.denominacion }}</p>
+                        </div>
+                        <div class="col-md-6">
+                            <p><strong>Fecha de Solicitud:</strong> {{ solicitud.fecha_solicitud|date:"d/m/Y H:i" }}</p>
+                            <p><strong>Estado:</strong> <span class="badge badge-info">{{ solicitud.get_estado_display }}</span></p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Editar Items de la Solicitud</h6>
+        </div>
+        <div class="card-body">
+            <form method="post">
+                {% csrf_token %}
+                
+                {{ formset.management_form }}
+                
+                <div class="table-responsive">
+                    <table class="table table-bordered">
+                        <thead>
+                            <tr>
+                                <th>Producto (CNIS)</th>
+                                <th>Descripción</th>
+                                <th>Cantidad Solicitada</th>
+                                <th>Cantidad Aprobada</th>
+                                <th>Justificación</th>
+                                <th>Eliminar</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for form in formset %}
+                                {% if not form.instance.pk %}
+                                    <tr style="display: none;">
+                                {% else %}
+                                    <tr>
+                                {% endif %}
+                                        <td>{{ form.instance.producto.clave_cnis }}</td>
+                                        <td>{{ form.instance.producto.descripcion }}</td>
+                                        <td>{{ form.instance.cantidad_solicitada }}</td>
+                                        <td>
+                                            {{ form.cantidad_aprobada }}
+                                            {% if form.cantidad_aprobada.errors %}
+                                                <div class="text-danger small">
+                                                    {{ form.cantidad_aprobada.errors }}
+                                                </div>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {{ form.justificacion_cambio }}
+                                            {% if form.justificacion_cambio.errors %}
+                                                <div class="text-danger small">
+                                                    {{ form.justificacion_cambio.errors }}
+                                                </div>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            {{ form.DELETE }}
+                                        </td>
+                                    </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                
+                {% if formset.non_form_errors %}
+                    <div class="alert alert-danger">
+                        {{ formset.non_form_errors }}
+                    </div>
+                {% endif %}
+                
+                <div class="mt-3">
+                    <button type="submit" class="btn btn-success btn-icon-split">
+                        <span class="icon text-white-50"><i class="fas fa-save"></i></span>
+                        <span class="text">Guardar Cambios</span>
+                    </button>
+                    <a href="{% url 'logistica:detalle_pedido' solicitud.id %}" class="btn btn-secondary">
+                        Cancelar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% if propuesta %}
+    <div class="alert alert-info">
+        <strong>Nota:</strong> Al guardar los cambios, la propuesta actual será cancelada y se generará una nueva propuesta con los items modificados.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
