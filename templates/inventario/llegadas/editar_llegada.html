@@ -307,6 +307,10 @@
                         <thead style="display: none;"></thead>
                         <tbody id="items-tbody">
                             {% for form in formset %}
+                                <!-- Campos ocultos necesarios para el formset -->
+                                {{ form.id }}
+                                {{ form.DELETE }}
+                                
                                 <!-- FILA 1: Datos del Lote y Cantidades -->
                                 <tr class="item-row row-principal" data-form-index="{{ forloop.counter0 }}">
                                     <td><small class="text-muted d-block mb-1">Producto</small>{{ form.producto }}</td>
