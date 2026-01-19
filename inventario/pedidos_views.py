@@ -1,4 +1,3 @@
-
 """
 Vistas para el módulo de Gestión de Pedidos (Fase 2.2.1)
 """
@@ -228,6 +227,7 @@ def validar_solicitud(request, solicitud_id):
     """
     Permite a un usuario autorizado validar, modificar o rechazar los items de una solicitud.
     Genera automáticamente la propuesta de pedido si la solicitud es aprobada.
+    Excluye automáticamente los items sin disponibilidad.
     """
     solicitud = get_object_or_404(SolicitudPedido, id=solicitud_id, estado='PENDIENTE')
     
@@ -251,8 +251,10 @@ def validar_solicitud(request, solicitud_id):
                 messages.warning(request, f"Solicitud {solicitud.folio} ha sido rechazada.")
                 solicitud.save()
             else:
-                # Validar disponibilidad ANTES de generar la propuesta
-                errores_disponibilidad = []
+                # Validar disponibilidad y excluir items sin disponibilidad
+                items_sin_disponibilidad = []
+                items_con_disponibilidad = []
+                
                 for item in solicitud.items.all():
                     if item.cantidad_aprobada > 0:
                         resultado = validar_disponibilidad_para_propuesta(
@@ -261,26 +263,51 @@ def validar_solicitud(request, solicitud_id):
                             solicitud.institucion_solicitante.id
                         )
                         if not resultado['disponible']:
-                            errores_disponibilidad.append(
-                                f"Producto {item.producto.clave_cnis}: Se requieren {item.cantidad_aprobada} pero solo hay {resultado['cantidad_disponible']} disponibles."
-                            )
+                            items_sin_disponibilidad.append({
+                                'clave': item.producto.clave_cnis,
+                                'descripcion': item.producto.descripcion,
+                                'solicitado': item.cantidad_aprobada,
+                                'disponible': resultado['cantidad_disponible']
+                            })
+                            # Poner cantidad aprobada en 0 para excluir de la propuesta
+                            item.cantidad_aprobada = 0
+                            item.save()
+                        else:
+                            items_con_disponibilidad.append(item)
                 
-                if errores_disponibilidad:
-                    messages.error(request, "No se puede generar la propuesta por falta de disponibilidad:")
-                    for error in errores_disponibilidad:
-                        messages.error(request, f"  - {error}")
-                    solicitud.estado = 'VALIDADA'
-                    solicitud.save()
-                else:
+                # Mostrar advertencia si hay items excluidos
+                if items_sin_disponibilidad:
+                    messages.warning(
+                        request, 
+                        f"Se excluyeron {len(items_sin_disponibilidad)} producto(s) de la propuesta por falta de disponibilidad. Puedes editarlos después si es necesario."
+                    )
+                    for item in items_sin_disponibilidad:
+                        messages.warning(
+                            request,
+                            f"  - {item['clave']}: Se solicitaron {item['solicitado']} pero solo hay {item['disponible']} disponibles"
+                        )
+                
+                # Generar propuesta solo si hay items con disponibilidad
+                if items_con_disponibilidad:
                     solicitud.estado = 'VALIDADA'
                     solicitud.save()
                     
                     try:
                         generator = PropuestaGenerator(solicitud.id, request.user)
                         propuesta = generator.generate()
-                        messages.success(request, f"Solicitud {solicitud.folio} validada y propuesta de pedido generada.")
+                        cantidad_items = propuesta.items.count()
+                        messages.success(
+                            request, 
+                            f"Solicitud {solicitud.folio} validada. Propuesta generada con {cantidad_items} producto(s)."
+                        )
                     except Exception as e:
                         messages.error(request, f"Error al generar la propuesta: {str(e)}")
+                else:
+                    # Si no hay items con disponibilidad, mantener en PENDIENTE
+                    messages.error(
+                        request,
+                        f"No se puede generar propuesta: ningún producto tiene disponibilidad suficiente. Edita la solicitud para reducir cantidades."
+                    )
             
             return redirect('logistica:detalle_pedido', solicitud_id=solicitud.id)
     else:
@@ -381,10 +408,9 @@ def detalle_propuesta(request, propuesta_id):
 
 
 @login_required
-@transaction.atomic
 def revisar_propuesta(request, propuesta_id):
     """
-    Permite al personal de almacén revisar la propuesta antes de surtir.
+    Permite al personal de almacén revisar una propuesta generada.
     """
     propuesta = get_object_or_404(PropuestaPedido, id=propuesta_id, estado='GENERADA')
     
@@ -392,10 +418,8 @@ def revisar_propuesta(request, propuesta_id):
         propuesta.estado = 'REVISADA'
         propuesta.fecha_revision = timezone.now()
         propuesta.usuario_revision = request.user
-        propuesta.observaciones_revision = request.POST.get('observaciones', '')
         propuesta.save()
-        
-        messages.success(request, "Propuesta revisada. Procede al surtimiento.")
+        messages.success(request, "Propuesta revisada correctamente.")
         return redirect('logistica:detalle_propuesta', propuesta_id=propuesta.id)
     
     context = {

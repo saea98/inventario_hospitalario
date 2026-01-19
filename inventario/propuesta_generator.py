@@ -49,8 +49,8 @@ class PropuestaGenerator:
             total_solicitado=sum(item.cantidad_aprobada for item in self.solicitud.items.all())
         )
 
-        # Generar items de la propuesta
-        for item_solicitud in self.solicitud.items.all():
+        # Generar items de la propuesta (solo los que tienen cantidad_aprobada > 0)
+        for item_solicitud in self.solicitud.items.filter(cantidad_aprobada__gt=0):
             self._generate_item_propuesta(item_solicitud)
 
         # Actualizar totales de la propuesta
