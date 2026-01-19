@@ -6,7 +6,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('inventario', '0023_update_criterios_na'),
+        ('inventario', '0025_merge_0024_migrations'),
         ('inventario', '0050_citaproveedor_tipo_entrega'),
     ]
 
