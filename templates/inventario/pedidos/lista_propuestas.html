@@ -4,11 +4,52 @@
 
 {% block extra_css %}
 <style>
-    .badge-generada { background-color: #17a2b8 !important; color: black !important; }
-    .badge-revisada { background-color: #ffc107 !important; color: black !important; }
-    .badge-en-surtimiento { background-color: #fd7e14 !important; color: black !important; }
-    .badge-surtida { background-color: #28a745 !important; color: black !important; }
-    .badge-cancelada { background-color: #dc3545 !important; color: black !important; }
+    /* Estados personalizados sin conflicto con Bootstrap */
+    .estado-generada {
+        display: inline-block;
+        padding: 0.35em 0.65em;
+        background-color: #17a2b8;
+        color: black;
+        border-radius: 0.25rem;
+        font-size: 0.75em;
+        font-weight: 700;
+    }
+    .estado-revisada {
+        display: inline-block;
+        padding: 0.35em 0.65em;
+        background-color: #ffc107;
+        color: black;
+        border-radius: 0.25rem;
+        font-size: 0.75em;
+        font-weight: 700;
+    }
+    .estado-en-surtimiento {
+        display: inline-block;
+        padding: 0.35em 0.65em;
+        background-color: #fd7e14;
+        color: black;
+        border-radius: 0.25rem;
+        font-size: 0.75em;
+        font-weight: 700;
+    }
+    .estado-surtida {
+        display: inline-block;
+        padding: 0.35em 0.65em;
+        background-color: #28a745;
+        color: black;
+        border-radius: 0.25rem;
+        font-size: 0.75em;
+        font-weight: 700;
+    }
+    .estado-cancelada {
+        display: inline-block;
+        padding: 0.35em 0.65em;
+        background-color: #dc3545;
+        color: black;
+        border-radius: 0.25rem;
+        font-size: 0.75em;
+        font-weight: 700;
+    }
     
     .progress-bar {
         transition: width 0.6s ease;
@@ -68,7 +109,7 @@
                                 <td><code>{{ item.propuesta.solicitud.observaciones_solicitud|default:"N/A" }}</code></td>
                                 <td>{{ item.propuesta.fecha_generacion|date:"d/m/Y H:i" }}</td>
                                 <td>
-                                    <span class="badge badge-{{ item.propuesta.estado|lower }}">{{ item.propuesta.get_estado_display }}</span>
+                                    <span class="estado-{{ item.propuesta.estado|lower }}">{{ item.propuesta.get_estado_display }}</span>
                                 </td>
                                 <td>
                                     <div class="progress" style="height: 20px;">
