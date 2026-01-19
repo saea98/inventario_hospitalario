@@ -4,7 +4,8 @@ Vistas para reportes de errores en carga masiva de pedidos
 
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
-from django.db.models import Count, Q
+from django.db.models import Count, Q, F, Value, CharField
+from django.db.models.functions import Concat
 from django.utils import timezone
 from datetime import timedelta
 from .pedidos_models import LogErrorPedido
@@ -88,8 +89,12 @@ def reporte_errores_pedidos(request):
     
     # Usuarios con más errores
     usuarios_frecuentes = errores.values(
-        'usuario__username', 'usuario__get_full_name'
+        'usuario__username'
     ).annotate(
+        nombre_completo=Concat(
+            F('usuario__first_name'), Value(' '), F('usuario__last_name'),
+            output_field=CharField()
+        ),
         count=Count('id')
     ).order_by('-count')[:10]
     
