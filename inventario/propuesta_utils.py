@@ -182,14 +182,12 @@ def validar_disponibilidad_para_propuesta(producto_id, cantidad_requerida, insti
     
     logger = logging.getLogger(__name__)
     
-    # Obtener lotes disponibles del producto
+    # Obtener lotes disponibles del producto (de TODAS las instituciones)
+    # No filtramos por institucion_id porque queremos la disponibilidad total del producto
     query = Lote.objects.filter(
         producto_id=producto_id,
         estado=1  # Solo lotes disponibles
     ).order_by('fecha_caducidad')
-    
-    if institucion_id:
-        query = query.filter(institucion_id=institucion_id)
     
     # Calcular totales del producto
     totales = query.aggregate(
