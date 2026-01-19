@@ -13,7 +13,7 @@ import json
 
 from .models import CitaProveedor, Proveedor, Almacen, Producto
 from .forms import CitaProveedorPaso1Form, CitaProveedorDetalleForm, CargaMasivaCitasForm
-from .servicios_folio import ServicioFolio
+from .servicio_folio import ServicioFolio
 from . import notificaciones
 
 
