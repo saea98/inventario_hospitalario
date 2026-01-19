@@ -36,6 +36,7 @@ class LlegadaProveedorForm(forms.ModelForm):
         model = LlegadaProveedor
         fields = [
             "cita",
+            "proveedor",
             "remision",
             "numero_piezas_emitidas",
             "numero_piezas_recibidas",
@@ -46,6 +47,7 @@ class LlegadaProveedorForm(forms.ModelForm):
             "observaciones_recepcion",
         ]
         widgets = {
+            "proveedor": forms.HiddenInput(),
             "remision": forms.TextInput(attrs={"class": "form-control"}),
             "numero_piezas_emitidas": forms.NumberInput(attrs={"class": "form-control"}),
             "numero_piezas_recibidas": forms.NumberInput(attrs={"class": "form-control"}),
@@ -306,113 +308,5 @@ class DocumentoLlegadaForm(forms.ModelForm):
         widgets = {
             "tipo_documento": forms.Select(attrs={"class": "form-control"}),
             "archivo": forms.FileInput(attrs={"class": "form-control-file"}),
-            "descripcion": forms.TextInput(attrs={"class": "form-control"}),
+            "descripcion": forms.Textarea(attrs={"class": "form-control", "rows": 2}),
         }
-
-
-class UbicacionDetalleForm(forms.Form):
-    """
-    Formulario para asignar una ubicación y cantidad a un lote.
-    """
-    
-    ubicacion = forms.ModelChoiceField(
-        queryset=None,
-        label="Ubicación",
-        required=True,
-        empty_label="-- Selecciona una ubicación --",
-        widget=forms.Select(attrs={
-            "class": "form-control select2-single ubicacion-select",
-        })
-    )
-    
-    cantidad = forms.IntegerField(
-        label="Cantidad",
-        required=True,
-        min_value=1,
-        widget=forms.NumberInput(attrs={
-            "class": "form-control cantidad-input",
-            "placeholder": "Cantidad"
-        })
-    )
-    
-    def __init__(self, *args, almacen=None, cantidad_maxima=None, **kwargs):
-        super().__init__(*args, **kwargs)
-        from django.apps import apps
-        UbicacionAlmacen = apps.get_model('inventario', 'UbicacionAlmacen')
-        
-        if almacen:
-            self.fields['ubicacion'].queryset = UbicacionAlmacen.objects.filter(
-                almacen=almacen
-            ).order_by('codigo')
-        else:
-            self.fields['ubicacion'].queryset = UbicacionAlmacen.objects.all().order_by('codigo')
-        
-        self.cantidad_maxima = cantidad_maxima
-    
-    def clean_cantidad(self):
-        cantidad = self.cleaned_data.get('cantidad')
-        if self.cantidad_maxima and cantidad > self.cantidad_maxima:
-            raise forms.ValidationError(
-                f"La cantidad no puede exceder {self.cantidad_maxima}"
-            )
-        return cantidad
-
-
-class UbicacionItemForm(forms.Form):
-    """
-    Formulario para asignar ubicación a un item de llegada.
-    """
-    
-    almacen = forms.ModelChoiceField(
-        queryset=None,
-        label="Almacén",
-        required=True,
-        empty_label="-- Selecciona un almacén --",
-        widget=forms.Select(attrs={
-            "class": "form-control select2-single",
-        })
-    )
-    
-    ubicacion = forms.ModelChoiceField(
-        queryset=None,
-        label="Ubicación",
-        required=True,
-        empty_label="-- Selecciona una ubicación --",
-        widget=forms.Select(attrs={
-            "class": "form-control select2-single ubicacion-select",
-        })
-    )
-    
-    cantidad = forms.IntegerField(
-        label="Cantidad",
-        required=True,
-        min_value=1,
-        widget=forms.NumberInput(attrs={
-            "class": "form-control cantidad-input",
-            "placeholder": "Cantidad"
-        })
-    )
-    
-    def __init__(self, *args, cantidad_maxima=None, **kwargs):
-        super().__init__(*args, **kwargs)
-        from django.apps import apps
-        Almacen = apps.get_model('inventario', 'Almacen')
-        UbicacionAlmacen = apps.get_model('inventario', 'UbicacionAlmacen')
-        
-        self.fields['almacen'].queryset = Almacen.objects.filter(activo=True).order_by('nombre')
-        self.fields['ubicacion'].queryset = UbicacionAlmacen.objects.all().order_by('codigo')
-        self.cantidad_maxima = cantidad_maxima
-    
-    def clean_cantidad(self):
-        cantidad = self.cleaned_data.get('cantidad')
-        if self.cantidad_maxima and cantidad > self.cantidad_maxima:
-            raise forms.ValidationError(
-                f"La cantidad no puede exceder {self.cantidad_maxima}"
-            )
-        return cantidad
-
-
-# Formset para ubicaciones - Dummy para compatibilidad
-class UbicacionFormSet:
-    """Placeholder para compatibilidad con llegada_views"""
-    pass

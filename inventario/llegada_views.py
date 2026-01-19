@@ -252,6 +252,7 @@ def api_cita_folio(request, cita_id):
             'orden_suministro': cita.numero_orden_suministro or '',
             'contrato': cita.numero_contrato or '',
             'almacen_id': cita.almacen_id or '',
+            'proveedor_id': cita.proveedor_id or '',
             'clave_medicamento': cita.clave_medicamento or '',
             'cita_id': cita_id
         })

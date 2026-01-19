@@ -472,6 +472,7 @@ $(document).ready(function() {
                     }
                     if (data.contrato) $('#id_numero_contrato').val(data.contrato);
                     if (data.almacen_id) $('#id_almacen').val(data.almacen_id).trigger('change');
+                    if (data.proveedor_id) $('#id_proveedor').val(data.proveedor_id);
                     if (data.clave_medicamento) {
                         $('#clave-producto-ref').text(data.clave_medicamento);
                         window.citaClaveDefault = data.clave_medicamento;
