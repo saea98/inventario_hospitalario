@@ -423,8 +423,8 @@ def editar_cita_paso2(request, pk=None):
             'fecha_cita': cita.fecha_cita.strftime('%d/%m/%Y %H:%M'),
             'tipo_entrega': cita.get_tipo_entrega_display(),
             'numero_orden_suministro': cita.numero_orden_suministro,
-            'numero_orden_remision': cita.numero_orden_remision,
-            'clave_medicamento': cita.clave_medicamento,
+            'numero_orden_remision': cita.numero_orden_remision or '',
+            'clave_medicamento': cita.clave_medicamento or '',
             'paso': 2,
             'page_title': f'Editar Cita - Paso 2'
         }
