@@ -63,6 +63,8 @@ urlpatterns = [
     path('pedidos/crear/', pedidos_views.crear_solicitud, name='crear_pedido'),
     path('pedidos/<uuid:solicitud_id>/', pedidos_views.detalle_solicitud, name='detalle_pedido'),
     path('pedidos/<uuid:solicitud_id>/validar/', pedidos_views.validar_solicitud, name='validar_pedido'),
+    path('pedidos/<uuid:solicitud_id>/editar/', pedidos_views.editar_solicitud, name='editar_solicitud'),
+    path('pedidos/<uuid:solicitud_id>/cancelar/', pedidos_views.cancelar_solicitud, name='cancelar_solicitud'),
     
     # Propuestas de Pedido (para personal de almacén)
     path('propuestas/', pedidos_views.lista_propuestas, name='lista_propuestas'),
