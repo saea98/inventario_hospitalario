@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Reporte de Claves No Existen en Catálogo{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h1 class="mb-3">❌ Reporte de Claves No Existen en Catálogo</h1>
+            <p class="text-muted">Claves solicitadas que no están registradas en el catálogo de productos</p>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">🔍 Filtros</h5>
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label for="fecha_inicio" class="form-label">Fecha Inicio</label>
+                    <input type="date" class="form-control" id="fecha_inicio" name="fecha_inicio" value="{{ request.GET.fecha_inicio }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="fecha_fin" class="form-label">Fecha Fin</label>
+                    <input type="date" class="form-control" id="fecha_fin" name="fecha_fin" value="{{ request.GET.fecha_fin }}">
+                </div>
+                <div class="col-md-4">
+                    <label for="clave_solicitada" class="form-label">Clave Solicitada</label>
+                    <input type="text" class="form-control" id="clave_solicitada" name="clave_solicitada" placeholder="Buscar clave..." value="{{ request.GET.clave_solicitada }}">
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-search"></i> Filtrar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Estadísticas -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card text-center border-danger">
+                <div class="card-body">
+                    <h5 class="card-title text-danger">Total de Solicitudes</h5>
+                    <h2 class="text-danger">{{ errores.count }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-center border-info">
+                <div class="card-body">
+                    <h5 class="card-title text-info">Claves Diferentes</h5>
+                    <h2 class="text-info">{{ claves_unicas }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-center border-secondary">
+                <div class="card-body">
+                    <h5 class="card-title text-secondary">Cantidad Total Solicitada</h5>
+                    <h2 class="text-secondary">{{ cantidad_total }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de Claves No Existen -->
+    <div class="card">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">📋 Claves No Registradas en Catálogo</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Clave Solicitada</th>
+                        <th>Cantidad Solicitada</th>
+                        <th>Primera Solicitud</th>
+                        <th>Última Solicitud</th>
+                        <th>Total Solicitudes</th>
+                        <th>Usuario</th>
+                        <th>Institución</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for error in errores %}
+                    <tr>
+                        <td>
+                            <code class="text-danger">{{ error.clave_solicitada }}</code>
+                        </td>
+                        <td>
+                            <span class="badge bg-danger">{{ error.cantidad_solicitada }}</span>
+                        </td>
+                        <td>
+                            <small>{{ error.primera_solicitud|date:"d/m/Y" }}</small>
+                        </td>
+                        <td>
+                            <small>{{ error.fecha_error|date:"d/m/Y H:i" }}</small>
+                        </td>
+                        <td>
+                            <span class="badge bg-warning text-dark">{{ error.total_solicitudes }}</span>
+                        </td>
+                        <td>
+                            <small>{{ error.usuario.get_full_name|default:error.usuario.username }}</small>
+                        </td>
+                        <td>
+                            <small>{{ error.institucion.nombre|default:"-" }}</small>
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" onclick="crearProducto('{{ error.clave_solicitada }}')">
+                                <i class="fas fa-plus"></i> Crear
+                            </button>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted py-4">
+                            <i class="fas fa-check-circle"></i> No hay claves faltantes en el catálogo en el período seleccionado
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Botón para generar oficio -->
+    <div class="mt-4">
+        <button class="btn btn-lg btn-danger" onclick="generarOficioFaltantes()">
+            <i class="fas fa-file-pdf"></i> Generar Oficio de Claves Faltantes
+        </button>
+        <a href="{% url 'pedidos:reporte_errores' %}" class="btn btn-lg btn-secondary">
+            <i class="fas fa-arrow-left"></i> Volver a Reportes
+        </a>
+    </div>
+
+</div>
+
+<script>
+function crearProducto(clave) {
+    if (confirm(`¿Deseas crear un nuevo producto para la clave: ${clave}?`)) {
+        // Aquí irá la lógica para crear un nuevo producto
+        alert('Funcionalidad de creación de producto en desarrollo');
+    }
+}
+
+function generarOficioFaltantes() {
+    alert('Funcionalidad de generación de oficio en desarrollo');
+    // Aquí irá la lógica para generar un PDF con el oficio
+}
+</script>
+{% endblock %}

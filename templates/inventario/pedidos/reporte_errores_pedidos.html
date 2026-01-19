@@ -1,0 +1,193 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Reporte de Errores en Carga Masiva de Pedidos{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h1 class="mb-3">📊 Reporte de Errores en Carga Masiva de Pedidos</h1>
+            <p class="text-muted">Visualiza todos los errores detectados durante la carga masiva de pedidos</p>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">🔍 Filtros</h5>
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-2">
+                    <label for="fecha_inicio" class="form-label">Fecha Inicio</label>
+                    <input type="date" class="form-control" id="fecha_inicio" name="fecha_inicio" value="{{ request.GET.fecha_inicio }}">
+                </div>
+                <div class="col-md-2">
+                    <label for="fecha_fin" class="form-label">Fecha Fin</label>
+                    <input type="date" class="form-control" id="fecha_fin" name="fecha_fin" value="{{ request.GET.fecha_fin }}">
+                </div>
+                <div class="col-md-2">
+                    <label for="tipo_error" class="form-label">Tipo de Error</label>
+                    <select class="form-control" id="tipo_error" name="tipo_error">
+                        <option value="">Todos</option>
+                        <option value="CLAVE_NO_EXISTE" {% if request.GET.tipo_error == 'CLAVE_NO_EXISTE' %}selected{% endif %}>Clave no existe</option>
+                        <option value="SIN_EXISTENCIA" {% if request.GET.tipo_error == 'SIN_EXISTENCIA' %}selected{% endif %}>Sin existencia</option>
+                        <option value="CANTIDAD_INVALIDA" {% if request.GET.tipo_error == 'CANTIDAD_INVALIDA' %}selected{% endif %}>Cantidad inválida</option>
+                        <option value="OTRO" {% if request.GET.tipo_error == 'OTRO' %}selected{% endif %}>Otro</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="clave_solicitada" class="form-label">Clave Solicitada</label>
+                    <input type="text" class="form-control" id="clave_solicitada" name="clave_solicitada" placeholder="Buscar clave..." value="{{ request.GET.clave_solicitada }}">
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-search"></i> Filtrar
+                    </button>
+                    <a href="{% url 'pedidos:reporte_errores' %}" class="btn btn-secondary ms-2 w-100">
+                        <i class="fas fa-redo"></i> Limpiar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Estadísticas -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card text-center border-danger">
+                <div class="card-body">
+                    <h5 class="card-title text-danger">Total de Errores</h5>
+                    <h2 class="text-danger">{{ errores.count }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center border-warning">
+                <div class="card-body">
+                    <h5 class="card-title text-warning">Claves No Existen</h5>
+                    <h2 class="text-warning">{{ errores_por_tipo.CLAVE_NO_EXISTE|default:0 }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center border-info">
+                <div class="card-body">
+                    <h5 class="card-title text-info">Sin Existencia</h5>
+                    <h2 class="text-info">{{ errores_por_tipo.SIN_EXISTENCIA|default:0 }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card text-center border-secondary">
+                <div class="card-body">
+                    <h5 class="card-title text-secondary">Alertas Enviadas</h5>
+                    <h2 class="text-secondary">{{ alertas_enviadas }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de Errores -->
+    <div class="card">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">📋 Listado de Errores</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Fecha</th>
+                        <th>Clave Solicitada</th>
+                        <th>Cantidad</th>
+                        <th>Tipo de Error</th>
+                        <th>Descripción</th>
+                        <th>Usuario</th>
+                        <th>Institución</th>
+                        <th>Estado Alerta</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for error in errores %}
+                    <tr>
+                        <td>
+                            <small>{{ error.fecha_error|date:"d/m/Y H:i" }}</small>
+                        </td>
+                        <td>
+                            <code>{{ error.clave_solicitada }}</code>
+                        </td>
+                        <td>
+                            <span class="badge bg-info">{{ error.cantidad_solicitada }}</span>
+                        </td>
+                        <td>
+                            {% if error.tipo_error == 'CLAVE_NO_EXISTE' %}
+                                <span class="badge bg-danger">Clave no existe</span>
+                            {% elif error.tipo_error == 'SIN_EXISTENCIA' %}
+                                <span class="badge bg-warning">Sin existencia</span>
+                            {% elif error.tipo_error == 'CANTIDAD_INVALIDA' %}
+                                <span class="badge bg-secondary">Cantidad inválida</span>
+                            {% else %}
+                                <span class="badge bg-light text-dark">{{ error.get_tipo_error_display }}</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <small>{{ error.descripcion_error|truncatewords:10 }}</small>
+                        </td>
+                        <td>
+                            <small>{{ error.usuario.get_full_name|default:error.usuario.username }}</small>
+                        </td>
+                        <td>
+                            <small>{{ error.institucion.nombre|default:"-" }}</small>
+                        </td>
+                        <td>
+                            {% if error.alerta_enviada %}
+                                <span class="badge bg-success">✓ Enviada</span>
+                            {% else %}
+                                <span class="badge bg-danger">✗ No enviada</span>
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="8" class="text-center text-muted py-4">
+                            <i class="fas fa-inbox"></i> No hay errores registrados con los filtros seleccionados
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Paginación -->
+    {% if is_paginated %}
+    <nav aria-label="Page navigation" class="mt-4">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?page=1">Primera</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}">Anterior</a>
+                </li>
+            {% endif %}
+            
+            <li class="page-item active">
+                <span class="page-link">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+            </li>
+            
+            {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}">Siguiente</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}">Última</a>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+
+</div>
+{% endblock %}
