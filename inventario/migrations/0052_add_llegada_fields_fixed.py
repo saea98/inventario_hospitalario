@@ -6,7 +6,7 @@ import django.core.validators
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('inventario', '0051_merge_20260117_1926'),
+        ('inventario', '0025_merge_0024_migrations'),
     ]
 
     operations = [
