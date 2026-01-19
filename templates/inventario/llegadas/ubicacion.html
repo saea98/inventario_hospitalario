@@ -25,9 +25,13 @@
                             </div>
                             <div class="card-body">
                                 <p class="mb-2">
-                                    <strong>Lote:</strong> {{ item.lote.codigo }} | 
-                                    <strong>Cantidad Recibida:</strong> <span class="badge badge-info">{{ item.cantidad_recibida }}</span> unidades | 
-                                    <strong>Caducidad:</strong> {{ item.lote.fecha_caducidad|date:"d/m/Y" }}
+                                    {% if item.lote %}
+                                        <strong>Lote:</strong> {{ item.lote.numero_lote }} | 
+                                        <strong>Cantidad Recibida:</strong> <span class="badge badge-info">{{ item.cantidad_recibida }}</span> unidades | 
+                                        <strong>Caducidad:</strong> {{ item.lote.fecha_caducidad|date:"d/m/Y" }}
+                                    {% else %}
+                                        <span class="text-danger"><strong>ERROR: No hay lote creado para este item</strong></span>
+                                    {% endif %}
                                 </p>
                                 
                                 <div class="form-group">
