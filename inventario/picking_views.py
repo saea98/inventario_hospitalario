@@ -190,14 +190,14 @@ def marcar_item_recogido(request, lote_asignado_id):
         
         if total_lotes == lotes_recogidos and total_lotes > 0:
             # Todos los items han sido recogidos
-            propuesta.estado = 'SURTIDA'
-            propuesta.fecha_surtimiento = timezone.now()
-            propuesta.usuario_surtimiento = request.user
+            # Cambiar a REVISADA (no a SURTIDA) para que el supervisor confirme
+            propuesta.estado = 'REVISADA'
+            propuesta.fecha_revision = timezone.now()
+            propuesta.usuario_revision = request.user
             propuesta.save()
             
-            # Generar movimientos de inventario
-            resultado = generar_movimientos_suministro(propuesta.id, request.user)
             propuesta_completada = True
+            resultado = {'exito': True, 'mensaje': 'Propuesta lista para surtir'}
             
             return JsonResponse({
                 'exito': resultado['exito'],
