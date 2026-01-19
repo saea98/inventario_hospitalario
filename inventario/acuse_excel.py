@@ -100,7 +100,7 @@ def generar_acuse_excel(propuesta):
             caducidad = lote.fecha_caducidad.strftime("%d/%m/%Y") if lote.fecha_caducidad else 'N/A'
             lote_info = lote.numero_lote if lote.numero_lote else 'N/A'
             descripcion = item.producto.descripcion
-            cantidad = item.cantidad_propuesta if item.cantidad_propuesta > 0 else item.cantidad_surtida
+            cantidad = item.cantidad_surtida
             
             items_data.append({
                 'idx': idx,
