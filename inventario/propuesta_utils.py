@@ -255,3 +255,63 @@ def completar_surtimiento_propuesta(propuesta_id):
             'exito': False,
             'mensaje': f'Error al completar surtimiento: {str(e)}'
         }
+
+
+def validar_disponibilidad_solicitud(solicitud_id):
+    """
+    Valida si hay suficiente disponibilidad para TODOS los items de una solicitud.
+    Útil para determinar si una solicitud PENDIENTE puede ser validada.
+    
+    Args:
+        solicitud_id: ID de la solicitud
+    
+    Returns:
+        dict: {
+            'disponible': bool,
+            'items_con_error': list de dicts con detalles de items sin disponibilidad,
+            'mensaje_resumen': str con resumen del problema
+        }
+    """
+    from .pedidos_models import SolicitudPedido
+    
+    try:
+        solicitud = SolicitudPedido.objects.prefetch_related('items__producto').get(id=solicitud_id)
+    except SolicitudPedido.DoesNotExist:
+        return {
+            'disponible': False,
+            'items_con_error': [],
+            'mensaje_resumen': 'Solicitud no encontrada'
+        }
+    
+    items_con_error = []
+    todos_disponibles = True
+    
+    for item in solicitud.items.all():
+        if item.cantidad_solicitada > 0:
+            resultado = validar_disponibilidad_para_propuesta(
+                item.producto.id,
+                item.cantidad_solicitada,
+                solicitud.institucion_solicitante.id
+            )
+            
+            if not resultado['disponible']:
+                todos_disponibles = False
+                items_con_error.append({
+                    'clave': item.producto.clave_cnis,
+                    'descripcion': item.producto.descripcion,
+                    'cantidad_solicitada': item.cantidad_solicitada,
+                    'cantidad_disponible': resultado['cantidad_disponible'],
+                    'diferencia': item.cantidad_solicitada - resultado['cantidad_disponible']
+                })
+    
+    if todos_disponibles:
+        mensaje_resumen = 'Todos los productos tienen disponibilidad suficiente'
+    else:
+        cantidad_items_error = len(items_con_error)
+        mensaje_resumen = f'{cantidad_items_error} producto(s) sin disponibilidad suficiente'
+    
+    return {
+        'disponible': todos_disponibles,
+        'items_con_error': items_con_error,
+        'mensaje_resumen': mensaje_resumen
+    }

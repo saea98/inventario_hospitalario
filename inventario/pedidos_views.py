@@ -22,7 +22,7 @@ from .pedidos_forms import (
     BulkUploadForm
 )
 from .propuesta_generator import PropuestaGenerator
-from .propuesta_utils import cancelar_propuesta, validar_disponibilidad_para_propuesta
+from .propuesta_utils import cancelar_propuesta, validar_disponibilidad_para_propuesta, validar_disponibilidad_solicitud
 from .pedidos_utils import registrar_error_pedido
 from django.db import models
 
@@ -210,9 +210,13 @@ def detalle_solicitud(request, solicitud_id):
     
     propuesta = PropuestaPedido.objects.filter(solicitud=solicitud).first()
     
+    # Validar disponibilidad para mostrar alertas
+    validacion_disponibilidad = validar_disponibilidad_solicitud(solicitud_id)
+    
     context = {
         'solicitud': solicitud,
         'propuesta': propuesta,
+        'validacion_disponibilidad': validacion_disponibilidad,
         'page_title': f"Detalle de Solicitud {solicitud.folio}"
     }
     return render(request, 'inventario/pedidos/detalle_solicitud.html', context)
@@ -565,13 +569,14 @@ def cancelar_propuesta_view(request, propuesta_id):
 @transaction.atomic
 def editar_solicitud(request, solicitud_id):
     """
-    Permite editar los items de una solicitud VALIDADA que ya tiene una propuesta.
-    Si se edita, cancela la propuesta actual, recalcula y genera una nueva.
+    Permite editar los items de una solicitud PENDIENTE o VALIDADA.
+    - Si PENDIENTE: simplemente edita los items
+    - Si VALIDADA: cancela la propuesta actual, recalcula y genera una nueva
     """
     solicitud = get_object_or_404(
         SolicitudPedido.objects.prefetch_related('items__producto'),
         id=solicitud_id,
-        estado='VALIDADA'
+        estado__in=['PENDIENTE', 'VALIDADA']
     )
     
     propuesta = PropuestaPedido.objects.filter(solicitud=solicitud).first()
@@ -600,7 +605,12 @@ def editar_solicitud(request, solicitud_id):
             # Guardar los cambios en los items
             formset.save()
             
-            # Validar disponibilidad ANTES de generar la nueva propuesta
+            # Si es PENDIENTE, solo guardar cambios
+            if solicitud.estado == 'PENDIENTE':
+                messages.success(request, f"Solicitud {solicitud.folio} actualizada exitosamente.")
+                return redirect('logistica:detalle_pedido', solicitud_id=solicitud.id)
+            
+            # Si es VALIDADA, validar disponibilidad y generar propuesta
             errores_disponibilidad = []
             for item in solicitud.items.all():
                 if item.cantidad_aprobada > 0:
@@ -648,13 +658,13 @@ def editar_solicitud(request, solicitud_id):
 @transaction.atomic
 def cancelar_solicitud(request, solicitud_id):
     """
-    Cancela una solicitud VALIDADA.
+    Cancela una solicitud PENDIENTE o VALIDADA.
     Si tiene propuesta, libera todas las reservas antes de cancelar.
     """
     solicitud = get_object_or_404(
         SolicitudPedido,
         id=solicitud_id,
-        estado='VALIDADA'
+        estado__in=['PENDIENTE', 'VALIDADA']
     )
     
     propuesta = PropuestaPedido.objects.filter(solicitud=solicitud).first()
