@@ -313,3 +313,85 @@ class LogPropuesta(models.Model):
 
     def __str__(self):
         return f'{self.timestamp} - {self.propuesta.solicitud.folio} - {self.accion}'
+
+
+class LogErrorPedido(models.Model):
+    """
+    Registra los errores que ocurren durante la carga masiva de pedidos.
+    Permite generar reportes de solicitudes sin existencia o sin clave.
+    """
+    TIPO_ERROR_CHOICES = [
+        ('CLAVE_NO_EXISTE', 'Clave no existe'),
+        ('SIN_EXISTENCIA', 'Sin existencia disponible'),
+        ('CANTIDAD_INVALIDA', 'Cantidad inválida'),
+        ('OTRO', 'Otro error'),
+    ]
+    
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
+    
+    # Información del usuario y fecha
+    usuario = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='errores_pedidos',
+        verbose_name="Usuario que Cargó"
+    )
+    fecha_error = models.DateTimeField(auto_now_add=True, verbose_name="Fecha del Error")
+    
+    # Información del error
+    tipo_error = models.CharField(
+        max_length=20,
+        choices=TIPO_ERROR_CHOICES,
+        verbose_name="Tipo de Error"
+    )
+    clave_solicitada = models.CharField(
+        max_length=50,
+        verbose_name="Clave Solicitada"
+    )
+    cantidad_solicitada = models.PositiveIntegerField(
+        null=True, blank=True,
+        verbose_name="Cantidad Solicitada"
+    )
+    descripcion_error = models.TextField(
+        verbose_name="Descripción del Error"
+    )
+    
+    # Información adicional
+    institucion = models.ForeignKey(
+        Institucion,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='errores_pedidos',
+        verbose_name="Institución"
+    )
+    almacen = models.ForeignKey(
+        Almacen,
+        on_delete=models.SET_NULL,
+        null=True, blank=True,
+        related_name='errores_pedidos',
+        verbose_name="Almacén Destino"
+    )
+    
+    # Control de alertas
+    alerta_enviada = models.BooleanField(
+        default=False,
+        verbose_name="¿Se envió alerta?"
+    )
+    fecha_alerta = models.DateTimeField(
+        null=True, blank=True,
+        verbose_name="Fecha de Alerta"
+    )
+    
+    class Meta:
+        verbose_name = "Log de Error en Pedido"
+        verbose_name_plural = "Logs de Errores en Pedidos"
+        ordering = ['-fecha_error']
+        indexes = [
+            models.Index(fields=['fecha_error']),
+            models.Index(fields=['tipo_error']),
+            models.Index(fields=['clave_solicitada']),
+        ]
+    
+    def __str__(self):
+        return f"{self.fecha_error.strftime('%Y-%m-%d %H:%M')} - {self.clave_solicitada} - {self.get_tipo_error_display()}"

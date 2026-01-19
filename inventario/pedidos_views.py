@@ -23,6 +23,8 @@ from .pedidos_forms import (
 )
 from .propuesta_generator import PropuestaGenerator
 from .propuesta_utils import cancelar_propuesta
+from .pedidos_utils import registrar_error_pedido
+from django.db import models
 
 # ============================================================================
 # VISTAS DE GESTIÓN DE PEDIDOS
@@ -98,13 +100,53 @@ def crear_solicitud(request):
                         
                         if clave and cantidad:
                             try:
+                                cantidad_int = int(cantidad)
+                            except ValueError:
+                                registrar_error_pedido(
+                                    usuario=request.user,
+                                    tipo_error='CANTIDAD_INVALIDA',
+                                    clave_solicitada=clave,
+                                    cantidad_solicitada=None,
+                                    descripcion_error=f"Cantidad no valida: {cantidad}",
+                                    enviar_alerta=True
+                                )
+                                messages.warning(request, f"Cantidad invalida para clave {clave}")
+                                continue
+                            
+                            try:
                                 producto = Producto.objects.get(clave_cnis=clave)
-                                items_data.append({
-                                    'producto': producto.id,
-                                    'cantidad_solicitada': int(cantidad)
-                                })
-                            except (Producto.DoesNotExist, ValueError):
-                                messages.warning(request, f"La clave '{clave}' no existe o la cantidad '{cantidad}' no es válida.")
+                            except Producto.DoesNotExist:
+                                registrar_error_pedido(
+                                    usuario=request.user,
+                                    tipo_error='CLAVE_NO_EXISTE',
+                                    clave_solicitada=clave,
+                                    cantidad_solicitada=cantidad_int,
+                                    descripcion_error=f"Clave no existe en catalogo",
+                                    enviar_alerta=True
+                                )
+                                messages.warning(request, f"Clave {clave} no existe")
+                                continue
+                            
+                            existencia = producto.lotes.filter(estado=1).aggregate(
+                                total=models.Sum('cantidad_disponible')
+                            )['total'] or 0
+                            
+                            if existencia < cantidad_int:
+                                registrar_error_pedido(
+                                    usuario=request.user,
+                                    tipo_error='SIN_EXISTENCIA',
+                                    clave_solicitada=clave,
+                                    cantidad_solicitada=cantidad_int,
+                                    descripcion_error=f"Insuficiente: {cantidad_int} solicitado, {existencia} disponible",
+                                    enviar_alerta=True
+                                )
+                                messages.warning(request, f"Sin existencia para {clave}")
+                                continue
+                            
+                            items_data.append({
+                                'producto': producto.id,
+                                'cantidad_solicitada': cantidad_int
+                            })
                     
                     ItemSolicitudFormSet = inlineformset_factory(SolicitudPedido, ItemSolicitud, form=ItemSolicitudForm, extra=len(items_data), can_delete=True)
                     formset = ItemSolicitudFormSet(initial=items_data)
