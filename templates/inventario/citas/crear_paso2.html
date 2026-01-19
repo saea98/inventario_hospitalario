@@ -153,7 +153,7 @@
                     </div>
                     <div class="col-md-5">
                         <label class="form-label">💊 Clave de Producto (CNIS)</label>
-                        <select class="form-control clave_medicamento select2-busqueda" 
+                        <select class="form-control clave_medicamento select2-busqueda select2" 
                                 placeholder="Buscar por clave o descripción..."
                                 data-linea="${numeroLinea}"
                                 style="width: 100%;">
@@ -171,8 +171,10 @@
             
             container.appendChild(nuevoDetalle);
             
-            // Inicializar Select2 en la nueva línea
-            inicializar_select2(numeroLinea);
+            // Inicializar Select2 en la nueva línea con delay
+            setTimeout(function() {
+                inicializar_select2(numeroLinea);
+            }, 100);
             
             // Agregar evento al botón eliminar
             nuevoDetalle.querySelector('.eliminar-linea').addEventListener('click', function() {
@@ -256,6 +258,23 @@
     
     .select2-container .select2-selection--single .select2-selection__rendered {
         line-height: 36px;
+    }
+    
+    .select2-container--default .select2-selection--single {
+        background-color: #fff;
+        border: 1px solid #ced4da;
+        border-radius: 0.25rem;
+        height: 38px;
+    }
+    
+    .select2-container--default .select2-selection--single .select2-selection__rendered {
+        color: #495057;
+        line-height: 36px;
+    }
+    
+    .select2-container--default.select2-container--focus .select2-selection--single {
+        border-color: #80bdff;
+        box-shadow: 0 0 0 0.2rem rgba(0, 123, 255, 0.25);
     }
 </style>
 {% endblock %}
