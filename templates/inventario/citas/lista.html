@@ -184,8 +184,16 @@
                                     {% endif %}
                                 </td>
                                 <td>
-                                    {% if cita.numero_orden_remision %}
+                                    {% if cita.detalles_json %}
+                                        {% for detalle in cita.detalles_json %}
+                                            <div class="mb-1">
+                                                <small class="badge bg-secondary">{{ detalle.numero_orden_remision }}</small>
+                                                <small class="text-muted">{{ detalle.clave_medicamento }}</small>
+                                            </div>
+                                        {% endfor %}
+                                    {% elif cita.numero_orden_remision %}
                                         <small class="badge bg-secondary">{{ cita.numero_orden_remision }}</small>
+                                        <small class="text-muted">{{ cita.clave_medicamento }}</small>
                                     {% else %}
                                         <small class="text-muted">-</small>
                                     {% endif %}
