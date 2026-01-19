@@ -575,9 +575,7 @@ def editar_solicitud(request, solicitud_id):
     )
     
     propuesta = PropuestaPedido.objects.filter(solicitud=solicitud).first()
-    if not propuesta:
-        messages.error(request, "No hay propuesta asociada a esta solicitud.")
-        return redirect('logistica:detalle_pedido', solicitud_id=solicitud.id)
+    # Permitir editar aunque no haya propuesta (caso de falta de disponibilidad)
     
     ItemSolicitudFormSet = inlineformset_factory(
         SolicitudPedido, 
@@ -591,12 +589,13 @@ def editar_solicitud(request, solicitud_id):
         formset = ItemSolicitudFormSet(request.POST, instance=solicitud)
         
         if formset.is_valid():
-            # Primero, cancelar la propuesta actual (libera reservas)
-            resultado_cancelacion = cancelar_propuesta(propuesta.id, usuario=request.user)
-            
-            if not resultado_cancelacion['exito']:
-                messages.error(request, f"Error al cancelar propuesta anterior: {resultado_cancelacion['mensaje']}")
-                return redirect('logistica:detalle_pedido', solicitud_id=solicitud.id)
+            # Si hay propuesta, cancelarla primero (libera reservas)
+            if propuesta:
+                resultado_cancelacion = cancelar_propuesta(propuesta.id, usuario=request.user)
+                
+                if not resultado_cancelacion['exito']:
+                    messages.error(request, f"Error al cancelar propuesta anterior: {resultado_cancelacion['mensaje']}")
+                    return redirect('logistica:detalle_pedido', solicitud_id=solicitud.id)
             
             # Guardar los cambios en los items
             formset.save()

@@ -59,6 +59,18 @@
         </div>
     </div>
 
+    {% if solicitud.estado == 'VALIDADA' and not propuesta %}
+    <div class="alert alert-warning" role="alert">
+        <h4 class="alert-heading"><i class="fas fa-exclamation-triangle"></i> Sin Propuesta Generada</h4>
+        <p>Esta solicitud no tiene propuesta generada. Esto puede deberse a:</p>
+        <ul>
+            <li>Falta de disponibilidad de productos en el inventario</li>
+            <li>Cantidades insuficientes considerando reservas existentes</li>
+        </ul>
+        <p>Puedes <strong>editar</strong> los items para reducir cantidades o <strong>cancelar</strong> la solicitud.</p>
+    </div>
+    {% endif %}
+
     <div class="card shadow mb-4">
         <div class="card-header py-3">
             <h6 class="m-0 font-weight-bold text-primary">Items de la Solicitud</h6>
