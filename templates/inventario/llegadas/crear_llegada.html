@@ -312,6 +312,9 @@
                                     <td><small class="text-muted d-block mb-1">Fabricante</small>{{ form.fabricante }}</td>
                                     <td><small class="text-muted d-block mb-1">F. Elab.</small>{{ form.fecha_elaboracion }}</td>
                                     <td><small class="text-muted d-block mb-1">F. Caduc.</small>{{ form.fecha_caducidad }}</td>
+                                    <!-- Campo oculto para clave -->
+                                    <td style="display: none;">{{ form.clave }}</td>
+                                    <!-- Campo oculto para cantidad emitida -->
                                     <td style="display: none;"><small class="text-muted d-block mb-1">Emitida</small>{{ form.cantidad_emitida }}</td>
                                     <td><small class="text-muted d-block mb-1">Recibida</small>{{ form.cantidad_recibida }}</td>
                                     <td style="display: none;"><small class="text-muted d-block mb-1">Piezas/Lote</small>{{ form.piezas_por_lote }}</td>
@@ -374,6 +377,9 @@ $(document).ready(function() {
     
     initializeProductSelect2();
     
+    // Llenar campos por defecto (clave y cantidad_emitida)
+    fillDefaultFieldValues();
+    
     // Calcular total de piezas recibidas al cargar la página
     updateTotalPiezasRecibidas();
     
@@ -383,6 +389,16 @@ $(document).ready(function() {
     // Agregar evento global para cambios en cantidad_recibida
     $(document).on('change', '.cantidad-recibida', function() {
         console.log('Cambio detectado en cantidad_recibida:', $(this).val());
+        
+        // Actualizar cantidad_emitida con el mismo valor
+        var $row = $(this).closest('tr');
+        var formIndex = $row.data('form-index');
+        var cantidadRecibida = $(this).val();
+        var $cantidadEmitidaField = $row.find('input[name="items-' + formIndex + '-cantidad_emitida"]');
+        if ($cantidadEmitidaField.length) {
+            $cantidadEmitidaField.val(cantidadRecibida);
+        }
+        
         updateTotalPiezasRecibidas();
     });
     
@@ -634,6 +650,31 @@ function addItemRow() {
     
     // Agregar validaciones
     addFieldValidation(newRow1, newRow2);
+    
+    // Llenar campos por defecto
+    fillDefaultFieldValues();
+}
+
+function fillDefaultFieldValues() {
+    // Llenar campos por defecto para todos los items
+    $('#items-tbody tr.row-principal').each(function() {
+        var $row = $(this);
+        var formIndex = $row.data('form-index');
+        
+        // Llenar clave con valor por defecto si está vacío
+        var $claveField = $row.find('input[name="items-' + formIndex + '-clave"]');
+        if ($claveField.length && !$claveField.val()) {
+            $claveField.val('DEFAULT');
+        }
+        
+        // Llenar cantidad_emitida con la cantidad_recibida si está vacío
+        var $cantidadEmitidaField = $row.find('input[name="items-' + formIndex + '-cantidad_emitida"]');
+        var $cantidadRecibidaField = $row.find('input[name="items-' + formIndex + '-cantidad_recibida"]');
+        if ($cantidadEmitidaField.length && !$cantidadEmitidaField.val()) {
+            var cantidadRecibida = $cantidadRecibidaField.val() || '1';
+            $cantidadEmitidaField.val(cantidadRecibida);
+        }
+    });
 }
 
 function removeRow(btn) {
