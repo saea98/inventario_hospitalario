@@ -80,9 +80,13 @@ class PropuestaGenerator:
 
         # Buscar lotes disponibles que no estén caducados
         # Considerar que deben tener al menos 60 días de vida útil
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        fecha_minima = date.today() + timedelta(days=60)
         lotes_disponibles = Lote.objects.filter(
             producto=producto,
-            fecha_caducidad__gte=date.today() + timedelta(days=60),
+            fecha_caducidad__gte=fecha_minima,
             estado=1  # Solo lotes disponibles
         ).select_related('producto').order_by(
             'fecha_caducidad'  # Priorizar lotes que caducan antes
@@ -93,6 +97,11 @@ class PropuestaGenerator:
             max(0, lote.cantidad_disponible - lote.cantidad_reservada) 
             for lote in lotes_disponibles
         )
+        
+        logger.warning(f"[GENERAR_PROPUESTA] Clave: {producto.clave_cnis} | Requerido: {cantidad_requerida} | Fecha minima: {fecha_minima} | Lotes con 60+ dias: {lotes_disponibles.count()} | Total disponible: {cantidad_total_disponible}")
+        for lote in lotes_disponibles:
+            disp = lote.cantidad_disponible - lote.cantidad_reservada
+            logger.warning(f"  - Lote {lote.numero_lote}: Disponible={lote.cantidad_disponible}, Reservado={lote.cantidad_reservada}, Neto={disp}, Caducidad={lote.fecha_caducidad}")
 
         item_propuesta.cantidad_disponible = cantidad_total_disponible
 

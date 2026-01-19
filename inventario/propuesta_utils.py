@@ -176,8 +176,11 @@ def validar_disponibilidad_para_propuesta(producto_id, cantidad_requerida, insti
             'lotes': list de lotes disponibles con cantidad real
         }
     """
-    from .models import Lote
+    from .models import Lote, Producto
     from django.db.models import Sum
+    import logging
+    
+    logger = logging.getLogger(__name__)
     
     # Obtener lotes disponibles del producto
     query = Lote.objects.filter(
@@ -197,6 +200,12 @@ def validar_disponibilidad_para_propuesta(producto_id, cantidad_requerida, insti
     total_disponible = totales['total_cantidad_disponible'] or 0
     total_reservada = totales['total_cantidad_reservada'] or 0
     cantidad_total_disponible = total_disponible - total_reservada
+    
+    try:
+        producto = Producto.objects.get(id=producto_id)
+        logger.warning(f"[VALIDAR_DISPONIBILIDAD] Clave: {producto.clave_cnis} | Solicitado: {cantidad_requerida} | Total disponible: {total_disponible} | Total reservado: {total_reservada} | Neto: {cantidad_total_disponible} | Lotes: {query.count()}")
+    except:
+        logger.warning(f"[VALIDAR_DISPONIBILIDAD] Producto ID: {producto_id} | Solicitado: {cantidad_requerida} | Neto: {cantidad_total_disponible} | Lotes: {query.count()}")
     
     # Construir lista de lotes para referencia
     lotes_disponibles = []
