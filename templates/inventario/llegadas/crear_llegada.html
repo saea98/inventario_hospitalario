@@ -577,6 +577,7 @@ function addItemRow() {
         '<td><small class="text-muted d-block mb-1">Fabricante</small><input type="text" id="id_items-' + newFormIndex + '-fabricante" name="items-' + newFormIndex + '-fabricante" class="form-control"></td>' +
         '<td><small class="text-muted d-block mb-1">F. Elab.</small><input type="date" id="id_items-' + newFormIndex + '-fecha_elaboracion" name="items-' + newFormIndex + '-fecha_elaboracion" class="form-control"></td>' +
         '<td><small class="text-muted d-block mb-1">F. Caduc.</small><input type="date" id="id_items-' + newFormIndex + '-fecha_caducidad" name="items-' + newFormIndex + '-fecha_caducidad" class="form-control"></td>' +
+        '<td style="display: none;"><small class="text-muted d-block mb-1">Clave</small><input type="text" id="id_items-' + newFormIndex + '-clave" name="items-' + newFormIndex + '-clave" class="form-control"></td>' +
         '<td style="display: none;"><small class="text-muted d-block mb-1">Emitida</small><input type="number" id="id_items-' + newFormIndex + '-cantidad_emitida" name="items-' + newFormIndex + '-cantidad_emitida" class="form-control cantidad-emitida"></td>' +
         '<td><small class="text-muted d-block mb-1">Recibida</small><input type="number" id="id_items-' + newFormIndex + '-cantidad_recibida" name="items-' + newFormIndex + '-cantidad_recibida" class="form-control cantidad-recibida"></td>' +
         '<td style="display: none;"><small class="text-muted d-block mb-1">Piezas/Lote</small><input type="number" id="id_items-' + newFormIndex + '-piezas_por_lote" name="items-' + newFormIndex + '-piezas_por_lote" class="form-control piezas-por-lote" min="1" value="1"></td>' +
@@ -671,15 +672,23 @@ function addItemRow() {
 }
 
 function fillDefaultFieldValues() {
+    // Obtener la clave de producto de referencia (heredada de la cita)
+    var claveDefault = $('#clave-producto-ref').text().trim();
+    
     // Llenar campos por defecto para todos los items
     $('#items-tbody tr.row-principal').each(function() {
         var $row = $(this);
         var formIndex = $row.data('form-index');
         
-        // Llenar clave con valor por defecto si está vacío
+        // Llenar clave con valor de referencia si está vacío
         var $claveField = $row.find('input[name="items-' + formIndex + '-clave"]');
         if ($claveField.length && !$claveField.val()) {
-            $claveField.val('DEFAULT');
+            if (claveDefault && claveDefault !== '-') {
+                $claveField.val(claveDefault);
+                console.log('[fillDefaultFieldValues] Clave llenada con: ' + claveDefault);
+            } else {
+                $claveField.val('DEFAULT');
+            }
         }
         
         // Llenar cantidad_emitida con la cantidad_recibida si está vacío
