@@ -81,7 +81,7 @@
                         <th>Descripción</th>
                         <th>Cantidad Total Solicitada</th>
                         <th>Total Solicitudes</th>
-                        <th>Instituciones</th>
+                        <th>Prioridad</th>
                         <th>Última Solicitud</th>
                     </tr>
                 </thead>
@@ -101,9 +101,7 @@
                             <span class="badge bg-warning text-dark">{{ clave_data.total_solicitudes }}</span>
                         </td>
                         <td>
-                            {% for institucion in clave_data.instituciones %}
-                                <span class="badge bg-secondary">{{ institucion }}</span>
-                            {% endfor %}
+                            <!-- Prioridad: vacío para que lo llene quien corresponda -->
                         </td>
                         <td>
                             <small>

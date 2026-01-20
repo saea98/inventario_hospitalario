@@ -234,7 +234,7 @@ def exportar_claves_sin_existencia_excel(request):
     )
     
     # Encabezados
-    headers = ['Clave', 'Descripción', 'Cantidad Total Solicitada', 'Total Solicitudes', 'Instituciones']
+    headers = ['Clave', 'Descripción', 'Cantidad Total Solicitada', 'Total Solicitudes', 'Prioridad']
     for col, header in enumerate(headers, 1):
         cell = ws.cell(row=1, column=col)
         cell.value = header
@@ -253,7 +253,7 @@ def exportar_claves_sin_existencia_excel(request):
         ws.cell(row=row, column=2).value = clave_data['descripcion']
         ws.cell(row=row, column=3).value = clave_data['cantidad_total']
         ws.cell(row=row, column=4).value = clave_data['total_solicitudes']
-        ws.cell(row=row, column=5).value = clave_data['instituciones']
+        ws.cell(row=row, column=5).value = ''  # Prioridad: vacío para que lo llene quien corresponda
         
         for col in range(1, 6):
             cell = ws.cell(row=row, column=col)
