@@ -19,5 +19,6 @@ urlpatterns = [
     # Reportes de Errores
     path('reportes/errores/', pedidos_reports_views.reporte_errores_pedidos, name='reporte_errores'),
     path('reportes/claves-sin-existencia/', pedidos_reports_views.reporte_claves_sin_existencia, name='reporte_claves_sin_existencia'),
+    path('reportes/claves-sin-existencia/exportar/', pedidos_reports_views.exportar_claves_sin_existencia_excel, name='exportar_claves_sin_existencia_excel'),
     path('reportes/claves-no-existen/', pedidos_reports_views.reporte_claves_no_existen, name='reporte_claves_no_existen'),
 ]
