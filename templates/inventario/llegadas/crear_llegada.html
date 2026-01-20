@@ -568,8 +568,16 @@ function extraerClaveDelProducto(texto) {
 }
 
 function addItemRow() {
-    var formCount = $('#id_items-TOTAL_FORMS').val();
-    var newFormIndex = parseInt(formCount);
+    // Encontrar el máximo data-form-index en la tabla
+    var maxIndex = 0;
+    $('#items-tbody tr.row-principal').each(function() {
+        var index = parseInt($(this).data('form-index')) || 0;
+        if (index > maxIndex) {
+            maxIndex = index;
+        }
+    });
+    var newFormIndex = maxIndex + 1;
+    console.log('[addItemRow] Máximo índice actual: ' + maxIndex + ', nuevo índice: ' + newFormIndex);
     
     // FILA 1: Datos del Lote
     var newRow1 = $('<tr class="item-row row-principal" data-form-index="' + newFormIndex + '">' +
