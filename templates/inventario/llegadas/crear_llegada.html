@@ -454,6 +454,11 @@ $(document).ready(function() {
     
     // Validar al enviar
     $('#llegada-form').on('submit', function(e) {
+        // Asegurar que TOTAL_FORMS esta actualizado
+        updateFormCount();
+        console.log('[submit] TOTAL_FORMS antes de enviar: ' + $('#id_items-TOTAL_FORMS').val());
+        console.log('[submit] Items en tabla: ' + $('#items-tbody tr.row-principal').length);
+        
         if (!validateRequiredFields() || !validatePiezasSum()) {
             e.preventDefault();
         }
@@ -603,7 +608,9 @@ function addItemRow() {
     newRow1.show();
     newRow2.show();
     
-    $('#id_items-TOTAL_FORMS').val(newFormIndex + 1);
+    // Actualizar TOTAL_FORMS correctamente
+    updateFormCount();
+    console.log('[addItemRow] Nuevo item agregado con índice: ' + newFormIndex + ', TOTAL_FORMS: ' + $('#id_items-TOTAL_FORMS').val());
     
     // Cargar opciones de productos
     var newSelect = newRow1.find('select[id$="-producto"]');
@@ -695,8 +702,11 @@ function removeRow(btn) {
 }
 
 function updateFormCount() {
+    // Contar TODOS los items (visibles y ocultos) que tienen data-form-index
     var count = $('#items-tbody tr.row-principal').length;
+    console.log('[updateFormCount] Total de items: ' + count);
     $('#id_items-TOTAL_FORMS').val(count);
+    console.log('[updateFormCount] TOTAL_FORMS actualizado a: ' + $('#id_items-TOTAL_FORMS').val());
 }
 
 function addFieldValidation(row1, row2) {
