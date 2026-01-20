@@ -307,8 +307,9 @@
                         <thead style="display: none;"></thead>
                         <tbody id="items-tbody">
                             {% for form in formset %}
+                                {% if forloop.first %}
                                 <!-- FILA 1: Datos del Lote y Cantidades -->
-                                <tr class="item-row row-principal" data-form-index="{{ forloop.counter0 }}" {% if not forloop.first %}style="display: none;"{% endif %}>
+                                <tr class="item-row row-principal" data-form-index="{{ forloop.counter0 }}">
                                     <td><small class="text-muted d-block mb-1">Producto</small>{{ form.producto }}</td>
                                     <td><small class="text-muted d-block mb-1">Lote</small>{{ form.numero_lote }}</td>
                                     <td><small class="text-muted d-block mb-1">Marca</small>{{ form.marca }}</td>
@@ -329,7 +330,7 @@
                                 </tr>
                                 
                                 <!-- FILA 2: Precios e IVA -->
-                                <tr class="item-row row-precios" data-form-index="{{ forloop.counter0 }}" {% if not forloop.first %}style="display: none;"{% endif %}>
+                                <tr class="item-row row-precios" data-form-index="{{ forloop.counter0 }}">
                                     <td><small class="text-muted d-block mb-1">P. Unitario</small><input type="number" id="{{ form.precio_unitario_sin_iva.id_for_label }}" name="{{ form.precio_unitario_sin_iva.html_name }}" class="form-control precio-unitario" step="0.01" placeholder="0.00" value="{{ form.precio_unitario_sin_iva.value|default:'' }}"></td>
                                     <td><small class="text-muted d-block mb-1">% IVA</small><input type="number" id="{{ form.porcentaje_iva.id_for_label }}" name="{{ form.porcentaje_iva.html_name }}" class="form-control porcentaje-iva" step="0.01" placeholder="0.00" value="{{ form.porcentaje_iva.value|default:'' }}" readonly></td>
                                     <td><small class="text-muted d-block mb-1">P. c/IVA</small><input type="number" id="{{ form.precio_unitario_con_iva.id_for_label }}" name="{{ form.precio_unitario_con_iva.html_name }}" class="form-control precio-con-iva" step="0.01" placeholder="0.00" value="{{ form.precio_unitario_con_iva.value|default:'' }}" readonly></td>
@@ -345,6 +346,7 @@
                                             {{ form.non_field_errors }}
                                         </td>
                                     </tr>
+                                {% endif %}
                                 {% endif %}
                             {% endfor %}
                         </tbody>
