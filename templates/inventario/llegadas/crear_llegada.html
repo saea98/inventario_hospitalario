@@ -532,9 +532,9 @@ function calcularIVADelProducto($selectProducto) {
         var selectedText = $selectProducto.find('option:selected').text();
         var clave = extraerClaveDelProducto(selectedText);
         if (clave && (clave.startsWith('060') || clave.startsWith('080') || clave.startsWith('130') || clave.startsWith('379'))) {
-            $ivaInput.val('16');
+            $ivaInput.val('0.16');
         } else {
-            $ivaInput.val('0');
+            $ivaInput.val('0.00');
         }
     }
     
@@ -579,11 +579,11 @@ function addItemRow() {
         '</tr>');
     
     // FILA 2: Precios e IVA
-    // Obtener el precio del item anterior si existe
+    // Obtener el precio del PRIMER item
     var precioAnterior = '';
-    var ultimoRow2 = $('#items-tbody tr.row-precios').last();
-    if (ultimoRow2.length > 0) {
-        precioAnterior = ultimoRow2.find('.precio-unitario').val();
+    var primerRow2 = $('#items-tbody tr.row-precios').first();
+    if (primerRow2.length > 0) {
+        precioAnterior = primerRow2.find('.precio-unitario').val();
     }
     
     var newRow2 = $('<tr class="item-row row-precios" data-form-index="' + newFormIndex + '">' +
