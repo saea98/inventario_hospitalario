@@ -205,8 +205,8 @@ def detalle_cita(request, pk):
     
     cita = get_object_or_404(CitaProveedor, pk=pk)
     
-    # Verificar si el usuario tiene rol Control Calidad o es Administrador
-    puede_validar = usuario_tiene_rol(request.user, 'Control Calidad', 'Administrador') or request.user.is_superuser
+    # Verificar si el usuario tiene rol CONTROL_CALIDAD o es Administrador
+    puede_validar = usuario_tiene_rol(request.user, 'CONTROL_CALIDAD', 'Administrador') or request.user.is_superuser
     
     context = {
         'cita': cita,
