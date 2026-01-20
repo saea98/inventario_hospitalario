@@ -167,7 +167,7 @@ ItemLlegadaFormSet = inlineformset_factory(
     LlegadaProveedor,
     ItemLlegada,
     form=ItemLlegadaForm,
-    extra=1,
+    extra=2,
     can_delete=True,
     can_delete_extra=True,
     fk_name="llegada",
