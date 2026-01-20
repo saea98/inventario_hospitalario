@@ -201,12 +201,10 @@ def crear_cita(request):
 @login_required
 def detalle_cita(request, pk):
     """Ver detalles de una cita"""
-    from .access_control import usuario_tiene_rol
-    
     cita = get_object_or_404(CitaProveedor, pk=pk)
     
-    # Verificar si el usuario tiene rol CONTROL_CALIDAD o es Administrador
-    puede_validar = usuario_tiene_rol(request.user, 'CONTROL_CALIDAD', 'Administrador') or request.user.is_superuser
+    # Verificar si el usuario tiene permiso para validar entrada de cita
+    puede_validar = request.user.has_perm('inventario.validar_entrada_cita') or request.user.is_superuser
     
     context = {
         'cita': cita,

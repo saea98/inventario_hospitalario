@@ -939,6 +939,9 @@ class CitaProveedor(models.Model):
         verbose_name = "Cita de Proveedor"
         verbose_name_plural = "Citas de Proveedores"
         ordering = ['-fecha_cita']
+        permissions = [
+            ('validar_entrada_cita', 'Puede validar entrada de cita'),
+        ]
 
     def __str__(self):
         return f"Cita {self.proveedor.razon_social} - {self.fecha_cita.strftime('%d/%m/%Y %H:%M')}"
