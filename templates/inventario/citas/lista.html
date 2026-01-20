@@ -164,7 +164,7 @@
                 <tbody>
                     {% if citas %}
                         {% for cita in citas %}
-                            <tr>
+                            <tr class="cita-row" data-bs-toggle="tooltip" data-bs-placement="right" data-cita-id="{{ cita.pk }}" data-proveedor="{{ cita.proveedor.razon_social }}" data-rfc="{{ cita.proveedor.rfc }}" data-fecha="{{ cita.fecha_cita|date:'d/m/Y H:i' }}" data-almacen="{{ cita.almacen.nombre }}" data-orden-suministro="{{ cita.numero_orden_suministro|default:'-' }}" data-orden-remision="{{ cita.numero_orden_remision|default:'-' }}" data-estado="{{ cita.get_estado_display }}">
                                 <td>
                                     <strong>{{ cita.proveedor.razon_social|truncatewords:3 }}</strong>
                                     <br>
@@ -318,5 +318,32 @@
     .cursor-pointer {
         cursor: pointer;
     }
+    .cita-row {
+        cursor: help;
+    }
 </style>
+
+<script>
+    document.addEventListener('DOMContentLoaded', function() {
+        const tooltipTriggerList = [].slice.call(document.querySelectorAll('[data-bs-toggle="tooltip"]'));
+        tooltipTriggerList.map(function (tooltipTriggerEl) {
+            const proveedor = tooltipTriggerEl.getAttribute('data-proveedor');
+            const rfc = tooltipTriggerEl.getAttribute('data-rfc');
+            const fecha = tooltipTriggerEl.getAttribute('data-fecha');
+            const almacen = tooltipTriggerEl.getAttribute('data-almacen');
+            const ordenSuministro = tooltipTriggerEl.getAttribute('data-orden-suministro');
+            const ordenRemision = tooltipTriggerEl.getAttribute('data-orden-remision');
+            const estado = tooltipTriggerEl.getAttribute('data-estado');
+            
+            const tooltipContent = `<div style="text-align: left;"><strong>${proveedor}</strong><br><small>RFC: ${rfc}</small><br><hr style="margin: 5px 0;"><small><strong>Fecha:</strong> ${fecha}</small><br><small><strong>Almacen:</strong> ${almacen}</small><br><small><strong>Orden Suministro:</strong> ${ordenSuministro}</small><br><small><strong>Orden Remision:</strong> ${ordenRemision}</small><br><small><strong>Estado:</strong> ${estado}</small></div>`;
+            
+            tooltipTriggerEl.setAttribute('data-bs-title', tooltipContent);
+            
+            return new bootstrap.Tooltip(tooltipTriggerEl, {
+                html: true,
+                delay: { show: 300, hide: 100 }
+            });
+        });
+    });
+</script>
 {% endblock %}
