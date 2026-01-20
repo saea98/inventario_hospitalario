@@ -609,10 +609,6 @@ function addItemRow() {
     newRow1.show();
     newRow2.show();
     
-    // Actualizar TOTAL_FORMS correctamente
-    updateFormCount();
-    console.log('[addItemRow] Nuevo item agregado con índice: ' + newFormIndex + ', TOTAL_FORMS: ' + $('#id_items-TOTAL_FORMS').val());
-    
     // Cargar opciones de productos
     var newSelect = newRow1.find('select[id$="-producto"]');
     $.ajax({
@@ -669,6 +665,10 @@ function addItemRow() {
     
     // Llenar campos por defecto
     fillDefaultFieldValues();
+    
+    // Actualizar TOTAL_FORMS DESPUÉS de llenar campos
+    updateFormCount();
+    console.log('[addItemRow] Nuevo item agregado con índice: ' + newFormIndex + ', TOTAL_FORMS: ' + $('#id_items-TOTAL_FORMS').val());
 }
 
 function fillDefaultFieldValues() {
@@ -713,9 +713,14 @@ function removeRow(btn) {
 function updateFormCount() {
     // Contar TODOS los items (visibles y ocultos) que tienen data-form-index
     var count = $('#items-tbody tr.row-principal').length;
-    console.log('[updateFormCount] Total de items: ' + count);
-    $('#id_items-TOTAL_FORMS').val(count);
-    console.log('[updateFormCount] TOTAL_FORMS actualizado a: ' + $('#id_items-TOTAL_FORMS').val());
+    var currentTotal = parseInt($('#id_items-TOTAL_FORMS').val()) || 0;
+    console.log('[updateFormCount] Items en tabla: ' + count + ', TOTAL_FORMS actual: ' + currentTotal);
+    
+    // Solo actualizar si el conteo es diferente
+    if (count !== currentTotal) {
+        $('#id_items-TOTAL_FORMS').val(count);
+        console.log('[updateFormCount] TOTAL_FORMS actualizado a: ' + count);
+    }
 }
 
 function addFieldValidation(row1, row2) {
