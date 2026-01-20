@@ -123,8 +123,8 @@ class PropuestaGenerator:
             )
 
             if cantidad_a_asignar > 0:
-                # Obtener la ubicación del lote (la primera con cantidad disponible)
-                lote_ubicacion = lote.ubicaciones_detalle.filter(cantidad__gt=0).first()
+                # Obtener la ubicación del lote con MÁS cantidad disponible
+                lote_ubicacion = lote.ubicaciones_detalle.filter(cantidad__gt=0).order_by('-cantidad').first()
                 if lote_ubicacion:
                     LoteAsignado.objects.create(
                         item_propuesta=item_propuesta,
