@@ -279,7 +279,7 @@ class UbicacionView(LoginRequiredMixin, PermissionRequiredMixin, View):
         })
     
     def post(self, request, pk):
-        from .models import Almacen, Lote, LoteUbicacion, UbicacionAlmacen
+        from .models import Almacen, Lote, LoteUbicacion, UbicacionAlmacen, MovimientoInventario
         
         llegada = get_object_or_404(LlegadaProveedor, pk=pk)
         items = list(llegada.items.all())
@@ -373,6 +373,21 @@ class UbicacionView(LoginRequiredMixin, PermissionRequiredMixin, View):
                             cantidad=ubi_data['cantidad'],
                             usuario_asignacion=request.user
                         )
+                    
+                    # Crear movimiento de entrada en inventario
+                    MovimientoInventario.objects.create(
+                        lote=lote,
+                        tipo_movimiento='ENTRADA',
+                        cantidad=item.cantidad_recibida,
+                        cantidad_anterior=0,
+                        cantidad_nueva=item.cantidad_recibida,
+                        motivo=f'Entrada de proveedor - Folio: {llegada.folio}',
+                        documento_referencia=llegada.remision,
+                        contrato=llegada.numero_contrato,
+                        remision=llegada.remision,
+                        folio=llegada.folio,
+                        usuario=request.user
+                    )
                 
                 # Marcar llegada como completada
                 llegada.estado = 'APROBADA'
