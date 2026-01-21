@@ -411,7 +411,7 @@ def lista_movimientos(request):
     # Filtro base
     if institucion:
         movimientos = MovimientoInventario.objects.filter(
-            institucion=institucion
+            institucion_destino=institucion
         ).select_related('lote', 'usuario')
     else:
         movimientos = MovimientoInventario.objects.all().select_related('lote', 'usuario')

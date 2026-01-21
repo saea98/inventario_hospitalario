@@ -441,7 +441,7 @@ def surtir_propuesta(request, propuesta_id):
     """
     from .fase5_utils import generar_movimientos_suministro
     
-    propuesta = get_object_or_404(PropuestaPedido, id=propuesta_id, estado='REVISADA')
+    propuesta = get_object_or_404(PropuestaPedido, id=propuesta_id, estado='REVISADA')  # 'REVISADA' = 'Revisada por Almacén'
     
     if request.method == 'POST':
         propuesta.estado = 'EN_SURTIMIENTO'
