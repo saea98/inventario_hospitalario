@@ -1,6 +1,9 @@
 """
 Vistas para reporte de lotes y pedidos asociados.
 Permite buscar un lote específico y ver todos los pedidos donde está asignado.
+
+Relaciones:
+- Lote -> LoteUbicacion -> LoteAsignado -> ItemPropuesta -> PropuestaPedido -> SolicitudPedido
 """
 
 from django.shortcuts import render
@@ -57,14 +60,14 @@ def reporte_lote_pedidos(request):
             query_lote = query_lote.filter(numero_lote__icontains=filtro_lote)
         
         print(f"[DEBUG] Lotes encontrados: {query_lote.count()}")
-        mensaje_debug += f"Lotes encontrados: {query_lote.count()}\n"
+        mensaje_debug += f"✓ Lotes encontrados: {query_lote.count()}\n"
         
         # Si hay un único lote, mostrar sus pedidos
         if query_lote.exists():
             if query_lote.count() == 1:
                 lote = query_lote.first()
                 print(f"[DEBUG] Procesando lote: {lote.numero_lote} (ID: {lote.id})")
-                mensaje_debug += f"Procesando lote: {lote.numero_lote} (ID: {lote.id})\n"
+                mensaje_debug += f"✓ Procesando lote: {lote.numero_lote} (ID: {lote.id})\n"
                 
                 # Preparar datos del lote
                 datos_lote = {
@@ -81,102 +84,109 @@ def reporte_lote_pedidos(request):
                     'valor_total': lote.valor_total,
                 }
                 
-                # Buscar todos los pedidos donde está este lote
+                # NUEVA LÓGICA: Buscar desde LoteAsignado hacia el lote
                 # Paso 1: Buscar LoteUbicacion para este lote
                 lotes_ubicacion = LoteUbicacion.objects.filter(lote=lote)
                 print(f"[DEBUG] LoteUbicacion encontrados: {lotes_ubicacion.count()}")
-                mensaje_debug += f"LoteUbicacion encontrados: {lotes_ubicacion.count()}\n"
+                mensaje_debug += f"✓ LoteUbicacion encontrados: {lotes_ubicacion.count()}\n"
                 
                 if lotes_ubicacion.exists():
                     # Paso 2: Buscar LoteAsignado que usan esos LoteUbicacion
                     lotes_asignados = LoteAsignado.objects.filter(
                         lote_ubicacion__in=lotes_ubicacion
                     ).select_related(
+                        'item_propuesta',
+                        'lote_ubicacion'
+                    ).prefetch_related(
                         'item_propuesta__propuesta__solicitud',
-                        'item_propuesta__producto',
-                        'lote_ubicacion__lote'
+                        'item_propuesta__producto'
                     )
                     
                     print(f"[DEBUG] LoteAsignado encontrados: {lotes_asignados.count()}")
-                    mensaje_debug += f"LoteAsignado encontrados: {lotes_asignados.count()}\n"
+                    mensaje_debug += f"✓ LoteAsignado encontrados: {lotes_asignados.count()}\n"
                     
-                    # Agrupar por propuesta para obtener información de pedidos
-                    pedidos_dict = {}
-                    
-                    for lote_asignado in lotes_asignados:
-                        try:
-                            item_prop = lote_asignado.item_propuesta
-                            propuesta = item_prop.propuesta
-                            solicitud = propuesta.solicitud
-                            
-                            print(f"[DEBUG] Procesando: Propuesta {propuesta.id}, Item {item_prop.id}")
-                            
-                            # Clave única del pedido
-                            pedido_key = propuesta.id
-                            
-                            if pedido_key not in pedidos_dict:
-                                pedidos_dict[pedido_key] = {
-                                    'propuesta_id': propuesta.id,
-                                    'solicitud_folio': solicitud.folio,
-                                    'institucion_solicitante': solicitud.institucion_solicitante.denominacion,
-                                    'estado_propuesta': propuesta.get_estado_display(),
-                                    'fecha_generacion': propuesta.fecha_generacion,
-                                    'items': []
+                    if lotes_asignados.exists():
+                        # Agrupar por propuesta para obtener información de pedidos
+                        pedidos_dict = {}
+                        
+                        for lote_asignado in lotes_asignados:
+                            try:
+                                item_prop = lote_asignado.item_propuesta
+                                propuesta = item_prop.propuesta
+                                solicitud = propuesta.solicitud
+                                
+                                print(f"[DEBUG] Procesando: Propuesta {propuesta.id}, Item {item_prop.id}")
+                                
+                                # Clave única del pedido
+                                pedido_key = propuesta.id
+                                
+                                if pedido_key not in pedidos_dict:
+                                    pedidos_dict[pedido_key] = {
+                                        'propuesta_id': propuesta.id,
+                                        'solicitud_folio': solicitud.folio,
+                                        'institucion_solicitante': solicitud.institucion_solicitante.denominacion,
+                                        'estado_propuesta': propuesta.get_estado_display(),
+                                        'fecha_generacion': propuesta.fecha_generacion,
+                                        'items': {}
+                                    }
+                                
+                                # Usar diccionario para items para evitar duplicados
+                                item_key = item_prop.id
+                                
+                                if item_key not in pedidos_dict[pedido_key]['items']:
+                                    item_info = {
+                                        'item_propuesta_id': item_prop.id,
+                                        'producto_clave': item_prop.producto.clave_cnis,
+                                        'producto_descripcion': item_prop.producto.descripcion,
+                                        'cantidad_solicitada': item_prop.cantidad_solicitada,
+                                        'cantidad_disponible': item_prop.cantidad_disponible,
+                                        'cantidad_propuesta': item_prop.cantidad_propuesta,
+                                        'cantidad_surtida': item_prop.cantidad_surtida,
+                                        'estado_item': item_prop.estado,
+                                        'lotes_asignados': []
+                                    }
+                                    pedidos_dict[pedido_key]['items'][item_key] = item_info
+                                
+                                # Agregar información del lote asignado
+                                lote_info = {
+                                    'cantidad_asignada': lote_asignado.cantidad_asignada,
+                                    'fecha_asignacion': lote_asignado.fecha_asignacion,
+                                    'fecha_surtimiento': lote_asignado.fecha_surtimiento,
+                                    'surtido': lote_asignado.surtido,
+                                    'numero_lote': lote_asignado.lote_ubicacion.lote.numero_lote,
                                 }
-                            
-                            # Agregar información del item
-                            item_info = {
-                                'item_propuesta_id': item_prop.id,
-                                'producto_clave': item_prop.producto.clave_cnis,
-                                'producto_descripcion': item_prop.producto.descripcion,
-                                'cantidad_solicitada': item_prop.cantidad_solicitada,
-                                'cantidad_disponible': item_prop.cantidad_disponible,
-                                'cantidad_propuesta': item_prop.cantidad_propuesta,
-                                'cantidad_surtida': item_prop.cantidad_surtida,
-                                'estado_item': item_prop.estado,
-                                'lotes_asignados': []
-                            }
-                            
-                            # Agregar información del lote asignado
-                            lote_info = {
-                                'cantidad_asignada': lote_asignado.cantidad_asignada,
-                                'fecha_asignacion': lote_asignado.fecha_asignacion,
-                                'fecha_surtimiento': lote_asignado.fecha_surtimiento,
-                                'surtido': lote_asignado.surtido,
-                            }
-                            
-                            item_info['lotes_asignados'].append(lote_info)
-                            
-                            # Agregar o actualizar item en el pedido
-                            item_existe = False
-                            for idx, item in enumerate(pedidos_dict[pedido_key]['items']):
-                                if item['item_propuesta_id'] == item_prop.id:
-                                    # Actualizar cantidad asignada
-                                    item['lotes_asignados'].append(lote_info)
-                                    item_existe = True
-                                    break
-                            
-                            if not item_existe:
-                                pedidos_dict[pedido_key]['items'].append(item_info)
-                            
-                            # Acumular totales
-                            total_reservado += item_prop.cantidad_propuesta
-                            total_surtido += item_prop.cantidad_surtida
-                        except Exception as e:
-                            print(f"[DEBUG] Error procesando lote asignado: {str(e)}")
-                            mensaje_debug += f"Error procesando lote asignado: {str(e)}\n"
-                    
-                    # Convertir dict a lista
-                    datos_pedidos = list(pedidos_dict.values())
-                    print(f"[DEBUG] Pedidos procesados: {len(datos_pedidos)}")
-                    mensaje_debug += f"Pedidos procesados: {len(datos_pedidos)}\n"
+                                
+                                pedidos_dict[pedido_key]['items'][item_key]['lotes_asignados'].append(lote_info)
+                                
+                                # Acumular totales
+                                total_reservado += item_prop.cantidad_propuesta
+                                total_surtido += item_prop.cantidad_surtida
+                                
+                            except Exception as e:
+                                print(f"[DEBUG] Error procesando lote asignado: {str(e)}")
+                                mensaje_debug += f"✗ Error procesando lote asignado: {str(e)}\n"
+                                import traceback
+                                traceback.print_exc()
+                        
+                        # Convertir dict a lista
+                        for pedido_key in pedidos_dict:
+                            # Convertir items dict a lista
+                            pedidos_dict[pedido_key]['items'] = list(pedidos_dict[pedido_key]['items'].values())
+                        
+                        datos_pedidos = list(pedidos_dict.values())
+                        print(f"[DEBUG] Pedidos procesados: {len(datos_pedidos)}")
+                        mensaje_debug += f"✓ Pedidos procesados: {len(datos_pedidos)}\n"
+                    else:
+                        print(f"[DEBUG] No hay LoteAsignado para estos LoteUbicacion")
+                        mensaje_debug += "✗ No hay LoteAsignado para estos LoteUbicacion\n"
                 else:
                     print(f"[DEBUG] No hay LoteUbicacion para este lote")
-                    mensaje_debug += "No hay LoteUbicacion para este lote\n"
+                    mensaje_debug += "✗ No hay LoteUbicacion para este lote\n"
             else:
                 # Si hay múltiples lotes, mostrar lista para seleccionar
                 print(f"[DEBUG] Múltiples lotes encontrados: {query_lote.count()}")
-                mensaje_debug += f"Múltiples lotes encontrados: {query_lote.count()}\n"
+                mensaje_debug += f"⚠ Múltiples lotes encontrados: {query_lote.count()}\n"
+                mensaje_debug += "Por favor, sé más específico en la búsqueda.\n"
     
     # Contexto
     context = {
