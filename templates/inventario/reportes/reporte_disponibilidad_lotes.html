@@ -12,7 +12,7 @@
             <p class="text-muted">Análisis de cantidad disponible contra cantidad reservada por clave y lote</p>
         </div>
         <div class="col-md-4 text-end">
-            <a href="{% url 'inventario:exportar_disponibilidad_excel' %}?clave={{ filtro_clave }}&lote={{ filtro_lote }}&institucion={{ filtro_institucion }}" 
+            <a href="{% url 'reportes:exportar_disponibilidad_excel' %}?clave={{ filtro_clave }}&lote={{ filtro_lote }}&institucion={{ filtro_institucion }}" 
                class="btn btn-success">
                 <i class="fas fa-file-excel"></i> Exportar Excel
             </a>
