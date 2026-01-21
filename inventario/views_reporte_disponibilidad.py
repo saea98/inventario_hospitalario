@@ -163,10 +163,10 @@ def exportar_disponibilidad_excel(request):
     Exporta el reporte de disponibilidad vs reservas a Excel.
     """
     
-    # Obtener parámetros de filtro (igual que en la vista)
-    filtro_clave = request.GET.get('clave', '').strip()
-    filtro_lote = request.GET.get('lote', '').strip()
-    filtro_institucion = request.GET.get('institucion', '')
+    # Obtener parámetros de filtro (GET o POST)
+    filtro_clave = request.POST.get('clave', request.GET.get('clave', '')).strip()
+    filtro_lote = request.POST.get('lote', request.GET.get('lote', '')).strip()
+    filtro_institucion = request.POST.get('institucion', request.GET.get('institucion', ''))
     
     # Query base
     lotes = Lote.objects.select_related(
@@ -189,6 +189,12 @@ def exportar_disponibilidad_excel(request):
     
     if filtro_institucion:
         lotes = lotes.filter(institucion_id=filtro_institucion)
+    
+    # Si no hay filtros, mostrar mensaje
+    if not filtro_clave and not filtro_lote and not filtro_institucion:
+        logger.info(f"[EXPORTAR_DISPONIBILIDAD] Exportando sin filtros")
+    else:
+        logger.info(f"[EXPORTAR_DISPONIBILIDAD] Filtros: clave={filtro_clave}, lote={filtro_lote}, institucion={filtro_institucion}")
     
     lotes = lotes.order_by('producto__clave_cnis', 'fecha_caducidad')
     
