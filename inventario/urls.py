@@ -122,7 +122,7 @@ urlpatterns = [
     path('picking/', include(urls_picking)),  # URLs de FASE 6: Optimización de Picking
     path('pedidos/', include(pedidos_urls)),  # URLs de FASE 2.2.1: Gestión de Pedidos
     path('admin/', django_admin.site.urls),
-    path('reportes/', include(reportes_urls)),
+    path('reportes-disponibilidad/', include(reportes_urls)),
     path('sistema/sql/', include(sql_urls)),
     
 ]
