@@ -944,7 +944,8 @@ class CitaProveedor(models.Model):
         ]
 
     def __str__(self):
-        return f"Cita {self.proveedor.razon_social} - {self.fecha_cita.strftime('%d/%m/%Y %H:%M')}"
+        folio_str = f" [{self.folio}]" if self.folio else ""
+        return f"Cita {self.proveedor.razon_social} - {self.fecha_cita.strftime('%d/%m/%Y %H:%M')}{folio_str}"
 
 
 class OrdenTraslado(models.Model):
