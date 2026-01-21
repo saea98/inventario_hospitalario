@@ -14,6 +14,7 @@ from .llegada_views import (
     SupervisionView,
     UbicacionView,
     SubirDocumentoView,
+    ImprimirEPAView,
     api_productos,
     api_ubicaciones_por_almacen,
     api_cita_folio,
@@ -35,4 +36,5 @@ urlpatterns = [
     path('<uuid:pk>/supervision/', SupervisionView.as_view(), name='supervision'),
     path('<uuid:pk>/ubicacion/', UbicacionView.as_view(), name='ubicacion'),
     path('<uuid:pk>/documento/', SubirDocumentoView.as_view(), name='subir_documento'),
+    path('<uuid:pk>/imprimir-epa/', ImprimirEPAView.as_view(), name='imprimir_epa'),
 ]

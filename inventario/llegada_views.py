@@ -6,7 +6,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.views import View
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
-from django.db import transaction
+from django.db import transaction, models
 from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.http import JsonResponse
@@ -494,3 +494,25 @@ def api_cita_folio(request, cita_id):
         })
     except Exception as e:
         return JsonResponse({'error': 'Cita no encontrada'}, status=404)
+
+
+
+class ImprimirEPAView(LoginRequiredMixin, View):
+    """Genera e imprime el documento EPA (Entrada de Existencias en Almacén)"""
+    
+    def get(self, request, pk):
+        llegada = get_object_or_404(LlegadaProveedor, pk=pk)
+        
+        # Verificar que la llegada esté aprobada
+        if llegada.estado != 'aprobada':
+            messages.error(request, "Solo se pueden imprimir EPA de llegadas aprobadas")
+            return redirect('logistica:llegadas:detalle_llegada', pk=pk)
+        
+        # Preparar datos para el template
+        context = {
+            'llegada': llegada,
+            'items': llegada.items.all(),
+            'total_items': llegada.items.aggregate(total=models.Sum('cantidad_recibida'))['total'] or 0,
+        }
+        
+        return render(request, 'inventario/llegadas/imprimir_epa.html', context)
