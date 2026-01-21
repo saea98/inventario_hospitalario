@@ -556,48 +556,10 @@ def detalle_conteo(request, pk):
 
 @login_required
 def exportar_citas_excel(request):
-    """Exporta la lista de citas a Excel con los filtros aplicados"""
+    """Exporta la lista de citas a Excel"""
     
-    # Aplicar los mismos filtros que en lista_citas
+    # Obtener todas las citas
     citas = CitaProveedor.objects.all().order_by('-fecha_cita')
-    
-    # Filtros
-    estado = request.GET.get('estado')
-    proveedor = request.GET.get('proveedor')
-    fecha_desde = request.GET.get('fecha_desde')
-    fecha_hasta = request.GET.get('fecha_hasta')
-    numero_orden = request.GET.get('numero_orden')
-    numero_remision = request.GET.get('numero_remision')
-    numero_contrato = request.GET.get('numero_contrato')
-    clave_medicamento = request.GET.get('clave_medicamento')
-    
-    # Aplicar filtros
-    if estado:
-        citas = citas.filter(estado=estado)
-    if proveedor:
-        citas = citas.filter(proveedor__razon_social__icontains=proveedor)
-    if fecha_desde:
-        try:
-            fecha_obj = datetime.strptime(fecha_desde, '%Y-%m-%d')
-            citas = citas.filter(fecha_cita__gte=fecha_obj)
-        except:
-            pass
-    if fecha_hasta:
-        try:
-            from datetime import timedelta
-            fecha_obj = datetime.strptime(fecha_hasta, '%Y-%m-%d')
-            fecha_obj = fecha_obj + timedelta(days=1)
-            citas = citas.filter(fecha_cita__lt=fecha_obj)
-        except:
-            pass
-    if numero_orden:
-        citas = citas.filter(numero_orden_suministro__icontains=numero_orden)
-    if numero_remision:
-        citas = citas.filter(numero_orden_remision__icontains=numero_remision)
-    if numero_contrato:
-        citas = citas.filter(numero_contrato__icontains=numero_contrato)
-    if clave_medicamento:
-        citas = citas.filter(clave_medicamento__icontains=clave_medicamento)
     
     # Crear workbook
     wb = Workbook()
@@ -625,19 +587,22 @@ def exportar_citas_excel(request):
         cell.border = border
     
     # Datos
-    for row, cita in enumerate(citas, 2):
-        ws.cell(row=row, column=1).value = cita.proveedor.razon_social if cita.proveedor else ''
-        ws.cell(row=row, column=2).value = cita.proveedor.rfc if cita.proveedor else ''
-        ws.cell(row=row, column=3).value = cita.fecha_cita.strftime('%d/%m/%Y %H:%M') if cita.fecha_cita else ''
-        ws.cell(row=row, column=4).value = cita.almacen.nombre if cita.almacen else ''
-        ws.cell(row=row, column=5).value = cita.numero_orden_suministro or ''
-        ws.cell(row=row, column=6).value = cita.numero_orden_remision or ''
-        ws.cell(row=row, column=7).value = cita.clave_medicamento or ''
-        ws.cell(row=row, column=8).value = dict(CitaProveedor.ESTADOS_CITA).get(cita.estado, cita.estado)
+    row_num = 2
+    for cita in citas:
+        ws.cell(row=row_num, column=1).value = cita.proveedor.razon_social if cita.proveedor else ''
+        ws.cell(row=row_num, column=2).value = cita.proveedor.rfc if cita.proveedor else ''
+        ws.cell(row=row_num, column=3).value = cita.fecha_cita.strftime('%d/%m/%Y %H:%M') if cita.fecha_cita else ''
+        ws.cell(row=row_num, column=4).value = cita.almacen.nombre if cita.almacen else ''
+        ws.cell(row=row_num, column=5).value = cita.numero_orden_suministro or ''
+        ws.cell(row=row_num, column=6).value = cita.numero_orden_remision or ''
+        ws.cell(row=row_num, column=7).value = cita.clave_medicamento or ''
+        ws.cell(row=row_num, column=8).value = dict(CitaProveedor.ESTADOS_CITA).get(cita.estado, cita.estado)
         
         # Aplicar bordes
         for col in range(1, 9):
-            ws.cell(row=row, column=col).border = border
+            ws.cell(row=row_num, column=col).border = border
+        
+        row_num += 1
     
     # Ajustar ancho de columnas
     ws.column_dimensions['A'].width = 30
