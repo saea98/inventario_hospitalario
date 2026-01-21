@@ -1,0 +1,64 @@
+{% extends 'base.html' %}
+{% load crispy_forms_tags %}
+
+{% block title %}Editar Cita - Paso 1{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row">
+        <div class="col-md-8 offset-md-2">
+            <!-- Encabezado -->
+            <div class="mb-4">
+                <h2><i class="fas fa-calendar-edit text-primary"></i> Editar Cita</h2>
+                <p class="text-muted">Paso 1 de 2: Información General</p>
+            </div>
+
+            <!-- Indicador de Progreso -->
+            <div class="progress mb-4" style="height: 25px;">
+                <div class="progress-bar bg-info" role="progressbar" style="width: 50%;" aria-valuenow="50" aria-valuemin="0" aria-valuemax="100">
+                    <span class="progress-text">Paso 1/2: Datos Generales</span>
+                </div>
+            </div>
+
+            <!-- Formulario Paso 1 -->
+            <div class="card shadow mb-4">
+                <div class="card-body">
+                    <form method="POST" novalidate>
+                        {% csrf_token %}
+                        
+                        {{ form|crispy }}
+                        
+                        <div class="d-flex gap-2 mt-4">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-arrow-right"></i> Siguiente: Detalles
+                            </button>
+                            <a href="{% url 'logistica:lista_citas' %}" class="btn btn-secondary btn-lg">
+                                <i class="fas fa-times"></i> Cancelar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+
+            <!-- Información de Ayuda -->
+            <div class="alert alert-info">
+                <h6><i class="fas fa-info-circle"></i> Información Importante</h6>
+                <ul class="mb-0">
+                    <li>Puedes editar los datos generales de la cita en este paso</li>
+                    <li>En el siguiente paso podrás modificar los <strong>detalles</strong> (remisión y clave de producto)</li>
+                    <li>Solo se pueden editar citas en estado <strong>Programada</strong></li>
+                    <li>Los cambios se guardarán al completar el paso 2</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+
+<style>
+    .progress-text {
+        color: white;
+        font-weight: bold;
+        font-size: 14px;
+    }
+</style>
+{% endblock %}
