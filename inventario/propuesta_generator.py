@@ -98,6 +98,29 @@ class PropuestaGenerator:
             for lote in lotes_disponibles
         )
         
+        # Si no hay suficiente cantidad con 60+ días, buscar lotes con menos de 60 días (fallback)
+        if cantidad_total_disponible < cantidad_requerida:
+            fecha_minima_fallback = date.today()
+            lotes_fallback = Lote.objects.filter(
+                producto=producto,
+                fecha_caducidad__gte=fecha_minima_fallback,
+                fecha_caducidad__lt=fecha_minima,  # Lotes que caducan en menos de 60 días
+                estado=1
+            ).select_related('producto').order_by(
+                'fecha_caducidad'  # Priorizar lotes que caducan antes
+            )
+            
+            # Agregar lotes fallback a la lista
+            lotes_disponibles = list(lotes_disponibles) + list(lotes_fallback)
+            
+            # Recalcular cantidad total disponible
+            cantidad_total_disponible = sum(
+                max(0, lote.cantidad_disponible - lote.cantidad_reservada) 
+                for lote in lotes_disponibles
+            )
+            
+            logger.warning(f"[GENERAR_PROPUESTA] Fallback: Agregados {lotes_fallback.count()} lotes con menos de 60 días")
+        
         logger.warning(f"[GENERAR_PROPUESTA] Clave: {producto.clave_cnis} | Requerido: {cantidad_requerida} | Fecha minima: {fecha_minima} | Lotes con 60+ dias: {lotes_disponibles.count()} | Total disponible: {cantidad_total_disponible}")
         for lote in lotes_disponibles:
             disp = lote.cantidad_disponible - lote.cantidad_reservada
