@@ -8,6 +8,7 @@ from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
 from django.db.models import Q, Sum, F, DecimalField
 from django.db.models.functions import Coalesce
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from datetime import date
 import logging
 
@@ -63,13 +64,26 @@ def reporte_disponibilidad_lotes(request):
         'fecha_caducidad'
     )
     
+    # Calcular totales ANTES de paginar
+    total_disponible = sum(lote.cantidad_disponible for lote in lotes)
+    total_reservado = sum(lote.cantidad_reservada for lote in lotes)
+    total_neto = sum(max(0, lote.cantidad_disponible - lote.cantidad_reservada) for lote in lotes)
+    
+    # Paginación
+    paginator = Paginator(lotes, 20)  # 20 lotes por página
+    page = request.GET.get('page')
+    
+    try:
+        lotes_pagina = paginator.page(page)
+    except PageNotAnInteger:
+        lotes_pagina = paginator.page(1)
+    except EmptyPage:
+        lotes_pagina = paginator.page(paginator.num_pages)
+    
     # Preparar datos para la tabla
     datos_reporte = []
-    total_disponible = 0
-    total_reservado = 0
-    total_neto = 0
     
-    for lote in lotes:
+    for lote in lotes_pagina:
         cantidad_neta = max(0, lote.cantidad_disponible - lote.cantidad_reservada)
         porcentaje_reserva = (
             (lote.cantidad_reservada / lote.cantidad_disponible * 100)
@@ -112,10 +126,6 @@ def reporte_disponibilidad_lotes(request):
             'precio_unitario': lote.precio_unitario,
             'valor_total': lote.valor_total,
         })
-        
-        total_disponible += lote.cantidad_disponible
-        total_reservado += lote.cantidad_reservada
-        total_neto += cantidad_neta
     
     # Obtener lista de instituciones para filtro
     from .models import Institucion
@@ -133,14 +143,16 @@ def reporte_disponibilidad_lotes(request):
         'total_disponible': total_disponible,
         'total_reservado': total_reservado,
         'total_neto': total_neto,
-        'total_lotes': len(datos_reporte),
+        'total_lotes': paginator.count,
         'porcentaje_reserva_total': (
             (total_reservado / total_disponible * 100)
             if total_disponible > 0 else 0
         ),
+        'page_obj': lotes_pagina,
+        'paginator': paginator,
     }
     
-    logger.warning(f"[REPORTE_DISPONIBILIDAD] Total lotes: {len(datos_reporte)} | Disponible: {total_disponible} | Reservado: {total_reservado} | Neto: {total_neto}")
+    logger.warning(f"[REPORTE_DISPONIBILIDAD] Total lotes: {paginator.count} | Disponible: {total_disponible} | Reservado: {total_reservado} | Neto: {total_neto}")
     
     return render(request, 'inventario/reportes/reporte_disponibilidad_lotes.html', context)
 
@@ -236,7 +248,7 @@ def exportar_disponibilidad_excel(request):
     ws.column_dimensions['K'].width = 15
     ws.column_dimensions['L'].width = 15
     
-    # Llenar datos
+    # Llenar datos (todos los lotes, no solo la página actual)
     total_disponible = 0
     total_reservado = 0
     total_neto = 0

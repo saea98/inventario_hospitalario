@@ -215,6 +215,63 @@
                 </div>
             {% endif %}
         </div>
+        
+        <!-- Paginación -->
+        {% if page_obj.has_other_pages %}
+        <nav aria-label="Paginación" class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1&clave={{ filtro_clave }}&lote={{ filtro_lote }}&institucion={{ filtro_institucion }}">Primera</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}&clave={{ filtro_clave }}&lote={{ filtro_lote }}&institucion={{ filtro_institucion }}">Anterior</a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">Primera</span>
+                    </li>
+                    <li class="page-item disabled">
+                        <span class="page-link">Anterior</span>
+                    </li>
+                {% endif %}
+                
+                <!-- Números de página -->
+                {% for num in paginator.page_range %}
+                    {% if page_obj.number == num %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ num }}</span>
+                        </li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ num }}&clave={{ filtro_clave }}&lote={{ filtro_lote }}&institucion={{ filtro_institucion }}">{{ num }}</a>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}&clave={{ filtro_clave }}&lote={{ filtro_lote }}&institucion={{ filtro_institucion }}">Siguiente</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ paginator.num_pages }}&clave={{ filtro_clave }}&lote={{ filtro_lote }}&institucion={{ filtro_institucion }}">Última</a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">Siguiente</span>
+                    </li>
+                    <li class="page-item disabled">
+                        <span class="page-link">Última</span>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+        
+        <!-- Información de paginación -->
+        <div class="text-center text-muted mt-2">
+            <small>Página {{ page_obj.number }} de {{ paginator.num_pages }} ({{ paginator.count }} registros totales)</small>
+        </div>
+        {% endif %}
     </div>
 
     <!-- Leyenda de Estados -->
