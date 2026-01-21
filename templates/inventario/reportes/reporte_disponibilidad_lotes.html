@@ -1,0 +1,273 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Reporte de Disponibilidad vs Reservas{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Encabezado -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2><i class="fas fa-chart-bar text-primary"></i> Reporte de Disponibilidad vs Reservas</h2>
+            <p class="text-muted">Análisis de cantidad disponible contra cantidad reservada por clave y lote</p>
+        </div>
+        <div class="col-md-4 text-end">
+            <a href="{% url 'inventario:exportar_disponibilidad_excel' %}?clave={{ filtro_clave }}&lote={{ filtro_lote }}&institucion={{ filtro_institucion }}" 
+               class="btn btn-success">
+                <i class="fas fa-file-excel"></i> Exportar Excel
+            </a>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card shadow mb-4">
+        <div class="card-header bg-light">
+            <h6 class="mb-0"><i class="fas fa-filter"></i> Filtros de Búsqueda</h6>
+        </div>
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-3">
+                    <label for="clave" class="form-label">Clave CNIS / Descripción</label>
+                    <input type="text" class="form-control" id="clave" name="clave" 
+                           value="{{ filtro_clave }}" placeholder="Buscar por clave...">
+                </div>
+                <div class="col-md-3">
+                    <label for="lote" class="form-label">Número de Lote</label>
+                    <input type="text" class="form-control" id="lote" name="lote" 
+                           value="{{ filtro_lote }}" placeholder="Buscar por lote...">
+                </div>
+                <div class="col-md-3">
+                    <label for="institucion" class="form-label">Institución</label>
+                    <select class="form-control" id="institucion" name="institucion">
+                        <option value="">-- Todas las instituciones --</option>
+                        {% for inst in instituciones %}
+                            <option value="{{ inst.id }}" {% if inst.id|stringformat:"s" == filtro_institucion %}selected{% endif %}>
+                                {{ inst.denominacion }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <button type="submit" class="btn btn-primary w-100">
+                        <i class="fas fa-search"></i> Buscar
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Resumen de Totales -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card shadow">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">Total Disponible</h6>
+                            <h3 class="text-primary mb-0">{{ total_disponible }}</h3>
+                        </div>
+                        <i class="fas fa-box fa-3x text-primary opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">Total Reservado</h6>
+                            <h3 class="text-warning mb-0">{{ total_reservado }}</h3>
+                        </div>
+                        <i class="fas fa-lock fa-3x text-warning opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">Total Neto</h6>
+                            <h3 class="text-success mb-0">{{ total_neto }}</h3>
+                        </div>
+                        <i class="fas fa-check-circle fa-3x text-success opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card shadow">
+                <div class="card-body">
+                    <div class="d-flex justify-content-between align-items-center">
+                        <div>
+                            <h6 class="text-muted mb-1">% Reserva Total</h6>
+                            <h3 class="text-info mb-0">{{ porcentaje_reserva_total|floatformat:1 }}%</h3>
+                        </div>
+                        <i class="fas fa-percent fa-3x text-info opacity-50"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de Lotes -->
+    <div class="card shadow">
+        <div class="card-header bg-light">
+            <h6 class="mb-0"><i class="fas fa-table"></i> Detalle de Lotes ({{ total_lotes }} registros)</h6>
+        </div>
+        <div class="card-body">
+            {% if datos_reporte %}
+                <div class="table-responsive">
+                    <table class="table table-hover table-sm">
+                        <thead class="table-dark">
+                            <tr>
+                                <th>Clave CNIS</th>
+                                <th>Descripción</th>
+                                <th>Número Lote</th>
+                                <th>Institución</th>
+                                <th class="text-center">Disponible</th>
+                                <th class="text-center">Reservado</th>
+                                <th class="text-center">Neto</th>
+                                <th class="text-center">% Reserva</th>
+                                <th class="text-center">Caducidad</th>
+                                <th class="text-center">Estado</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in datos_reporte %}
+                                <tr class="align-middle">
+                                    <td>
+                                        <strong>{{ item.clave }}</strong>
+                                    </td>
+                                    <td>
+                                        <small>{{ item.descripcion }}</small>
+                                    </td>
+                                    <td>{{ item.numero_lote }}</td>
+                                    <td>{{ item.institucion }}</td>
+                                    <td class="text-center">
+                                        <span class="badge bg-info">{{ item.cantidad_disponible }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-warning">{{ item.cantidad_reservada }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-success">{{ item.cantidad_neta }}</span>
+                                    </td>
+                                    <td class="text-center">
+                                        <div class="progress" style="height: 20px;">
+                                            <div class="progress-bar {% if item.porcentaje_reserva >= 80 %}bg-danger{% elif item.porcentaje_reserva >= 50 %}bg-warning{% else %}bg-success{% endif %}" 
+                                                 role="progressbar" 
+                                                 style="width: {{ item.porcentaje_reserva }}%;"
+                                                 aria-valuenow="{{ item.porcentaje_reserva }}" 
+                                                 aria-valuemin="0" 
+                                                 aria-valuemax="100">
+                                                {{ item.porcentaje_reserva }}%
+                                            </div>
+                                        </div>
+                                    </td>
+                                    <td class="text-center">
+                                        {% if item.fecha_caducidad %}
+                                            <small>
+                                                {{ item.fecha_caducidad|date:"d/m/Y" }}
+                                                {% if item.dias_caducidad <= 30 %}
+                                                    <br><span class="badge bg-danger">{{ item.dias_caducidad }} días</span>
+                                                {% elif item.dias_caducidad <= 60 %}
+                                                    <br><span class="badge bg-warning">{{ item.dias_caducidad }} días</span>
+                                                {% else %}
+                                                    <br><span class="badge bg-success">{{ item.dias_caducidad }} días</span>
+                                                {% endif %}
+                                            </small>
+                                        {% else %}
+                                            <small class="text-muted">N/A</small>
+                                        {% endif %}
+                                    </td>
+                                    <td class="text-center">
+                                        <span class="badge bg-{{ item.clase_alerta }}">{{ item.estado_reserva }}</span>
+                                    </td>
+                                </tr>
+                            {% endfor %}
+                        </tbody>
+                        <tfoot class="table-light">
+                            <tr class="fw-bold">
+                                <td colspan="4">TOTALES</td>
+                                <td class="text-center">
+                                    <span class="badge bg-info">{{ total_disponible }}</span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-warning">{{ total_reservado }}</span>
+                                </td>
+                                <td class="text-center">
+                                    <span class="badge bg-success">{{ total_neto }}</span>
+                                </td>
+                                <td class="text-center">
+                                    {{ porcentaje_reserva_total|floatformat:2 }}%
+                                </td>
+                                <td colspan="2"></td>
+                            </tr>
+                        </tfoot>
+                    </table>
+                </div>
+            {% else %}
+                <div class="alert alert-info" role="alert">
+                    <i class="fas fa-info-circle"></i> No se encontraron lotes con los filtros especificados.
+                </div>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Leyenda de Estados -->
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="card shadow">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="fas fa-info-circle"></i> Leyenda de Estados</h6>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-3">
+                            <p><span class="badge bg-success">NORMAL</span> - Reserva &lt; 50%</p>
+                        </div>
+                        <div class="col-md-3">
+                            <p><span class="badge bg-warning">ALTO</span> - Reserva 50-80%</p>
+                        </div>
+                        <div class="col-md-3">
+                            <p><span class="badge bg-danger">CRÍTICO</span> - Reserva &gt; 80%</p>
+                        </div>
+                        <div class="col-md-3">
+                            <p><span class="badge bg-danger">AGOTADO</span> - Cantidad neta ≤ 0</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+
+<style>
+    .table-responsive {
+        max-height: 600px;
+        overflow-y: auto;
+    }
+    
+    .badge {
+        font-size: 0.85rem;
+        padding: 0.35rem 0.65rem;
+    }
+    
+    .progress {
+        background-color: #f0f0f0;
+    }
+    
+    .progress-bar {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: 0.75rem;
+        font-weight: bold;
+        color: white;
+    }
+</style>
+{% endblock %}
