@@ -7,7 +7,7 @@ from .views_health import health_check, diagnostico_sistema
 from .views_asignacion_rapida import asignacion_rapida, api_buscar_lote, api_obtener_ubicaciones, api_asignar_ubicacion
 from .views_carga_masiva import carga_masiva_lotes, carga_masiva_resultado
 from .views_reporte_ubicaciones_vacias import reporte_ubicaciones_vacias, exportar_ubicaciones_vacias_excel, exportar_ubicaciones_vacias_pdf
-from .views_reporte_disponibilidad import reporte_disponibilidad_lotes, exportar_disponibilidad_excel
+
 #from inventario.admin import inventario_admin
 from django.contrib import admin as django_admin
 
@@ -86,8 +86,6 @@ urlpatterns = [
     path('reportes/ubicaciones-vacias/', reporte_ubicaciones_vacias, name='reporte_ubicaciones_vacias'),
     path('reportes/ubicaciones-vacias/exportar-excel/', exportar_ubicaciones_vacias_excel, name='exportar_ubicaciones_vacias_excel'),
     path('reportes/ubicaciones-vacias/exportar-pdf/', exportar_ubicaciones_vacias_pdf, name='exportar_ubicaciones_vacias_pdf'),
-    path('reportes/disponibilidad-lotes/', reporte_disponibilidad_lotes, name='reporte_disponibilidad_lotes'),
-    path('reportes/disponibilidad-lotes/exportar-excel/', exportar_disponibilidad_excel, name='exportar_disponibilidad_excel'),
 
     # Configuración y Ayuda
     path('configuracion/', views.configuracion_sistema, name='configuracion_sistema'),
