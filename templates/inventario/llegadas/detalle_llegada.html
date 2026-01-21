@@ -101,7 +101,7 @@
         {% if user|has_role:'Almacen' and llegada.puede_ubicar %}
             <a href="{% url 'logistica:llegadas:ubicacion' pk=llegada.pk %}" class="btn btn-primary mr-2">Asignar Ubicación</a>
         {% endif %}
-        {% if llegada.estado == 'aprobada' %}
+        {% if llegada.estado == 'APROBADA' %}
             <a href="{% url 'logistica:llegadas:imprimir_epa' pk=llegada.pk %}" class="btn btn-info mr-2" target="_blank">Imprimir EPA</a>
         {% endif %}
         <a href="{% url 'logistica:llegadas:lista_llegadas' %}" class="btn btn-secondary">Volver a la Lista</a>

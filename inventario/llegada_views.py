@@ -504,7 +504,7 @@ class ImprimirEPAView(LoginRequiredMixin, View):
         llegada = get_object_or_404(LlegadaProveedor, pk=pk)
         
         # Verificar que la llegada esté aprobada
-        if llegada.estado != 'aprobada':
+        if llegada.estado != 'APROBADA':
             messages.error(request, "Solo se pueden imprimir EPA de llegadas aprobadas")
             return redirect('logistica:llegadas:detalle_llegada', pk=pk)
         
