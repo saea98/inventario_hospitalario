@@ -287,9 +287,23 @@
                         {{ form.observaciones_recepcion }}
                     </div>
                     
-                    <!-- Campos ocultos para Orden de Suministro y Contrato -->
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_numero_contrato"><strong>Numero de Contrato</strong></label>
+                                {{ form.numero_contrato }}
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="id_numero_procedimiento"><strong>Numero de Procedimiento</strong></label>
+                                {{ form.numero_procedimiento }}
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <!-- Campo oculto para Orden de Suministro -->
                     {{ form.numero_orden_suministro }}
-                    {{ form.numero_contrato }}
                 </div>
             </div>
         </div>
