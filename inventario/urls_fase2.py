@@ -15,6 +15,7 @@ urlpatterns = [
     # CITAS DE PROVEEDORES
     # ========================================================================
     path('citas/', views_fase2.lista_citas, name='lista_citas'),
+    path('citas/exportar/', views_fase2.exportar_citas_excel, name='exportar_citas_excel'),
     path('citas/crear/', views_citas_dos_pasos.crear_cita_paso1, name='crear_cita'),
     path('citas/crear/paso1/', views_citas_dos_pasos.crear_cita_paso1, name='crear_cita_paso1'),
     path('citas/crear/paso2/', views_citas_dos_pasos.crear_cita_paso2, name='crear_cita_paso2'),

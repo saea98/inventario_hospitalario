@@ -24,6 +24,9 @@ from .forms import (
 from .servicio_lista_revision import ServicioListaRevision
 from .servicio_folio import ServicioFolio
 from .servicios_notificaciones import notificaciones
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from django.http import HttpResponse
 
 
 # ============================================================================
@@ -550,3 +553,105 @@ def detalle_conteo(request, pk):
         'diferencia_total': diferencia_total,
     }
     return render(request, 'inventario/conteo_fisico/detalle.html', context)
+
+@login_required
+def exportar_citas_excel(request):
+    """Exporta la lista de citas a Excel con los filtros aplicados"""
+    
+    # Aplicar los mismos filtros que en lista_citas
+    citas = CitaProveedor.objects.all().order_by('-fecha_cita')
+    
+    # Filtros
+    estado = request.GET.get('estado')
+    proveedor = request.GET.get('proveedor')
+    fecha_desde = request.GET.get('fecha_desde')
+    fecha_hasta = request.GET.get('fecha_hasta')
+    numero_orden = request.GET.get('numero_orden')
+    numero_remision = request.GET.get('numero_remision')
+    numero_contrato = request.GET.get('numero_contrato')
+    clave_medicamento = request.GET.get('clave_medicamento')
+    
+    # Aplicar filtros
+    if estado:
+        citas = citas.filter(estado=estado)
+    if proveedor:
+        citas = citas.filter(proveedor__razon_social__icontains=proveedor)
+    if fecha_desde:
+        try:
+            fecha_obj = datetime.strptime(fecha_desde, '%Y-%m-%d')
+            citas = citas.filter(fecha_cita__gte=fecha_obj)
+        except:
+            pass
+    if fecha_hasta:
+        try:
+            from datetime import timedelta
+            fecha_obj = datetime.strptime(fecha_hasta, '%Y-%m-%d')
+            fecha_obj = fecha_obj + timedelta(days=1)
+            citas = citas.filter(fecha_cita__lt=fecha_obj)
+        except:
+            pass
+    if numero_orden:
+        citas = citas.filter(numero_orden_suministro__icontains=numero_orden)
+    if numero_remision:
+        citas = citas.filter(numero_orden_remision__icontains=numero_remision)
+    if numero_contrato:
+        citas = citas.filter(numero_contrato__icontains=numero_contrato)
+    if clave_medicamento:
+        citas = citas.filter(clave_medicamento__icontains=clave_medicamento)
+    
+    # Crear workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Citas'
+    
+    # Estilos
+    header_fill = PatternFill(start_color='0070C0', end_color='0070C0', fill_type='solid')
+    header_font = Font(bold=True, color='FFFFFF')
+    border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+    
+    # Encabezados
+    headers = ['Proveedor', 'RFC', 'Fecha y Hora', 'Almacén', 'Orden Suministro', 'Orden Remisión', 'Clave', 'Estado']
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col)
+        cell.value = header
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+        cell.border = border
+    
+    # Datos
+    for row, cita in enumerate(citas, 2):
+        ws.cell(row=row, column=1).value = cita.proveedor.razon_social if cita.proveedor else ''
+        ws.cell(row=row, column=2).value = cita.proveedor.rfc if cita.proveedor else ''
+        ws.cell(row=row, column=3).value = cita.fecha_cita.strftime('%d/%m/%Y %H:%M') if cita.fecha_cita else ''
+        ws.cell(row=row, column=4).value = cita.almacen.nombre if cita.almacen else ''
+        ws.cell(row=row, column=5).value = cita.numero_orden_suministro or ''
+        ws.cell(row=row, column=6).value = cita.numero_orden_remision or ''
+        ws.cell(row=row, column=7).value = cita.clave_medicamento or ''
+        ws.cell(row=row, column=8).value = dict(CitaProveedor.ESTADOS_CITA).get(cita.estado, cita.estado)
+        
+        # Aplicar bordes
+        for col in range(1, 9):
+            ws.cell(row=row, column=col).border = border
+    
+    # Ajustar ancho de columnas
+    ws.column_dimensions['A'].width = 30
+    ws.column_dimensions['B'].width = 15
+    ws.column_dimensions['C'].width = 18
+    ws.column_dimensions['D'].width = 20
+    ws.column_dimensions['E'].width = 20
+    ws.column_dimensions['F'].width = 20
+    ws.column_dimensions['G'].width = 20
+    ws.column_dimensions['H'].width = 15
+    
+    # Respuesta HTTP
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = 'attachment; filename="citas_proveedores.xlsx"'
+    wb.save(response)
+    return response
+
