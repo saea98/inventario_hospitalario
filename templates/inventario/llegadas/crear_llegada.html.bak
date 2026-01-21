@@ -217,7 +217,7 @@
                                     <td><small class="text-muted d-block mb-1">Lote</small>{{ form.numero_lote }}</td>
                                     <td><small class="text-muted d-block mb-1">Marca</small>{{ form.marca }}</td>
                                     <td><small class="text-muted d-block mb-1">Fabricante</small>{{ form.fabricante }}</td>
-                                    <td><small class="text-muted d-block mb-1">F. Elab.</small>{{ form.fecha_elaboracion }}</td>
+                                    <td><small class="text-muted d-block mb-1">F. de Fabricación</small>{{ form.fecha_elaboracion }}</td>
                                     <td><small class="text-muted d-block mb-1">F. Caduc.</small>{{ form.fecha_caducidad }}</td>
                                     <td style="display: none;"><small class="text-muted d-block mb-1">Emitida</small>{{ form.cantidad_emitida }}</td>
                                     <td><small class="text-muted d-block mb-1">Recibida</small>{{ form.cantidad_recibida }}</td>
@@ -413,7 +413,7 @@ function addItemRow() {
         '<td><small class="text-muted d-block mb-1">Lote</small><input type="text" id="id_items-' + newFormIndex + '-numero_lote" name="items-' + newFormIndex + '-numero_lote" class="form-control numero-lote"></td>' +
         '<td><small class="text-muted d-block mb-1">Marca</small><input type="text" id="id_items-' + newFormIndex + '-marca" name="items-' + newFormIndex + '-marca" class="form-control"></td>' +
         '<td><small class="text-muted d-block mb-1">Fabricante</small><input type="text" id="id_items-' + newFormIndex + '-fabricante" name="items-' + newFormIndex + '-fabricante" class="form-control"></td>' +
-        '<td><small class="text-muted d-block mb-1">F. Elab.</small><input type="date" id="id_items-' + newFormIndex + '-fecha_elaboracion" name="items-' + newFormIndex + '-fecha_elaboracion" class="form-control"></td>' +
+        '<td><small class="text-muted d-block mb-1">F. </small><input type="date" id="id_items-' + newFormIndex + '-fecha_elaboracion" name="items-' + newFormIndex + '-fecha_elaboracion" class="form-control"></td>' +
         '<td><small class="text-muted d-block mb-1">F. Caduc.</small><input type="date" id="id_items-' + newFormIndex + '-fecha_caducidad" name="items-' + newFormIndex + '-fecha_caducidad" class="form-control"></td>' +
         '<td style="display: none;"><small class="text-muted d-block mb-1">Emitida</small><input type="number" id="id_items-' + newFormIndex + '-cantidad_emitida" name="items-' + newFormIndex + '-cantidad_emitida" class="form-control cantidad-emitida"></td>' +
         '<td><small class="text-muted d-block mb-1">Recibida</small><input type="number" id="id_items-' + newFormIndex + '-cantidad_recibida" name="items-' + newFormIndex + '-cantidad_recibida" class="form-control cantidad-recibida"></td>' +
