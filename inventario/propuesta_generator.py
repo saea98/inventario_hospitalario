@@ -194,11 +194,11 @@ class PropuestaGenerator:
 
             # Distribuir la reserva entre las ubicaciones del lote
             # Esto permite que el almacenista sepa exactamente de qué ubicación tomar
-            # Solo considerar ubicaciones del almacén destino
-            almacen_destino_id = self.solicitud.almacen_destino.id
+            # Siempre buscar en el almacén Central (id=1), sin importar el almacén destino
+            almacen_central_id = 1  # Almacén Central
             ubicaciones_disponibles = lote.ubicaciones_detalle.filter(
                 cantidad__gt=0,
-                ubicacion__almacen_id=almacen_destino_id  # Solo ubicaciones del almacén destino
+                ubicacion__almacen_id=almacen_central_id  # Solo ubicaciones del almacén Central
             ).order_by('-cantidad')  # Priorizar ubicaciones con más cantidad
             
             # Calcular la cantidad total disponible en todas las ubicaciones del lote
@@ -296,69 +296,11 @@ class PropuestaGenerator:
         # Actualizar estado y cantidad propuesta
         item_propuesta.cantidad_propuesta = cantidad_asignada_total
         
-        # Detectar si hay disponibilidad en otros almacenes pero no en el almacén destino
-        almacen_destino_id = self.solicitud.almacen_destino.id
-        cantidad_disponible_destino = 0
-        cantidad_disponible_otros = 0
-        almacenes_con_disponibilidad = []
+        # El sistema siempre busca en el almacén Central (id=1), sin importar el almacén destino
+        # Por lo tanto, no hay necesidad de detectar disponibilidad en otros almacenes
+        # ya que siempre se busca en el almacén Central
         
-        # Calcular disponibilidad en almacén destino
-        for lote in lotes_disponibles:
-            cantidad_real_disponible_lote = max(0, lote.cantidad_disponible - lote.cantidad_reservada)
-            if cantidad_real_disponible_lote > 0:
-                # Verificar si tiene ubicaciones en el almacén destino
-                ubicaciones_destino = lote.ubicaciones_detalle.filter(
-                    cantidad__gt=0,
-                    ubicacion__almacen_id=almacen_destino_id
-                )
-                cantidad_destino = sum(
-                    max(0, lu.cantidad - lu.cantidad_reservada) 
-                    for lu in ubicaciones_destino
-                )
-                cantidad_disponible_destino += cantidad_destino
-                
-                # Verificar otros almacenes
-                ubicaciones_otros = lote.ubicaciones_detalle.filter(
-                    cantidad__gt=0
-                ).exclude(ubicacion__almacen_id=almacen_destino_id)
-                
-                for lu in ubicaciones_otros:
-                    cantidad_otro = max(0, lu.cantidad - lu.cantidad_reservada)
-                    if cantidad_otro > 0:
-                        almacen_otro = lu.ubicacion.almacen
-                        # Agregar o actualizar almacén en la lista
-                        almacen_encontrado = next(
-                            (a for a in almacenes_con_disponibilidad if a['almacen_id'] == almacen_otro.id),
-                            None
-                        )
-                        if almacen_encontrado:
-                            almacen_encontrado['cantidad'] += cantidad_otro
-                        else:
-                            almacenes_con_disponibilidad.append({
-                                'almacen_id': almacen_otro.id,
-                                'almacen_nombre': almacen_otro.nombre,
-                                'cantidad': cantidad_otro
-                            })
-                        cantidad_disponible_otros += cantidad_otro
-        
-        # Si no se asignó nada y hay disponibilidad en otros almacenes, registrar
-        if cantidad_asignada_total == 0 and cantidad_disponible_otros > 0:
-            # Registrar en ProductoNoDisponibleAlmacen
-            import json
-            ProductoNoDisponibleAlmacen.objects.create(
-                propuesta=self.propuesta,
-                item_propuesta=item_propuesta,
-                producto=producto,
-                almacen_destino=self.solicitud.almacen_destino,
-                cantidad_requerida=cantidad_requerida,
-                cantidad_disponible_destino=cantidad_disponible_destino,
-                cantidad_disponible_otros=cantidad_disponible_otros,
-                almacenes_con_disponibilidad=json.dumps(almacenes_con_disponibilidad, ensure_ascii=False)
-            )
-            
-            item_propuesta.estado = 'NO_DISPONIBLE'
-            item_propuesta.observaciones = f"No hay disponibilidad en el almacén destino ({self.solicitud.almacen_destino.nombre}). Disponible en otros almacenes: {cantidad_disponible_otros} unidades."
-        elif cantidad_asignada_total == 0:
+        if cantidad_asignada_total == 0:
             item_propuesta.estado = 'NO_DISPONIBLE'
             item_propuesta.observaciones = "No hay lotes disponibles que cumplan con las reglas de caducidad."
         elif cantidad_asignada_total < cantidad_requerida:
