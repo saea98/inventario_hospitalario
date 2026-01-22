@@ -39,14 +39,14 @@ def reporte_lote_pedidos(request):
     filtro_fecha_hasta = request.GET.get('fecha_hasta', '').strip()
     filtro_estado = request.GET.get('estado', '').strip()
     
-    # Obtener todos los lotes asignados en pedidos
+    # Obtener todos los lotes asignados en pedidos (excluir los que ya fueron surtidos)
     lotes_asignados_query = LoteAsignado.objects.select_related(
         'lote_ubicacion__lote__producto',
         'lote_ubicacion__lote__institucion',
         'item_propuesta__propuesta__solicitud',
         'item_propuesta__propuesta',
         'item_propuesta__producto'
-    ).all()
+    ).filter(surtido=False)  # Excluir lotes asignados que ya fueron surtidos
     
     # Aplicar filtros
     if filtro_clave:
@@ -211,13 +211,14 @@ def exportar_lote_pedidos_excel(request):
     filtro_estado = request.POST.get('estado', request.GET.get('estado', '')).strip()
     
     # Obtener todos los lotes asignados en pedidos (misma lógica que la vista)
+    # Excluir los que ya fueron surtidos
     lotes_asignados_query = LoteAsignado.objects.select_related(
         'lote_ubicacion__lote__producto',
         'lote_ubicacion__lote__institucion',
         'item_propuesta__propuesta__solicitud',
         'item_propuesta__propuesta',
         'item_propuesta__producto'
-    ).all()
+    ).filter(surtido=False)  # Excluir lotes asignados que ya fueron surtidos
     
     # Aplicar filtros (misma lógica que la vista)
     if filtro_clave:

@@ -75,13 +75,17 @@ def generar_movimientos_suministro(propuesta_id, usuario):
                     
                     # Actualizar cantidad en la ubicación específica
                     lote_ubicacion.cantidad = cantidad_nueva_ubicacion
-                    lote_ubicacion.save()
+                    
+                    # Liberar la reserva en la ubicación específica
+                    lote_ubicacion.cantidad_reservada = max(0, lote_ubicacion.cantidad_reservada - cantidad_surtida)
+                    lote_ubicacion.save(update_fields=['cantidad', 'cantidad_reservada'])
                     
                     # Actualizar cantidad disponible y reservada del lote (recalcular desde ubicaciones)
                     cantidad_total_ubicaciones = sum(lu.cantidad for lu in lote.ubicaciones_detalle.all())
                     lote.cantidad_disponible = cantidad_total_ubicaciones
+                    # Liberar la reserva a nivel de lote
                     lote.cantidad_reservada = max(0, lote.cantidad_reservada - cantidad_surtida)
-                    lote.save()
+                    lote.save(update_fields=['cantidad_disponible', 'cantidad_reservada'])
                     
                     movimientos_creados += 1
         
