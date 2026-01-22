@@ -35,29 +35,20 @@ def reporte_lote_pedidos(request):
     datos_pedidos = []
     total_reservado = 0
     total_surtido = 0
-    mensaje_debug = ""
-    
-    print(f"\n[DEBUG] ========== BÚSQUEDA DE LOTE Y PEDIDOS ==========")
-    print(f"[DEBUG] Búsqueda: clave={filtro_clave}, lote={filtro_lote}")
     
     # Si hay filtros, buscar el lote
     if filtro_clave or filtro_lote:
         # PASO 1: Buscar el Producto por clave
-        print(f"\n[DEBUG] PASO 1: Buscando Producto...")
         query_producto = Producto.objects.all()
         
         if filtro_clave:
             query_producto = query_producto.filter(
                 Q(clave_cnis__icontains=filtro_clave) |
-                Q(descripcion__icontains=filtro_clave)
+                Q(producto__descripcion__icontains=filtro_clave)
             )
-        
-        print(f"[DEBUG] Productos encontrados: {query_producto.count()}")
-        mensaje_debug += f"✓ Productos encontrados: {query_producto.count()}\n"
         
         if query_producto.exists():
             # PASO 2: Buscar el Lote por número y producto
-            print(f"\n[DEBUG] PASO 2: Buscando Lote...")
             query_lote = Lote.objects.select_related(
                 'producto',
                 'institucion',
@@ -69,14 +60,9 @@ def reporte_lote_pedidos(request):
             if filtro_lote:
                 query_lote = query_lote.filter(numero_lote__icontains=filtro_lote)
             
-            print(f"[DEBUG] Lotes encontrados: {query_lote.count()}")
-            mensaje_debug += f"✓ Lotes encontrados: {query_lote.count()}\n"
-            
             # Si hay un único lote, mostrar sus pedidos
             if query_lote.count() == 1:
                 lote = query_lote.first()
-                print(f"[DEBUG] Procesando lote: {lote.numero_lote} (ID: {lote.id}, Estado: {lote.estado})")
-                mensaje_debug += f"✓ Procesando lote: {lote.numero_lote} (ID: {lote.id}, Estado: {lote.estado})\n"
                 
                 # Preparar datos del lote
                 datos_lote = {
@@ -94,14 +80,10 @@ def reporte_lote_pedidos(request):
                 }
                 
                 # PASO 3: Buscar LoteUbicacion para este lote
-                print(f"\n[DEBUG] PASO 3: Buscando LoteUbicacion...")
                 lotes_ubicacion = LoteUbicacion.objects.filter(lote_id=lote.id)
-                print(f"[DEBUG] LoteUbicacion encontrados: {lotes_ubicacion.count()}")
-                mensaje_debug += f"✓ LoteUbicacion encontrados: {lotes_ubicacion.count()}\n"
                 
                 if lotes_ubicacion.exists():
                     # PASO 4: Buscar LoteAsignado que usan esos LoteUbicacion
-                    print(f"\n[DEBUG] PASO 4: Buscando LoteAsignado...")
                     lotes_asignados = LoteAsignado.objects.filter(
                         lote_ubicacion_id__in=lotes_ubicacion.values_list('id', flat=True)
                     ).select_related(
@@ -110,12 +92,8 @@ def reporte_lote_pedidos(request):
                         'lote_ubicacion__lote'
                     )
                     
-                    print(f"[DEBUG] LoteAsignado encontrados: {lotes_asignados.count()}")
-                    mensaje_debug += f"✓ LoteAsignado encontrados: {lotes_asignados.count()}\n"
-                    
                     if lotes_asignados.exists():
                         # PASO 5: Procesar LoteAsignado y agrupar por PropuestaPedido
-                        print(f"\n[DEBUG] PASO 5: Procesando LoteAsignado...")
                         pedidos_dict = {}
                         
                         for lote_asignado in lotes_asignados:
@@ -123,8 +101,6 @@ def reporte_lote_pedidos(request):
                                 item_prop = lote_asignado.item_propuesta
                                 propuesta = item_prop.propuesta
                                 solicitud = propuesta.solicitud
-                                
-                                print(f"[DEBUG] Procesando: Propuesta {propuesta.id}, Item {item_prop.id}")
                                 
                                 # Clave única del pedido
                                 pedido_key = propuesta.id
@@ -172,10 +148,7 @@ def reporte_lote_pedidos(request):
                                 total_surtido += item_prop.cantidad_surtida
                                 
                             except Exception as e:
-                                print(f"[DEBUG] ✗ Error procesando lote asignado: {str(e)}")
-                                mensaje_debug += f"✗ Error procesando lote asignado: {str(e)}\n"
-                                import traceback
-                                traceback.print_exc()
+                                logger.error(f"Error procesando lote asignado: {str(e)}")
                         
                         # Convertir dict a lista
                         for pedido_key in pedidos_dict:
@@ -183,27 +156,6 @@ def reporte_lote_pedidos(request):
                             pedidos_dict[pedido_key]['items'] = list(pedidos_dict[pedido_key]['items'].values())
                         
                         datos_pedidos = list(pedidos_dict.values())
-                        print(f"[DEBUG] ✓ Pedidos procesados: {len(datos_pedidos)}")
-                        mensaje_debug += f"✓ Pedidos procesados: {len(datos_pedidos)}\n"
-                    else:
-                        print(f"[DEBUG] ✗ No hay LoteAsignado para estos LoteUbicacion")
-                        mensaje_debug += "✗ No hay LoteAsignado para estos LoteUbicacion\n"
-                else:
-                    print(f"[DEBUG] ✗ No hay LoteUbicacion para este lote")
-                    mensaje_debug += "✗ No hay LoteUbicacion para este lote\n"
-            elif query_lote.count() > 1:
-                # Si hay múltiples lotes, mostrar lista para seleccionar
-                print(f"[DEBUG] ⚠ Múltiples lotes encontrados: {query_lote.count()}")
-                mensaje_debug += f"⚠ Múltiples lotes encontrados: {query_lote.count()}\n"
-                mensaje_debug += "Por favor, sé más específico en la búsqueda.\n"
-            else:
-                print(f"[DEBUG] ✗ No hay lotes para este producto")
-                mensaje_debug += "✗ No hay lotes para este producto\n"
-        else:
-            print(f"[DEBUG] ✗ No hay productos con esos criterios")
-            mensaje_debug += "✗ No hay productos con esos criterios\n"
-    
-    print(f"[DEBUG] ========== FIN DE BÚSQUEDA ==========\n")
     
     # Contexto
     context = {
@@ -215,7 +167,6 @@ def reporte_lote_pedidos(request):
         'total_reservado': total_reservado,
         'total_surtido': total_surtido,
         'total_pendiente': max(0, datos_lote['cantidad_neta'] - total_surtido) if datos_lote else 0,
-        'mensaje_debug': mensaje_debug,
     }
     
     return render(request, 'inventario/reportes/reporte_lote_pedidos.html', context)
