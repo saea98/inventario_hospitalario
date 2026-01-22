@@ -303,6 +303,7 @@ class ProductoNoDisponibleAlmacen(models.Model):
     Registra productos que no están disponibles en el almacén destino pero sí en otros almacenes.
     Se usa para generar reportes y solicitar traslados.
     """
+    id = models.UUIDField(primary_key=True, default=uuid.uuid4, editable=False)
     propuesta = models.ForeignKey(
         PropuestaPedido,
         on_delete=models.CASCADE,
