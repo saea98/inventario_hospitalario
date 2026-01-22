@@ -90,6 +90,18 @@ class SolicitudPedidoForm(forms.ModelForm):
             'observaciones_solicitud',
             Submit('submit', 'Crear Solicitud', css_class='btn btn-primary')
         )
+    
+    def clean_fecha_entrega_programada(self):
+        """Valida que la fecha de entrega programada sea igual o mayor al día actual"""
+        fecha_entrega = self.cleaned_data.get('fecha_entrega_programada')
+        if fecha_entrega:
+            hoy = date.today()
+            if fecha_entrega < hoy:
+                from django.core.exceptions import ValidationError
+                raise ValidationError(
+                    f"La fecha de entrega programada no puede ser anterior al día actual ({hoy.strftime('%d/%m/%Y')})."
+                )
+        return fecha_entrega
 
 
 class ItemSolicitudForm(forms.ModelForm):
@@ -297,6 +309,136 @@ ItemSolicitudFormSet = inlineformset_factory(
     extra=3,
     can_delete=True
 )
+
+class SolicitudPedidoEdicionForm(forms.ModelForm):
+    """
+    Formulario para editar los campos del encabezado de una solicitud de pedido.
+    """
+    
+    # Campo personalizado para fecha_solicitud ya que tiene auto_now_add=True
+    fecha_solicitud = forms.DateTimeField(
+        required=True,
+        widget=forms.DateTimeInput(
+            attrs={
+                'class': 'form-control',
+                'type': 'datetime-local',
+                'required': 'required'
+            }
+        )
+    )
+    
+    class Meta:
+        model = SolicitudPedido
+        fields = [
+            'institucion_solicitante',
+            'almacen_destino',
+            'fecha_entrega_programada',
+            'observaciones_solicitud'
+        ]
+        widgets = {
+            'institucion_solicitante': forms.Select(attrs={
+                'class': 'form-control select2-single',
+                'data-placeholder': 'Selecciona una institución',
+                'required': 'required'
+            }),
+            'almacen_destino': forms.Select(attrs={
+                'class': 'form-control select2-single',
+                'data-placeholder': 'Selecciona un almacén',
+                'required': 'required'
+            }),
+            'fecha_entrega_programada': forms.DateInput(
+                attrs={
+                    'class': 'form-control',
+                    'type': 'date',
+                    'min': date.today().isoformat(),
+                    'required': 'required'
+                }
+            ),
+            'observaciones_solicitud': forms.TextInput(
+                attrs={
+                    'class': 'form-control',
+                    'placeholder': 'Folio del Pedido (opcional)',
+                    'type': 'text'
+                }
+            ),
+        }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Asegurar que los campos requeridos estén marcados
+        self.fields['institucion_solicitante'].required = True
+        self.fields['almacen_destino'].required = True
+        self.fields['fecha_entrega_programada'].required = True
+        self.fields['fecha_solicitud'].required = True
+        
+        # Filtrar almacenes por institucion si esta seleccionada
+        if self.instance.pk:
+            try:
+                if self.instance.institucion_solicitante:
+                    self.fields['almacen_destino'].queryset = Almacen.objects.filter(
+                        institucion=self.instance.institucion_solicitante
+                    ).order_by('nombre')
+                else:
+                    self.fields['almacen_destino'].queryset = Almacen.objects.all().order_by('nombre')
+            except:
+                self.fields['almacen_destino'].queryset = Almacen.objects.all().order_by('nombre')
+        else:
+            # Mostrar todos los almacenes si no hay institucion seleccionada
+            self.fields['almacen_destino'].queryset = Almacen.objects.all().order_by('nombre')
+        
+        # Agregar data-attribute para filtrado dinámico con JavaScript
+        self.fields['institucion_solicitante'].widget.attrs['data-almacen-filter'] = 'true'
+        self.fields['almacen_destino'].widget.attrs['data-filtered-select'] = 'true'
+        
+        # Formatear fecha_solicitud para el input datetime-local
+        if self.instance.pk and self.instance.fecha_solicitud:
+            # Convertir a formato datetime-local (YYYY-MM-DDTHH:MM)
+            from django.utils import timezone
+            if timezone.is_aware(self.instance.fecha_solicitud):
+                fecha_local = timezone.localtime(self.instance.fecha_solicitud)
+            else:
+                fecha_local = self.instance.fecha_solicitud
+            fecha_str = fecha_local.strftime('%Y-%m-%dT%H:%M')
+            self.fields['fecha_solicitud'].initial = fecha_str
+    
+    def clean_fecha_solicitud(self):
+        """Convierte el string datetime-local a datetime object"""
+        fecha_str = self.cleaned_data.get('fecha_solicitud')
+        if isinstance(fecha_str, str):
+            from datetime import datetime
+            from django.utils import timezone
+            try:
+                # Parsear el formato datetime-local (YYYY-MM-DDTHH:MM)
+                fecha_dt = datetime.strptime(fecha_str, '%Y-%m-%dT%H:%M')
+                # Hacer aware con timezone
+                return timezone.make_aware(fecha_dt)
+            except ValueError:
+                from django.core.exceptions import ValidationError
+                raise ValidationError("Formato de fecha inválido. Use el formato: YYYY-MM-DDTHH:MM")
+        return fecha_str
+    
+    def clean_fecha_entrega_programada(self):
+        """Valida que la fecha de entrega programada sea igual o mayor al día actual"""
+        fecha_entrega = self.cleaned_data.get('fecha_entrega_programada')
+        if fecha_entrega:
+            hoy = date.today()
+            if fecha_entrega < hoy:
+                from django.core.exceptions import ValidationError
+                raise ValidationError(
+                    f"La fecha de entrega programada no puede ser anterior al día actual ({hoy.strftime('%d/%m/%Y')})."
+                )
+        return fecha_entrega
+    
+    def save(self, commit=True):
+        """Guarda el formulario y actualiza fecha_solicitud manualmente"""
+        instance = super().save(commit=False)
+        # Actualizar fecha_solicitud manualmente ya que tiene auto_now_add=True
+        if 'fecha_solicitud' in self.cleaned_data:
+            instance.fecha_solicitud = self.cleaned_data['fecha_solicitud']
+        if commit:
+            instance.save()
+        return instance
+
 
 class BulkUploadForm(forms.Form):
     csv_file = forms.FileField(label='Archivo CSV para carga masiva')

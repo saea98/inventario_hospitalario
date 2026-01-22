@@ -19,6 +19,7 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from .pedidos_models import SolicitudPedido, ItemSolicitud, PropuestaPedido, ItemPropuesta, Producto
 from .pedidos_forms import (
     SolicitudPedidoForm,
+    SolicitudPedidoEdicionForm,
     ItemSolicitudForm,
     FiltroSolicitudesForm,
     ValidarSolicitudPedidoForm,
@@ -723,8 +724,8 @@ def cancelar_propuesta_view(request, propuesta_id):
 @transaction.atomic
 def editar_solicitud(request, solicitud_id):
     """
-    Permite editar los items de una solicitud PENDIENTE o VALIDADA.
-    - Si PENDIENTE: simplemente edita los items
+    Permite editar los items y campos del encabezado de una solicitud PENDIENTE o VALIDADA.
+    - Si PENDIENTE: simplemente edita los items y encabezado
     - Si VALIDADA: cancela la propuesta actual, recalcula y genera una nueva
     """
     solicitud = get_object_or_404(
@@ -745,9 +746,13 @@ def editar_solicitud(request, solicitud_id):
     )
     
     if request.method == 'POST':
+        # Procesar formulario del encabezado
+        form_encabezado = SolicitudPedidoEdicionForm(request.POST, instance=solicitud)
+        # Procesar formset de items
         formset = ItemSolicitudFormSet(request.POST, instance=solicitud)
         
-        if formset.is_valid():
+        # Validar ambos formularios
+        if form_encabezado.is_valid() and formset.is_valid():
             # Si hay propuesta, cancelarla primero (libera reservas)
             if propuesta:
                 resultado_cancelacion = cancelar_propuesta(propuesta.id, usuario=request.user)
@@ -755,6 +760,9 @@ def editar_solicitud(request, solicitud_id):
                 if not resultado_cancelacion['exito']:
                     messages.error(request, f"Error al cancelar propuesta anterior: {resultado_cancelacion['mensaje']}")
                     return redirect('logistica:detalle_pedido', solicitud_id=solicitud.id)
+            
+            # Guardar los cambios del encabezado
+            form_encabezado.save()
             
             # Guardar los cambios en los items
             formset.save()
@@ -795,13 +803,19 @@ def editar_solicitud(request, solicitud_id):
             
             return redirect('logistica:detalle_pedido', solicitud_id=solicitud.id)
         else:
-            messages.error(request, "Por favor, corrige los errores en los items.")
+            # Mostrar errores de validación
+            if not form_encabezado.is_valid():
+                messages.error(request, "Por favor, corrige los errores en los datos del encabezado.")
+            if not formset.is_valid():
+                messages.error(request, "Por favor, corrige los errores en los items.")
     else:
+        form_encabezado = SolicitudPedidoEdicionForm(instance=solicitud)
         formset = ItemSolicitudFormSet(instance=solicitud)
     
     context = {
         'solicitud': solicitud,
         'propuesta': propuesta,
+        'form_encabezado': form_encabezado,
         'formset': formset,
         'page_title': f"Editar Solicitud {solicitud.folio}"
     }
