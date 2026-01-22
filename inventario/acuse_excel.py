@@ -84,6 +84,30 @@ def generar_acuse_excel(propuesta):
     # Fila 10: Institución
     ws['A10'].value = f'INSTITUCIÓN: {institucion}'
     
+    # Limpiar nombre y puesto en "AUTORIZA (ALMACEN)" (columna C)
+    # Buscar en las filas típicas de la tabla de firmas (10-14)
+    for row in range(10, 15):
+        cell_c = ws.cell(row=row, column=3)  # Columna C (AUTORIZA ALMACEN)
+        if cell_c.value:
+            cell_value = str(cell_c.value)
+            # Si la celda contiene "NOMBRE:" o "PUESTO:", limpiar el contenido después
+            if 'NOMBRE:' in cell_value or 'PUESTO:' in cell_value:
+                lines = cell_value.split('\n')
+                new_lines = []
+                for line in lines:
+                    line_stripped = line.strip()
+                    if line_stripped.startswith('NOMBRE:'):
+                        new_lines.append('NOMBRE:')
+                        new_lines.append('')
+                    elif line_stripped.startswith('PUESTO:'):
+                        new_lines.append('PUESTO:')
+                        new_lines.append('')
+                    elif line_stripped and not line_stripped.startswith('NOMBRE:') and not line_stripped.startswith('PUESTO:'):
+                        # Mantener otras líneas como "FIRMA:"
+                        new_lines.append(line)
+                if new_lines:
+                    cell_c.value = '\n'.join(new_lines)
+    
     # ============ ACTUALIZAR TABLA DE ITEMS ============
     
     # Recolectar todos los items primero
@@ -110,7 +134,7 @@ def generar_acuse_excel(propuesta):
                 'tipo': 'ORDINARIO',
                 'lote': lote_info,
                 'caducidad': caducidad,
-                'clasificacion': 'MEDICAMENTO',
+                # 'clasificacion': 'MEDICAMENTO',  # Removido - ya no se incluye
                 'ubicacion': ubicacion,
                 'cantidad': cantidad,
                 'folio_pedido': ''
@@ -123,10 +147,10 @@ def generar_acuse_excel(propuesta):
     while ws.max_row > 17:
         ws.delete_rows(18, 1)
     
-    # Agregar las filas de datos
+    # Agregar las filas de datos (sin columna Clasificación)
     row_num = 18
     for item_data in items_data:
-        # Agregar fila con datos
+        # Agregar fila con datos (columna 8 omitida - Clasificación)
         ws.cell(row=row_num, column=1).value = item_data['idx']
         ws.cell(row=row_num, column=2).value = item_data['clave']
         ws.cell(row=row_num, column=3).value = item_data['descripcion']
@@ -134,15 +158,16 @@ def generar_acuse_excel(propuesta):
         ws.cell(row=row_num, column=5).value = item_data['tipo']
         ws.cell(row=row_num, column=6).value = item_data['lote']
         ws.cell(row=row_num, column=7).value = item_data['caducidad']
-        ws.cell(row=row_num, column=8).value = item_data['clasificacion']
-        ws.cell(row=row_num, column=9).value = item_data['ubicacion']
-        ws.cell(row=row_num, column=10).value = item_data['cantidad']
-        ws.cell(row=row_num, column=11).value = item_data['folio_pedido']
+        # Columna 8 (Clasificación) - OMITIDA
+        ws.cell(row=row_num, column=8).value = item_data['ubicacion']  # Movido de columna 9 a 8
+        ws.cell(row=row_num, column=9).value = item_data['cantidad']   # Movido de columna 10 a 9
+        ws.cell(row=row_num, column=10).value = item_data['folio_pedido']  # Movido de columna 11 a 10
         
         # Copiar estilos de la fila 18 del template (primera fila de datos)
         fila_referencia = 18 if row_num == 18 else row_num - 1
         
-        for col in range(1, 12):
+        # Ajustar rango de columnas (ahora son 10 columnas en lugar de 11)
+        for col in range(1, 11):
             celda_referencia = ws.cell(row=fila_referencia, column=col)
             celda_destino = ws.cell(row=row_num, column=col)
             copiar_estilo_celda(celda_referencia, celda_destino)
@@ -153,8 +178,14 @@ def generar_acuse_excel(propuesta):
     
     # ============ ACTUALIZAR ENCABEZADOS DE TABLA DE DETALLE ============
     
+    # Actualizar encabezados: mover UBICACIÓN, CANTIDAD y FOLIO PEDIDO una columna a la izquierda
+    # Columna 8 ahora es UBICACIÓN (antes era CLASIFICACIÓN)
+    ws.cell(row=17, column=8).value = 'UBICACIÓN'  # Reemplazar CLASIFICACIÓN con UBICACIÓN
+    # Columna 9 ahora es CANTIDAD (ya estaba correcta)
+    # Columna 10 ahora es FOLIO PEDIDO (ya estaba correcta)
+    
     # Cambiar color de texto a blanco en fila 17 (encabezados de tabla de detalle)
-    for col in range(1, 12):
+    for col in range(1, 11):  # Ajustado a 10 columnas (sin Clasificación)
         celda = ws.cell(row=17, column=col)
         if celda.font:
             celda.font = Font(

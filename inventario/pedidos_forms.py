@@ -278,6 +278,15 @@ class FiltroSolicitudesForm(forms.Form):
             'placeholder': 'Buscar por nombre de institución'
         })
     )
+    
+    folio = forms.CharField(
+        required=False,
+        label="Folio",
+        widget=forms.TextInput(attrs={
+            'class': 'form-control',
+            'placeholder': 'Buscar por folio (observaciones)'
+        })
+    )
 
 
 # Formset para editar múltiples items en una solicitud

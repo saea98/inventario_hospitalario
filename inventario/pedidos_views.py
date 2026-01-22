@@ -11,6 +11,10 @@ from django.db import transaction
 from django.utils import timezone
 from datetime import date
 from django.forms import inlineformset_factory
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from django.http import HttpResponse
+from openpyxl import Workbook
+from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
 from .pedidos_models import SolicitudPedido, ItemSolicitud, PropuestaPedido, ItemPropuesta, Producto
 from .pedidos_forms import (
@@ -32,11 +36,11 @@ from django.db import models
 @login_required
 def lista_solicitudes(request):
     """
-    Muestra una lista de todas las solicitudes de pedido, con filtros.
+    Muestra una lista de todas las solicitudes de pedido, con filtros, paginación y exportación a Excel.
     """
     solicitudes = SolicitudPedido.objects.select_related(
         'institucion_solicitante', 'almacen_destino', 'usuario_solicitante'
-    ).all()
+    ).all().order_by('-fecha_solicitud')
     
     form = FiltroSolicitudesForm(request.GET)
     
@@ -49,13 +53,122 @@ def lista_solicitudes(request):
             solicitudes = solicitudes.filter(fecha_solicitud__lte=form.cleaned_data['fecha_fin'])
         if form.cleaned_data['institucion']:
             solicitudes = solicitudes.filter(institucion_solicitante__nombre__icontains=form.cleaned_data['institucion'])
+        if form.cleaned_data['folio']:
+            # Buscar en el campo observaciones_solicitud
+            solicitudes = solicitudes.filter(observaciones_solicitud__icontains=form.cleaned_data['folio'])
+    
+    # Verificar si se solicita exportación a Excel
+    if request.GET.get('export') == 'excel':
+        return exportar_solicitudes_excel(solicitudes)
+    
+    # Paginación
+    paginator = Paginator(solicitudes, 20)  # 20 solicitudes por página
+    page = request.GET.get('page')
+    
+    try:
+        solicitudes_pagina = paginator.page(page)
+    except PageNotAnInteger:
+        solicitudes_pagina = paginator.page(1)
+    except EmptyPage:
+        solicitudes_pagina = paginator.page(paginator.num_pages)
             
     context = {
-        'solicitudes': solicitudes,
+        'solicitudes': solicitudes_pagina,
+        'page_obj': solicitudes_pagina,
         'form': form,
         'page_title': 'Gestión de Pedidos'
     }
     return render(request, 'inventario/pedidos/lista_solicitudes.html', context)
+
+
+def exportar_solicitudes_excel(solicitudes):
+    """
+    Exporta las solicitudes de pedido a Excel.
+    """
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Solicitudes de Pedido"
+    
+    # Definir estilos
+    header_fill = PatternFill(start_color="1F4E78", end_color="1F4E78", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF", size=11)
+    header_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    
+    border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+    
+    row_num = 1
+    
+    # Título del reporte
+    ws.merge_cells(f'A{row_num}:F{row_num}')
+    ws[f'A{row_num}'] = 'REPORTE DE SOLICITUDES DE PEDIDO'
+    ws[f'A{row_num}'].font = Font(bold=True, size=14)
+    ws[f'A{row_num}'].alignment = Alignment(horizontal="center", vertical="center")
+    row_num += 2
+    
+    # Encabezados
+    headers = [
+        'Folio (Observaciones)',
+        'Institución Solicitante',
+        'Almacén Destino',
+        'Fecha de Solicitud',
+        'Estado',
+        'Folio Sistema'
+    ]
+    
+    ws.append(headers)
+    
+    # Aplicar estilos a encabezados
+    for col in range(1, len(headers) + 1):
+        cell = ws.cell(row=row_num, column=col)
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = header_alignment
+        cell.border = border
+    
+    row_num += 1
+    
+    # Datos
+    for solicitud in solicitudes:
+        row = [
+            solicitud.observaciones_solicitud or '',
+            solicitud.institucion_solicitante.denominacion if solicitud.institucion_solicitante else 'N/A',
+            solicitud.almacen_destino.nombre if solicitud.almacen_destino else 'N/A',
+            solicitud.fecha_solicitud.strftime('%d/%m/%Y %H:%M') if solicitud.fecha_solicitud else '',
+            solicitud.get_estado_display(),
+            solicitud.folio or ''
+        ]
+        
+        ws.append(row)
+        
+        # Aplicar bordes
+        for col in range(1, len(headers) + 1):
+            cell = ws.cell(row=row_num, column=col)
+            cell.border = border
+            cell.alignment = Alignment(horizontal="left", vertical="center")
+        
+        row_num += 1
+    
+    # Ajustar anchos de columnas
+    ws.column_dimensions['A'].width = 30
+    ws.column_dimensions['B'].width = 40
+    ws.column_dimensions['C'].width = 30
+    ws.column_dimensions['D'].width = 20
+    ws.column_dimensions['E'].width = 20
+    ws.column_dimensions['F'].width = 25
+    
+    # Crear respuesta HTTP
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = 'attachment; filename="solicitudes_pedido.xlsx"'
+    
+    wb.save(response)
+    return response
 
 
 @login_required
