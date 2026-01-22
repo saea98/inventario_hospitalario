@@ -1990,6 +1990,10 @@ class LoteUbicacion(models.Model):
         verbose_name='Cantidad',
         validators=[MinValueValidator(1)]
     )
+    cantidad_reservada = models.PositiveIntegerField(
+        default=0,
+        verbose_name='Cantidad Reservada en Propuestas'
+    )
     fecha_asignacion = models.DateTimeField(auto_now_add=True)
     fecha_actualizacion = models.DateTimeField(auto_now=True)
     usuario_asignacion = models.ForeignKey(

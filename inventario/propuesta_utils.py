@@ -17,7 +17,7 @@ from .models import Lote, LoteUbicacion
 def reservar_cantidad_lote(lote_ubicacion, cantidad):
     """
     Reserva una cantidad en un lote sin afectar cantidad_disponible.
-    Se incrementa cantidad_reservada para que otras propuestas no lo consideren.
+    Se incrementa cantidad_reservada tanto en la ubicación como en el lote.
     
     Args:
         lote_ubicacion: Instancia de LoteUbicacion
@@ -27,12 +27,22 @@ def reservar_cantidad_lote(lote_ubicacion, cantidad):
         bool: True si se reservó exitosamente, False si no hay suficiente cantidad disponible
     """
     lote = lote_ubicacion.lote
-    cantidad_realmente_disponible = lote.cantidad_disponible - lote.cantidad_reservada
     
-    if cantidad_realmente_disponible < cantidad:
+    # Verificar disponibilidad en la ubicación específica
+    cantidad_disponible_ubicacion = lote_ubicacion.cantidad - lote_ubicacion.cantidad_reservada
+    
+    # También verificar disponibilidad a nivel de lote
+    cantidad_realmente_disponible_lote = lote.cantidad_disponible - lote.cantidad_reservada
+    
+    # Debe haber suficiente en ambos niveles
+    if cantidad_disponible_ubicacion < cantidad or cantidad_realmente_disponible_lote < cantidad:
         return False
     
-    # Incrementar cantidad_reservada
+    # Incrementar cantidad_reservada en la ubicación
+    lote_ubicacion.cantidad_reservada += cantidad
+    lote_ubicacion.save(update_fields=['cantidad_reservada'])
+    
+    # Incrementar cantidad_reservada a nivel de lote
     lote.cantidad_reservada += cantidad
     lote.save(update_fields=['cantidad_reservada'])
     
@@ -42,7 +52,7 @@ def reservar_cantidad_lote(lote_ubicacion, cantidad):
 def liberar_cantidad_lote(lote_ubicacion, cantidad):
     """
     Libera una cantidad reservada en un lote (rollback).
-    Se decrementa cantidad_reservada.
+    Se decrementa cantidad_reservada tanto en la ubicación como en el lote.
     
     Args:
         lote_ubicacion: Instancia de LoteUbicacion
@@ -50,7 +60,11 @@ def liberar_cantidad_lote(lote_ubicacion, cantidad):
     """
     lote = lote_ubicacion.lote
     
-    # Decrementar cantidad_reservada (no puede ser menor a 0)
+    # Decrementar cantidad_reservada en la ubicación (no puede ser menor a 0)
+    lote_ubicacion.cantidad_reservada = max(0, lote_ubicacion.cantidad_reservada - cantidad)
+    lote_ubicacion.save(update_fields=['cantidad_reservada'])
+    
+    # Decrementar cantidad_reservada a nivel de lote (no puede ser menor a 0)
     lote.cantidad_reservada = max(0, lote.cantidad_reservada - cantidad)
     lote.save(update_fields=['cantidad_reservada'])
 
@@ -249,15 +263,23 @@ def completar_surtimiento_propuesta(propuesta_id):
                 for lote_asignado in item.lotes_asignados.all():
                     if lote_asignado.surtido:
                         lote = lote_asignado.lote_ubicacion.lote
+                        lote_ubicacion = lote_asignado.lote_ubicacion
                         cantidad = lote_asignado.cantidad_asignada
                         
-                        # Decrementar cantidad_disponible
+                        # Decrementar cantidad_disponible a nivel de lote
                         lote.cantidad_disponible = max(0, lote.cantidad_disponible - cantidad)
                         
-                        # Decrementar cantidad_reservada
+                        # Decrementar cantidad_reservada a nivel de lote
                         lote.cantidad_reservada = max(0, lote.cantidad_reservada - cantidad)
-                        
                         lote.save(update_fields=['cantidad_disponible', 'cantidad_reservada'])
+                        
+                        # Decrementar cantidad_reservada en la ubicación específica
+                        lote_ubicacion.cantidad_reservada = max(0, lote_ubicacion.cantidad_reservada - cantidad)
+                        lote_ubicacion.save(update_fields=['cantidad_reservada'])
+                        
+                        # También decrementar la cantidad en la ubicación
+                        lote_ubicacion.cantidad = max(0, lote_ubicacion.cantidad - cantidad)
+                        lote_ubicacion.save(update_fields=['cantidad'])
         
         return {
             'exito': True,

@@ -123,17 +123,67 @@ class PropuestaGenerator:
             )
 
             if cantidad_a_asignar > 0:
-                # Obtener la ubicación del lote con MÁS cantidad disponible
-                lote_ubicacion = lote.ubicaciones_detalle.filter(cantidad__gt=0).order_by('-cantidad').first()
-                if lote_ubicacion:
-                    LoteAsignado.objects.create(
-                        item_propuesta=item_propuesta,
-                        lote_ubicacion=lote_ubicacion,
-                        cantidad_asignada=cantidad_a_asignar
+                # Distribuir la reserva entre las ubicaciones del lote
+                # Esto permite que el almacenista sepa exactamente de qué ubicación tomar
+                ubicaciones_disponibles = lote.ubicaciones_detalle.filter(
+                    cantidad__gt=0
+                ).order_by('-cantidad')  # Priorizar ubicaciones con más cantidad
+                
+                cantidad_pendiente_reservar = cantidad_a_asignar
+                ubicaciones_asignadas = []  # Para crear LoteAsignado después
+                
+                # Verificar primero que tenemos suficiente disponible a nivel de lote
+                if cantidad_real_disponible < cantidad_a_asignar:
+                    logger.warning(f"  - No hay suficiente disponible en lote {lote.numero_lote}: requiere {cantidad_a_asignar}, disponible {cantidad_real_disponible}")
+                    continue
+                
+                # Distribuir la reserva entre ubicaciones
+                for lote_ubicacion in ubicaciones_disponibles:
+                    if cantidad_pendiente_reservar <= 0:
+                        break
+                    
+                    # Calcular cuánto podemos reservar de esta ubicación
+                    # Considerar: cantidad en ubicación - cantidad ya reservada en ubicación
+                    cantidad_disponible_ubicacion = lote_ubicacion.cantidad - lote_ubicacion.cantidad_reservada
+                    
+                    if cantidad_disponible_ubicacion <= 0:
+                        continue
+                    
+                    cantidad_a_reservar_ubicacion = min(
+                        cantidad_disponible_ubicacion,
+                        cantidad_pendiente_reservar
                     )
-                    # Reservar la cantidad en el lote
-                    reservar_cantidad_lote(lote_ubicacion, cantidad_a_asignar)
-                    cantidad_asignada_total += cantidad_a_asignar
+                    
+                    if cantidad_a_reservar_ubicacion > 0:
+                        # Reservar en la ubicación
+                        lote_ubicacion.cantidad_reservada += cantidad_a_reservar_ubicacion
+                        lote_ubicacion.save(update_fields=['cantidad_reservada'])
+                        
+                        # También actualizar la reserva a nivel de lote
+                        lote.cantidad_reservada += cantidad_a_reservar_ubicacion
+                        lote.save(update_fields=['cantidad_reservada'])
+                        
+                        # Guardar para crear LoteAsignado después
+                        ubicaciones_asignadas.append({
+                            'lote_ubicacion': lote_ubicacion,
+                            'cantidad': cantidad_a_reservar_ubicacion
+                        })
+                        
+                        cantidad_pendiente_reservar -= cantidad_a_reservar_ubicacion
+                        cantidad_asignada_total += cantidad_a_reservar_ubicacion
+                
+                # Si se pudo reservar todo (o parte), crear los registros LoteAsignado
+                if ubicaciones_asignadas:
+                    for asignacion in ubicaciones_asignadas:
+                        LoteAsignado.objects.create(
+                            item_propuesta=item_propuesta,
+                            lote_ubicacion=asignacion['lote_ubicacion'],
+                            cantidad_asignada=asignacion['cantidad']
+                        )
+                else:
+                    # Si no se pudo reservar nada, continuar con el siguiente lote
+                    logger.warning(f"  - No se pudo reservar ninguna cantidad del lote {lote.numero_lote}")
+                    continue
 
         # Actualizar estado y cantidad propuesta
         item_propuesta.cantidad_propuesta = cantidad_asignada_total
