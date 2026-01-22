@@ -63,8 +63,7 @@ def reporte_lote_pedidos(request):
                 'institucion',
                 'almacen'
             ).filter(
-                producto__in=query_producto,
-                estado=1  # Solo lotes disponibles
+                producto__in=query_producto
             )
             
             if filtro_lote:
@@ -76,8 +75,8 @@ def reporte_lote_pedidos(request):
             # Si hay un único lote, mostrar sus pedidos
             if query_lote.count() == 1:
                 lote = query_lote.first()
-                print(f"[DEBUG] Procesando lote: {lote.numero_lote} (ID: {lote.id})")
-                mensaje_debug += f"✓ Procesando lote: {lote.numero_lote} (ID: {lote.id})\n"
+                print(f"[DEBUG] Procesando lote: {lote.numero_lote} (ID: {lote.id}, Estado: {lote.estado})")
+                mensaje_debug += f"✓ Procesando lote: {lote.numero_lote} (ID: {lote.id}, Estado: {lote.estado})\n"
                 
                 # Preparar datos del lote
                 datos_lote = {
