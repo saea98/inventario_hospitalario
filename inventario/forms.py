@@ -4,8 +4,20 @@ from django.contrib.auth.models import User
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Submit, Row, Column, Div, HTML
 from crispy_forms.bootstrap import Field
-#from django_select2.forms import ModelSelect2Widget, Select2MultipleWidget
-from django_select2.forms import Select2Widget, ModelSelect2Widget
+# Import opcional de django-select2
+try:
+    from django_select2.forms import Select2Widget, ModelSelect2Widget
+    SELECT2_AVAILABLE = True
+except ImportError:
+    # Si django-select2 no está instalado, usar widgets estándar de Django
+    Select2Widget = forms.Select
+    # Crear una clase dummy para ModelSelect2Widget que funcione como widget
+    class ModelSelect2Widget(forms.Select):
+        def __init__(self, *args, **kwargs):
+            # Remover argumentos específicos de select2 que no son válidos para Select estándar
+            kwargs.pop('search_fields', None)
+            super().__init__(*args, **kwargs)
+    SELECT2_AVAILABLE = False
 
 from .models import (
     Institucion, Producto, Proveedor, Lote, OrdenSuministro,
@@ -333,30 +345,39 @@ class LoteChoiceField(forms.ModelChoiceField):
 
 
 
-class LoteSelectWidget(ModelSelect2Widget):
-    model = Lote
-    search_fields = [
-        "numero_lote__icontains",
-        "descripcion_saica__icontains",
-        "producto__descripcion__icontains",
-        "institucion__denominacion__icontains",
-    ]
+# Widgets Select2 (solo si está disponible)
+if SELECT2_AVAILABLE:
+    class LoteSelectWidget(ModelSelect2Widget):
+        model = Lote
+        search_fields = [
+            "numero_lote__icontains",
+            "descripcion_saica__icontains",
+            "producto__descripcion__icontains",
+            "institucion__denominacion__icontains",
+        ]
 
-    def label_from_instance(self, obj):
-        desc = obj.descripcion_saica or obj.producto.descripcion
-        return f"{obj.numero_lote} — {desc}"
+        def label_from_instance(self, obj):
+            desc = obj.descripcion_saica or obj.producto.descripcion
+            return f"{obj.numero_lote} — {desc}"
 
 
-class InstitucionDestinoWidget(ModelSelect2Widget):
-    model = Institucion
-    search_fields = [
-        'clue__icontains',
-        'denominacion__icontains',
-        'municipio__icontains',
-    ]
+    class InstitucionDestinoWidget(ModelSelect2Widget):
+        model = Institucion
+        search_fields = [
+            'clue__icontains',
+            'denominacion__icontains',
+            'municipio__icontains',
+        ]
 
-    def label_from_instance(self, obj):
-        return f"{obj.clue} — {obj.denominacion}"
+        def label_from_instance(self, obj):
+            return f"{obj.clue} — {obj.denominacion}"
+else:
+    # Si ModelSelect2Widget no está disponible, usar widgets estándar
+    class LoteSelectWidget(forms.Select):
+        pass
+    
+    class InstitucionDestinoWidget(forms.Select):
+        pass
 
 
 class MovimientoInventarioForm(forms.ModelForm):
@@ -1115,7 +1136,7 @@ class ItemTrasladoForm(forms.ModelForm):
                     'class': 'form-control',
                     'data-placeholder': 'Selecciona un lote',
                 },
-                search_fields=['numero_lote__icontains', 'producto__descripcion__icontains']
+                **({'search_fields': ['numero_lote__icontains', 'producto__descripcion__icontains']} if SELECT2_AVAILABLE else {})
             ),
             'cantidad': forms.NumberInput(attrs={
                 'class': 'form-control',

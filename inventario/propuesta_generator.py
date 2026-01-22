@@ -15,9 +15,10 @@ from .pedidos_models import (
     SolicitudPedido,
     PropuestaPedido,
     ItemPropuesta,
-    LoteAsignado
+    LoteAsignado,
+    ProductoNoDisponibleAlmacen
 )
-from .models import Lote, LoteUbicacion
+from .models import Lote, LoteUbicacion, Almacen
 
 
 class PropuestaGenerator:
@@ -58,7 +59,69 @@ class PropuestaGenerator:
         self.propuesta.total_propuesto = sum(item.cantidad_propuesta for item in self.propuesta.items.all())
         self.propuesta.save()
 
+        # Enviar notificación por Telegram si hay productos no disponibles en el almacén destino
+        self._enviar_notificacion_productos_no_disponibles()
+
         return self.propuesta
+    
+    def _enviar_notificacion_productos_no_disponibles(self):
+        """
+        Envía notificación por Telegram cuando hay productos disponibles en otros almacenes
+        pero no en el almacén destino.
+        """
+        productos_no_disponibles = ProductoNoDisponibleAlmacen.objects.filter(
+            propuesta=self.propuesta,
+            notificado_telegram=False
+        ).select_related('producto', 'almacen_destino')
+        
+        if not productos_no_disponibles.exists():
+            return
+        
+        try:
+            from .servicios_notificaciones import ServicioNotificaciones
+            import json
+            
+            servicio = ServicioNotificaciones()
+            
+            # Construir mensaje
+            mensaje = f"⚠️ *Productos No Disponibles en Almacén Destino*\n\n"
+            mensaje += f"📋 *Propuesta:* {self.propuesta.solicitud.folio}\n"
+            mensaje += f"🏥 *Institución:* {self.propuesta.solicitud.institucion_solicitante.denominacion}\n"
+            mensaje += f"📦 *Almacén Destino:* {self.propuesta.solicitud.almacen_destino.nombre}\n"
+            mensaje += f"📅 *Fecha:* {timezone.now().strftime('%d/%m/%Y %H:%M')}\n\n"
+            mensaje += f"*Productos requeridos no disponibles en almacén destino:*\n\n"
+            
+            for registro in productos_no_disponibles:
+                almacenes_info = json.loads(registro.almacenes_con_disponibilidad) if registro.almacenes_con_disponibilidad else []
+                almacenes_texto = ", ".join([f"{a['almacen_nombre']} ({a['cantidad']})" for a in almacenes_info[:3]])
+                if len(almacenes_info) > 3:
+                    almacenes_texto += f" y {len(almacenes_info) - 3} más"
+                
+                mensaje += f"• *{registro.producto.clave_cnis}*\n"
+                mensaje += f"  Descripción: {registro.producto.descripcion[:50]}...\n"
+                mensaje += f"  Requerido: {registro.cantidad_requerida} unidades\n"
+                mensaje += f"  Disponible en destino: {registro.cantidad_disponible_destino} unidades\n"
+                mensaje += f"  Disponible en otros almacenes: {registro.cantidad_disponible_otros} unidades\n"
+                mensaje += f"  Almacenes: {almacenes_texto}\n\n"
+            
+            mensaje += f"💡 *Acción requerida:* Solicitar traslado de estos productos al almacén destino.\n"
+            mensaje += f"📊 Ver reporte completo en el sistema."
+            
+            # Enviar notificación
+            resultado = servicio.enviar_telegram(
+                mensaje=mensaje,
+                evento='productos_no_disponibles_almacen',
+                usuario=self.usuario
+            )
+            
+            # Marcar como notificado si se envió exitosamente
+            if resultado.get('exitoso'):
+                productos_no_disponibles.update(notificado_telegram=True)
+                
+        except Exception as e:
+            import logging
+            logger = logging.getLogger(__name__)
+            logger.error(f"Error al enviar notificación Telegram de productos no disponibles: {str(e)}")
 
     def _generate_item_propuesta(self, item_solicitud):
         """
@@ -131,10 +194,11 @@ class PropuestaGenerator:
 
             # Distribuir la reserva entre las ubicaciones del lote
             # Esto permite que el almacenista sepa exactamente de qué ubicación tomar
-            # Solo considerar ubicaciones del almacén con id=1
+            # Solo considerar ubicaciones del almacén destino
+            almacen_destino_id = self.solicitud.almacen_destino.id
             ubicaciones_disponibles = lote.ubicaciones_detalle.filter(
                 cantidad__gt=0,
-                ubicacion__almacen_id=1  # Solo ubicaciones del almacén con id=1
+                ubicacion__almacen_id=almacen_destino_id  # Solo ubicaciones del almacén destino
             ).order_by('-cantidad')  # Priorizar ubicaciones con más cantidad
             
             # Calcular la cantidad total disponible en todas las ubicaciones del lote
@@ -231,7 +295,70 @@ class PropuestaGenerator:
 
         # Actualizar estado y cantidad propuesta
         item_propuesta.cantidad_propuesta = cantidad_asignada_total
-        if cantidad_asignada_total == 0:
+        
+        # Detectar si hay disponibilidad en otros almacenes pero no en el almacén destino
+        almacen_destino_id = self.solicitud.almacen_destino.id
+        cantidad_disponible_destino = 0
+        cantidad_disponible_otros = 0
+        almacenes_con_disponibilidad = []
+        
+        # Calcular disponibilidad en almacén destino
+        for lote in lotes_disponibles:
+            cantidad_real_disponible_lote = max(0, lote.cantidad_disponible - lote.cantidad_reservada)
+            if cantidad_real_disponible_lote > 0:
+                # Verificar si tiene ubicaciones en el almacén destino
+                ubicaciones_destino = lote.ubicaciones_detalle.filter(
+                    cantidad__gt=0,
+                    ubicacion__almacen_id=almacen_destino_id
+                )
+                cantidad_destino = sum(
+                    max(0, lu.cantidad - lu.cantidad_reservada) 
+                    for lu in ubicaciones_destino
+                )
+                cantidad_disponible_destino += cantidad_destino
+                
+                # Verificar otros almacenes
+                ubicaciones_otros = lote.ubicaciones_detalle.filter(
+                    cantidad__gt=0
+                ).exclude(ubicacion__almacen_id=almacen_destino_id)
+                
+                for lu in ubicaciones_otros:
+                    cantidad_otro = max(0, lu.cantidad - lu.cantidad_reservada)
+                    if cantidad_otro > 0:
+                        almacen_otro = lu.ubicacion.almacen
+                        # Agregar o actualizar almacén en la lista
+                        almacen_encontrado = next(
+                            (a for a in almacenes_con_disponibilidad if a['almacen_id'] == almacen_otro.id),
+                            None
+                        )
+                        if almacen_encontrado:
+                            almacen_encontrado['cantidad'] += cantidad_otro
+                        else:
+                            almacenes_con_disponibilidad.append({
+                                'almacen_id': almacen_otro.id,
+                                'almacen_nombre': almacen_otro.nombre,
+                                'cantidad': cantidad_otro
+                            })
+                        cantidad_disponible_otros += cantidad_otro
+        
+        # Si no se asignó nada y hay disponibilidad en otros almacenes, registrar
+        if cantidad_asignada_total == 0 and cantidad_disponible_otros > 0:
+            # Registrar en ProductoNoDisponibleAlmacen
+            import json
+            ProductoNoDisponibleAlmacen.objects.create(
+                propuesta=self.propuesta,
+                item_propuesta=item_propuesta,
+                producto=producto,
+                almacen_destino=self.solicitud.almacen_destino,
+                cantidad_requerida=cantidad_requerida,
+                cantidad_disponible_destino=cantidad_disponible_destino,
+                cantidad_disponible_otros=cantidad_disponible_otros,
+                almacenes_con_disponibilidad=json.dumps(almacenes_con_disponibilidad, ensure_ascii=False)
+            )
+            
+            item_propuesta.estado = 'NO_DISPONIBLE'
+            item_propuesta.observaciones = f"No hay disponibilidad en el almacén destino ({self.solicitud.almacen_destino.nombre}). Disponible en otros almacenes: {cantidad_disponible_otros} unidades."
+        elif cantidad_asignada_total == 0:
             item_propuesta.estado = 'NO_DISPONIBLE'
             item_propuesta.observaciones = "No hay lotes disponibles que cumplan con las reglas de caducidad."
         elif cantidad_asignada_total < cantidad_requerida:

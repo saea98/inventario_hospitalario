@@ -1,0 +1,223 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Productos No Disponibles en Almacén Destino{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Encabezado -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2><i class="fas fa-exclamation-triangle text-warning"></i> Productos No Disponibles en Almacén Destino</h2>
+            <p class="text-muted">Productos disponibles en otros almacenes pero no en el almacén destino</p>
+        </div>
+        <div class="col-md-4 text-end d-flex align-items-end justify-content-end">
+            {% if productos %}
+            <form method="POST" action="{% url 'reportes:exportar_productos_no_disponibles_excel' %}" style="display: inline;">
+                {% csrf_token %}
+                <input type="hidden" name="almacen" value="{{ filtro_almacen }}">
+                <input type="hidden" name="notificado" value="{{ filtro_notificado }}">
+                <input type="hidden" name="fecha_desde" value="{{ filtro_fecha_desde }}">
+                <input type="hidden" name="fecha_hasta" value="{{ filtro_fecha_hasta }}">
+                <button type="submit" class="btn btn-success">
+                    <i class="fas fa-file-excel"></i> Exportar a Excel
+                </button>
+            </form>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Resumen -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card border-warning">
+                <div class="card-body text-center">
+                    <h5 class="card-title text-warning">Total Registros</h5>
+                    <h2 class="mb-0">{{ resumen.total }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-success">
+                <div class="card-body text-center">
+                    <h5 class="card-title text-success">Notificados</h5>
+                    <h2 class="mb-0">{{ resumen.notificados }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-danger">
+                <div class="card-body text-center">
+                    <h5 class="card-title text-danger">Pendientes</h5>
+                    <h2 class="mb-0">{{ resumen.no_notificados }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card shadow mb-4">
+        <div class="card-header bg-light">
+            <h6 class="mb-0"><i class="fas fa-filter"></i> Filtros de Búsqueda</h6>
+        </div>
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-3">
+                    <label for="almacen" class="form-label">Almacén Destino</label>
+                    <select class="form-control" id="almacen" name="almacen">
+                        <option value="">Todos</option>
+                        {% for almacen in almacenes %}
+                        <option value="{{ almacen.id }}" {% if filtro_almacen == almacen.id|stringformat:"s" %}selected{% endif %}>
+                            {{ almacen.nombre }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="notificado" class="form-label">Notificado Telegram</label>
+                    <select class="form-control" id="notificado" name="notificado">
+                        <option value="">Todos</option>
+                        <option value="si" {% if filtro_notificado == "si" %}selected{% endif %}>Sí</option>
+                        <option value="no" {% if filtro_notificado == "no" %}selected{% endif %}>No</option>
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="fecha_desde" class="form-label">Fecha Desde</label>
+                    <input type="date" class="form-control" id="fecha_desde" name="fecha_desde" value="{{ filtro_fecha_desde }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="fecha_hasta" class="form-label">Fecha Hasta</label>
+                    <input type="date" class="form-control" id="fecha_hasta" name="fecha_hasta" value="{{ filtro_fecha_hasta }}">
+                </div>
+                <div class="col-md-12">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search"></i> Buscar
+                    </button>
+                    <a href="{% url 'reportes:reporte_productos_no_disponibles' %}" class="btn btn-secondary">
+                        <i class="fas fa-redo"></i> Limpiar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tabla de resultados -->
+    {% if productos %}
+    <div class="card shadow mb-4">
+        <div class="card-header bg-light">
+            <h6 class="mb-0"><i class="fas fa-list"></i> Resultados ({{ productos.paginator.count }} registros)</h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Folio Propuesta</th>
+                            <th>Institución</th>
+                            <th>Almacén Destino</th>
+                            <th>Clave CNIS</th>
+                            <th>Descripción</th>
+                            <th>Requerido</th>
+                            <th>Disponible Destino</th>
+                            <th>Disponible Otros</th>
+                            <th>Almacenes con Disponibilidad</th>
+                            <th>Notificado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in productos %}
+                        {% with registro=item.registro almacenes=item.almacenes %}
+                        <tr>
+                            <td>{{ registro.fecha_registro|date:"d/m/Y H:i" }}</td>
+                            <td>
+                                <a href="/logistica/propuestas/{{ registro.propuesta.id }}/" target="_blank">
+                                    {{ registro.propuesta.solicitud.folio }}
+                                </a>
+                            </td>
+                            <td>{{ registro.propuesta.solicitud.institucion_solicitante.denominacion }}</td>
+                            <td>{{ registro.almacen_destino.nombre }}</td>
+                            <td><code>{{ registro.producto.clave_cnis }}</code></td>
+                            <td>{{ registro.producto.descripcion|truncatewords:10 }}</td>
+                            <td><span class="badge bg-primary">{{ registro.cantidad_requerida }}</span></td>
+                            <td><span class="badge bg-danger">{{ registro.cantidad_disponible_destino }}</span></td>
+                            <td><span class="badge bg-success">{{ registro.cantidad_disponible_otros }}</span></td>
+                            <td>
+                                {% if almacenes %}
+                                    <div class="d-flex flex-wrap gap-1">
+                                        {% for almacen in almacenes %}
+                                            <span class="badge bg-info me-1 mb-1">{{ almacen.almacen_nombre }} ({{ almacen.cantidad }})</span>
+                                        {% endfor %}
+                                    </div>
+                                {% else %}
+                                    <span class="text-muted">-</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if registro.notificado_telegram %}
+                                    <span class="badge bg-success"><i class="fas fa-check"></i> Sí</span>
+                                {% else %}
+                                    <span class="badge bg-warning"><i class="fas fa-clock"></i> No</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endwith %}
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            
+            <!-- Paginación -->
+            {% if productos.has_other_pages %}
+            <nav aria-label="Paginación">
+                <ul class="pagination justify-content-center">
+                    {% if productos.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_notificado %}&notificado={{ filtro_notificado }}{% endif %}{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}">Primera</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ productos.previous_page_number }}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_notificado %}&notificado={{ filtro_notificado }}{% endif %}{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}">Anterior</a>
+                    </li>
+                    {% endif %}
+                    
+                    <li class="page-item active">
+                        <span class="page-link">
+                            Página {{ productos.number }} de {{ productos.paginator.num_pages }}
+                        </span>
+                    </li>
+                    
+                    {% if productos.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ productos.next_page_number }}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_notificado %}&notificado={{ filtro_notificado }}{% endif %}{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}">Siguiente</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ productos.paginator.num_pages }}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_notificado %}&notificado={{ filtro_notificado }}{% endif %}{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}">Última</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+    {% else %}
+    <div class="card shadow mb-4">
+        <div class="card-body text-center py-5">
+            <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+            <h4 class="text-success">No hay registros</h4>
+            <p class="text-muted">No se encontraron productos no disponibles en almacén destino con los filtros seleccionados.</p>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+<script>
+// Función para parsear JSON en el template
+function parseJson(str) {
+    try {
+        return JSON.parse(str);
+    } catch (e) {
+        return [];
+    }
+}
+</script>
+{% endblock %}

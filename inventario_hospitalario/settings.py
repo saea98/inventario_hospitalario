@@ -63,7 +63,7 @@ INSTALLED_APPS = [
     
     # Local apps
     'inventario',
-    'django_select2',
+    # 'django_select2',  # Comentado temporalmente - instalar con: pip install django-select2
 ]
 
 MIDDLEWARE = [

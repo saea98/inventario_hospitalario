@@ -298,6 +298,68 @@ class LoteAsignado(models.Model):
         return f"{self.lote_ubicacion.lote.numero_lote} - {self.cantidad_asignada} Unidades"
 
 
+class ProductoNoDisponibleAlmacen(models.Model):
+    """
+    Registra productos que no están disponibles en el almacén destino pero sí en otros almacenes.
+    Se usa para generar reportes y solicitar traslados.
+    """
+    propuesta = models.ForeignKey(
+        PropuestaPedido,
+        on_delete=models.CASCADE,
+        related_name='productos_no_disponibles',
+        verbose_name="Propuesta"
+    )
+    item_propuesta = models.ForeignKey(
+        ItemPropuesta,
+        on_delete=models.CASCADE,
+        related_name='registros_no_disponible',
+        verbose_name="Item de Propuesta"
+    )
+    producto = models.ForeignKey(
+        Producto,
+        on_delete=models.CASCADE,
+        related_name='registros_no_disponible_almacen',
+        verbose_name="Producto"
+    )
+    almacen_destino = models.ForeignKey(
+        Almacen,
+        on_delete=models.CASCADE,
+        related_name='productos_no_disponibles',
+        verbose_name="Almacén Destino"
+    )
+    cantidad_requerida = models.PositiveIntegerField(verbose_name="Cantidad Requerida")
+    cantidad_disponible_destino = models.PositiveIntegerField(
+        default=0,
+        verbose_name="Cantidad Disponible en Almacén Destino"
+    )
+    cantidad_disponible_otros = models.PositiveIntegerField(
+        default=0,
+        verbose_name="Cantidad Disponible en Otros Almacenes"
+    )
+    almacenes_con_disponibilidad = models.TextField(
+        blank=True,
+        verbose_name="Almacenes con Disponibilidad",
+        help_text="Lista de almacenes que tienen el producto disponible (JSON o texto)"
+    )
+    notificado_telegram = models.BooleanField(
+        default=False,
+        verbose_name="Notificado por Telegram"
+    )
+    fecha_registro = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de Registro")
+    
+    class Meta:
+        verbose_name = "Producto No Disponible en Almacén"
+        verbose_name_plural = "Productos No Disponibles en Almacén"
+        ordering = ['-fecha_registro']
+        indexes = [
+            models.Index(fields=['propuesta', 'producto']),
+            models.Index(fields=['almacen_destino', 'notificado_telegram']),
+        ]
+    
+    def __str__(self):
+        return f"{self.producto.clave_cnis} - Almacén {self.almacen_destino.nombre} (Requiere: {self.cantidad_requerida})"
+
+
 class LogPropuesta(models.Model):
     """
     Registra los cambios de estado y acciones importantes en una propuesta.
