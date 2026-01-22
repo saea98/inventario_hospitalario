@@ -44,7 +44,7 @@ def reporte_lote_pedidos(request):
         if filtro_clave:
             query_producto = query_producto.filter(
                 Q(clave_cnis__icontains=filtro_clave) |
-                Q(producto__descripcion__icontains=filtro_clave)
+                Q(descripcion__icontains=filtro_clave)
             )
         
         if query_producto.exists():
