@@ -1,246 +1,218 @@
 {% extends 'base.html' %}
 {% load static %}
 
-{% block title %}Reporte de Lote y Pedidos{% endblock %}
+{% block title %}Reporte de Lotes y Pedidos{% endblock %}
 
 {% block content %}
 <div class="container-fluid mt-4">
     <!-- Encabezado -->
     <div class="row mb-4">
         <div class="col-md-8">
-            <h2><i class="fas fa-boxes text-primary"></i> Reporte de Lote y Pedidos Asociados</h2>
-            <p class="text-muted">Busca un lote específico y visualiza todos los pedidos donde está asignado</p>
+            <h2><i class="fas fa-boxes text-primary"></i> Reporte de Lotes y Pedidos Asociados</h2>
+            <p class="text-muted">Visualiza todos los lotes asignados en pedidos con sus detalles</p>
         </div>
-        {% if datos_lote %}
         <div class="col-md-4 text-end d-flex align-items-end justify-content-end">
+            {% if page_obj %}
             <form method="POST" action="{% url 'reportes:exportar_lote_pedidos_excel' %}" style="display: inline;">
                 {% csrf_token %}
                 <input type="hidden" name="clave" value="{{ filtro_clave }}">
                 <input type="hidden" name="lote" value="{{ filtro_lote }}">
+                <input type="hidden" name="folio" value="{{ filtro_folio }}">
+                <input type="hidden" name="fecha_desde" value="{{ filtro_fecha_desde }}">
+                <input type="hidden" name="fecha_hasta" value="{{ filtro_fecha_hasta }}">
+                <input type="hidden" name="estado" value="{{ filtro_estado }}">
                 <button type="submit" class="btn btn-success">
                     <i class="fas fa-file-excel"></i> Exportar a Excel
                 </button>
             </form>
+            {% endif %}
         </div>
-        {% endif %}
     </div>
 
     <!-- Filtros de Búsqueda -->
     <div class="card shadow mb-4">
         <div class="card-header bg-light">
-            <h6 class="mb-0"><i class="fas fa-search"></i> Búsqueda de Lote</h6>
+            <h6 class="mb-0"><i class="fas fa-filter"></i> Filtros de Búsqueda</h6>
         </div>
         <div class="card-body">
             <form method="GET" class="row g-3">
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label for="clave" class="form-label">Clave CNIS / Descripción</label>
                     <input type="text" class="form-control" id="clave" name="clave" 
-                           value="{{ filtro_clave }}" placeholder="Buscar por clave o descripción...">
+                           value="{{ filtro_clave }}" placeholder="Buscar por clave...">
                 </div>
-                <div class="col-md-4">
+                <div class="col-md-3">
                     <label for="lote" class="form-label">Número de Lote</label>
                     <input type="text" class="form-control" id="lote" name="lote" 
-                           value="{{ filtro_lote }}" placeholder="Buscar por número de lote...">
+                           value="{{ filtro_lote }}" placeholder="Buscar por lote...">
                 </div>
-                <div class="col-md-4 d-flex align-items-end">
-                    <button type="submit" class="btn btn-primary w-100">
-                        <i class="fas fa-search"></i> Buscar
+                <div class="col-md-3">
+                    <label for="folio" class="form-label">Folio / Pedido</label>
+                    <input type="text" class="form-control" id="folio" name="folio" 
+                           value="{{ filtro_folio }}" placeholder="Buscar por folio...">
+                </div>
+                <div class="col-md-3">
+                    <label for="estado" class="form-label">Estado Propuesta</label>
+                    <select class="form-control" id="estado" name="estado">
+                        <option value="">-- Todos los estados --</option>
+                        {% for estado_val, estado_label in estados_propuesta %}
+                            <option value="{{ estado_val }}" {% if filtro_estado == estado_val %}selected{% endif %}>
+                                {{ estado_label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="fecha_desde" class="form-label">Fecha Desde</label>
+                    <input type="date" class="form-control" id="fecha_desde" name="fecha_desde" 
+                           value="{{ filtro_fecha_desde }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="fecha_hasta" class="form-label">Fecha Hasta</label>
+                    <input type="date" class="form-control" id="fecha_hasta" name="fecha_hasta" 
+                           value="{{ filtro_fecha_hasta }}">
+                </div>
+                <div class="col-md-6 d-flex align-items-end gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search"></i> Filtrar
                     </button>
+                    <a href="{% url 'reportes:reporte_lote_pedidos' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-redo"></i> Limpiar
+                    </a>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Información del Lote -->
-    {% if datos_lote %}
-    <div class="card shadow mb-4">
-        <div class="card-header bg-info text-white">
-            <h6 class="mb-0"><i class="fas fa-box"></i> Información del Lote</h6>
-        </div>
-        <div class="card-body">
-            <div class="row">
-                <div class="col-md-3">
-                    <p><strong>Clave CNIS:</strong> {{ datos_lote.clave }}</p>
-                    <p><strong>Descripción:</strong> {{ datos_lote.descripcion }}</p>
-                </div>
-                <div class="col-md-3">
-                    <p><strong>Número de Lote:</strong> {{ datos_lote.numero_lote }}</p>
-                    <p><strong>Institución:</strong> {{ datos_lote.institucion }}</p>
-                </div>
-                <div class="col-md-3">
-                    <p><strong>Cantidad Disponible:</strong> <span class="badge bg-info">{{ datos_lote.cantidad_disponible }}</span></p>
-                    <p><strong>Cantidad Reservada:</strong> <span class="badge bg-warning">{{ datos_lote.cantidad_reservada }}</span></p>
-                </div>
-                <div class="col-md-3">
-                    <p><strong>Cantidad Neta:</strong> <span class="badge bg-success">{{ datos_lote.cantidad_neta }}</span></p>
-                    {% if datos_lote.fecha_caducidad %}
-                        <p><strong>Fecha Caducidad:</strong> {{ datos_lote.fecha_caducidad|date:"d/m/Y" }}</p>
-                    {% endif %}
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Resumen de Pedidos -->
+    <!-- Resumen -->
     <div class="row mb-4">
-        <div class="col-md-3">
+        <div class="col-md-12">
             <div class="card shadow">
                 <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-muted mb-1">Total Reservado</h6>
-                            <h3 class="text-warning mb-0">{{ total_reservado }}</h3>
-                        </div>
-                        <i class="fas fa-lock fa-3x text-warning opacity-50"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card shadow">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-muted mb-1">Total Surtido</h6>
-                            <h3 class="text-success mb-0">{{ total_surtido }}</h3>
-                        </div>
-                        <i class="fas fa-check-circle fa-3x text-success opacity-50"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card shadow">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-muted mb-1">Pendiente de Surtir</h6>
-                            <h3 class="text-info mb-0">{{ total_pendiente }}</h3>
-                        </div>
-                        <i class="fas fa-hourglass-half fa-3x text-info opacity-50"></i>
-                    </div>
-                </div>
-            </div>
-        </div>
-        <div class="col-md-3">
-            <div class="card shadow">
-                <div class="card-body">
-                    <div class="d-flex justify-content-between align-items-center">
-                        <div>
-                            <h6 class="text-muted mb-1">Total Pedidos</h6>
-                            <h3 class="text-primary mb-0">{{ datos_pedidos|length }}</h3>
-                        </div>
-                        <i class="fas fa-file-invoice fa-3x text-primary opacity-50"></i>
-                    </div>
+                    <h6 class="mb-0">
+                        <i class="fas fa-info-circle text-info"></i> 
+                        Total de lotes encontrados: <strong>{{ total_lotes }}</strong>
+                    </h6>
                 </div>
             </div>
         </div>
     </div>
 
-    <!-- Tabla de Pedidos -->
-    {% if datos_pedidos %}
+    <!-- Tabla de Lotes -->
+    {% if page_obj %}
     <div class="card shadow">
         <div class="card-header bg-light">
-            <h6 class="mb-0"><i class="fas fa-table"></i> Pedidos Asociados ({{ datos_pedidos|length }} encontrados)</h6>
+            <h6 class="mb-0"><i class="fas fa-table"></i> Lotes Asignados en Pedidos ({{ total_lotes }} registros)</h6>
         </div>
         <div class="card-body">
             <div class="table-responsive">
                 <table class="table table-hover table-sm">
                     <thead class="table-dark">
                         <tr>
-                            <th>Folio Solicitud</th>
+                            <th>Clave CNIS</th>
+                            <th>Descripción</th>
+                            <th>Número Lote</th>
                             <th>Institución</th>
-                            <th>Estado Propuesta</th>
-                            <th>Fecha Generación</th>
-                            <th class="text-center">Cantidad Solicitada</th>
-                            <th class="text-center">Cantidad Propuesta</th>
-                            <th class="text-center">Cantidad Surtida</th>
-                            <th class="text-center">Pendiente</th>
+                            <th class="text-center">Disponible</th>
+                            <th class="text-center">Reservado</th>
+                            <th class="text-center">Neto</th>
+                            <th class="text-center">Pedidos</th>
+                            <th class="text-center">Cant. Asignada</th>
+                            <th class="text-center">Cant. Surtida</th>
                             <th class="text-center">Detalles</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for pedido in datos_pedidos %}
+                        {% for lote in page_obj %}
                         <tr class="align-middle">
-                            <td><strong>{{ pedido.solicitud_folio }}</strong></td>
-                            <td>{{ pedido.institucion_solicitante }}</td>
-                            <td>
-                                <span class="badge bg-{% if pedido.estado_propuesta == 'GENERADA' %}secondary{% elif pedido.estado_propuesta == 'SURTIDA' %}success{% elif pedido.estado_propuesta == 'CANCELADA' %}danger{% else %}info{% endif %}">
-                                    {{ pedido.estado_propuesta }}
-                                </span>
-                            </td>
-                            <td>{{ pedido.fecha_generacion|date:"d/m/Y H:i" }}</td>
+                            <td><strong>{{ lote.clave }}</strong></td>
+                            <td><small>{{ lote.descripcion|truncatewords:8 }}</small></td>
+                            <td>{{ lote.numero_lote }}</td>
+                            <td>{{ lote.institucion }}</td>
                             <td class="text-center">
-                                {% with total_solicitado=pedido.items|dictsort:"cantidad_solicitada"|first %}
-                                    <span class="badge bg-primary">
-                                        {% for item in pedido.items %}
-                                            {{ item.cantidad_solicitada }}{% if not forloop.last %}, {% endif %}
-                                        {% endfor %}
-                                    </span>
-                                {% endwith %}
+                                <span class="badge bg-info">{{ lote.cantidad_disponible }}</span>
                             </td>
                             <td class="text-center">
-                                <span class="badge bg-warning">
-                                    {% for item in pedido.items %}
-                                        {{ item.cantidad_propuesta }}{% if not forloop.last %}, {% endif %}
-                                    {% endfor %}
-                                </span>
+                                <span class="badge bg-warning">{{ lote.cantidad_reservada }}</span>
                             </td>
                             <td class="text-center">
-                                <span class="badge bg-success">
-                                    {% for item in pedido.items %}
-                                        {{ item.cantidad_surtida }}{% if not forloop.last %}, {% endif %}
-                                    {% endfor %}
-                                </span>
+                                <span class="badge bg-success">{{ lote.cantidad_neta }}</span>
                             </td>
                             <td class="text-center">
-                                {% with pendiente=pedido.items|dictsort:"cantidad_propuesta"|first %}
-                                    <span class="badge bg-info">
-                                        {% for item in pedido.items %}
-                                            {{ item.cantidad_propuesta|add:item.cantidad_surtida|stringformat:"-d" }}{% if not forloop.last %}, {% endif %}
-                                        {% endfor %}
-                                    </span>
-                                {% endwith %}
+                                <span class="badge bg-primary">{{ lote.total_pedidos }}</span>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-warning">{{ lote.total_cantidad_asignada }}</span>
+                            </td>
+                            <td class="text-center">
+                                <span class="badge bg-success">{{ lote.total_cantidad_surtida }}</span>
                             </td>
                             <td class="text-center">
                                 <button class="btn btn-sm btn-outline-primary" data-bs-toggle="collapse" 
-                                        data-bs-target="#pedido-{{ pedido.propuesta_id }}" aria-expanded="false">
+                                        data-bs-target="#lote-{{ lote.lote_id }}" aria-expanded="false">
                                     <i class="fas fa-chevron-down"></i>
                                 </button>
                             </td>
                         </tr>
                         <!-- Fila de detalles colapsable -->
-                        <tr class="collapse" id="pedido-{{ pedido.propuesta_id }}">
-                            <td colspan="9">
+                        <tr class="collapse" id="lote-{{ lote.lote_id }}">
+                            <td colspan="11">
                                 <div class="p-3">
-                                    <h6 class="mb-3">Detalles de Items</h6>
+                                    <h6 class="mb-3">Información del Lote</h6>
+                                    <div class="row mb-3">
+                                        <div class="col-md-3">
+                                            <p><strong>Clave CNIS:</strong> {{ lote.clave }}</p>
+                                            <p><strong>Descripción:</strong> {{ lote.descripcion }}</p>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <p><strong>Número de Lote:</strong> {{ lote.numero_lote }}</p>
+                                            <p><strong>Institución:</strong> {{ lote.institucion }}</p>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <p><strong>Cantidad Disponible:</strong> <span class="badge bg-info">{{ lote.cantidad_disponible }}</span></p>
+                                            <p><strong>Cantidad Reservada:</strong> <span class="badge bg-warning">{{ lote.cantidad_reservada }}</span></p>
+                                        </div>
+                                        <div class="col-md-3">
+                                            <p><strong>Cantidad Neta:</strong> <span class="badge bg-success">{{ lote.cantidad_neta }}</span></p>
+                                            {% if lote.fecha_caducidad %}
+                                                <p><strong>Fecha Caducidad:</strong> {{ lote.fecha_caducidad|date:"d/m/Y" }}</p>
+                                            {% endif %}
+                                        </div>
+                                    </div>
+                                    
+                                    <h6 class="mb-3">Pedidos Asociados ({{ lote.total_pedidos }})</h6>
                                     <div class="table-responsive">
                                         <table class="table table-sm table-bordered">
                                             <thead class="table-light">
                                                 <tr>
-                                                    <th>Producto</th>
-                                                    <th class="text-center">Solicitado</th>
-                                                    <th class="text-center">Disponible</th>
-                                                    <th class="text-center">Propuesto</th>
-                                                    <th class="text-center">Surtido</th>
-                                                    <th class="text-center">Estado</th>
+                                                    <th>Folio Solicitud</th>
+                                                    <th>Institución</th>
+                                                    <th>Estado Propuesta</th>
+                                                    <th>Fecha Generación</th>
+                                                    <th class="text-center">Cantidad Asignada</th>
+                                                    <th class="text-center">Cantidad Surtida</th>
+                                                    <th class="text-center">Neto</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
-                                                {% for item in pedido.items %}
+                                                {% for pedido in lote.pedidos %}
                                                 <tr>
+                                                    <td><strong>{{ pedido.solicitud_folio }}</strong></td>
+                                                    <td>{{ pedido.institucion_solicitante }}</td>
                                                     <td>
-                                                        <strong>{{ item.producto_clave }}</strong><br>
-                                                        <small class="text-muted">{{ item.producto_descripcion }}</small>
-                                                    </td>
-                                                    <td class="text-center">{{ item.cantidad_solicitada }}</td>
-                                                    <td class="text-center">{{ item.cantidad_disponible }}</td>
-                                                    <td class="text-center"><span class="badge bg-warning">{{ item.cantidad_propuesta }}</span></td>
-                                                    <td class="text-center"><span class="badge bg-success">{{ item.cantidad_surtida }}</span></td>
-                                                    <td class="text-center">
-                                                        <span class="badge bg-{% if item.estado == 'DISPONIBLE' %}success{% elif item.estado == 'PARCIAL' %}warning{% elif item.estado == 'SURTIDO' %}info{% else %}danger{% endif %}">
-                                                            {{ item.estado }}
+                                                        <span class="badge bg-{% if pedido.estado_propuesta == 'GENERADA' %}secondary{% elif pedido.estado_propuesta == 'SURTIDA' %}success{% elif pedido.estado_propuesta == 'CANCELADA' %}danger{% else %}info{% endif %}">
+                                                            {{ pedido.estado_propuesta }}
                                                         </span>
+                                                    </td>
+                                                    <td>{{ pedido.fecha_generacion|date:"d/m/Y H:i" }}</td>
+                                                    <td class="text-center">
+                                                        <span class="badge bg-warning">{{ pedido.cantidad_total_asignada }}</span>
+                                                    </td>
+                                                    <td class="text-center">
+                                                        <span class="badge bg-success">{{ pedido.cantidad_total_surtida }}</span>
+                                                    </td>
+                                                    <td class="text-center">
+                                                        <span class="badge bg-info">{{ pedido.cantidad_neto }}</span>
                                                     </td>
                                                 </tr>
                                                 {% endfor %}
@@ -255,17 +227,68 @@
                 </table>
             </div>
         </div>
-    </div>
-    {% elif filtro_clave or filtro_lote %}
-    <div class="alert alert-info" role="alert">
-        <i class="fas fa-info-circle"></i> No se encontraron lotes con los filtros especificados.
+        
+        <!-- Paginación -->
+        {% if page_obj.has_other_pages %}
+        <nav aria-label="Paginación" class="mt-4">
+            <ul class="pagination justify-content-center">
+                {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1&clave={{ filtro_clave }}&lote={{ filtro_lote }}&folio={{ filtro_folio }}&fecha_desde={{ filtro_fecha_desde }}&fecha_hasta={{ filtro_fecha_hasta }}&estado={{ filtro_estado }}">Primera</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}&clave={{ filtro_clave }}&lote={{ filtro_lote }}&folio={{ filtro_folio }}&fecha_desde={{ filtro_fecha_desde }}&fecha_hasta={{ filtro_fecha_hasta }}&estado={{ filtro_estado }}">Anterior</a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">Primera</span>
+                    </li>
+                    <li class="page-item disabled">
+                        <span class="page-link">Anterior</span>
+                    </li>
+                {% endif %}
+                
+                <!-- Números de página -->
+                {% for num in paginator.page_range %}
+                    {% if page_obj.number == num %}
+                        <li class="page-item active">
+                            <span class="page-link">{{ num }}</span>
+                        </li>
+                    {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ num }}&clave={{ filtro_clave }}&lote={{ filtro_lote }}&folio={{ filtro_folio }}&fecha_desde={{ filtro_fecha_desde }}&fecha_hasta={{ filtro_fecha_hasta }}&estado={{ filtro_estado }}">{{ num }}</a>
+                        </li>
+                    {% endif %}
+                {% endfor %}
+                
+                {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}&clave={{ filtro_clave }}&lote={{ filtro_lote }}&folio={{ filtro_folio }}&fecha_desde={{ filtro_fecha_desde }}&fecha_hasta={{ filtro_fecha_hasta }}&estado={{ filtro_estado }}">Siguiente</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ paginator.num_pages }}&clave={{ filtro_clave }}&lote={{ filtro_lote }}&folio={{ filtro_folio }}&fecha_desde={{ filtro_fecha_desde }}&fecha_hasta={{ filtro_fecha_hasta }}&estado={{ filtro_estado }}">Última</a>
+                    </li>
+                {% else %}
+                    <li class="page-item disabled">
+                        <span class="page-link">Siguiente</span>
+                    </li>
+                    <li class="page-item disabled">
+                        <span class="page-link">Última</span>
+                    </li>
+                {% endif %}
+            </ul>
+        </nav>
+        
+        <!-- Información de paginación -->
+        <div class="text-center text-muted mt-2">
+            <small>Página {{ page_obj.number }} de {{ paginator.num_pages }} ({{ paginator.count }} registros totales)</small>
+        </div>
+        {% endif %}
     </div>
     {% else %}
     <div class="alert alert-info" role="alert">
-        <i class="fas fa-info-circle"></i> Ingresa una clave o número de lote para buscar.
+        <i class="fas fa-info-circle"></i> No se encontraron lotes asignados en pedidos con los filtros especificados.
     </div>
-    {% endif %}
-
     {% endif %}
 
 </div>
