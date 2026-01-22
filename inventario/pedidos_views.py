@@ -449,12 +449,26 @@ def lista_propuestas(request):
     """
     from django.urls import reverse
     from django.db.models import Sum
+    from .models import Institucion
     
     propuestas = PropuestaPedido.objects.select_related(
         'solicitud__institucion_solicitante',
         'solicitud__almacen_destino',
         'solicitud__usuario_solicitante'
     ).prefetch_related('items').all()
+    
+    # Aplicar filtros
+    estado = request.GET.get('estado')
+    if estado:
+        propuestas = propuestas.filter(estado=estado)
+    
+    folio_pedido = request.GET.get('folio_pedido', '').strip()
+    if folio_pedido:
+        propuestas = propuestas.filter(solicitud__observaciones_solicitud__icontains=folio_pedido)
+    
+    institucion_id = request.GET.get('institucion')
+    if institucion_id:
+        propuestas = propuestas.filter(solicitud__institucion_solicitante_id=institucion_id)
     
     propuestas_con_info = []
     for propuesta in propuestas:
@@ -488,16 +502,16 @@ def lista_propuestas(request):
             'url_pdf': url_pdf
         })
     
-    estado = request.GET.get('estado')
-    if estado:
-        propuestas_con_info = [
-            p for p in propuestas_con_info 
-            if p['propuesta'].estado == estado
-        ]
+    # Obtener instituciones para el filtro
+    instituciones = Institucion.objects.all().order_by('denominacion')
     
     context = {
         'propuestas': propuestas_con_info,
         'estados': PropuestaPedido.ESTADO_CHOICES,
+        'instituciones': instituciones,
+        'filtro_estado': estado or '',
+        'filtro_folio_pedido': folio_pedido,
+        'filtro_institucion': institucion_id or '',
         'page_title': 'Propuestas de Pedido para Surtimiento'
     }
     return render(request, 'inventario/pedidos/lista_propuestas.html', context)

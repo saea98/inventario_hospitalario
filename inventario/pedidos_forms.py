@@ -40,7 +40,7 @@ class SolicitudPedidoForm(forms.ModelForm):
                 attrs={
                     'class': 'form-control',
                     'type': 'date',
-                    'min': (date.today() + timedelta(days=1)).isoformat(),
+                    'min': date.today().isoformat(),
                     'required': 'required'
                 }
             ),

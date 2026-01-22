@@ -69,18 +69,53 @@
 
     <!-- Filtros -->
     <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Filtros de Búsqueda</h6>
+        </div>
         <div class="card-body">
-            <form method="get" class="form-inline">
-                <div class="form-group mr-3">
-                    <label for="id_estado" class="mr-2">Filtrar por estado:</label>
-                    <select name="estado" id="id_estado" class="form-control">
-                        <option value="">Todos</option>
-                        {% for value, name in estados %}
-                            <option value="{{ value }}" {% if request.GET.estado == value %}selected{% endif %}>{{ name }}</option>
-                        {% endfor %}
-                    </select>
+            <form method="get">
+                <div class="row">
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="id_estado">Estado:</label>
+                            <select name="estado" id="id_estado" class="form-control">
+                                <option value="">Todos</option>
+                                {% for value, name in estados %}
+                                    <option value="{{ value }}" {% if filtro_estado == value %}selected{% endif %}>{{ name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="id_folio_pedido">Folio de Pedido:</label>
+                            <input type="text" name="folio_pedido" id="id_folio_pedido" class="form-control" 
+                                   value="{{ filtro_folio_pedido }}" placeholder="Buscar por folio de pedido">
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label for="id_institucion">Institución Solicitante:</label>
+                            <select name="institucion" id="id_institucion" class="form-control">
+                                <option value="">Todas</option>
+                                {% for institucion in instituciones %}
+                                    <option value="{{ institucion.id }}" {% if request.GET.institucion == institucion.id|stringformat:"s" %}selected{% endif %}>
+                                        {{ institucion.denominacion }}
+                                    </option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                    </div>
+                    <div class="col-md-3">
+                        <div class="form-group">
+                            <label>&nbsp;</label>
+                            <div>
+                                <button type="submit" class="btn btn-primary btn-block">Buscar</button>
+                                <a href="{% url 'logistica:lista_propuestas' %}" class="btn btn-secondary btn-block mt-2">Limpiar</a>
+                            </div>
+                        </div>
+                    </div>
                 </div>
-                <button type="submit" class="btn btn-primary">Filtrar</button>
             </form>
         </div>
     </div>
