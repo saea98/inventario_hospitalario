@@ -2,6 +2,7 @@ from django.urls import path
 from .reportes_views import ReporteEntradasView
 from .views_reporte_disponibilidad import reporte_disponibilidad_lotes, exportar_disponibilidad_excel
 from .views_reporte_lote_pedidos import reporte_lote_pedidos, exportar_lote_pedidos_excel
+from .views_reporte_auditoria_propuestas import reporte_auditoria_propuestas
 
 app_name = 'reportes'
 
@@ -11,4 +12,5 @@ urlpatterns = [
     path("disponibilidad-lotes/exportar-excel/", exportar_disponibilidad_excel, name="exportar_disponibilidad_excel"),
     path("lote-pedidos/", reporte_lote_pedidos, name="reporte_lote_pedidos"),
     path("lote-pedidos/exportar-excel/", exportar_lote_pedidos_excel, name="exportar_lote_pedidos_excel"),
+    path("auditoria-propuestas/", reporte_auditoria_propuestas, name="reporte_auditoria_propuestas"),
 ]

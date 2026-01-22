@@ -1,0 +1,273 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Auditoría de Propuestas{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Encabezado -->
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h2><i class="fas fa-shield-alt text-warning"></i> Reporte de Auditoría de Propuestas</h2>
+            <p class="text-muted">Identifica propuestas no aplicadas, huérfanas y valida reservas y movimientos de inventario</p>
+        </div>
+    </div>
+
+    <!-- Resumen -->
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-warning">
+                <div class="card-body text-center">
+                    <h5 class="card-title text-warning">No Aplicadas</h5>
+                    <h2 class="mb-0">{{ resumen.total_no_aplicadas }}</h2>
+                    <small class="text-muted">GENERADA > {{ dias_limite }} días</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-danger">
+                <div class="card-body text-center">
+                    <h5 class="card-title text-danger">Huérfanas</h5>
+                    <h2 class="mb-0">{{ resumen.total_huerfanas }}</h2>
+                    <small class="text-muted">Estados inconsistentes</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-danger">
+                <div class="card-body text-center">
+                    <h5 class="card-title text-danger">Con Reservas Inválidas</h5>
+                    <h2 class="mb-0">{{ resumen.total_con_reservas_invalidas }}</h2>
+                    <small class="text-muted">SURTIDA/CANCELADA con reservas</small>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-danger">
+                <div class="card-body text-center">
+                    <h5 class="card-title text-danger">Sin Movimientos</h5>
+                    <h2 class="mb-0">{{ resumen.total_sin_movimientos }}</h2>
+                    <small class="text-muted">SURTIDA sin movimientos</small>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- 1. Propuestas No Aplicadas -->
+    {% if propuestas_no_aplicadas %}
+    <div class="card shadow mb-4">
+        <div class="card-header bg-warning text-dark">
+            <h6 class="mb-0"><i class="fas fa-exclamation-triangle"></i> Propuestas No Aplicadas ({{ propuestas_no_aplicadas|length }})</h6>
+            <small>Propuestas en estado GENERADA con más de {{ dias_limite }} días sin surtir</small>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>ID Propuesta</th>
+                            <th>Folio Solicitud (Observaciones)</th>
+                            <th>Institución</th>
+                            <th>Fecha Generación</th>
+                            <th>Días Sin Aplicar</th>
+                            <th>Items</th>
+                            <th>Lotes Asignados</th>
+                            <th>Total Reservado</th>
+                            <th>Usuario Generación</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in propuestas_no_aplicadas %}
+                        <tr>
+                            <td><code>{{ item.propuesta.id|truncatechars:8 }}</code></td>
+                            <td>{{ item.propuesta.solicitud.observaciones_solicitud|default:item.propuesta.solicitud.folio }}</td>
+                            <td>{{ item.propuesta.solicitud.institucion_solicitante.denominacion|default:"N/A" }}</td>
+                            <td>{{ item.propuesta.fecha_generacion|date:"d/m/Y H:i" }}</td>
+                            <td><span class="badge bg-warning">{{ item.dias_sin_aplicar }} días</span></td>
+                            <td>{{ item.total_items }}</td>
+                            <td>{{ item.total_lotes_asignados }}</td>
+                            <td><strong>{{ item.total_reservado }}</strong></td>
+                            <td>{{ item.propuesta.usuario_generacion.get_full_name|default:item.propuesta.usuario_generacion.username }}</td>
+                            <td>
+                                <a href="/logistica/propuestas/{{ item.propuesta.id }}/" class="btn btn-sm btn-info" title="Ver Detalle">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 2. Propuestas Huérfanas -->
+    {% if propuestas_huerfanas %}
+    <div class="card shadow mb-4">
+        <div class="card-header bg-danger text-white">
+            <h6 class="mb-0"><i class="fas fa-exclamation-circle"></i> Propuestas Huérfanas ({{ propuestas_huerfanas|length }})</h6>
+            <small>Propuestas con estados inconsistentes o sin solicitud asociada</small>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>ID Propuesta</th>
+                            <th>Estado</th>
+                            <th>Problema</th>
+                            <th>Severidad</th>
+                            <th>Fecha Generación</th>
+                            <th>Usuario Generación</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in propuestas_huerfanas %}
+                        <tr>
+                            <td><code>{{ item.propuesta.id|truncatechars:8 }}</code></td>
+                            <td><span class="badge bg-secondary">{{ item.propuesta.get_estado_display }}</span></td>
+                            <td><strong class="text-danger">{{ item.problema }}</strong></td>
+                            <td><span class="badge bg-danger">{{ item.severidad }}</span></td>
+                            <td>{{ item.propuesta.fecha_generacion|date:"d/m/Y H:i" }}</td>
+                            <td>{{ item.propuesta.usuario_generacion.get_full_name|default:item.propuesta.usuario_generacion.username }}</td>
+                            <td>
+                                {% if item.propuesta.solicitud %}
+                                <a href="/logistica/propuestas/{{ item.propuesta.id }}/" class="btn btn-sm btn-info" title="Ver Detalle">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 3. Propuestas con Reservas Inválidas -->
+    {% if propuestas_con_reservas_invalidas %}
+    <div class="card shadow mb-4">
+        <div class="card-header bg-danger text-white">
+            <h6 class="mb-0"><i class="fas fa-ban"></i> Propuestas con Reservas Inválidas ({{ propuestas_con_reservas_invalidas|length }})</h6>
+            <small>Propuestas SURTIDA o CANCELADA que aún tienen cantidades reservadas</small>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>ID Propuesta</th>
+                            <th>Folio Solicitud (Observaciones)</th>
+                            <th>Institución</th>
+                            <th>Estado</th>
+                            <th>Total Reservado</th>
+                            <th>Fecha Generación</th>
+                            <th>Detalles</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in propuestas_con_reservas_invalidas %}
+                        <tr>
+                            <td><code>{{ item.propuesta.id|truncatechars:8 }}</code></td>
+                            <td>{{ item.propuesta.solicitud.observaciones_solicitud|default:item.propuesta.solicitud.folio }}</td>
+                            <td>{{ item.propuesta.solicitud.institucion_solicitante.denominacion|default:"N/A" }}</td>
+                            <td><span class="badge bg-secondary">{{ item.estado }}</span></td>
+                            <td><strong class="text-danger">{{ item.total_reservado }} unidades</strong></td>
+                            <td>{{ item.propuesta.fecha_generacion|date:"d/m/Y H:i" }}</td>
+                            <td>
+                                <button type="button" class="btn btn-sm btn-info" data-bs-toggle="collapse" data-bs-target="#detalles-{{ item.propuesta.id|truncatechars:8 }}">
+                                    <i class="fas fa-info-circle"></i> Ver Detalles
+                                </button>
+                            </td>
+                            <td>
+                                <a href="/logistica/propuestas/{{ item.propuesta.id }}/" class="btn btn-sm btn-info" title="Ver Detalle">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        <tr>
+                            <td colspan="8" class="collapse" id="detalles-{{ item.propuesta.id|truncatechars:8 }}">
+                                <div class="card card-body bg-light">
+                                    <h6>Detalles de Reservas:</h6>
+                                    <ul class="mb-0">
+                                        {% for detalle in item.detalles %}
+                                        <li>{{ detalle }}</li>
+                                        {% endfor %}
+                                    </ul>
+                                </div>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- 4. Propuestas Surtidas Sin Movimientos -->
+    {% if propuestas_sin_movimientos %}
+    <div class="card shadow mb-4">
+        <div class="card-header bg-danger text-white">
+            <h6 class="mb-0"><i class="fas fa-exclamation-triangle"></i> Propuestas Surtidas Sin Movimientos de Inventario ({{ propuestas_sin_movimientos|length }})</h6>
+            <small>Propuestas en estado SURTIDA que no tienen movimientos de inventario asociados</small>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-hover">
+                    <thead class="table-light">
+                        <tr>
+                            <th>ID Propuesta</th>
+                            <th>Folio Solicitud (Observaciones)</th>
+                            <th>Institución</th>
+                            <th>Fecha Generación</th>
+                            <th>Fecha Surtimiento</th>
+                            <th>Items</th>
+                            <th>Lotes Surtidos</th>
+                            <th>Usuario Surtimiento</th>
+                            <th>Acciones</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in propuestas_sin_movimientos %}
+                        <tr>
+                            <td><code>{{ item.propuesta.id|truncatechars:8 }}</code></td>
+                            <td>{{ item.propuesta.solicitud.observaciones_solicitud|default:item.propuesta.solicitud.folio }}</td>
+                            <td>{{ item.propuesta.solicitud.institucion_solicitante.denominacion|default:"N/A" }}</td>
+                            <td>{{ item.propuesta.fecha_generacion|date:"d/m/Y H:i" }}</td>
+                            <td>{{ item.propuesta.fecha_surtimiento|date:"d/m/Y H:i"|default:"N/A" }}</td>
+                            <td>{{ item.total_items }}</td>
+                            <td>{{ item.lotes_surtidos }}</td>
+                            <td>{{ item.propuesta.usuario_surtimiento.get_full_name|default:item.propuesta.usuario_surtimiento.username|default:"N/A" }}</td>
+                            <td>
+                                <a href="/logistica/propuestas/{{ item.propuesta.id }}/" class="btn btn-sm btn-info" title="Ver Detalle">
+                                    <i class="fas fa-eye"></i>
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Mensaje si no hay problemas -->
+    {% if not propuestas_no_aplicadas and not propuestas_huerfanas and not propuestas_con_reservas_invalidas and not propuestas_sin_movimientos %}
+    <div class="card shadow mb-4">
+        <div class="card-body text-center py-5">
+            <i class="fas fa-check-circle fa-3x text-success mb-3"></i>
+            <h4 class="text-success">¡Excelente!</h4>
+            <p class="text-muted">No se encontraron problemas en las propuestas. El sistema está funcionando correctamente.</p>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

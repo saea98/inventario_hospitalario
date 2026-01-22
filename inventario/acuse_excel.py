@@ -90,12 +90,23 @@ def generar_acuse_excel(propuesta):
         cell_c = ws.cell(row=row, column=3)  # Columna C (AUTORIZA ALMACEN)
         if cell_c.value:
             cell_value = str(cell_c.value)
+            # Eliminar cualquier referencia a "Gerardo Anaya" y "MESA DE CONTROL"
+            cell_value = cell_value.replace('Gerardo Anaya', '')
+            cell_value = cell_value.replace('gerardo anaya', '')
+            cell_value = cell_value.replace('GERARDO ANAYA', '')
+            cell_value = cell_value.replace('MESA DE CONTROL', '')
+            cell_value = cell_value.replace('mesa de control', '')
+            cell_value = cell_value.replace('Mesa de Control', '')
+            
             # Si la celda contiene "NOMBRE:" o "PUESTO:", limpiar el contenido después
             if 'NOMBRE:' in cell_value or 'PUESTO:' in cell_value:
                 lines = cell_value.split('\n')
                 new_lines = []
                 for line in lines:
                     line_stripped = line.strip()
+                    # Eliminar líneas que contengan "Gerardo Anaya" o "MESA DE CONTROL"
+                    if 'Gerardo' in line_stripped or 'Anaya' in line_stripped or 'MESA DE CONTROL' in line_stripped:
+                        continue
                     if line_stripped.startswith('NOMBRE:'):
                         new_lines.append('NOMBRE:')
                         new_lines.append('')
@@ -107,6 +118,9 @@ def generar_acuse_excel(propuesta):
                         new_lines.append(line)
                 if new_lines:
                     cell_c.value = '\n'.join(new_lines)
+                else:
+                    # Si no quedó nada, establecer valores por defecto limpios
+                    cell_c.value = 'NOMBRE:\n\nPUESTO:\n\nFIRMA: __________________'
     
     # ============ ACTUALIZAR TABLA DE ITEMS ============
     

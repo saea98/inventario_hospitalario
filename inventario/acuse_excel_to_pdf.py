@@ -135,7 +135,7 @@ def convertir_acuse_excel_a_pdf(excel_buffer):
             [
                 Paragraph(f'INSTITUCIÓN: {institucion}', institucion_style),
                 'NOMBRE: __________________\n\nPUESTO: __________________\n\nFIRMA: __________________',
-                'NOMBRE: Gerardo Anaya\n\nPUESTO: MESA DE CONTROL\n\nFIRMA: __________________',
+                'NOMBRE:\n\nPUESTO:\n\nFIRMA: __________________',
                 'NOMBRE: __________________\n\nPUESTO: __________________\n\nFIRMA: __________________'
             ]
         ]
