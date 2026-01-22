@@ -7,10 +7,22 @@
 <div class="container-fluid mt-4">
     <!-- Encabezado -->
     <div class="row mb-4">
-        <div class="col-md-12">
+        <div class="col-md-8">
             <h2><i class="fas fa-boxes text-primary"></i> Reporte de Lote y Pedidos Asociados</h2>
             <p class="text-muted">Busca un lote específico y visualiza todos los pedidos donde está asignado</p>
         </div>
+        {% if datos_lote %}
+        <div class="col-md-4 text-end d-flex align-items-end justify-content-end">
+            <form method="POST" action="{% url 'reportes:exportar_lote_pedidos_excel' %}" style="display: inline;">
+                {% csrf_token %}
+                <input type="hidden" name="clave" value="{{ filtro_clave }}">
+                <input type="hidden" name="lote" value="{{ filtro_lote }}">
+                <button type="submit" class="btn btn-success">
+                    <i class="fas fa-file-excel"></i> Exportar a Excel
+                </button>
+            </form>
+        </div>
+        {% endif %}
     </div>
 
     <!-- Filtros de Búsqueda -->
