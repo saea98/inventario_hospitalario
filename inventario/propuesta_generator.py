@@ -125,8 +125,10 @@ class PropuestaGenerator:
             if cantidad_a_asignar > 0:
                 # Distribuir la reserva entre las ubicaciones del lote
                 # Esto permite que el almacenista sepa exactamente de qué ubicación tomar
+                # Solo considerar ubicaciones del almacén con id=1
                 ubicaciones_disponibles = lote.ubicaciones_detalle.filter(
-                    cantidad__gt=0
+                    cantidad__gt=0,
+                    ubicacion__almacen_id=1  # Solo ubicaciones del almacén con id=1
                 ).order_by('-cantidad')  # Priorizar ubicaciones con más cantidad
                 
                 cantidad_pendiente_reservar = cantidad_a_asignar
