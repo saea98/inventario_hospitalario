@@ -108,7 +108,7 @@ def reporte_lote_pedidos(request):
                                 if pedido_key not in pedidos_dict:
                                     pedidos_dict[pedido_key] = {
                                         'propuesta_id': propuesta.id,
-                                        'solicitud_folio': solicitud.folio,
+                                        'solicitud_folio': solicitud.observaciones_solicitud if solicitud.observaciones_solicitud else solicitud.folio,
                                         'institucion_solicitante': solicitud.institucion_solicitante.denominacion,
                                         'estado_propuesta': propuesta.get_estado_display(),
                                         'fecha_generacion': propuesta.fecha_generacion,
