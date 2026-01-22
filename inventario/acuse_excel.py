@@ -110,21 +110,44 @@ def generar_acuse_excel(propuesta):
     
     # ============ ACTUALIZAR TABLA DE ITEMS ============
     
+    # Refrescar la propuesta desde la base de datos para asegurar datos actualizados
+    propuesta.refresh_from_db()
+    
     # Recolectar todos los items primero
+    # Usar select_related y prefetch_related para evitar problemas de caché
     items_data = []
     idx = 1
     
-    for item in propuesta.items.all():
-        lotes_asignados = item.lotes_asignados.all()
+    # Obtener items con sus relaciones optimizadas
+    items = propuesta.items.select_related('producto').prefetch_related(
+        'lotes_asignados__lote_ubicacion__lote',
+        'lotes_asignados__lote_ubicacion__ubicacion'
+    ).all()
+    
+    for item in items:
+        # Refrescar el item desde la base de datos
+        item.refresh_from_db()
+        
+        # Obtener lotes asignados con cantidad > 0 (filtrar los eliminados o con cantidad 0)
+        lotes_asignados = item.lotes_asignados.filter(
+            cantidad_asignada__gt=0
+        ).select_related(
+            'lote_ubicacion__lote',
+            'lote_ubicacion__ubicacion'
+        ).all()
         
         for lote_asignado in lotes_asignados:
+            # Refrescar el lote_asignado para asegurar datos actualizados
+            lote_asignado.refresh_from_db()
+            
             lote_ubicacion = lote_asignado.lote_ubicacion
             lote = lote_ubicacion.lote
             ubicacion = lote_ubicacion.ubicacion.codigo if lote_ubicacion.ubicacion else 'N/A'
             caducidad = lote.fecha_caducidad.strftime("%d/%m/%Y") if lote.fecha_caducidad else 'N/A'
             lote_info = lote.numero_lote if lote.numero_lote else 'N/A'
             descripcion = item.producto.descripcion
-            cantidad = lote_asignado.cantidad_asignada if lote_asignado.cantidad_asignada > 0 else item.cantidad_propuesta
+            # Usar siempre cantidad_asignada (ya filtramos los que tienen cantidad > 0)
+            cantidad = lote_asignado.cantidad_asignada
             
             items_data.append({
                 'idx': idx,
@@ -137,7 +160,7 @@ def generar_acuse_excel(propuesta):
                 # 'clasificacion': 'MEDICAMENTO',  # Removido - ya no se incluye
                 'ubicacion': ubicacion,
                 'cantidad': cantidad,
-                'folio_pedido': ''
+                'folio_pedido': propuesta.solicitud.observaciones_solicitud or ''  # Usar observaciones_solicitud
             })
             idx += 1
     
@@ -147,10 +170,10 @@ def generar_acuse_excel(propuesta):
     while ws.max_row > 17:
         ws.delete_rows(18, 1)
     
-    # Agregar las filas de datos (sin columna Clasificación)
+    # Agregar las filas de datos
     row_num = 18
     for item_data in items_data:
-        # Agregar fila con datos (columna 8 omitida - Clasificación)
+        # Agregar fila con datos
         ws.cell(row=row_num, column=1).value = item_data['idx']
         ws.cell(row=row_num, column=2).value = item_data['clave']
         ws.cell(row=row_num, column=3).value = item_data['descripcion']
@@ -158,16 +181,20 @@ def generar_acuse_excel(propuesta):
         ws.cell(row=row_num, column=5).value = item_data['tipo']
         ws.cell(row=row_num, column=6).value = item_data['lote']
         ws.cell(row=row_num, column=7).value = item_data['caducidad']
-        # Columna 8 (Clasificación) - OMITIDA
-        ws.cell(row=row_num, column=8).value = item_data['ubicacion']  # Movido de columna 9 a 8
-        ws.cell(row=row_num, column=9).value = item_data['cantidad']   # Movido de columna 10 a 9
-        ws.cell(row=row_num, column=10).value = item_data['folio_pedido']  # Movido de columna 11 a 10
+        # Columna 8: CLASIFICACIÓN (dejar vacío en el detalle)
+        ws.cell(row=row_num, column=8).value = ''  # CLASIFICACIÓN vacía
+        # Columna 9: UBICACIÓN (movido de columna 8)
+        ws.cell(row=row_num, column=9).value = item_data['ubicacion']
+        # Columna 10: CANTIDAD (movido de columna 9)
+        ws.cell(row=row_num, column=10).value = item_data['cantidad']
+        # Columna 11: FOLIO PEDIDO (movido de columna 10)
+        ws.cell(row=row_num, column=11).value = item_data['folio_pedido']
         
         # Copiar estilos de la fila 18 del template (primera fila de datos)
         fila_referencia = 18 if row_num == 18 else row_num - 1
         
-        # Ajustar rango de columnas (ahora son 10 columnas en lugar de 11)
-        for col in range(1, 11):
+        # Ajustar rango de columnas (ahora son 11 columnas)
+        for col in range(1, 12):
             celda_referencia = ws.cell(row=fila_referencia, column=col)
             celda_destino = ws.cell(row=row_num, column=col)
             copiar_estilo_celda(celda_referencia, celda_destino)
@@ -178,14 +205,18 @@ def generar_acuse_excel(propuesta):
     
     # ============ ACTUALIZAR ENCABEZADOS DE TABLA DE DETALLE ============
     
-    # Actualizar encabezados: mover UBICACIÓN, CANTIDAD y FOLIO PEDIDO una columna a la izquierda
-    # Columna 8 ahora es UBICACIÓN (antes era CLASIFICACIÓN)
-    ws.cell(row=17, column=8).value = 'UBICACIÓN'  # Reemplazar CLASIFICACIÓN con UBICACIÓN
-    # Columna 9 ahora es CANTIDAD (ya estaba correcta)
-    # Columna 10 ahora es FOLIO PEDIDO (ya estaba correcta)
+    # Actualizar encabezados:
+    # Columna 8: CLASIFICACIÓN (dejar el título, pero el detalle queda vacío)
+    ws.cell(row=17, column=8).value = 'CLASIFICACIÓN'
+    # Columna 9: UBICACIÓN (movido de columna 8)
+    ws.cell(row=17, column=9).value = 'UBICACIÓN'
+    # Columna 10: CANTIDAD (movido de columna 9)
+    ws.cell(row=17, column=10).value = 'CANTIDAD'
+    # Columna 11: FOLIO PEDIDO (movido de columna 10)
+    ws.cell(row=17, column=11).value = 'FOLIO PEDIDO'
     
     # Cambiar color de texto a blanco en fila 17 (encabezados de tabla de detalle)
-    for col in range(1, 11):  # Ajustado a 10 columnas (sin Clasificación)
+    for col in range(1, 12):  # Ajustado a 11 columnas
         celda = ws.cell(row=17, column=col)
         if celda.font:
             celda.font = Font(
