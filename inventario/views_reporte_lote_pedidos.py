@@ -118,7 +118,7 @@ def reporte_lote_pedidos(request):
                                         'items': {}
                                     }
                                 
-                                # Usar diccionario para items para evitar duplicados
+                                # Usar diccionario para items para evitar duplicados salida
                                 item_key = item_prop.id
                                 
                                 if item_key not in pedidos_dict[pedido_key]['items']:
