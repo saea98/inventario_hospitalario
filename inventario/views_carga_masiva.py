@@ -35,12 +35,17 @@ def carga_masiva_lotes(request):
                 tmp_path = tmp_file.name
             
             try:
+                # Obtener opción de actualizar cantidad
+                # Django BooleanField siempre incluye el campo en cleaned_data (True si marcado, False si no)
+                actualizar_cantidad = form.cleaned_data.get('actualizar_cantidad', True)
+                
                 # Procesar archivo
                 stats = procesar_carga_masiva(
                     tmp_path,
                     institucion_id,
                     request.user,
-                    dry_run
+                    dry_run,
+                    actualizar_cantidad
                 )
                 
                 # Guardar en sesión para mostrar en template
@@ -65,8 +70,16 @@ def carga_masiva_lotes(request):
     return render(request, 'inventario/carga_masiva/formulario.html', context)
 
 
-def procesar_carga_masiva(archivo_path, institucion_id, usuario, dry_run=False):
-    """Procesa archivo Excel y carga lotes"""
+def procesar_carga_masiva(archivo_path, institucion_id, usuario, dry_run=False, actualizar_cantidad=True):
+    """Procesa archivo Excel y carga lotes
+    
+    Args:
+        archivo_path: Ruta del archivo Excel
+        institucion_id: ID de la institución
+        usuario: Usuario que realiza la carga
+        dry_run: Si es True, solo muestra cambios sin aplicarlos
+        actualizar_cantidad: Si es True, actualiza las cantidades. Si es False, solo actualiza otros campos.
+    """
     
     # Leer archivo
     try:
@@ -171,20 +184,25 @@ def procesar_carga_masiva(archivo_path, institucion_id, usuario, dry_run=False):
                         pass
                 
                 # 6. CREAR O ACTUALIZAR LOTE
+                defaults_lote = {
+                    'precio_unitario': 0,
+                    'valor_total': 0,
+                    'fecha_recepcion': timezone.now().date(),
+                    'fecha_caducidad': fecha_caducidad,
+                    'almacen': almacen,
+                    'creado_por': usuario,
+                }
+                
+                # Solo incluir cantidades si actualizar_cantidad está activado
+                if actualizar_cantidad:
+                    defaults_lote['cantidad_inicial'] = cantidad
+                    defaults_lote['cantidad_disponible'] = cantidad
+                
                 lote, lote_creado = Lote.objects.get_or_create(
                     numero_lote=lote_numero,
                     producto=producto,
                     institucion_id=institucion_id,
-                    defaults={
-                        'cantidad_inicial': cantidad,
-                        'cantidad_disponible': cantidad,
-                        'precio_unitario': 0,
-                        'valor_total': 0,
-                        'fecha_recepcion': timezone.now().date(),
-                        'fecha_caducidad': fecha_caducidad,
-                        'almacen': almacen,
-                        'creado_por': usuario,
-                    }
+                    defaults=defaults_lote
                 )
                 
                 if lote_creado:
@@ -193,6 +211,12 @@ def procesar_carga_masiva(archivo_path, institucion_id, usuario, dry_run=False):
                     # Actualizar fecha de caducidad si cambió
                     if fecha_caducidad and lote.fecha_caducidad != fecha_caducidad:
                         lote.fecha_caducidad = fecha_caducidad
+                    
+                    # Actualizar cantidades solo si está habilitado
+                    if actualizar_cantidad:
+                        lote.cantidad_inicial = cantidad
+                        lote.cantidad_disponible = cantidad
+                    
                     stats['lotes_actualizados'] += 1
                 
                 # 7. LIMPIAR UBICACIONES PREVIAS AL 30 DE DICIEMBRE (si aplica)
@@ -226,17 +250,22 @@ def procesar_carga_masiva(archivo_path, institucion_id, usuario, dry_run=False):
                             stats['ajustes_previos'] += 1
                 
                 # 8. CREAR O ACTUALIZAR LOTE_UBICACION
-                lote_ubicacion, _ = LoteUbicacion.objects.get_or_create(
+                defaults_ubicacion = {
+                    'usuario_asignacion': usuario,
+                }
+                
+                # Solo incluir cantidad si actualizar_cantidad está activado
+                if actualizar_cantidad:
+                    defaults_ubicacion['cantidad'] = cantidad
+                
+                lote_ubicacion, ubicacion_creada = LoteUbicacion.objects.get_or_create(
                     lote=lote,
                     ubicacion=ubicacion,
-                    defaults={
-                        'cantidad': cantidad,
-                        'usuario_asignacion': usuario,
-                    }
+                    defaults=defaults_ubicacion
                 )
                 
-                # Actualizar cantidad si cambió
-                if lote_ubicacion.cantidad != cantidad:
+                # Actualizar cantidad si cambió y está habilitado
+                if actualizar_cantidad and lote_ubicacion.cantidad != cantidad:
                     lote_ubicacion.cantidad = cantidad
                     lote_ubicacion.usuario_asignacion = usuario
                     lote_ubicacion.save()
@@ -245,8 +274,9 @@ def procesar_carga_masiva(archivo_path, institucion_id, usuario, dry_run=False):
                 if not lote_creado:
                     lote.save()
                 
-                # Sincronizar cantidad total del lote
-                lote.sincronizar_cantidad_disponible()
+                # Sincronizar cantidad total del lote solo si se actualizan cantidades
+                if actualizar_cantidad:
+                    lote.sincronizar_cantidad_disponible()
                 
                 stats['procesados'] += 1
                 

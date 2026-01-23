@@ -35,6 +35,17 @@ class CargaMasivaLotesForm(forms.Form):
         })
     )
     
+    actualizar_cantidad = forms.BooleanField(
+        label='Actualizar Cantidades',
+        required=False,
+        initial=True,
+        help_text='Si está marcado, actualiza las cantidades de los lotes. Si no está marcado, solo actualiza otros campos (ubicaciones, fechas, etc.)',
+        widget=forms.CheckboxInput(attrs={
+            'class': 'form-check-input',
+            'id': 'actualizar_cantidad_check'
+        })
+    )
+    
     def clean_archivo(self):
         archivo = self.cleaned_data.get('archivo')
         
