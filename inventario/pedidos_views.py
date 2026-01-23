@@ -705,8 +705,9 @@ def cancelar_propuesta_view(request, propuesta_id):
                 cantidad_liberada = resultado.get('cantidad_liberada', 0)
                 messages.success(
                     request, 
-                    f"Propuesta cancelada exitosamente. Se liberaron {cantidad_liberada} unidades. "
-                    f"La solicitud ha regresado al estado PENDIENTE y está lista para nueva aprobación."
+                    f"Propuesta liberada exitosamente. Se liberaron {cantidad_liberada} unidades. "
+                    f"La propuesta ha regresado al estado GENERADA (pendiente de validación) "
+                    f"y la solicitud ha regresado al estado PENDIENTE para nueva aprobación."
                 )
                 # Redirigir a la solicitud para que pueda ser validada nuevamente
                 if propuesta.solicitud:

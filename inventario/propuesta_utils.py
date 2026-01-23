@@ -111,7 +111,8 @@ def liberar_cantidad_lote(lote_ubicacion, cantidad):
 
 def cancelar_propuesta(propuesta_id, usuario=None):
     """
-    Libera todas las cantidades reservadas y devuelve la propuesta al estado GENERADA (editable).
+    Libera todas las cantidades reservadas y devuelve la propuesta al estado GENERADA (pendiente de validación).
+    NO marca la propuesta como CANCELADA, solo libera las reservas y regresa al estado inicial.
     Permite cambiar los ítems de suministro y generar una nueva propuesta.
     
     Args:
@@ -208,8 +209,8 @@ def cancelar_propuesta(propuesta_id, usuario=None):
                     lote.refresh_from_db()
                     total_reservas_restantes += lote.cantidad_reservada
             
-            # Cambiar estado a 'CANCELADA' para indicar que fue cancelada
-            propuesta.estado = 'CANCELADA'
+            # Cambiar estado a 'GENERADA' para que quede pendiente de validación (no CANCELADA)
+            propuesta.estado = 'GENERADA'
             propuesta.save(update_fields=['estado'])
             
             # Cambiar el estado de la solicitud a 'PENDIENTE' para que quede lista para aprobación
@@ -222,14 +223,14 @@ def cancelar_propuesta(propuesta_id, usuario=None):
                 solicitud.save(update_fields=['estado', 'usuario_validacion', 'fecha_validacion'])
             
             # Registrar en el log de la propuesta con detalles completos
-            detalles_completos = f"""Propuesta cancelada por {usuario.username if usuario else 'Sistema'}.
+            detalles_completos = f"""Propuesta liberada por {usuario.username if usuario else 'Sistema'}.
  Estado anterior propuesta: {estado_anterior}
  Estado anterior solicitud: {estado_anterior_solicitud}
  Cantidad total liberada: {cantidad_total_liberada} unidades
  Reservas restantes en lotes: {total_reservas_restantes} unidades
  Detalles de liberación:
  - {chr(10).join(detalles_liberacion)}
- La propuesta ha sido cancelada y la solicitud ha regresado al estado PENDIENTE para nueva aprobación.
+ La propuesta ha regresado al estado GENERADA (pendiente de validación) y la solicitud ha regresado al estado PENDIENTE para nueva aprobación.
  
  VERIFICACIÓN DE ROLLBACK:
  - Total de unidades liberadas: {cantidad_total_liberada}
@@ -239,15 +240,16 @@ def cancelar_propuesta(propuesta_id, usuario=None):
             LogPropuesta.objects.create(
                 propuesta=propuesta,
                 usuario=usuario,
-                accion="PROPUESTA CANCELADA - SOLICITUD LISTA PARA APROBACIÓN",
+                accion="PROPUESTA LIBERADA - REGRESADA A GENERADA - SOLICITUD LISTA PARA APROBACIÓN",
                 detalles=detalles_completos
             )
         
         return {
             'exito': True,
             'mensaje': (
-                f'Propuesta {propuesta.solicitud.folio if propuesta.solicitud else propuesta.id} cancelada exitosamente. '
-                f'Se liberaron {cantidad_total_liberada} unidades y la solicitud ha regresado al estado PENDIENTE para nueva aprobación.'
+                f'Propuesta {propuesta.solicitud.folio if propuesta.solicitud else propuesta.id} liberada exitosamente. '
+                f'Se liberaron {cantidad_total_liberada} unidades. La propuesta ha regresado al estado GENERADA (pendiente de validación) '
+                f'y la solicitud ha regresado al estado PENDIENTE para nueva aprobación.'
             ),
             'propuesta': propuesta,
             'cantidad_liberada': cantidad_total_liberada

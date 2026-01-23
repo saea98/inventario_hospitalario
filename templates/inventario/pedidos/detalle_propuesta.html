@@ -110,7 +110,7 @@
                 <i class="fas fa-check-circle"></i> Revisar Propuesta
             </a>
             <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#modalCancelar">
-                <i class="fas fa-times-circle"></i> Cancelar Propuesta
+                <i class="fas fa-redo"></i> Rehacer Propuesta
             </button>
             <button type="button" class="btn btn-dark" data-bs-toggle="modal" data-bs-target="#modalEliminar">
                 <i class="fas fa-trash-alt"></i> Eliminar Propuesta
@@ -121,7 +121,7 @@
                 <i class="fas fa-truck"></i> Surtir Propuesta
             </a>
             <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#modalCancelar">
-                <i class="fas fa-times-circle"></i> Cancelar Propuesta
+                <i class="fas fa-redo"></i> Rehacer Propuesta
             </button>
             <button type="button" class="btn btn-dark" data-bs-toggle="modal" data-bs-target="#modalEliminar">
                 <i class="fas fa-trash-alt"></i> Eliminar Propuesta
@@ -129,7 +129,7 @@
         {% endif %}
         {% if propuesta.estado == 'EN_SURTIMIENTO' %}
             <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#modalCancelar">
-                <i class="fas fa-times-circle"></i> Cancelar Propuesta
+                <i class="fas fa-redo"></i> Rehacer Propuesta
             </button>
             <button type="button" class="btn btn-dark" data-bs-toggle="modal" data-bs-target="#modalEliminar">
                 <i class="fas fa-trash-alt"></i> Eliminar Propuesta
@@ -151,27 +151,27 @@
             <div class="modal-content">
                 <div class="modal-header bg-danger text-white">
                     <h5 class="modal-title" id="modalCancelarLabel">
-                        <i class="fas fa-exclamation-triangle"></i> Cancelar Propuesta
+                        <i class="fas fa-redo"></i> Rehacer Propuesta
                     </h5>
                     <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
                 </div>
                 <div class="modal-body">
-                    <p><strong>Estás seguro de que deseas cancelar esta propuesta?</strong></p>
-                    <p class="text-muted">Al cancelar:</p>
+                    <p><strong>¿Estás seguro de que deseas liberar esta propuesta?</strong></p>
+                    <p class="text-muted">Al liberar la propuesta:</p>
                     <ul class="text-muted">
                         <li>Se liberarán todas las cantidades reservadas en los lotes</li>
-                        <li>La propuesta pasará al estado Cancelada</li>
+                        <li>La propuesta regresará al estado <strong>GENERADA</strong> (pendiente de validación)</li>
                         <li>La solicitud regresará al estado <strong>Pendiente de Validación</strong></li>
                         <li>La solicitud quedará lista para nueva aprobación</li>
                     </ul>
-                    <p class="text-danger"><strong>Esta acción no se puede deshacer.</strong></p>
+                    <p class="text-info"><strong>Nota:</strong> La propuesta NO será cancelada, solo se liberarán las reservas y regresará al estado inicial para permitir nueva validación.</p>
                 </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">No, Mantener Propuesta</button>
                     <form method="POST" action="{% url 'logistica:cancelar_propuesta' propuesta.id %}" style="display: inline;">
                         {% csrf_token %}
                         <button type="submit" class="btn btn-danger">
-                            <i class="fas fa-times-circle"></i> Sí, Cancelar Propuesta
+                            <i class="fas fa-redo"></i> Sí, Rehacer Propuesta
                         </button>
                     </form>
                 </div>
