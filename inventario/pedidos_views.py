@@ -276,24 +276,27 @@ def crear_solicitud(request):
                                 messages.warning(request, f"Clave {clave} no existe")
                                 continue
                             
-                            resultado_validacion = validar_disponibilidad_para_propuesta(
-                                producto.id,
-                                cantidad_int,
-                                None
-                            )
-                            existencia = resultado_validacion['cantidad_disponible']
-                            
-                            if not resultado_validacion['disponible']:
-                                registrar_error_pedido(
-                                    usuario=request.user,
-                                    tipo_error='SIN_EXISTENCIA',
-                                    clave_solicitada=clave,
-                                    cantidad_solicitada=cantidad_int,
-                                    descripcion_error=f"Insuficiente: {cantidad_int} solicitado, {existencia} disponible",
-                                    enviar_alerta=True
-                                )
-                                messages.warning(request, f"Sin existencia para {clave}")
-                                continue
+                            # NO validar disponibilidad aquí - la validación real se hace al generar la propuesta
+                            # Esto permite crear el pedido y luego en la propuesta se valida correctamente
+                            # con el algoritmo completo que busca en múltiples lotes y ubicaciones
+                            # resultado_validacion = validar_disponibilidad_para_propuesta(
+                            #     producto.id,
+                            #     cantidad_int,
+                            #     None
+                            # )
+                            # existencia = resultado_validacion['cantidad_disponible']
+                            # 
+                            # if not resultado_validacion['disponible']:
+                            #     registrar_error_pedido(
+                            #         usuario=request.user,
+                            #         tipo_error='SIN_EXISTENCIA',
+                            #         clave_solicitada=clave,
+                            #         cantidad_solicitada=cantidad_int,
+                            #         descripcion_error=f"Insuficiente: {cantidad_int} solicitado, {existencia} disponible",
+                            #         enviar_alerta=True
+                            #     )
+                            #     messages.warning(request, f"Sin existencia para {clave}")
+                            #     continue
                             
                             items_data.append({
                                 'producto': producto.id,
