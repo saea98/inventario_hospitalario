@@ -19,7 +19,6 @@
         </div>
         <div class="card-body">
             <form method="get">
-                {% csrf_token %}
                 <div class="row">
                     <div class="col-md-2">{{ form.estado|as_crispy_field }}</div>
                     <div class="col-md-2">{{ form.fecha_inicio|as_crispy_field }}</div>

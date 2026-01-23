@@ -45,18 +45,54 @@ def lista_solicitudes(request):
     
     form = FiltroSolicitudesForm(request.GET)
     
-    if form.is_valid():
-        if form.cleaned_data['estado']:
-            solicitudes = solicitudes.filter(estado=form.cleaned_data['estado'])
-        if form.cleaned_data['fecha_inicio']:
-            solicitudes = solicitudes.filter(fecha_solicitud__gte=form.cleaned_data['fecha_inicio'])
-        if form.cleaned_data['fecha_fin']:
-            solicitudes = solicitudes.filter(fecha_solicitud__lte=form.cleaned_data['fecha_fin'])
-        if form.cleaned_data['institucion']:
-            solicitudes = solicitudes.filter(institucion_solicitante__nombre__icontains=form.cleaned_data['institucion'])
-        if form.cleaned_data['folio']:
-            # Buscar en el campo observaciones_solicitud
-            solicitudes = solicitudes.filter(observaciones_solicitud__icontains=form.cleaned_data['folio'])
+    # Aplicar filtros directamente desde request.GET para que funcionen incluso si el form no es válido
+    estado = request.GET.get('estado', '').strip()
+    fecha_inicio = request.GET.get('fecha_inicio', '').strip()
+    fecha_fin = request.GET.get('fecha_fin', '').strip()
+    institucion = request.GET.get('institucion', '').strip()
+    folio = request.GET.get('folio', '').strip()
+    
+    if estado:
+        solicitudes = solicitudes.filter(estado=estado)
+    
+    if fecha_inicio:
+        try:
+            from django.utils.dateparse import parse_date
+            fecha_inicio_obj = parse_date(fecha_inicio)
+            if fecha_inicio_obj:
+                solicitudes = solicitudes.filter(fecha_solicitud__gte=fecha_inicio_obj)
+        except:
+            pass
+    
+    if fecha_fin:
+        try:
+            from django.utils.dateparse import parse_date
+            fecha_fin_obj = parse_date(fecha_fin)
+            if fecha_fin_obj:
+                # Agregar 23:59:59 para incluir todo el día
+                from django.utils import timezone
+                from datetime import datetime, time
+                fecha_fin_completa = timezone.make_aware(datetime.combine(fecha_fin_obj, time.max))
+                solicitudes = solicitudes.filter(fecha_solicitud__lte=fecha_fin_completa)
+        except:
+            pass
+    
+    if institucion:
+        # Buscar en denominacion (campo principal) y nombre (campo opcional)
+        from django.db.models import Q
+        solicitudes = solicitudes.filter(
+            Q(institucion_solicitante__denominacion__icontains=institucion) |
+            Q(institucion_solicitante__nombre__icontains=institucion) |
+            Q(institucion_solicitante__clue__icontains=institucion)
+        )
+    
+    if folio:
+        # Buscar en el campo observaciones_solicitud y también en el folio del sistema
+        from django.db.models import Q
+        solicitudes = solicitudes.filter(
+            Q(observaciones_solicitud__icontains=folio) |
+            Q(folio__icontains=folio)
+        )
     
     # Verificar si se solicita exportación a Excel
     if request.GET.get('export') == 'excel':
