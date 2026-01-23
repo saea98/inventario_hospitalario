@@ -482,21 +482,19 @@ def validar_disponibilidad_para_propuesta(producto_id, cantidad_requerida, insti
     # Contar lotes antes de agregar más información
     total_lotes = query.count()
     
-    # Calcular totales del producto sumando todos los lotes
-    # Esto suma cantidad_disponible y cantidad_reservada de TODOS los lotes del producto
-    totales = query.aggregate(
-        total_cantidad_disponible=Sum('cantidad_disponible'),
-        total_cantidad_reservada=Sum('cantidad_reservada')
-    )
-    
-    total_disponible = totales['total_cantidad_disponible'] or 0
-    total_reservada = totales['total_cantidad_reservada'] or 0
-    
-    # Calcular también desde las ubicaciones para verificar consistencia
+    # IMPORTANTE: Calcular disponibilidad desde LoteUbicacion (fuente de verdad)
+    # porque cantidad_disponible en Lote puede no estar sincronizado
     # Sumar cantidad y cantidad_reservada de todas las ubicaciones de todos los lotes del producto
+    # NO filtramos por almacén - consideramos TODAS las ubicaciones de TODOS los almacenes
+    # NO filtramos por institución - consideramos TODAS las instituciones
+    
+    # Primero obtener todos los lotes del producto con estado=1
+    lotes_ids = list(query.values_list('id', flat=True))
+    
+    # Luego obtener todas las ubicaciones de esos lotes
+    # Esto asegura que no haya problemas con joins o filtros implícitos
     ubicaciones_totales = LoteUbicacion.objects.filter(
-        lote__producto_id=producto_id,
-        lote__estado=1
+        lote_id__in=lotes_ids
     ).aggregate(
         total_cantidad_ubicaciones=Sum('cantidad'),
         total_reservada_ubicaciones=Sum('cantidad_reservada')
@@ -504,49 +502,66 @@ def validar_disponibilidad_para_propuesta(producto_id, cantidad_requerida, insti
     
     total_cantidad_ubicaciones = ubicaciones_totales['total_cantidad_ubicaciones'] or 0
     total_reservada_ubicaciones = ubicaciones_totales['total_reservada_ubicaciones'] or 0
-    cantidad_total_desde_ubicaciones = max(0, total_cantidad_ubicaciones - total_reservada_ubicaciones)
     
-    # Usar el cálculo desde ubicaciones si hay discrepancia (más preciso)
-    # Si no hay ubicaciones, usar el cálculo desde lotes
-    if total_cantidad_ubicaciones > 0:
-        cantidad_total_disponible = cantidad_total_desde_ubicaciones
-        logger.warning(
-            f"[VALIDAR_DISPONIBILIDAD] Usando cálculo desde ubicaciones: "
-            f"Total cantidad ubicaciones={total_cantidad_ubicaciones}, "
-            f"Total reservada ubicaciones={total_reservada_ubicaciones}, "
-            f"Neto={cantidad_total_disponible}"
-        )
-    else:
-        # Si no hay ubicaciones, usar el cálculo desde lotes
-        cantidad_total_disponible = max(0, total_disponible - total_reservada)
-        logger.warning(
-            f"[VALIDAR_DISPONIBILIDAD] No hay ubicaciones, usando cálculo desde lotes: "
-            f"Total disponible lotes={total_disponible}, "
-            f"Total reservado lotes={total_reservada}, "
-            f"Neto={cantidad_total_disponible}"
-        )
+    # SIEMPRE usar el cálculo desde ubicaciones (más preciso y confiable)
+    # cantidad_total_disponible = suma de todas las cantidades en ubicaciones - suma de todas las reservas
+    cantidad_total_disponible = max(0, total_cantidad_ubicaciones - total_reservada_ubicaciones)
+    
+    # Contar ubicaciones para debugging
+    total_ubicaciones = LoteUbicacion.objects.filter(lote_id__in=lotes_ids).count()
+    
+    # También calcular desde lotes para comparación (pero NO usar este valor como principal)
+    totales_lotes = query.aggregate(
+        total_cantidad_disponible=Sum('cantidad_disponible'),
+        total_cantidad_reservada=Sum('cantidad_reservada')
+    )
+    
+    total_disponible_lotes = totales_lotes['total_cantidad_disponible'] or 0
+    total_reservada_lotes = totales_lotes['total_cantidad_reservada'] or 0
+    cantidad_desde_lotes = max(0, total_disponible_lotes - total_reservada_lotes)
+    
+    # SIEMPRE usar el cálculo desde ubicaciones (más preciso y confiable)
+    logger.warning(
+        f"[VALIDAR_DISPONIBILIDAD] Usando cálculo desde ubicaciones (fuente de verdad): "
+        f"Total lotes encontrados: {total_lotes} | "
+        f"Total ubicaciones encontradas: {total_ubicaciones} | "
+        f"Total cantidad ubicaciones={total_cantidad_ubicaciones}, "
+        f"Total reservada ubicaciones={total_reservada_ubicaciones}, "
+        f"Neto disponible={cantidad_total_disponible} | "
+        f"(Comparación desde lotes: disponible={total_disponible_lotes}, reservado={total_reservada_lotes}, neto={cantidad_desde_lotes})"
+    )
     
     # Log detallado para debugging
     logger.warning(
         f"[VALIDAR_DISPONIBILIDAD] Clave: {clave_cnis} | "
         f"Solicitado: {cantidad_requerida} | "
-        f"Total disponible (suma lotes): {total_disponible} | "
-        f"Total reservado (suma reservas): {total_reservada} | "
-        f"Neto disponible: {cantidad_total_disponible} | "
+        f"Total cantidad ubicaciones: {total_cantidad_ubicaciones} | "
+        f"Total reservada ubicaciones: {total_reservada_ubicaciones} | "
+        f"Neto disponible (desde ubicaciones): {cantidad_total_disponible} | "
         f"Total lotes encontrados: {total_lotes} | "
         f"¿Disponible?: {cantidad_total_disponible >= cantidad_requerida}"
     )
     
-    # Si hay lotes, log detallado de cada uno
+    # Si hay lotes, log detallado de cada uno con información de ubicaciones
     if total_lotes > 0:
         logger.warning(f"[VALIDAR_DISPONIBILIDAD] Detalle de lotes para {clave_cnis}:")
         for lote in query[:10]:  # Limitar a los primeros 10 para no saturar el log
-            cantidad_real = obtener_cantidad_disponible_real(lote)
+            # Calcular desde ubicaciones del lote (fuente de verdad)
+            ubicaciones_lote = LoteUbicacion.objects.filter(lote=lote).aggregate(
+                total_cant=Sum('cantidad'),
+                total_res=Sum('cantidad_reservada')
+            )
+            cantidad_desde_ubicaciones_lote = (ubicaciones_lote['total_cant'] or 0) - (ubicaciones_lote['total_res'] or 0)
+            cantidad_real_lote = obtener_cantidad_disponible_real(lote)
+            
             logger.warning(
                 f"  - Lote {lote.numero_lote}: "
-                f"Disponible={lote.cantidad_disponible}, "
-                f"Reservado={lote.cantidad_reservada}, "
-                f"Neto={cantidad_real}, "
+                f"Disponible(lote)={lote.cantidad_disponible}, "
+                f"Reservado(lote)={lote.cantidad_reservada}, "
+                f"Neto(lote)={cantidad_real_lote}, "
+                f"Cantidad(ubicaciones)={ubicaciones_lote['total_cant'] or 0}, "
+                f"Reservada(ubicaciones)={ubicaciones_lote['total_res'] or 0}, "
+                f"Neto(ubicaciones)={cantidad_desde_ubicaciones_lote}, "
                 f"Almacén={lote.almacen.nombre if lote.almacen else 'N/A'}, "
                 f"Estado={lote.estado}"
             )
