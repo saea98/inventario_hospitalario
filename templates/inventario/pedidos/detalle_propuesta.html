@@ -112,6 +112,9 @@
             <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#modalCancelar">
                 <i class="fas fa-times-circle"></i> Cancelar Propuesta
             </button>
+            <button type="button" class="btn btn-dark" data-bs-toggle="modal" data-bs-target="#modalEliminar">
+                <i class="fas fa-trash-alt"></i> Eliminar Propuesta
+            </button>
         {% endif %}
         {% if propuesta.estado == 'REVISADA' %}
             <a href="{% url 'logistica:surtir_propuesta' propuesta.id %}" class="btn btn-success">
@@ -120,10 +123,21 @@
             <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#modalCancelar">
                 <i class="fas fa-times-circle"></i> Cancelar Propuesta
             </button>
+            <button type="button" class="btn btn-dark" data-bs-toggle="modal" data-bs-target="#modalEliminar">
+                <i class="fas fa-trash-alt"></i> Eliminar Propuesta
+            </button>
         {% endif %}
         {% if propuesta.estado == 'EN_SURTIMIENTO' %}
             <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#modalCancelar">
                 <i class="fas fa-times-circle"></i> Cancelar Propuesta
+            </button>
+            <button type="button" class="btn btn-dark" data-bs-toggle="modal" data-bs-target="#modalEliminar">
+                <i class="fas fa-trash-alt"></i> Eliminar Propuesta
+            </button>
+        {% endif %}
+        {% if propuesta.estado == 'CANCELADA' %}
+            <button type="button" class="btn btn-dark" data-bs-toggle="modal" data-bs-target="#modalEliminar">
+                <i class="fas fa-trash-alt"></i> Eliminar Propuesta
             </button>
         {% endif %}
         <a href="{% url 'logistica:lista_propuestas' %}" class="btn btn-secondary">
@@ -147,7 +161,8 @@
                     <ul class="text-muted">
                         <li>Se liberarán todas las cantidades reservadas en los lotes</li>
                         <li>La propuesta pasará al estado Cancelada</li>
-                        <li>Podrás crear una nueva propuesta para esta solicitud</li>
+                        <li>La solicitud regresará al estado <strong>Pendiente de Validación</strong></li>
+                        <li>La solicitud quedará lista para nueva aprobación</li>
                     </ul>
                     <p class="text-danger"><strong>Esta acción no se puede deshacer.</strong></p>
                 </div>
@@ -157,6 +172,40 @@
                         {% csrf_token %}
                         <button type="submit" class="btn btn-danger">
                             <i class="fas fa-times-circle"></i> Sí, Cancelar Propuesta
+                        </button>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal de Confirmacion de Eliminación -->
+    <div class="modal fade" id="modalEliminar" tabindex="-1" aria-labelledby="modalEliminarLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <div class="modal-content">
+                <div class="modal-header bg-dark text-white">
+                    <h5 class="modal-title" id="modalEliminarLabel">
+                        <i class="fas fa-exclamation-triangle"></i> Eliminar Propuesta
+                    </h5>
+                    <button type="button" class="btn-close btn-close-white" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <p><strong>¿Estás seguro de que deseas eliminar esta propuesta?</strong></p>
+                    <p class="text-muted">Al eliminar:</p>
+                    <ul class="text-muted">
+                        <li>Se liberarán todas las cantidades reservadas en los lotes</li>
+                        <li>Se crearán movimientos de inventario registrando la eliminación</li>
+                        <li>La propuesta será eliminada permanentemente del sistema</li>
+                        <li>Se guardará un registro en el log de la propuesta</li>
+                    </ul>
+                    <p class="text-danger"><strong>⚠️ Esta acción es IRREVERSIBLE y no se puede deshacer.</strong></p>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">No, Mantener Propuesta</button>
+                    <form method="POST" action="{% url 'logistica:eliminar_propuesta' propuesta.id %}" style="display: inline;">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-dark">
+                            <i class="fas fa-trash-alt"></i> Sí, Eliminar Propuesta
                         </button>
                     </form>
                 </div>

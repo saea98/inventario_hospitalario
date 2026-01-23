@@ -149,6 +149,8 @@
                         <th>Almacén</th>
                         <th>Ubicación</th>
                         <th>Cantidad</th>
+                        <th>Cant. Reservada</th>
+                        <th>Fecha Caducidad</th>
                         <th>Caducidad</th>
                         <th>Estado</th>
                         <th>Acciones</th>
@@ -182,6 +184,22 @@
                         </td>
                         <td>
                             <span class="badge bg-primary">{{ lote.cantidad_disponible }}</span>
+                        </td>
+                        <td>
+                            {% if lote.cantidad_reservada|default:0 > 0 %}
+                                <span class="badge bg-info" title="Cantidad reservada en propuestas">
+                                    {{ lote.cantidad_reservada|default:0 }}
+                                </span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if lote.fecha_caducidad %}
+                                <strong>{{ lote.fecha_caducidad|date:"d/m/Y" }}</strong>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
                         </td>
                         <td>
                             {% with dias=lote.dias_para_caducidad %}
@@ -223,7 +241,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="9" class="text-center text-muted py-4">
+                        <td colspan="11" class="text-center text-muted py-4">
                             <i class="bi bi-inbox"></i> No se encontraron lotes con los criterios de búsqueda
                         </td>
                     </tr>

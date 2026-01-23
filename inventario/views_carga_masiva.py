@@ -184,39 +184,55 @@ def procesar_carga_masiva(archivo_path, institucion_id, usuario, dry_run=False, 
                         pass
                 
                 # 6. CREAR O ACTUALIZAR LOTE
-                defaults_lote = {
-                    'precio_unitario': 0,
-                    'valor_total': 0,
-                    'fecha_recepcion': timezone.now().date(),
-                    'fecha_caducidad': fecha_caducidad,
-                    'almacen': almacen,
-                    'creado_por': usuario,
-                }
-                
-                # Solo incluir cantidades si actualizar_cantidad está activado
-                if actualizar_cantidad:
-                    defaults_lote['cantidad_inicial'] = cantidad
-                    defaults_lote['cantidad_disponible'] = cantidad
-                
-                lote, lote_creado = Lote.objects.get_or_create(
-                    numero_lote=lote_numero,
-                    producto=producto,
-                    institucion_id=institucion_id,
-                    defaults=defaults_lote
-                )
+                # Primero verificar si el lote ya existe
+                try:
+                    lote = Lote.objects.get(
+                        numero_lote=lote_numero,
+                        producto=producto,
+                        institucion_id=institucion_id
+                    )
+                    lote_creado = False
+                except Lote.DoesNotExist:
+                    lote = None
+                    lote_creado = True
                 
                 if lote_creado:
+                    # LOTE NUEVO: Siempre establecer cantidades (campo obligatorio)
+                    # Si actualizar_cantidad=False, usar la cantidad del Excel pero no actualizar después
+                    defaults_lote = {
+                        'cantidad_inicial': cantidad,
+                        'cantidad_disponible': cantidad,
+                        'precio_unitario': 0,
+                        'valor_total': 0,
+                        'fecha_recepcion': timezone.now().date(),
+                        'fecha_caducidad': fecha_caducidad,
+                        'almacen': almacen,
+                        'creado_por': usuario,
+                    }
+                    
+                    lote = Lote.objects.create(
+                        numero_lote=lote_numero,
+                        producto=producto,
+                        institucion_id=institucion_id,
+                        **defaults_lote
+                    )
                     stats['lotes_creados'] += 1
                 else:
+                    # LOTE EXISTENTE: Solo actualizar cantidades si está habilitado
                     # Actualizar fecha de caducidad si cambió
                     if fecha_caducidad and lote.fecha_caducidad != fecha_caducidad:
                         lote.fecha_caducidad = fecha_caducidad
+                    
+                    # Actualizar almacén si cambió
+                    if lote.almacen != almacen:
+                        lote.almacen = almacen
                     
                     # Actualizar cantidades solo si está habilitado
                     if actualizar_cantidad:
                         lote.cantidad_inicial = cantidad
                         lote.cantidad_disponible = cantidad
                     
+                    lote.save()
                     stats['lotes_actualizados'] += 1
                 
                 # 7. LIMPIAR UBICACIONES PREVIAS AL 30 DE DICIEMBRE (si aplica)
@@ -250,29 +266,32 @@ def procesar_carga_masiva(archivo_path, institucion_id, usuario, dry_run=False, 
                             stats['ajustes_previos'] += 1
                 
                 # 8. CREAR O ACTUALIZAR LOTE_UBICACION
-                defaults_ubicacion = {
-                    'usuario_asignacion': usuario,
-                }
+                # Verificar si la ubicación ya existe para este lote
+                try:
+                    lote_ubicacion = LoteUbicacion.objects.get(
+                        lote=lote,
+                        ubicacion=ubicacion
+                    )
+                    ubicacion_creada = False
+                except LoteUbicacion.DoesNotExist:
+                    lote_ubicacion = None
+                    ubicacion_creada = True
                 
-                # Solo incluir cantidad si actualizar_cantidad está activado
-                if actualizar_cantidad:
-                    defaults_ubicacion['cantidad'] = cantidad
-                
-                lote_ubicacion, ubicacion_creada = LoteUbicacion.objects.get_or_create(
-                    lote=lote,
-                    ubicacion=ubicacion,
-                    defaults=defaults_ubicacion
-                )
-                
-                # Actualizar cantidad si cambió y está habilitado
-                if actualizar_cantidad and lote_ubicacion.cantidad != cantidad:
-                    lote_ubicacion.cantidad = cantidad
-                    lote_ubicacion.usuario_asignacion = usuario
-                    lote_ubicacion.save()
-                
-                # Guardar lote con cambios
-                if not lote_creado:
-                    lote.save()
+                if ubicacion_creada:
+                    # UBICACIÓN NUEVA: Siempre establecer cantidad (campo obligatorio)
+                    # Si actualizar_cantidad=False, usar la cantidad del Excel pero no actualizar después
+                    lote_ubicacion = LoteUbicacion.objects.create(
+                        lote=lote,
+                        ubicacion=ubicacion,
+                        cantidad=cantidad,
+                        usuario_asignacion=usuario,
+                    )
+                else:
+                    # UBICACIÓN EXISTENTE: Solo actualizar cantidad si está habilitado
+                    if actualizar_cantidad and lote_ubicacion.cantidad != cantidad:
+                        lote_ubicacion.cantidad = cantidad
+                        lote_ubicacion.usuario_asignacion = usuario
+                        lote_ubicacion.save()
                 
                 # Sincronizar cantidad total del lote solo si se actualizan cantidades
                 if actualizar_cantidad:

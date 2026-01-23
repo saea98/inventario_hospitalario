@@ -192,6 +192,7 @@ def lista_lotes(request):
         {'value': 'institucion__denominacion', 'label': 'Institución'},
         {'value': 'cantidad_inicial', 'label': 'Cantidad Inicial'},
         {'value': 'cantidad_disponible', 'label': 'Cantidad Disponible'},
+        {'value': 'cantidad_reservada', 'label': 'Cantidad Reservada'},
         {'value': 'precio_unitario', 'label': 'Precio Unitario'},
         {'value': 'valor_total', 'label': 'Valor Total'},
         {'value': 'fecha_fabricacion', 'label': 'Fecha de Fabricación'},

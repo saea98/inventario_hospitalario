@@ -40,7 +40,8 @@ class SolicitudPedidoForm(forms.ModelForm):
                 attrs={
                     'class': 'form-control',
                     'type': 'date',
-                    'min': date.today().isoformat(),
+                    'min': (date.today() - timedelta(days=30)).isoformat(),
+                    'max': (date.today() + timedelta(days=7)).isoformat(),
                     'required': 'required'
                 }
             ),
@@ -92,14 +93,29 @@ class SolicitudPedidoForm(forms.ModelForm):
         )
     
     def clean_fecha_entrega_programada(self):
-        """Valida que la fecha de entrega programada sea igual o mayor al día actual"""
+        """
+        Valida que la fecha de entrega programada esté en el rango permitido.
+        Durante los próximos 7 días, el usuario puede capturar fechas atrasadas hasta 30 días.
+        Rango permitido: desde (hoy - 30 días) hasta (hoy + 7 días)
+        """
         fecha_entrega = self.cleaned_data.get('fecha_entrega_programada')
         if fecha_entrega:
             hoy = date.today()
-            if fecha_entrega < hoy:
+            fecha_minima = hoy - timedelta(days=30)
+            fecha_maxima = hoy + timedelta(days=7)
+            
+            if fecha_entrega < fecha_minima:
                 from django.core.exceptions import ValidationError
                 raise ValidationError(
-                    f"La fecha de entrega programada no puede ser anterior al día actual ({hoy.strftime('%d/%m/%Y')})."
+                    f"La fecha de entrega programada no puede ser anterior a {fecha_minima.strftime('%d/%m/%Y')} "
+                    f"(30 días antes de hoy)."
+                )
+            
+            if fecha_entrega > fecha_maxima:
+                from django.core.exceptions import ValidationError
+                raise ValidationError(
+                    f"La fecha de entrega programada no puede ser posterior a {fecha_maxima.strftime('%d/%m/%Y')} "
+                    f"(7 días después de hoy)."
                 )
         return fecha_entrega
 
@@ -350,7 +366,8 @@ class SolicitudPedidoEdicionForm(forms.ModelForm):
                 attrs={
                     'class': 'form-control',
                     'type': 'date',
-                    'min': date.today().isoformat(),
+                    'min': (date.today() - timedelta(days=30)).isoformat(),
+                    'max': (date.today() + timedelta(days=7)).isoformat(),
                     'required': 'required'
                 }
             ),
@@ -418,14 +435,29 @@ class SolicitudPedidoEdicionForm(forms.ModelForm):
         return fecha_str
     
     def clean_fecha_entrega_programada(self):
-        """Valida que la fecha de entrega programada sea igual o mayor al día actual"""
+        """
+        Valida que la fecha de entrega programada esté en el rango permitido.
+        Durante los próximos 7 días, el usuario puede capturar fechas atrasadas hasta 30 días.
+        Rango permitido: desde (hoy - 30 días) hasta (hoy + 7 días)
+        """
         fecha_entrega = self.cleaned_data.get('fecha_entrega_programada')
         if fecha_entrega:
             hoy = date.today()
-            if fecha_entrega < hoy:
+            fecha_minima = hoy - timedelta(days=30)
+            fecha_maxima = hoy + timedelta(days=7)
+            
+            if fecha_entrega < fecha_minima:
                 from django.core.exceptions import ValidationError
                 raise ValidationError(
-                    f"La fecha de entrega programada no puede ser anterior al día actual ({hoy.strftime('%d/%m/%Y')})."
+                    f"La fecha de entrega programada no puede ser anterior a {fecha_minima.strftime('%d/%m/%Y')} "
+                    f"(30 días antes de hoy)."
+                )
+            
+            if fecha_entrega > fecha_maxima:
+                from django.core.exceptions import ValidationError
+                raise ValidationError(
+                    f"La fecha de entrega programada no puede ser posterior a {fecha_maxima.strftime('%d/%m/%Y')} "
+                    f"(7 días después de hoy)."
                 )
         return fecha_entrega
     

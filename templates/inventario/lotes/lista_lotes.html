@@ -127,6 +127,7 @@
                         <th>Lote</th>
                         <th>Institución</th>
                         <th>Cantidad</th>
+                        <th>Cant. Reservada</th>
                         <th>Precio Unit.</th>
                         <th>Valor Total</th>
                         <th>Caducidad</th>
@@ -160,6 +161,15 @@
                             </span>
                             <br>
                             <small class="text-muted">de {{ lote.cantidad_inicial|intcomma }}</small>
+                        </td>
+                        <td>
+                            {% if lote.cantidad_reservada > 0 %}
+                                <span class="badge bg-info" title="Cantidad reservada en propuestas">
+                                    {{ lote.cantidad_reservada|intcomma }}
+                                </span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
                         </td>
                         <td>${{ lote.precio_unitario|floatformat:2 }}</td>
                         <td>

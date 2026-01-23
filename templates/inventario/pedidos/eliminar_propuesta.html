@@ -1,0 +1,56 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Eliminar Propuesta{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-md-8 mx-auto">
+            <div class="card shadow">
+                <div class="card-header bg-dark text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-trash-alt"></i> Eliminar Propuesta
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <div class="alert alert-warning">
+                        <h5><i class="fas fa-exclamation-triangle"></i> Confirmación Requerida</h5>
+                        <p>Estás a punto de eliminar permanentemente la propuesta:</p>
+                        <ul>
+                            <li><strong>Folio:</strong> {{ propuesta.solicitud.folio|default:"N/A" }}</li>
+                            <li><strong>Estado:</strong> {{ propuesta.get_estado_display }}</li>
+                            <li><strong>Items:</strong> {{ propuesta.items.count }}</li>
+                            <li><strong>Cantidad Total Reservada:</strong> {{ cantidad_total_reservada }} unidades</li>
+                        </ul>
+                    </div>
+
+                    <div class="alert alert-danger">
+                        <h6><i class="fas fa-info-circle"></i> ¿Qué sucederá al eliminar?</h6>
+                        <ul class="mb-0">
+                            <li>Se liberarán todas las cantidades reservadas en los lotes</li>
+                            <li>Se crearán movimientos de inventario registrando cada liberación</li>
+                            <li>La propuesta será eliminada permanentemente del sistema</li>
+                            <li>Se guardará un registro completo en el log de auditoría</li>
+                        </ul>
+                    </div>
+
+                    <p class="text-danger"><strong>⚠️ Esta acción es IRREVERSIBLE y no se puede deshacer.</strong></p>
+
+                    <form method="POST" class="mt-4">
+                        {% csrf_token %}
+                        <div class="d-flex gap-2">
+                            <button type="submit" class="btn btn-dark">
+                                <i class="fas fa-trash-alt"></i> Sí, Eliminar Propuesta
+                            </button>
+                            <a href="{% url 'logistica:detalle_propuesta' propuesta.id %}" class="btn btn-secondary">
+                                <i class="fas fa-times"></i> Cancelar
+                            </a>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

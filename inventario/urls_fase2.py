@@ -80,6 +80,7 @@ urlpatterns = [
     path('propuestas/<uuid:propuesta_id>/acuse-pdf/', views_acuse_entrega.generar_acuse_entrega_pdf, name='generar_acuse_pdf'),
     path('propuestas/<uuid:propuesta_id>/acuse-excel/', views_acuse_entrega.generar_acuse_entrega_excel, name='generar_acuse_excel'),
     path('propuestas/<uuid:propuesta_id>/cancelar/', pedidos_views.cancelar_propuesta_view, name='cancelar_propuesta'),
+    path('propuestas/<uuid:propuesta_id>/eliminar/', pedidos_views.eliminar_propuesta_view, name='eliminar_propuesta'),
     path('propuestas/<uuid:propuesta_id>/editar/', pedidos_views.editar_propuesta, name='editar_propuesta'),
     path('propuestas/<uuid:propuesta_id>/revisar/', pedidos_views.revisar_propuesta, name='revisar_propuesta'),
     path('propuestas/<uuid:propuesta_id>/surtir/', pedidos_views.surtir_propuesta, name='surtir_propuesta'),

@@ -26,7 +26,7 @@ from .pedidos_forms import (
     BulkUploadForm
 )
 from .propuesta_generator import PropuestaGenerator
-from .propuesta_utils import cancelar_propuesta, validar_disponibilidad_para_propuesta, validar_disponibilidad_solicitud
+from .propuesta_utils import cancelar_propuesta, eliminar_propuesta, validar_disponibilidad_para_propuesta, validar_disponibilidad_solicitud
 from .pedidos_utils import registrar_error_pedido
 from django.db import models
 
@@ -691,9 +691,14 @@ def cancelar_propuesta_view(request, propuesta_id):
                 cantidad_liberada = resultado.get('cantidad_liberada', 0)
                 messages.success(
                     request, 
-                    f"Propuesta {propuesta.solicitud.folio} liberada exitosamente. Se liberaron {cantidad_liberada} unidades. Puedes editar la propuesta ahora."
+                    f"Propuesta cancelada exitosamente. Se liberaron {cantidad_liberada} unidades. "
+                    f"La solicitud ha regresado al estado PENDIENTE y está lista para nueva aprobación."
                 )
-                return redirect('logistica:editar_propuesta', propuesta_id=propuesta.id)
+                # Redirigir a la solicitud para que pueda ser validada nuevamente
+                if propuesta.solicitud:
+                    return redirect('logistica:detalle_pedido', solicitud_id=propuesta.solicitud.id)
+                else:
+                    return redirect('logistica:lista_propuestas')
             else:
                 messages.error(request, resultado['mensaje'])
                 return redirect('logistica:detalle_propuesta', propuesta_id=propuesta.id)
@@ -701,19 +706,67 @@ def cancelar_propuesta_view(request, propuesta_id):
             messages.error(request, f"Error al liberar la propuesta: {str(e)}")
             return redirect('logistica:detalle_propuesta', propuesta_id=propuesta.id)
     
-    # GET: Mostrar confirmacion
-    cantidad_total = 0
+    # GET: Redirigir al detalle de la propuesta (el modal maneja la confirmación)
+    return redirect('logistica:detalle_propuesta', propuesta_id=propuesta.id)
+
+
+@login_required
+def eliminar_propuesta_view(request, propuesta_id):
+    """
+    Elimina completamente una propuesta haciendo rollback de todas las reservas,
+    registrando movimientos de inventario y eliminando la propuesta.
+    Requiere permisos de staff o grupo Almacenero.
+    """
+    propuesta = get_object_or_404(PropuestaPedido, id=propuesta_id)
+    
+    # Validar permisos
+    if not (request.user.is_staff or request.user.is_superuser or request.user.groups.filter(name='Almacenero').exists()):
+        messages.error(request, "No tienes permiso para eliminar propuestas.")
+        return redirect('logistica:detalle_propuesta', propuesta_id=propuesta.id)
+    
+    # Validar que la propuesta esté en un estado que permita eliminación
+    estados_eliminables = ['GENERADA', 'REVISADA', 'EN_SURTIMIENTO', 'CANCELADA']
+    if propuesta.estado not in estados_eliminables:
+        messages.error(
+            request, 
+            f"No se puede eliminar una propuesta en estado {propuesta.get_estado_display()}."
+        )
+        return redirect('logistica:detalle_propuesta', propuesta_id=propuesta.id)
+    
+    if request.method == 'POST':
+        try:
+            resultado = eliminar_propuesta(propuesta_id, usuario=request.user)
+            
+            if resultado['exito']:
+                messages.success(
+                    request,
+                    f"Propuesta eliminada exitosamente. {resultado['mensaje']}"
+                )
+                # Redirigir a la lista de propuestas o a la solicitud
+                if propuesta.solicitud:
+                    return redirect('logistica:detalle_pedido', solicitud_id=propuesta.solicitud.id)
+                else:
+                    return redirect('logistica:lista_propuestas')
+            else:
+                messages.error(request, f"Error al eliminar propuesta: {resultado['mensaje']}")
+                return redirect('logistica:detalle_propuesta', propuesta_id=propuesta.id)
+        except Exception as e:
+            messages.error(request, f"Error inesperado al eliminar propuesta: {str(e)}")
+            return redirect('logistica:detalle_propuesta', propuesta_id=propuesta.id)
+    
+    # GET: Mostrar confirmación
+    cantidad_total_reservada = 0
     for item in propuesta.items.all():
         for lote_asignado in item.lotes_asignados.all():
-            cantidad_total += lote_asignado.cantidad_asignada
+            cantidad_total_reservada += lote_asignado.cantidad_asignada
     
     context = {
         'propuesta': propuesta,
-        'page_title': f"Liberar Propuesta {propuesta.solicitud.folio}",
-        'cantidad_total_a_liberar': cantidad_total,
-        'items_count': propuesta.items.count()
+        'cantidad_total_reservada': cantidad_total_reservada,
+        'page_title': f"Eliminar Propuesta {propuesta.solicitud.folio if propuesta.solicitud else propuesta.id}"
     }
-    return render(request, 'inventario/pedidos/cancelar_propuesta.html', context)
+    
+    return render(request, 'inventario/pedidos/eliminar_propuesta.html', context)
 
 
 # ============================================================================
