@@ -293,3 +293,171 @@ def carga_masiva_resultado(request):
     }
     
     return render(request, 'inventario/carga_masiva/resultado.html', context)
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def carga_masiva_ubicaciones_almacen(request):
+    """Vista para carga masiva de actualización de almacen_id en UbicacionAlmacen desde archivo Excel"""
+    
+    if request.method == 'POST':
+        if 'archivo_excel' not in request.FILES:
+            messages.error(request, 'Por favor, selecciona un archivo Excel.')
+            return render(request, 'inventario/carga_masiva/ubicaciones_almacen.html', {})
+        
+        archivo = request.FILES['archivo_excel']
+        
+        # Validar extensión
+        if not archivo.name.endswith(('.xlsx', '.xls')):
+            messages.error(request, 'El archivo debe ser un Excel (.xlsx o .xls)')
+            return render(request, 'inventario/carga_masiva/ubicaciones_almacen.html', {})
+        
+        # Guardar archivo temporalmente
+        with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp_file:
+            for chunk in archivo.chunks():
+                tmp_file.write(chunk)
+            tmp_path = tmp_file.name
+        
+        try:
+            # Leer archivo Excel
+            try:
+                df = pd.read_excel(tmp_path)
+                # Normalizar nombres de columnas (minúsculas, sin espacios)
+                df.columns = [col.strip().lower() for col in df.columns]
+            except Exception as e:
+                messages.error(request, f'Error al leer el archivo Excel: {str(e)}')
+                return render(request, 'inventario/carga_masiva/ubicaciones_almacen.html', {})
+            
+            # Validar columnas requeridas
+            columnas_requeridas = ['ubicación', 'zona']
+            columnas_faltantes = [col for col in columnas_requeridas if col not in df.columns]
+            
+            if columnas_faltantes:
+                messages.error(
+                    request, 
+                    f'Faltan las siguientes columnas en el archivo: {", ".join(columnas_faltantes)}. '
+                    f'Las columnas deben llamarse exactamente: "ubicación" y "zona"'
+                )
+                return render(request, 'inventario/carga_masiva/ubicaciones_almacen.html', {})
+            
+            # Estadísticas
+            stats = {
+                'total_registros': len(df),
+                'actualizados': 0,
+                'no_encontrados_ubicacion': [],
+                'no_encontrados_almacen': [],
+                'errores': [],
+            }
+            
+            # Procesar cada fila
+            with transaction.atomic():
+                for idx, row in df.iterrows():
+                    try:
+                        ubicacion_codigo = str(row.get('ubicación', '')).strip()
+                        zona_nombre = str(row.get('zona', '')).strip()
+                        
+                        # Validar que no estén vacíos
+                        if not ubicacion_codigo or not zona_nombre:
+                            stats['errores'].append({
+                                'fila': idx + 2,
+                                'ubicacion': ubicacion_codigo or '(vacío)',
+                                'zona': zona_nombre or '(vacío)',
+                                'mensaje': 'Ubicación o zona vacía'
+                            })
+                            continue
+                        
+                        # Buscar UbicacionAlmacen por código
+                        try:
+                            ubicacion = UbicacionAlmacen.objects.get(codigo=ubicacion_codigo)
+                        except UbicacionAlmacen.DoesNotExist:
+                            stats['no_encontrados_ubicacion'].append({
+                                'fila': idx + 2,
+                                'codigo': ubicacion_codigo
+                            })
+                            continue
+                        except UbicacionAlmacen.MultipleObjectsReturned:
+                            # Si hay múltiples, tomar el primero
+                            ubicacion = UbicacionAlmacen.objects.filter(codigo=ubicacion_codigo).first()
+                        
+                        # Buscar Almacen por nombre
+                        try:
+                            almacen = Almacen.objects.get(nombre=zona_nombre)
+                        except Almacen.DoesNotExist:
+                            stats['no_encontrados_almacen'].append({
+                                'fila': idx + 2,
+                                'nombre': zona_nombre,
+                                'ubicacion': ubicacion_codigo
+                            })
+                            continue
+                        except Almacen.MultipleObjectsReturned:
+                            # Si hay múltiples, tomar el primero
+                            almacen = Almacen.objects.filter(nombre=zona_nombre).first()
+                        
+                        # Actualizar almacen_id
+                        if ubicacion.almacen_id != almacen.id:
+                            ubicacion.almacen = almacen
+                            ubicacion.save()
+                            stats['actualizados'] += 1
+                        
+                    except Exception as e:
+                        stats['errores'].append({
+                            'fila': idx + 2,
+                            'ubicacion': str(row.get('ubicación', '')),
+                            'zona': str(row.get('zona', '')),
+                            'mensaje': str(e)
+                        })
+            
+            # Preparar mensajes de resultado
+            if stats['actualizados'] > 0:
+                messages.success(
+                    request, 
+                    f'✅ Se actualizaron {stats["actualizados"]} ubicaciones correctamente.'
+                )
+            
+            if stats['no_encontrados_ubicacion']:
+                total_no_ubic = len(stats['no_encontrados_ubicacion'])
+                messages.warning(
+                    request, 
+                    f'⚠️ {total_no_ubic} ubicación(es) no encontrada(s) en el sistema. '
+                    f'Primeras 5: {", ".join([u["codigo"] for u in stats["no_encontrados_ubicacion"][:5]])}'
+                )
+            
+            if stats['no_encontrados_almacen']:
+                total_no_alm = len(stats['no_encontrados_almacen'])
+                messages.warning(
+                    request, 
+                    f'⚠️ {total_no_alm} almacén(es) no encontrado(s) en el sistema. '
+                    f'Primeras 5: {", ".join([a["nombre"] for a in stats["no_encontrados_almacen"][:5]])}'
+                )
+            
+            if stats['errores']:
+                total_errores = len(stats['errores'])
+                messages.error(
+                    request, 
+                    f'❌ {total_errores} error(es) durante el procesamiento. '
+                    f'Revisa los detalles en la tabla de resultados.'
+                )
+            
+            # Guardar estadísticas en sesión para mostrar en template
+            request.session['carga_ubicaciones_stats'] = stats
+            
+            return render(request, 'inventario/carga_masiva/ubicaciones_almacen.html', {
+                'stats': stats,
+                'mostrar_resultados': True
+            })
+            
+        except Exception as e:
+            messages.error(request, f'Error al procesar el archivo: {str(e)}')
+        finally:
+            # Limpiar archivo temporal
+            if os.path.exists(tmp_path):
+                os.remove(tmp_path)
+    
+    # GET request - mostrar formulario
+    stats = request.session.pop('carga_ubicaciones_stats', None)
+    context = {
+        'stats': stats,
+        'mostrar_resultados': stats is not None if stats else False
+    }
+    
+    return render(request, 'inventario/carga_masiva/ubicaciones_almacen.html', context)

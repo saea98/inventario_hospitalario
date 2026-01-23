@@ -1,0 +1,255 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Carga Masiva de Ubicaciones - Actualizar Almacén{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-lg-10 mx-auto">
+            <!-- Encabezado -->
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="me-3">
+                            <i class="fas fa-file-excel fa-3x text-primary"></i>
+                        </div>
+                        <div>
+                            <h1 class="card-title mb-0">Carga Masiva de Ubicaciones</h1>
+                            <p class="text-muted mb-0">Actualiza el almacén asignado a ubicaciones desde un archivo Excel</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Instrucciones -->
+            <div class="alert alert-info alert-dismissible fade show" role="alert">
+                <h5 class="alert-heading">
+                    <i class="fas fa-info-circle"></i> Instrucciones
+                </h5>
+                <ul class="mb-0">
+                    <li>El archivo debe estar en formato <strong>.xlsx</strong> o <strong>.xls</strong></li>
+                    <li>Debe contener exactamente <strong>2 columnas</strong> con los siguientes nombres:</li>
+                    <ul>
+                        <li><strong>ubicación</strong> (columna A): Código de la ubicación a actualizar</li>
+                        <li><strong>zona</strong> (columna B): Nombre del almacén que se asignará</li>
+                    </ul>
+                    <li>El sistema buscará la ubicación por su código y el almacén por su nombre</li>
+                    <li>Solo se actualizarán las ubicaciones que existan en el sistema</li>
+                    <li>El almacén debe existir en el catálogo de almacenes</li>
+                </ul>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+
+            <!-- Formulario -->
+            <form method="post" enctype="multipart/form-data" id="carga_form" class="card shadow-sm">
+                {% csrf_token %}
+                
+                <div class="card-body">
+                    <!-- Campo de archivo -->
+                    <div class="mb-4">
+                        <label for="archivo_input" class="form-label fw-bold">
+                            <i class="fas fa-file-upload"></i> Selecciona archivo Excel
+                        </label>
+                        <div class="input-group">
+                            <input type="file" 
+                                   class="form-control" 
+                                   id="archivo_input" 
+                                   name="archivo_excel"
+                                   accept=".xlsx,.xls"
+                                   required>
+                            <label class="input-group-text" for="archivo_input">
+                                <i class="fas fa-folder-open"></i>
+                            </label>
+                        </div>
+                        <small class="form-text text-muted d-block mt-2">
+                            Máximo 10MB. Formatos soportados: .xlsx, .xls
+                        </small>
+                        <div id="file_info" class="mt-2 d-none">
+                            <small class="text-success">
+                                <i class="fas fa-check-circle"></i> 
+                                <span id="file_name"></span> 
+                                (<span id="file_size"></span>)
+                            </small>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Botones -->
+                <div class="card-footer bg-light d-flex gap-2">
+                    <button type="submit" class="btn btn-primary btn-lg" id="submit_btn">
+                        <i class="fas fa-upload"></i> Procesar Archivo
+                    </button>
+                    <a href="{% url 'dashboard' %}" class="btn btn-secondary btn-lg">
+                        <i class="fas fa-times"></i> Cancelar
+                    </a>
+                </div>
+            </form>
+
+            <!-- Resultados -->
+            {% if mostrar_resultados and stats %}
+            <div class="card mt-4 shadow-sm">
+                <div class="card-header bg-primary text-white">
+                    <h5 class="mb-0">
+                        <i class="fas fa-chart-bar"></i> Resultados del Procesamiento
+                    </h5>
+                </div>
+                <div class="card-body">
+                    <!-- Resumen -->
+                    <div class="row mb-4">
+                        <div class="col-md-3">
+                            <div class="card bg-light">
+                                <div class="card-body text-center">
+                                    <h3 class="text-primary">{{ stats.total_registros }}</h3>
+                                    <p class="mb-0 text-muted">Total de Registros</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-success text-white">
+                                <div class="card-body text-center">
+                                    <h3>{{ stats.actualizados }}</h3>
+                                    <p class="mb-0">Actualizados</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-warning text-white">
+                                <div class="card-body text-center">
+                                    <h3>{{ stats.no_encontrados_ubicacion|length|add:stats.no_encontrados_almacen|length }}</h3>
+                                    <p class="mb-0">No Encontrados</p>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="card bg-danger text-white">
+                                <div class="card-body text-center">
+                                    <h3>{{ stats.errores|length }}</h3>
+                                    <p class="mb-0">Errores</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Ubicaciones no encontradas -->
+                    {% if stats.no_encontrados_ubicacion %}
+                    <div class="alert alert-warning">
+                        <h6><i class="fas fa-exclamation-triangle"></i> Ubicaciones No Encontradas ({{ stats.no_encontrados_ubicacion|length }})</h6>
+                        <div class="table-responsive" style="max-height: 200px; overflow-y: auto;">
+                            <table class="table table-sm table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>Fila</th>
+                                        <th>Código Ubicación</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in stats.no_encontrados_ubicacion %}
+                                    <tr>
+                                        <td>{{ item.fila }}</td>
+                                        <td>{{ item.codigo }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Almacenes no encontrados -->
+                    {% if stats.no_encontrados_almacen %}
+                    <div class="alert alert-warning">
+                        <h6><i class="fas fa-exclamation-triangle"></i> Almacenes No Encontrados ({{ stats.no_encontrados_almacen|length }})</h6>
+                        <div class="table-responsive" style="max-height: 200px; overflow-y: auto;">
+                            <table class="table table-sm table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>Fila</th>
+                                        <th>Nombre Almacén</th>
+                                        <th>Ubicación</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for item in stats.no_encontrados_almacen %}
+                                    <tr>
+                                        <td>{{ item.fila }}</td>
+                                        <td>{{ item.nombre }}</td>
+                                        <td>{{ item.ubicacion }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    {% endif %}
+
+                    <!-- Errores -->
+                    {% if stats.errores %}
+                    <div class="alert alert-danger">
+                        <h6><i class="fas fa-times-circle"></i> Errores ({{ stats.errores|length }})</h6>
+                        <div class="table-responsive" style="max-height: 200px; overflow-y: auto;">
+                            <table class="table table-sm table-bordered">
+                                <thead>
+                                    <tr>
+                                        <th>Fila</th>
+                                        <th>Ubicación</th>
+                                        <th>Zona</th>
+                                        <th>Mensaje</th>
+                                    </tr>
+                                </thead>
+                                <tbody>
+                                    {% for error in stats.errores %}
+                                    <tr>
+                                        <td>{{ error.fila }}</td>
+                                        <td>{{ error.ubicacion }}</td>
+                                        <td>{{ error.zona }}</td>
+                                        <td>{{ error.mensaje }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                </tbody>
+                            </table>
+                        </div>
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+            {% endif %}
+
+            <!-- Información adicional -->
+            <div class="card mt-4 bg-light border-0">
+                <div class="card-body">
+                    <h5 class="card-title">
+                        <i class="fas fa-lightbulb"></i> Consejos
+                    </h5>
+                    <ul class="mb-0">
+                        <li>Verifica que los nombres de las columnas sean exactamente "ubicación" y "zona" (minúsculas, con tilde)</li>
+                        <li>Asegúrate de que todas las ubicaciones existan en el sistema antes de cargar</li>
+                        <li>Verifica que los nombres de almacenes coincidan exactamente con los registrados en el catálogo</li>
+                        <li>El proceso es transaccional: si hay un error crítico, se revierten todos los cambios</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+// Actualizar información del archivo seleccionado
+document.getElementById('archivo_input').addEventListener('change', function(e) {
+    const file = e.target.files[0];
+    if (file) {
+        const fileInfo = document.getElementById('file_info');
+        document.getElementById('file_name').textContent = file.name;
+        document.getElementById('file_size').textContent = (file.size / 1024).toFixed(2) + ' KB';
+        fileInfo.classList.remove('d-none');
+    }
+});
+
+// Deshabilitar botón durante envío
+document.getElementById('carga_form').addEventListener('submit', function() {
+    const submitBtn = document.getElementById('submit_btn');
+    submitBtn.disabled = true;
+    submitBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
+});
+</script>
+{% endblock %}
