@@ -559,15 +559,16 @@ def completar_surtimiento_propuesta(propuesta_id):
 
 def validar_disponibilidad_solicitud(solicitud_id):
     """
-    Valida si hay suficiente disponibilidad para TODOS los items de una solicitud.
-    Útil para determinar si una solicitud PENDIENTE puede ser validada.
+    Valida si hay disponibilidad para los items de una solicitud.
+    Permite validar incluso si hay disponibilidad parcial, ya que el algoritmo de generación
+    de propuestas buscará múltiples lotes para cubrir la cantidad solicitada.
     
     Args:
         solicitud_id: ID de la solicitud
     
     Returns:
         dict: {
-            'disponible': bool,
+            'disponible': bool,  # True si hay ALGUNA disponibilidad (aunque sea parcial)
             'items_con_error': list de dicts con detalles de items sin disponibilidad,
             'mensaje_resumen': str con resumen del problema
         }
@@ -585,6 +586,7 @@ def validar_disponibilidad_solicitud(solicitud_id):
     
     items_con_error = []
     todos_disponibles = True
+    hay_disponibilidad_parcial = False
     
     for item in solicitud.items.all():
         if item.cantidad_solicitada > 0:
@@ -594,24 +596,46 @@ def validar_disponibilidad_solicitud(solicitud_id):
                 solicitud.institucion_solicitante.id
             )
             
+            # Si no hay disponibilidad suficiente, pero hay alguna disponibilidad, es parcial
             if not resultado['disponible']:
-                todos_disponibles = False
-                items_con_error.append({
-                    'clave': item.producto.clave_cnis,
-                    'descripcion': item.producto.descripcion,
-                    'cantidad_solicitada': item.cantidad_solicitada,
-                    'cantidad_disponible': resultado['cantidad_disponible'],
-                    'diferencia': item.cantidad_solicitada - resultado['cantidad_disponible']
-                })
+                if resultado['cantidad_disponible'] > 0:
+                    # Hay disponibilidad parcial - el algoritmo buscará múltiples lotes
+                    hay_disponibilidad_parcial = True
+                    items_con_error.append({
+                        'clave': item.producto.clave_cnis,
+                        'descripcion': item.producto.descripcion,
+                        'cantidad_solicitada': item.cantidad_solicitada,
+                        'cantidad_disponible': resultado['cantidad_disponible'],
+                        'diferencia': item.cantidad_solicitada - resultado['cantidad_disponible'],
+                        'parcial': True  # Indica que hay disponibilidad parcial
+                    })
+                else:
+                    # No hay disponibilidad en absoluto
+                    todos_disponibles = False
+                    items_con_error.append({
+                        'clave': item.producto.clave_cnis,
+                        'descripcion': item.producto.descripcion,
+                        'cantidad_solicitada': item.cantidad_solicitada,
+                        'cantidad_disponible': resultado['cantidad_disponible'],
+                        'diferencia': item.cantidad_solicitada - resultado['cantidad_disponible'],
+                        'parcial': False  # No hay disponibilidad
+                    })
     
     if todos_disponibles:
         mensaje_resumen = 'Todos los productos tienen disponibilidad suficiente'
+    elif hay_disponibilidad_parcial:
+        # Si hay disponibilidad parcial, permitir validar - el algoritmo buscará múltiples lotes
+        mensaje_resumen = f'1 producto(s) con disponibilidad parcial. El sistema asignará lo disponible y buscará otros lotes para cubrir el resto.'
     else:
         cantidad_items_error = len(items_con_error)
         mensaje_resumen = f'{cantidad_items_error} producto(s) sin disponibilidad suficiente'
     
+    # Permitir validar si hay disponibilidad (aunque sea parcial)
+    # El algoritmo de generación de propuestas buscará múltiples lotes automáticamente
+    disponible_para_validar = todos_disponibles or hay_disponibilidad_parcial
+    
     return {
-        'disponible': todos_disponibles,
+        'disponible': disponible_para_validar,
         'items_con_error': items_con_error,
         'mensaje_resumen': mensaje_resumen
     }

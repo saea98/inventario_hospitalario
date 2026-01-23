@@ -82,6 +82,49 @@
             </ul>
         </p>
     </div>
+    {% elif solicitud.estado == 'PENDIENTE' and validacion_disponibilidad.disponible and validacion_disponibilidad.items_con_error %}
+    <div class="alert alert-warning" role="alert">
+        <h4 class="alert-heading"><i class="fas fa-info-circle"></i> Disponibilidad Parcial</h4>
+        <p>{{ validacion_disponibilidad.mensaje_resumen }}</p>
+        <p><strong>El sistema asignará automáticamente lo disponible y buscará otros lotes para cubrir el resto.</strong></p>
+        <hr>
+        <p><strong>Productos con disponibilidad parcial:</strong></p>
+        <div class="table-responsive">
+            <table class="table table-sm table-bordered mb-0">
+                <thead>
+                    <tr>
+                        <th>Clave CNIS</th>
+                        <th>Descripción</th>
+                        <th>Solicitado</th>
+                        <th>Disponible</th>
+                        <th>Falta</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in validacion_disponibilidad.items_con_error %}
+                    {% if item.parcial %}
+                    <tr>
+                        <td>{{ item.clave }}</td>
+                        <td>{{ item.descripcion }}</td>
+                        <td>{{ item.cantidad_solicitada }}</td>
+                        <td><span class="badge bg-info">{{ item.cantidad_disponible }}</span></td>
+                        <td><strong>{{ item.diferencia }}</strong></td>
+                    </tr>
+                    {% endif %}
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        <hr>
+        <p class="mb-0">
+            <strong>Nota:</strong> Al validar la solicitud, el sistema generará una propuesta que:
+            <ul>
+                <li>Asignará lo disponible en el primer lote encontrado</li>
+                <li>Buscará automáticamente otros lotes de la misma clave para cubrir el resto</li>
+                <li>Si no se puede cubrir todo, la propuesta quedará como <strong>PARCIAL</strong></li>
+            </ul>
+        </p>
+    </div>
     {% endif %}
 
     {% if solicitud.estado == 'VALIDADA' and not propuesta %}
