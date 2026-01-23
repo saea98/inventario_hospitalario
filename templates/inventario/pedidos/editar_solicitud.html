@@ -1,6 +1,20 @@
 {% extends 'base.html' %}
 
 {% block content %}
+<style>
+    /* Asegurar que los selects en filas nuevas sean visibles cuando la fila se muestra */
+    tr.new-item-row[style*="display: table-row"] td.producto-cell,
+    tr.new-item-row:not([style*="display: none"]) td.producto-cell {
+        display: table-cell !important;
+        visibility: visible !important;
+    }
+    tr.new-item-row:not([style*="display: none"]) td.producto-cell select {
+        display: block !important;
+        visibility: visible !important;
+        opacity: 1 !important;
+        width: 100% !important;
+    }
+</style>
 <div class="container-fluid">
     <div class="d-sm-flex align-items-center justify-content-between mb-4">
         <h1 class="h3 mb-0 text-gray-800">{{ page_title }}</h1>
@@ -106,7 +120,7 @@
                         <tbody>
                             {% for form in formset %}
                                 <tr class="item-row {% if not form.instance.pk %}new-item-row{% endif %}" 
-                                    {% if form.DELETE.value %}style="display: none;"{% elif not form.instance.pk and not form.producto.value %}style="display: none;"{% endif %}>
+                                    {% if form.DELETE.value %}style="display: none;"{% elif not form.instance.pk %}style="display: none;"{% endif %}>
                                     {% if form.instance.pk %}
                                         {# Item existente - mostrar datos y permitir editar cantidad #}
                                         <td>
@@ -145,7 +159,7 @@
                                         </td>
                                     {% else %}
                                         {# Item nuevo - mostrar campos para agregar #}
-                                        <td>
+                                        <td class="producto-cell" style="min-width: 250px;">
                                             {{ form.producto }}
                                             {% if form.producto.errors %}
                                                 <div class="text-danger small">
@@ -220,8 +234,11 @@
 {% block extra_js %}
 <script>
 document.addEventListener('DOMContentLoaded', function() {
+    console.log('🔵 [DEBUG] Inicializando script de editar solicitud...');
+    
     // Función para actualizar descripción cuando se selecciona un producto
     function updateDescription(selectElement) {
+        console.log('🟢 [DEBUG] updateDescription llamado para:', selectElement);
         const row = selectElement.closest('tr');
         const descripcionCell = row.querySelector('[id^="descripcion_"]');
         if (descripcionCell && selectElement.value) {
@@ -229,55 +246,305 @@ document.addEventListener('DOMContentLoaded', function() {
             const selectedOption = selectElement.options[selectElement.selectedIndex];
             const descripcion = selectedOption.text.split(' - ').slice(1).join(' - ') || selectedOption.text;
             descripcionCell.textContent = descripcion || '-';
+            console.log('🟢 [DEBUG] Descripción actualizada:', descripcion);
         }
     }
     
-    // Agregar event listeners a los selects de producto (solo para items nuevos)
-    document.querySelectorAll('select[name$="-producto"]').forEach(function(select) {
-        const row = select.closest('tr');
-        const idField = row.querySelector('input[name$="-id"]');
-        // Solo para items nuevos (sin id)
-        if (!idField || !idField.value) {
-            select.addEventListener('change', function() {
-                updateDescription(this);
-            });
-            // Actualizar descripción inicial si ya tiene valor
-            if (select.value) {
-                updateDescription(select);
+    // Inicializar Select2 para todos los selects de producto (items nuevos)
+    function initializeProductSelects() {
+        document.querySelectorAll('select[name$="-producto"]').forEach(function(select) {
+            const row = select.closest('tr');
+            const idField = row.querySelector('input[name$="-id"]');
+            // Solo para items nuevos (sin id) y que no estén ocultos
+            if ((!idField || !idField.value) && row.style.display !== 'none') {
+                // Inicializar Select2 si no está ya inicializado
+                if (!$(select).hasClass('select2-hidden-accessible')) {
+                    $(select).select2({
+                        placeholder: 'Busca por CNIS o descripción',
+                        allowClear: true,
+                        width: '100%',
+                        language: 'es'
+                    });
+                }
+                
+                select.addEventListener('change', function() {
+                    updateDescription(this);
+                });
+                // Actualizar descripción inicial si ya tiene valor
+                if (select.value) {
+                    updateDescription(select);
+                }
             }
-        }
-    });
+        });
+    }
+    
+    // Inicializar al cargar la página
+    initializeProductSelects();
     
     // Botón para agregar nuevo item
     const addItemBtn = document.getElementById('add-item-btn');
+    console.log('🔵 [DEBUG] Botón agregar item encontrado:', addItemBtn ? 'SÍ' : 'NO');
+    
     if (addItemBtn) {
         addItemBtn.addEventListener('click', function() {
+            console.log('🟡 [DEBUG] Click en botón Agregar Item');
             const formset = document.querySelector('#items-table tbody');
+            console.log('🟡 [DEBUG] Formset encontrado:', formset ? 'SÍ' : 'NO');
+            
+            if (!formset) {
+                console.error('❌ [DEBUG] No se encontró el tbody con id="items-table"');
+                return;
+            }
             
             // Buscar la primera fila oculta (item nuevo sin datos)
-            const hiddenRows = Array.from(formset.querySelectorAll('tr.new-item-row')).filter(function(row) {
-                return row.style.display === 'none' || !row.style.display;
+            // Las filas nuevas pueden estar ocultas por style="display: none;" en el atributo HTML
+            const allNewRows = Array.from(formset.querySelectorAll('tr.new-item-row'));
+            console.log('🟡 [DEBUG] Total filas con clase new-item-row:', allNewRows.length);
+            
+            const hiddenRows = allNewRows.filter(function(row, index) {
+                // Verificar si está oculta por el atributo style
+                const styleAttr = row.getAttribute('style') || '';
+                const isHiddenByStyle = styleAttr.includes('display: none');
+                
+                // Verificar si está oculta por la propiedad style
+                const computedStyle = window.getComputedStyle(row);
+                const isHiddenByComputed = computedStyle.display === 'none';
+                
+                // Verificar si el select de producto está vacío (sin valor seleccionado)
+                const productoSelect = row.querySelector('select[name$="-producto"]');
+                const hasNoProduct = !productoSelect || !productoSelect.value || productoSelect.value === '';
+                
+                console.log(`🟡 [DEBUG] Fila ${index}:`, {
+                    'styleAttr': styleAttr,
+                    'isHiddenByStyle': isHiddenByStyle,
+                    'computedDisplay': computedStyle.display,
+                    'isHiddenByComputed': isHiddenByComputed,
+                    'hasSelect': !!productoSelect,
+                    'selectValue': productoSelect ? productoSelect.value : 'N/A',
+                    'hasNoProduct': hasNoProduct,
+                    'isHidden': (isHiddenByStyle || isHiddenByComputed) && hasNoProduct
+                });
+                
+                // La fila está oculta si está oculta por estilo Y no tiene producto seleccionado
+                return (isHiddenByStyle || isHiddenByComputed) && hasNoProduct;
             });
             
+            console.log('🟢 [DEBUG] Total filas nuevas:', allNewRows.length);
+            console.log('🟢 [DEBUG] Filas ocultas encontradas:', hiddenRows.length);
+            
             if (hiddenRows.length > 0) {
+                console.log('🟢 [DEBUG] Mostrando primera fila oculta');
                 // Mostrar la primera fila oculta
-                hiddenRows[0].style.display = '';
-                const cantidadInput = hiddenRows[0].querySelector('input[name$="-cantidad_solicitada"]');
-                const productoSelect = hiddenRows[0].querySelector('select[name$="-producto"]');
-                if (productoSelect) {
-                    // Inicializar Select2 si está disponible
-                    if (typeof $ !== 'undefined' && $.fn.select2) {
-                        $(productoSelect).select2({
-                            placeholder: 'Busca por CNIS o descripción',
-                            allowClear: true,
-                            width: '100%'
-                        });
+                const firstRow = hiddenRows[0];
+                const $firstRow = $(firstRow);
+                
+                console.log('🟡 [DEBUG] Fila seleccionada:', firstRow);
+                console.log('🟡 [DEBUG] HTML de la fila (primeros 300 chars):', firstRow.innerHTML.substring(0, 300));
+                
+                // Mostrar la fila completa
+                $firstRow.css({
+                    'display': 'table-row',
+                    'visibility': 'visible'
+                });
+                console.log('🟢 [DEBUG] Estilos aplicados a la fila (display: table-row)');
+                
+                // Mostrar todas las celdas
+                const $cells = $firstRow.find('td');
+                console.log('🟡 [DEBUG] Celdas encontradas en la fila:', $cells.length);
+                $cells.each(function(index) {
+                    console.log(`🟡 [DEBUG] Celda ${index}:`, {
+                        'tagName': this.tagName,
+                        'className': this.className,
+                        'innerHTML': this.innerHTML.substring(0, 100)
+                    });
+                });
+                $cells.css({
+                    'display': 'table-cell',
+                    'visibility': 'visible'
+                });
+                console.log('🟢 [DEBUG] Estilos aplicados a todas las celdas');
+                
+                // Esperar un momento para que el DOM se actualice
+                setTimeout(function() {
+                    console.log('🟡 [DEBUG] Buscando select de producto...');
+                    // Buscar el select de producto - probar múltiples selectores
+                    let $productoSelect = $firstRow.find('select.nuevo-producto-select');
+                    console.log('🟡 [DEBUG] Select con clase nuevo-producto-select:', $productoSelect.length);
+                    
+                    if ($productoSelect.length === 0) {
+                        $productoSelect = $firstRow.find('select[name$="-producto"]');
+                        console.log('🟡 [DEBUG] Select con name que termina en -producto:', $productoSelect.length);
                     }
-                    productoSelect.focus();
-                } else if (cantidadInput) {
-                    cantidadInput.focus();
-                }
+                    if ($productoSelect.length === 0) {
+                        $productoSelect = $firstRow.find('td.producto-cell select');
+                        console.log('🟡 [DEBUG] Select en td.producto-cell:', $productoSelect.length);
+                    }
+                    if ($productoSelect.length === 0) {
+                        $productoSelect = $firstRow.find('select');
+                        console.log('🟡 [DEBUG] Cualquier select en la fila:', $productoSelect.length);
+                    }
+                    
+                    console.log('🟢 [DEBUG] Select encontrado:', $productoSelect.length);
+                    
+                    if ($productoSelect.length > 0) {
+                        console.log('🟢 [DEBUG] Detalles del select encontrado:', {
+                            'id': $productoSelect.attr('id'),
+                            'name': $productoSelect.attr('name'),
+                            'class': $productoSelect.attr('class'),
+                            'options': $productoSelect.find('option').length,
+                            'currentValue': $productoSelect.val(),
+                            'isVisible': $productoSelect.is(':visible'),
+                            'computedDisplay': $productoSelect.css('display'),
+                            'computedVisibility': $productoSelect.css('visibility'),
+                            'parent': $productoSelect.parent().prop('tagName'),
+                            'parentClass': $productoSelect.parent().attr('class')
+                        });
+                        
+                        // Asegurar que el select y su contenedor sean visibles
+                        console.log('🟢 [DEBUG] Aplicando estilos al select...');
+                        $productoSelect.css({
+                            'display': 'block',
+                            'visibility': 'visible',
+                            'opacity': '1',
+                            'width': '100%',
+                            'min-width': '200px'
+                        });
+                        console.log('🟢 [DEBUG] Estilos aplicados al select');
+                        
+                        const $productoCell = $productoSelect.closest('td.producto-cell');
+                        console.log('🟡 [DEBUG] Celda producto-cell encontrada:', $productoCell.length);
+                        if ($productoCell.length) {
+                            $productoCell.css({
+                                'display': 'table-cell',
+                                'visibility': 'visible',
+                                'width': 'auto',
+                                'min-width': '250px'
+                            });
+                            console.log('🟢 [DEBUG] Estilos aplicados a la celda producto-cell');
+                        } else {
+                            console.warn('⚠️ [DEBUG] No se encontró td.producto-cell, buscando cualquier td...');
+                            const $anyCell = $productoSelect.closest('td');
+                            console.log('🟡 [DEBUG] Cualquier celda encontrada:', $anyCell.length);
+                            if ($anyCell.length) {
+                                $anyCell.css({
+                                    'display': 'table-cell',
+                                    'visibility': 'visible'
+                                });
+                                console.log('🟢 [DEBUG] Estilos aplicados a cualquier celda');
+                            }
+                        }
+                        
+                        // Verificar si jQuery y Select2 están disponibles
+                        console.log('🟡 [DEBUG] jQuery disponible:', typeof $ !== 'undefined');
+                        console.log('🟡 [DEBUG] Select2 disponible:', typeof $ !== 'undefined' && $.fn.select2);
+                        
+                        // Inicializar Select2
+                        if (typeof $ !== 'undefined' && $.fn.select2) {
+                            console.log('🟢 [DEBUG] Inicializando Select2...');
+                            // Destruir si ya está inicializado
+                            if ($productoSelect.hasClass('select2-hidden-accessible')) {
+                                console.log('🟡 [DEBUG] Select2 ya inicializado, destruyendo...');
+                                $productoSelect.select2('destroy');
+                            }
+                            
+                            // Inicializar Select2
+                            try {
+                                $productoSelect.select2({
+                                    placeholder: 'Busca por CNIS o descripción',
+                                    allowClear: true,
+                                    width: '100%',
+                                    language: 'es',
+                                    dropdownParent: $('body')
+                                });
+                                console.log('🟢 [DEBUG] Select2 inicializado correctamente');
+                            } catch(e) {
+                                console.error('❌ [DEBUG] Error al inicializar Select2:', e);
+                                console.error('❌ [DEBUG] Stack:', e.stack);
+                            }
+                            
+                            // Event listener para actualizar descripción
+                            $productoSelect.off('change').on('change', function() {
+                                console.log('🟢 [DEBUG] Cambio detectado en select, valor:', $(this).val());
+                                updateDescription(this);
+                            });
+                            
+                            // Abrir el dropdown después de un delay
+                            setTimeout(function() {
+                                try {
+                                    console.log('🟢 [DEBUG] Intentando abrir Select2 dropdown...');
+                                    $productoSelect.select2('open');
+                                    console.log('🟢 [DEBUG] Select2 dropdown abierto exitosamente');
+                                } catch(e) {
+                                    console.error('❌ [DEBUG] Error al abrir Select2:', e);
+                                    console.error('❌ [DEBUG] Stack:', e.stack);
+                                    // Si no se puede abrir, al menos enfocar el select
+                                    $productoSelect.focus();
+                                }
+                            }, 400);
+                        } else {
+                            console.warn('⚠️ [DEBUG] jQuery o Select2 no están disponibles');
+                            console.warn('⚠️ [DEBUG] jQuery:', typeof $);
+                            console.warn('⚠️ [DEBUG] Select2:', typeof $ !== 'undefined' ? (typeof $.fn.select2) : 'N/A');
+                            // Al menos hacer el select visible
+                            $productoSelect.css('display', 'block');
+                        }
+                        
+                        // Verificar visibilidad final
+                        setTimeout(function() {
+                            const isVisible = $productoSelect.is(':visible');
+                            const computedDisplay = $productoSelect.css('display');
+                            const computedVisibility = $productoSelect.css('visibility');
+                            const hasSelect2 = $productoSelect.hasClass('select2-hidden-accessible');
+                            console.log('🟢 [DEBUG] ========================================');
+                            console.log('🟢 [DEBUG] Estado final del select:');
+                            console.log('🟢 [DEBUG]   - isVisible:', isVisible);
+                            console.log('🟢 [DEBUG]   - computedDisplay:', computedDisplay);
+                            console.log('🟢 [DEBUG]   - computedVisibility:', computedVisibility);
+                            console.log('🟢 [DEBUG]   - hasSelect2:', hasSelect2);
+                            console.log('🟢 [DEBUG]   - select HTML (primeros 200 chars):', $productoSelect[0].outerHTML.substring(0, 200));
+                            console.log('🟢 [DEBUG] ========================================');
+                        }, 500);
+                    } else {
+                        console.error('❌ [DEBUG] ========================================');
+                        console.error('❌ [DEBUG] Select de producto NO encontrado en la fila');
+                        console.error('❌ [DEBUG] ========================================');
+                        console.error('❌ [DEBUG] Contenido completo de la fila (primeros 800 chars):');
+                        console.log($firstRow[0].outerHTML.substring(0, 800));
+                        console.error('❌ [DEBUG] Todos los elementos en la fila:');
+                        $firstRow.find('*').each(function(index) {
+                            if (index < 30) { // Limitar a los primeros 30 elementos
+                                console.log(`  [${index}] ${this.tagName} - class: "${this.className || 'sin clase'}" - id: "${this.id || 'sin id'}"`);
+                            }
+                        });
+                        console.error('❌ [DEBUG] Todos los selects en el documento:');
+                        $('select').each(function(index) {
+                            if (index < 10) {
+                                console.log(`  [${index}] name: "${$(this).attr('name')}" - id: "${$(this).attr('id')}" - visible: ${$(this).is(':visible')}`);
+                            }
+                        });
+                        alert('Error: No se encontró el campo de selección de producto. Por favor, recarga la página y revisa la consola (F12) para más detalles.');
+                    }
+                }, 200);
             } else {
+                console.warn('⚠️ [DEBUG] ========================================');
+                console.warn('⚠️ [DEBUG] No se encontraron filas ocultas');
+                console.warn('⚠️ [DEBUG] ========================================');
+                console.warn('⚠️ [DEBUG] Total filas nuevas:', allNewRows.length);
+                allNewRows.forEach(function(row, index) {
+                    const style = row.getAttribute('style') || '';
+                    const computed = window.getComputedStyle(row);
+                    const select = row.querySelector('select[name$="-producto"]');
+                    console.warn(`⚠️ [DEBUG] Fila ${index}:`, {
+                        'style': style,
+                        'computedDisplay': computed.display,
+                        'computedVisibility': computed.visibility,
+                        'hasSelect': !!select,
+                        'selectId': select ? select.id : 'N/A',
+                        'selectName': select ? select.name : 'N/A',
+                        'selectValue': select ? select.value : 'N/A',
+                        'selectOptions': select ? select.options.length : 0
+                    });
+                });
                 alert('Por favor, guarda los cambios para agregar más items, o elimina un item para liberar espacio.');
             }
         });
@@ -317,21 +584,39 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
-    // Inicializar Select2 para los campos de producto (items nuevos)
-    if (typeof $ !== 'undefined' && $.fn.select2) {
-        $('select[name$="-producto"]').each(function() {
-            const row = $(this).closest('tr');
-            const idField = row.find('input[name$="-id"]');
-            // Solo inicializar Select2 para items nuevos
-            if (!idField.length || !idField.val()) {
-                $(this).select2({
-                    placeholder: 'Busca por CNIS o descripción',
-                    allowClear: true,
-                    width: '100%'
-                });
-            }
-        });
+    // Inicializar Select2 para los campos de producto (items nuevos) que estén visibles
+    function initializeVisibleSelects() {
+        if (typeof $ !== 'undefined' && $.fn.select2) {
+            $('tr.new-item-row:visible select[name$="-producto"]').each(function() {
+                const $select = $(this);
+                const $row = $select.closest('tr');
+                const $idField = $row.find('input[name$="-id"]');
+                // Solo inicializar Select2 para items nuevos que no estén ya inicializados
+                if ((!$idField.length || !$idField.val()) && !$select.hasClass('select2-hidden-accessible')) {
+                    $select.select2({
+                        placeholder: 'Busca por CNIS o descripción',
+                        allowClear: true,
+                        width: '100%',
+                        language: 'es',
+                        dropdownParent: $select.closest('.table-responsive').length ? $select.closest('.table-responsive') : $('body')
+                    });
+                    
+                    // Event listener para actualizar descripción
+                    $select.on('change', function() {
+                        updateDescription(this);
+                    });
+                }
+            });
+        }
     }
+    
+    // Inicializar selects visibles al cargar
+    initializeVisibleSelects();
+    
+    // Re-inicializar cuando se muestre una fila nueva
+    $(document).on('DOMNodeInserted', function() {
+        initializeVisibleSelects();
+    });
 });
 </script>
 {% endblock %}

@@ -160,7 +160,7 @@ class ItemSolicitudForm(forms.ModelForm):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Filtrar solo productos activos
-        self.fields['producto'].queryset = Producto.objects.filter(activo=True)
+        self.fields['producto'].queryset = Producto.objects.filter(activo=True).order_by('clave_cnis')
         
         # Si es un item existente, hacer producto readonly (no se puede cambiar el producto de un item existente)
         # Para items existentes, el producto se enviará como hidden field en el template
@@ -169,6 +169,14 @@ class ItemSolicitudForm(forms.ModelForm):
             # El template usará as_hidden para el producto de items existentes
             # Mantener el campo pero será oculto en el template
             pass
+        else:
+            # Para items nuevos, asegurar que el campo producto sea visible y funcional
+            self.fields['producto'].required = True
+            self.fields['producto'].widget.attrs.update({
+                'class': 'form-control select2-single nuevo-producto-select',
+                'data-placeholder': 'Busca por CNIS o descripción',
+                'style': 'width: 100%; display: block;'
+            })
         
         # Para items nuevos, hacer cantidad_aprobada y justificacion opcionales/ocultos
         if not self.instance or not self.instance.pk:

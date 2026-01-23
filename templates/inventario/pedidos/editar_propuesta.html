@@ -112,6 +112,69 @@
                         </div>
                     </div>
                 {% endfor %}
+                
+                <!-- Sección para Agregar Nuevo Item -->
+                <div class="mb-5 p-3 border rounded bg-light">
+                    <h5 class="text-primary">Agregar Nuevo Item a la Propuesta</h5>
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="form-group">
+                                <label for="nuevo_item_producto">Producto (Clave CNIS)</label>
+                                <select id="nuevo_item_producto"
+                                        name="nuevo_item_producto"
+                                        class="form-control select2-single">
+                                    <option value="">-- Selecciona un producto --</option>
+                                    {% for producto in productos_disponibles %}
+                                        <option value="{{ producto.id }}" 
+                                                data-clave="{{ producto.clave_cnis }}"
+                                                data-descripcion="{{ producto.descripcion }}">
+                                            {{ producto.clave_cnis }} - {{ producto.descripcion|truncatechars:50 }}
+                                        </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label for="nuevo_item_cantidad">Cantidad Propuesta</label>
+                                <input type="number"
+                                       id="nuevo_item_cantidad"
+                                       name="nuevo_item_cantidad"
+                                       class="form-control"
+                                       value="0"
+                                       min="0">
+                            </div>
+                        </div>
+                        <div class="col-md-3">
+                            <div class="form-group">
+                                <label>&nbsp;</label>
+                                <small class="form-text text-muted d-block mb-2">
+                                    Selecciona producto y guarda para agregar
+                                </small>
+                            </div>
+                        </div>
+                    </div>
+                    <div id="nuevo-item-ubicaciones" style="display: none;" class="mt-3">
+                        <h6>Ubicaciones Disponibles para el Producto Seleccionado</h6>
+                        <div class="form-group">
+                            <label for="nuevo_item_ubicacion">Selecciona una ubicación de lote</label>
+                            <select id="nuevo_item_ubicacion"
+                                    name="nuevo_item_ubicacion"
+                                    class="form-control select2-single">
+                                <option value="">-- Selecciona una ubicación --</option>
+                            </select>
+                        </div>
+                        <div class="form-group">
+                            <label for="nuevo_item_cantidad_ubicacion">Cantidad</label>
+                            <input type="number"
+                                   id="nuevo_item_cantidad_ubicacion"
+                                   name="nuevo_item_cantidad_ubicacion"
+                                   class="form-control"
+                                   value="0"
+                                   min="0">
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
 
@@ -127,10 +190,61 @@
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Inicializar Select2 para todos los selects
         $('.select2-single').select2({
             width: '100%',
             language: 'es',
             allowClear: true
+        });
+        
+        // Cargar ubicaciones cuando se selecciona un producto nuevo
+        $('#nuevo_item_producto').on('change', function() {
+            var productoId = $(this).val();
+            var $ubicacionesSelect = $('#nuevo_item_ubicacion');
+            var $seccionUbicaciones = $('#nuevo-item-ubicaciones');
+            
+            if (productoId) {
+                // Hacer petición AJAX para obtener ubicaciones del producto
+                $.ajax({
+                    url: '{% url "logistica:obtener_ubicaciones_producto" %}',
+                    method: 'GET',
+                    data: {
+                        'producto_id': productoId
+                    },
+                    success: function(data) {
+                        $ubicacionesSelect.empty();
+                        $ubicacionesSelect.append('<option value="">-- Selecciona una ubicación --</option>');
+                        
+                        if (data.ubicaciones && data.ubicaciones.length > 0) {
+                            $.each(data.ubicaciones, function(index, ubicacion) {
+                                $ubicacionesSelect.append(
+                                    '<option value="' + ubicacion.id + '">' +
+                                    ubicacion.lote + ' / ' + ubicacion.codigo + 
+                                    ' (' + ubicacion.cantidad + ' disponibles, vence: ' + ubicacion.fecha_caducidad + ')' +
+                                    '</option>'
+                                );
+                            });
+                            $seccionUbicaciones.show();
+                            // Reinicializar Select2 para el nuevo select
+                            $ubicacionesSelect.select2({
+                                width: '100%',
+                                language: 'es',
+                                allowClear: true
+                            });
+                        } else {
+                            $seccionUbicaciones.hide();
+                            alert('No hay ubicaciones disponibles para este producto.');
+                        }
+                    },
+                    error: function() {
+                        alert('Error al cargar las ubicaciones del producto.');
+                        $seccionUbicaciones.hide();
+                    }
+                });
+            } else {
+                $seccionUbicaciones.hide();
+                $ubicacionesSelect.empty();
+            }
         });
     });
 </script>

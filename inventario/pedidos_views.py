@@ -12,7 +12,7 @@ from django.utils import timezone
 from datetime import date
 from django.forms import inlineformset_factory
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
-from django.http import HttpResponse
+from django.http import HttpResponse, JsonResponse
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
@@ -697,17 +697,134 @@ def editar_propuesta(request, propuesta_id):
                         cantidad_asignada=cantidad_nuevo
                     )
         
+        # Manejar nuevo item agregado
+        nuevo_producto_id = request.POST.get('nuevo_item_producto')
+        if nuevo_producto_id:
+            from .models import Producto
+            from .pedidos_models import ItemPropuesta, ItemSolicitud
+            
+            try:
+                producto = Producto.objects.get(id=nuevo_producto_id, activo=True)
+                cantidad_propuesta = int(request.POST.get('nuevo_item_cantidad', 0))
+                nueva_ubicacion_id = request.POST.get('nuevo_item_ubicacion')
+                cantidad_ubicacion = int(request.POST.get('nuevo_item_cantidad_ubicacion', 0))
+                
+                if cantidad_propuesta > 0:
+                    # Buscar si ya existe un ItemSolicitud para este producto en la solicitud
+                    # Si no existe, crear uno temporal (o usar el primero disponible)
+                    item_solicitud = propuesta.solicitud.items.filter(producto=producto).first()
+                    
+                    # Si no hay item_solicitud, crear uno temporal
+                    if not item_solicitud:
+                        item_solicitud = ItemSolicitud.objects.create(
+                            solicitud=propuesta.solicitud,
+                            producto=producto,
+                            cantidad_solicitada=cantidad_propuesta,
+                            cantidad_aprobada=cantidad_propuesta
+                        )
+                    
+                    # Calcular cantidad disponible
+                    from django.db.models import Sum
+                    cantidad_disponible = producto.lote_set.filter(estado=1).aggregate(
+                        total=Sum('cantidad_disponible')
+                    )['total'] or 0
+                    
+                    # Crear el ItemPropuesta
+                    item_propuesta = ItemPropuesta.objects.create(
+                        propuesta=propuesta,
+                        item_solicitud=item_solicitud,
+                        producto=producto,
+                        cantidad_solicitada=cantidad_propuesta,
+                        cantidad_propuesta=cantidad_propuesta,
+                        cantidad_disponible=cantidad_disponible,
+                        estado='DISPONIBLE' if cantidad_propuesta > 0 else 'NO_DISPONIBLE'
+                    )
+                    
+                    # Si se seleccionó una ubicación, crear el LoteAsignado
+                    if nueva_ubicacion_id and cantidad_ubicacion > 0:
+                        lote_ubicacion = LoteUbicacion.objects.get(id=nueva_ubicacion_id)
+                        LoteAsignado.objects.create(
+                            item_propuesta=item_propuesta,
+                            lote_ubicacion=lote_ubicacion,
+                            cantidad_asignada=cantidad_ubicacion
+                        )
+                    
+                    messages.success(request, f"Item {producto.clave_cnis} agregado a la propuesta.")
+            except Producto.DoesNotExist:
+                messages.error(request, "El producto seleccionado no existe o no está activo.")
+            except Exception as e:
+                messages.error(request, f"Error al agregar el nuevo item: {str(e)}")
+        
         propuesta.total_propuesto = sum(item.cantidad_propuesta for item in propuesta.items.all())
         propuesta.save()
         
         messages.success(request, "Propuesta actualizada correctamente.")
         return redirect('logistica:detalle_propuesta', propuesta_id=propuesta.id)
     
+    # Obtener todos los productos disponibles para el selector
+    from .models import Producto
+    productos_disponibles = Producto.objects.filter(activo=True).order_by('clave_cnis')
+    
     context = {
         'propuesta': propuesta,
+        'productos_disponibles': productos_disponibles,
         'page_title': f"Editar Propuesta {propuesta.solicitud.folio}"
     }
     return render(request, 'inventario/pedidos/editar_propuesta.html', context)
+
+
+@login_required
+def obtener_ubicaciones_producto(request):
+    """
+    Endpoint AJAX para obtener las ubicaciones disponibles de un producto.
+    """
+    from .models import Lote, LoteUbicacion
+    from datetime import date, timedelta
+    
+    producto_id = request.GET.get('producto_id')
+    
+    if not producto_id:
+        return JsonResponse({'error': 'producto_id es requerido'}, status=400)
+    
+    try:
+        from .models import Producto
+        producto = Producto.objects.get(id=producto_id, activo=True)
+        
+        # Buscar lotes disponibles del producto (con más de 60 días para caducar)
+        fecha_minima = date.today() + timedelta(days=60)
+        lotes = Lote.objects.filter(
+            producto=producto,
+            fecha_caducidad__gte=fecha_minima,
+            estado=1  # Solo lotes disponibles
+        ).select_related('producto').order_by('fecha_caducidad')
+        
+        ubicaciones = []
+        for lote in lotes:
+            # Obtener todas las ubicaciones de este lote
+            lote_ubicaciones = LoteUbicacion.objects.filter(
+                lote=lote,
+                cantidad__gt=0
+            ).select_related('ubicacion')
+            
+            for lote_ubicacion in lote_ubicaciones:
+                cantidad_disponible = lote_ubicacion.cantidad - lote_ubicacion.cantidad_reservada
+                if cantidad_disponible > 0:
+                    ubicaciones.append({
+                        'id': lote_ubicacion.id,
+                        'lote': lote.numero_lote,
+                        'codigo': lote_ubicacion.ubicacion.codigo,
+                        'cantidad': cantidad_disponible,
+                        'fecha_caducidad': lote.fecha_caducidad.strftime('%d/%m/%Y')
+                    })
+        
+        return JsonResponse({
+            'ubicaciones': ubicaciones
+        })
+    
+    except Producto.DoesNotExist:
+        return JsonResponse({'error': 'Producto no encontrado'}, status=404)
+    except Exception as e:
+        return JsonResponse({'error': str(e)}, status=500)
 
 
 @login_required
@@ -929,12 +1046,22 @@ def editar_solicitud(request, solicitud_id):
     else:
         form_encabezado = SolicitudPedidoEdicionForm(instance=solicitud)
         formset = ItemSolicitudFormSet(instance=solicitud)
+        
+        # Asegurar que los formsets nuevos tengan el queryset de productos
+        for form in formset.forms:
+            if not form.instance.pk:  # Solo para forms nuevos
+                form.fields['producto'].queryset = Producto.objects.filter(activo=True)
+    
+    # Obtener productos para el contexto (por si acaso)
+    from .models import Producto
+    productos_disponibles = Producto.objects.filter(activo=True).order_by('clave_cnis')
     
     context = {
         'solicitud': solicitud,
         'propuesta': propuesta,
         'form_encabezado': form_encabezado,
         'formset': formset,
+        'productos_disponibles': productos_disponibles,
         'page_title': f"Editar Solicitud {solicitud.folio}"
     }
     return render(request, 'inventario/pedidos/editar_solicitud.html', context)
