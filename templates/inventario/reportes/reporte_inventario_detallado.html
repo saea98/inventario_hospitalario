@@ -1,0 +1,198 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Reporte de Inventario Detallado{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <!-- Encabezado -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2><i class="fas fa-clipboard-list text-primary"></i> Reporte de Inventario Detallado</h2>
+            <p class="text-muted">Visualiza el inventario con información completa de entidades, órdenes de suministro y lotes</p>
+        </div>
+        <div class="col-md-4 text-end d-flex align-items-end justify-content-end">
+            {% if datos_reporte %}
+            <a href="{% url 'reportes:exportar_inventario_detallado_excel' %}?{{ request.GET.urlencode }}" 
+               class="btn btn-success">
+                <i class="fas fa-file-excel"></i> Exportar a Excel
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <!-- Filtros de Búsqueda -->
+    <div class="card shadow mb-4">
+        <div class="card-header bg-light">
+            <h6 class="mb-0"><i class="fas fa-filter"></i> Filtros de Búsqueda</h6>
+        </div>
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-3">
+                    <label for="entidad" class="form-label">Entidad</label>
+                    <input type="text" class="form-control" id="entidad" name="entidad" 
+                           value="{{ filtro_entidad }}" placeholder="Buscar por entidad...">
+                </div>
+                <div class="col-md-3">
+                    <label for="clues" class="form-label">CLUES</label>
+                    <input type="text" class="form-control" id="clues" name="clues" 
+                           value="{{ filtro_clues }}" placeholder="Buscar por CLUES...">
+                </div>
+                <div class="col-md-3">
+                    <label for="orden" class="form-label">Orden de Suministro</label>
+                    <input type="text" class="form-control" id="orden" name="orden" 
+                           value="{{ filtro_orden }}" placeholder="Buscar por orden...">
+                </div>
+                <div class="col-md-3">
+                    <label for="rfc" class="form-label">RFC</label>
+                    <input type="text" class="form-control" id="rfc" name="rfc" 
+                           value="{{ filtro_rfc }}" placeholder="Buscar por RFC...">
+                </div>
+                <div class="col-md-3">
+                    <label for="clave" class="form-label">Clave CNIS</label>
+                    <input type="text" class="form-control" id="clave" name="clave" 
+                           value="{{ filtro_clave }}" placeholder="Buscar por clave...">
+                </div>
+                <div class="col-md-3">
+                    <label for="lote" class="form-label">Número de Lote</label>
+                    <input type="text" class="form-control" id="lote" name="lote" 
+                           value="{{ filtro_lote }}" placeholder="Buscar por lote...">
+                </div>
+                <div class="col-md-3">
+                    <label for="estado" class="form-label">Estado del Insumo</label>
+                    <select class="form-control" id="estado" name="estado">
+                        <option value="">-- Todos los estados --</option>
+                        {% for estado_val, estado_label in estados_lote %}
+                            <option value="{{ estado_val }}" {% if filtro_estado == estado_val|stringformat:"s" %}selected{% endif %}>
+                                {{ estado_label }}
+                            </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6 d-flex align-items-end gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search"></i> Filtrar
+                    </button>
+                    <a href="{% url 'reportes:reporte_inventario_detallado' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-redo"></i> Limpiar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tabla de Resultados -->
+    {% if datos_reporte %}
+    <div class="card shadow">
+        <div class="card-header bg-primary text-white">
+            <h6 class="mb-0">
+                <i class="fas fa-table"></i> Resultados 
+                <span class="badge bg-light text-dark ms-2">{{ lotes_paginados.paginator.count }} registro(s)</span>
+            </h6>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover mb-0">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>ENTIDAD</th>
+                            <th>CLUES</th>
+                            <th>ORDEN DE SUMINISTRO</th>
+                            <th>RFC</th>
+                            <th>CLAVE</th>
+                            <th>ESTADO DEL INSUMO</th>
+                            <th class="text-end">INVENTARIO DISPONIBLE</th>
+                            <th>LOTE</th>
+                            <th>F_CAD</th>
+                            <th>F_FAB</th>
+                            <th>F_REC</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for dato in datos_reporte %}
+                        <tr>
+                            <td>{{ dato.entidad }}</td>
+                            <td>{{ dato.clues }}</td>
+                            <td>{{ dato.orden_suministro }}</td>
+                            <td>{{ dato.rfc }}</td>
+                            <td>{{ dato.clave }}</td>
+                            <td>
+                                {% if dato.estado_insumo == 'Disponible' %}
+                                    <span class="badge bg-success">{{ dato.estado_insumo }}</span>
+                                {% elif dato.estado_insumo == 'Suspendido' %}
+                                    <span class="badge bg-warning">{{ dato.estado_insumo }}</span>
+                                {% elif dato.estado_insumo == 'Deteriorado' %}
+                                    <span class="badge bg-danger">{{ dato.estado_insumo }}</span>
+                                {% elif dato.estado_insumo == 'Caducado' %}
+                                    <span class="badge bg-dark">{{ dato.estado_insumo }}</span>
+                                {% else %}
+                                    {{ dato.estado_insumo }}
+                                {% endif %}
+                            </td>
+                            <td class="text-end">{{ dato.inventario_disponible|floatformat:0 }}</td>
+                            <td>{{ dato.lote }}</td>
+                            <td>{{ dato.f_cad }}</td>
+                            <td>{{ dato.f_fab }}</td>
+                            <td>{{ dato.f_rec }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="11" class="text-center text-muted py-4">
+                                <i class="fas fa-inbox fa-2x mb-2"></i><br>
+                                No se encontraron registros con los filtros aplicados
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+        
+        <!-- Paginación -->
+        {% if lotes_paginados.has_other_pages %}
+        <div class="card-footer">
+            <nav aria-label="Paginación">
+                <ul class="pagination justify-content-center mb-0">
+                    {% if lotes_paginados.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1{% if request.GET.entidad %}&entidad={{ request.GET.entidad }}{% endif %}{% if request.GET.clues %}&clues={{ request.GET.clues }}{% endif %}{% if request.GET.orden %}&orden={{ request.GET.orden }}{% endif %}{% if request.GET.rfc %}&rfc={{ request.GET.rfc }}{% endif %}{% if request.GET.clave %}&clave={{ request.GET.clave }}{% endif %}{% if request.GET.estado %}&estado={{ request.GET.estado }}{% endif %}{% if request.GET.lote %}&lote={{ request.GET.lote }}{% endif %}">
+                                <i class="fas fa-angle-double-left"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ lotes_paginados.previous_page_number }}{% if request.GET.entidad %}&entidad={{ request.GET.entidad }}{% endif %}{% if request.GET.clues %}&clues={{ request.GET.clues }}{% endif %}{% if request.GET.orden %}&orden={{ request.GET.orden }}{% endif %}{% if request.GET.rfc %}&rfc={{ request.GET.rfc }}{% endif %}{% if request.GET.clave %}&clave={{ request.GET.clave }}{% endif %}{% if request.GET.estado %}&estado={{ request.GET.estado }}{% endif %}{% if request.GET.lote %}&lote={{ request.GET.lote }}{% endif %}">
+                                <i class="fas fa-angle-left"></i>
+                            </a>
+                        </li>
+                    {% endif %}
+                    
+                    <li class="page-item active">
+                        <span class="page-link">
+                            Página {{ lotes_paginados.number }} de {{ lotes_paginados.paginator.num_pages }}
+                        </span>
+                    </li>
+                    
+                    {% if lotes_paginados.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ lotes_paginados.next_page_number }}{% if request.GET.entidad %}&entidad={{ request.GET.entidad }}{% endif %}{% if request.GET.clues %}&clues={{ request.GET.clues }}{% endif %}{% if request.GET.orden %}&orden={{ request.GET.orden }}{% endif %}{% if request.GET.rfc %}&rfc={{ request.GET.rfc }}{% endif %}{% if request.GET.clave %}&clave={{ request.GET.clave }}{% endif %}{% if request.GET.estado %}&estado={{ request.GET.estado }}{% endif %}{% if request.GET.lote %}&lote={{ request.GET.lote }}{% endif %}">
+                                <i class="fas fa-angle-right"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ lotes_paginados.paginator.num_pages }}{% if request.GET.entidad %}&entidad={{ request.GET.entidad }}{% endif %}{% if request.GET.clues %}&clues={{ request.GET.clues }}{% endif %}{% if request.GET.orden %}&orden={{ request.GET.orden }}{% endif %}{% if request.GET.rfc %}&rfc={{ request.GET.rfc }}{% endif %}{% if request.GET.clave %}&clave={{ request.GET.clave }}{% endif %}{% if request.GET.estado %}&estado={{ request.GET.estado }}{% endif %}{% if request.GET.lote %}&lote={{ request.GET.lote }}{% endif %}">
+                                <i class="fas fa-angle-double-right"></i>
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+    {% else %}
+    <div class="alert alert-info">
+        <i class="fas fa-info-circle"></i> Utiliza los filtros para buscar registros de inventario.
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
