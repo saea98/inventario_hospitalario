@@ -379,17 +379,31 @@ def validar_solicitud(request, solicitud_id):
                             item.cantidad_aprobada,
                             solicitud.institucion_solicitante.id
                         )
-                        if not resultado['disponible']:
+                        
+                        # Solo excluir si NO hay disponibilidad en absoluto (cantidad_disponible == 0)
+                        # Si hay disponibilidad parcial, mantener cantidad_aprobada para que el algoritmo
+                        # pueda asignar lo disponible y buscar otros lotes
+                        if resultado['cantidad_disponible'] == 0:
+                            # No hay disponibilidad en absoluto - excluir completamente
                             items_sin_disponibilidad.append({
                                 'clave': item.producto.clave_cnis,
                                 'descripcion': item.producto.descripcion,
                                 'solicitado': item.cantidad_aprobada,
                                 'disponible': resultado['cantidad_disponible']
                             })
-                            # Poner cantidad aprobada en 0 para excluir de la propuesta
                             item.cantidad_aprobada = 0
                             item.save()
+                        elif not resultado['disponible']:
+                            # Hay disponibilidad parcial - mantener cantidad_aprobada
+                            # El algoritmo de generación asignará lo disponible y buscará otros lotes
+                            items_con_disponibilidad.append(item)
+                            messages.info(
+                                request,
+                                f"Producto {item.producto.clave_cnis}: Se solicitaron {item.cantidad_aprobada} pero hay {resultado['cantidad_disponible']} disponibles. "
+                                f"El sistema asignará lo disponible y buscará otros lotes para cubrir el resto."
+                            )
                         else:
+                            # Disponibilidad completa
                             items_con_disponibilidad.append(item)
                 
                 # Mostrar advertencia si hay items excluidos
