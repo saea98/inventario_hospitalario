@@ -26,10 +26,13 @@
                     <span class="text">Cancelar Solicitud</span>
                 </a>
             {% elif solicitud.estado == 'VALIDADA' %}
-                <a href="{% url 'logistica:editar_solicitud' solicitud.id %}" class="btn btn-warning btn-icon-split">
-                    <span class="icon text-white-50"><i class="fas fa-edit"></i></span>
-                    <span class="text">Editar Solicitud</span>
-                </a>
+                {# Mostrar botón de editar solo si la propuesta está en estado GENERADA (pendiente de validación) o no hay propuesta #}
+                {% if not propuesta or propuesta.estado == 'GENERADA' %}
+                    <a href="{% url 'logistica:editar_solicitud' solicitud.id %}" class="btn btn-warning btn-icon-split">
+                        <span class="icon text-white-50"><i class="fas fa-edit"></i></span>
+                        <span class="text">Editar Solicitud</span>
+                    </a>
+                {% endif %}
                 <a href="{% url 'logistica:cancelar_solicitud' solicitud.id %}" class="btn btn-danger btn-icon-split">
                     <span class="icon text-white-50"><i class="fas fa-times"></i></span>
                     <span class="text">Cancelar Solicitud</span>

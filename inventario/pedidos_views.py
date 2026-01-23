@@ -808,7 +808,7 @@ def editar_solicitud(request, solicitud_id):
         SolicitudPedido, 
         ItemSolicitud, 
         form=ItemSolicitudForm, 
-        extra=0, 
+        extra=3,  # Permitir agregar hasta 3 items nuevos
         can_delete=True
     )
     
@@ -832,7 +832,21 @@ def editar_solicitud(request, solicitud_id):
             form_encabezado.save()
             
             # Guardar los cambios en los items
-            formset.save()
+            instances = formset.save(commit=False)
+            
+            # Para items nuevos, establecer cantidad_aprobada = cantidad_solicitada si la solicitud está PENDIENTE
+            for instance in instances:
+                if not instance.pk:  # Item nuevo
+                    if solicitud.estado == 'PENDIENTE':
+                        # Si está pendiente, cantidad_aprobada = cantidad_solicitada por defecto
+                        if instance.cantidad_aprobada == 0:
+                            instance.cantidad_aprobada = instance.cantidad_solicitada
+                instance.save()
+            
+            # Eliminar items marcados para eliminar
+            for form in formset.deleted_forms:
+                if form.instance.pk:
+                    form.instance.delete()
             
             # Si es PENDIENTE, solo guardar cambios
             if solicitud.estado == 'PENDIENTE':

@@ -92,7 +92,7 @@
                 {{ formset.management_form }}
                 
                 <div class="table-responsive">
-                    <table class="table table-bordered">
+                    <table class="table table-bordered" id="items-table">
                         <thead>
                             <tr>
                                 <th>Producto (CNIS)</th>
@@ -105,14 +105,23 @@
                         </thead>
                         <tbody>
                             {% for form in formset %}
-                                {% if not form.instance.pk %}
-                                    <tr style="display: none;">
-                                {% else %}
-                                    <tr>
-                                {% endif %}
-                                        <td>{{ form.instance.producto.clave_cnis }}</td>
-                                        <td>{{ form.instance.producto.descripcion }}</td>
-                                        <td>{{ form.instance.cantidad_solicitada }}</td>
+                                <tr class="item-row {% if not form.instance.pk %}new-item-row{% endif %}" 
+                                    {% if form.DELETE.value %}style="display: none;"{% elif not form.instance.pk and not form.producto.value %}style="display: none;"{% endif %}>
+                                    {% if form.instance.pk %}
+                                        {# Item existente - mostrar datos y permitir editar cantidad #}
+                                        <td>
+                                            <strong>{{ form.instance.producto.clave_cnis }}</strong>
+                                            {{ form.producto.as_hidden }}
+                                        </td>
+                                        <td>{{ form.instance.producto.descripcion|truncatechars:50 }}</td>
+                                        <td>
+                                            {{ form.cantidad_solicitada }}
+                                            {% if form.cantidad_solicitada.errors %}
+                                                <div class="text-danger small">
+                                                    {{ form.cantidad_solicitada.errors }}
+                                                </div>
+                                            {% endif %}
+                                        </td>
                                         <td>
                                             {{ form.cantidad_aprobada }}
                                             {% if form.cantidad_aprobada.errors %}
@@ -130,12 +139,56 @@
                                             {% endif %}
                                         </td>
                                         <td>
-                                            {{ form.DELETE }}
+                                            <label class="form-check-label">
+                                                {{ form.DELETE }} Eliminar
+                                            </label>
                                         </td>
-                                    </tr>
+                                    {% else %}
+                                        {# Item nuevo - mostrar campos para agregar #}
+                                        <td>
+                                            {{ form.producto }}
+                                            {% if form.producto.errors %}
+                                                <div class="text-danger small">
+                                                    {{ form.producto.errors }}
+                                                </div>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <span class="text-muted" id="descripcion_{{ forloop.counter0 }}">-</span>
+                                        </td>
+                                        <td>
+                                            {{ form.cantidad_solicitada }}
+                                            {% if form.cantidad_solicitada.errors %}
+                                                <div class="text-danger small">
+                                                    {{ form.cantidad_solicitada.errors }}
+                                                </div>
+                                            {% endif %}
+                                        </td>
+                                        <td>
+                                            <span class="text-muted">-</span>
+                                            {{ form.cantidad_aprobada.as_hidden }}
+                                        </td>
+                                        <td>
+                                            <span class="text-muted">-</span>
+                                            {{ form.justificacion_cambio.as_hidden }}
+                                        </td>
+                                        <td>
+                                            <button type="button" class="btn btn-sm btn-danger remove-row">
+                                                <i class="fas fa-times"></i>
+                                            </button>
+                                        </td>
+                                    {% endif %}
+                                    {{ form.id }}
+                                </tr>
                             {% endfor %}
                         </tbody>
                     </table>
+                </div>
+                
+                <div class="mt-2">
+                    <button type="button" class="btn btn-sm btn-success" id="add-item-btn">
+                        <i class="fas fa-plus"></i> Agregar Item
+                    </button>
                 </div>
                 
                 {% if formset.non_form_errors %}
@@ -163,4 +216,123 @@
     </div>
     {% endif %}
 </div>
+
+{% block extra_js %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    // Función para actualizar descripción cuando se selecciona un producto
+    function updateDescription(selectElement) {
+        const row = selectElement.closest('tr');
+        const descripcionCell = row.querySelector('[id^="descripcion_"]');
+        if (descripcionCell && selectElement.value) {
+            // Obtener descripción del option seleccionado
+            const selectedOption = selectElement.options[selectElement.selectedIndex];
+            const descripcion = selectedOption.text.split(' - ').slice(1).join(' - ') || selectedOption.text;
+            descripcionCell.textContent = descripcion || '-';
+        }
+    }
+    
+    // Agregar event listeners a los selects de producto (solo para items nuevos)
+    document.querySelectorAll('select[name$="-producto"]').forEach(function(select) {
+        const row = select.closest('tr');
+        const idField = row.querySelector('input[name$="-id"]');
+        // Solo para items nuevos (sin id)
+        if (!idField || !idField.value) {
+            select.addEventListener('change', function() {
+                updateDescription(this);
+            });
+            // Actualizar descripción inicial si ya tiene valor
+            if (select.value) {
+                updateDescription(select);
+            }
+        }
+    });
+    
+    // Botón para agregar nuevo item
+    const addItemBtn = document.getElementById('add-item-btn');
+    if (addItemBtn) {
+        addItemBtn.addEventListener('click', function() {
+            const formset = document.querySelector('#items-table tbody');
+            
+            // Buscar la primera fila oculta (item nuevo sin datos)
+            const hiddenRows = Array.from(formset.querySelectorAll('tr.new-item-row')).filter(function(row) {
+                return row.style.display === 'none' || !row.style.display;
+            });
+            
+            if (hiddenRows.length > 0) {
+                // Mostrar la primera fila oculta
+                hiddenRows[0].style.display = '';
+                const cantidadInput = hiddenRows[0].querySelector('input[name$="-cantidad_solicitada"]');
+                const productoSelect = hiddenRows[0].querySelector('select[name$="-producto"]');
+                if (productoSelect) {
+                    // Inicializar Select2 si está disponible
+                    if (typeof $ !== 'undefined' && $.fn.select2) {
+                        $(productoSelect).select2({
+                            placeholder: 'Busca por CNIS o descripción',
+                            allowClear: true,
+                            width: '100%'
+                        });
+                    }
+                    productoSelect.focus();
+                } else if (cantidadInput) {
+                    cantidadInput.focus();
+                }
+            } else {
+                alert('Por favor, guarda los cambios para agregar más items, o elimina un item para liberar espacio.');
+            }
+        });
+    }
+    
+    // Botones para eliminar filas (items nuevos)
+    document.querySelectorAll('.remove-row').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+            const row = this.closest('tr');
+            const idField = row.querySelector('input[name$="-id"]');
+            // Si es un item nuevo, ocultarlo y limpiar campos
+            if (!idField || !idField.value) {
+                row.style.display = 'none';
+                // Limpiar campos
+                row.querySelectorAll('input, select').forEach(function(field) {
+                    if (field.type !== 'hidden' && field.name && !field.name.includes('DELETE')) {
+                        if (field.tagName === 'SELECT') {
+                            field.selectedIndex = 0;
+                        } else {
+                            field.value = '';
+                        }
+                    }
+                });
+            }
+        });
+    });
+    
+    // Manejar checkbox DELETE para ocultar/mostrar fila
+    document.querySelectorAll('input[name$="-DELETE"]').forEach(function(checkbox) {
+        checkbox.addEventListener('change', function() {
+            const row = this.closest('tr');
+            if (this.checked) {
+                row.style.opacity = '0.5';
+            } else {
+                row.style.opacity = '1';
+            }
+        });
+    });
+    
+    // Inicializar Select2 para los campos de producto (items nuevos)
+    if (typeof $ !== 'undefined' && $.fn.select2) {
+        $('select[name$="-producto"]').each(function() {
+            const row = $(this).closest('tr');
+            const idField = row.find('input[name$="-id"]');
+            // Solo inicializar Select2 para items nuevos
+            if (!idField.length || !idField.val()) {
+                $(this).select2({
+                    placeholder: 'Busca por CNIS o descripción',
+                    allowClear: true,
+                    width: '100%'
+                });
+            }
+        });
+    }
+});
+</script>
+{% endblock %}
 {% endblock %}

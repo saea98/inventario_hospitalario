@@ -122,12 +122,13 @@ class SolicitudPedidoForm(forms.ModelForm):
 
 class ItemSolicitudForm(forms.ModelForm):
     """
-    Formulario para agregar items a una solicitud de pedido.
+    Formulario para agregar y editar items a una solicitud de pedido.
+    Permite editar cantidad_solicitada y agregar items nuevos.
     """
     
     class Meta:
         model = ItemSolicitud
-        fields = ['producto', 'cantidad_solicitada']
+        fields = ['producto', 'cantidad_solicitada', 'cantidad_aprobada', 'justificacion_cambio']
         widgets = {
             'producto': forms.Select(attrs={
                 'class': 'form-control select2-single',
@@ -141,12 +142,39 @@ class ItemSolicitudForm(forms.ModelForm):
                     'required': True
                 }
             ),
+            'cantidad_aprobada': forms.NumberInput(
+                attrs={
+                    'class': 'form-control',
+                    'type': 'number',
+                    'min': '0'
+                }
+            ),
+            'justificacion_cambio': forms.TextInput(
+                attrs={
+                    'class': 'form-control',
+                    'placeholder': 'Justificación (opcional)'
+                }
+            ),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         # Filtrar solo productos activos
         self.fields['producto'].queryset = Producto.objects.filter(activo=True)
+        
+        # Si es un item existente, hacer producto readonly (no se puede cambiar el producto de un item existente)
+        # Para items existentes, el producto se enviará como hidden field en el template
+        # No usar disabled porque no se envía en POST, usar readonly o hidden
+        if self.instance and self.instance.pk:
+            # El template usará as_hidden para el producto de items existentes
+            # Mantener el campo pero será oculto en el template
+            pass
+        
+        # Para items nuevos, hacer cantidad_aprobada y justificacion opcionales/ocultos
+        if not self.instance or not self.instance.pk:
+            self.fields['cantidad_aprobada'].required = False
+            self.fields['cantidad_aprobada'].initial = 0
+            self.fields['justificacion_cambio'].required = False
         
         self.helper = FormHelper()
         self.helper.form_tag = False
