@@ -128,22 +128,26 @@ def generar_acuse_excel(propuesta):
     propuesta.refresh_from_db()
     
     # Recolectar todos los items primero
-    # Usar select_related y prefetch_related para evitar problemas de caché
+    # Obtener items directamente desde la base de datos para evitar problemas de caché
+    # NO usar prefetch_related aquí porque puede usar datos en caché
+    from .pedidos_models import ItemPropuesta, LoteAsignado
+    
     items_data = []
     idx = 1
     
-    # Obtener items con sus relaciones optimizadas
-    items = propuesta.items.select_related('producto').prefetch_related(
-        'lotes_asignados__lote_ubicacion__lote',
-        'lotes_asignados__lote_ubicacion__ubicacion'
-    ).all()
+    # Obtener items directamente desde la base de datos con consulta fresca
+    items = ItemPropuesta.objects.filter(
+        propuesta=propuesta
+    ).select_related('producto').all()
     
     for item in items:
         # Refrescar el item desde la base de datos
         item.refresh_from_db()
         
-        # Obtener lotes asignados con cantidad > 0 (filtrar los eliminados o con cantidad 0)
-        lotes_asignados = item.lotes_asignados.filter(
+        # Obtener lotes asignados directamente desde la base de datos (consulta fresca)
+        # Esto asegura que se obtengan los datos actualizados después de editar la propuesta
+        lotes_asignados = LoteAsignado.objects.filter(
+            item_propuesta=item,
             cantidad_asignada__gt=0
         ).select_related(
             'lote_ubicacion__lote',
@@ -154,8 +158,14 @@ def generar_acuse_excel(propuesta):
             # Refrescar el lote_asignado para asegurar datos actualizados
             lote_asignado.refresh_from_db()
             
-            lote_ubicacion = lote_asignado.lote_ubicacion
-            lote = lote_ubicacion.lote
+            # Obtener las relaciones directamente desde la base de datos para asegurar datos actualizados
+            # En lugar de usar lote_asignado.lote_ubicacion que puede estar en caché
+            from .models import LoteUbicacion, Lote
+            lote_ubicacion = LoteUbicacion.objects.select_related('lote', 'ubicacion').get(
+                id=lote_asignado.lote_ubicacion_id
+            )
+            lote = Lote.objects.get(id=lote_ubicacion.lote_id)
+            
             ubicacion = lote_ubicacion.ubicacion.codigo if lote_ubicacion.ubicacion else 'N/A'
             caducidad = lote.fecha_caducidad.strftime("%d/%m/%Y") if lote.fecha_caducidad else 'N/A'
             lote_info = lote.numero_lote if lote.numero_lote else 'N/A'
