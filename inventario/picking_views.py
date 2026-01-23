@@ -108,10 +108,26 @@ def picking_propuesta(request, propuesta_id):
     # Obtener items de la propuesta con lotes asignados
     items_picking = []
     
+    # Verificar si el usuario es administrador o supervisor
+    es_administrador = request.user.is_staff or request.user.is_superuser
+    es_supervisor = request.user.groups.filter(name='Supervisor').exists()
+    puede_ver_todo = es_administrador or es_supervisor
+    
+    # Obtener almacén del usuario si no es administrador ni supervisor
+    almacen_usuario_id = None
+    if not puede_ver_todo and hasattr(request.user, 'almacen') and request.user.almacen:
+        almacen_usuario_id = request.user.almacen.id
+    
     for item in propuesta.items.all():
         for lote_asignado in item.lotes_asignados.filter(surtido=False):
             lote_ubicacion = lote_asignado.lote_ubicacion
             lote = lote_ubicacion.lote
+            
+            # Filtrar por almacén del usuario si no es administrador ni supervisor
+            if not puede_ver_todo and almacen_usuario_id:
+                if lote_ubicacion.ubicacion.almacen_id != almacen_usuario_id:
+                    continue  # Saltar este item si no pertenece al almacén del usuario
+            
             caducidad = lote.fecha_caducidad.strftime('%d/%m/%Y') if lote.fecha_caducidad else 'N/A'
             items_picking.append({
                 'item_id': item.id,
@@ -241,6 +257,16 @@ def imprimir_hoja_surtido(request, propuesta_id):
     """
     propuesta = get_object_or_404(PropuestaPedido, id=propuesta_id)
     
+    # Verificar si el usuario es administrador o supervisor
+    es_administrador = request.user.is_staff or request.user.is_superuser
+    es_supervisor = request.user.groups.filter(name='Supervisor').exists()
+    puede_ver_todo = es_administrador or es_supervisor
+    
+    # Obtener almacén del usuario si no es administrador ni supervisor
+    almacen_usuario_id = None
+    if not puede_ver_todo and hasattr(request.user, 'almacen') and request.user.almacen:
+        almacen_usuario_id = request.user.almacen.id
+    
     # Obtener items de la propuesta con lotes asignados
     items_picking = []
     
@@ -248,6 +274,12 @@ def imprimir_hoja_surtido(request, propuesta_id):
         for lote_asignado in item.lotes_asignados.filter(surtido=False):
             lote_ubicacion = lote_asignado.lote_ubicacion
             lote = lote_ubicacion.lote
+            
+            # Filtrar por almacén del usuario si no es administrador ni supervisor
+            if not puede_ver_todo and almacen_usuario_id:
+                if lote_ubicacion.ubicacion.almacen_id != almacen_usuario_id:
+                    continue  # Saltar este item si no pertenece al almacén del usuario
+            
             caducidad = lote.fecha_caducidad.strftime('%d/%m/%Y') if lote.fecha_caducidad else 'N/A'
             items_picking.append({
                 'item_id': item.id,
@@ -426,6 +458,16 @@ def exportar_picking_excel(request, propuesta_id):
     """
     propuesta = get_object_or_404(PropuestaPedido, id=propuesta_id)
     
+    # Verificar si el usuario es administrador o supervisor
+    es_administrador = request.user.is_staff or request.user.is_superuser
+    es_supervisor = request.user.groups.filter(name='Supervisor').exists()
+    puede_ver_todo = es_administrador or es_supervisor
+    
+    # Obtener almacén del usuario si no es administrador ni supervisor
+    almacen_usuario_id = None
+    if not puede_ver_todo and hasattr(request.user, 'almacen') and request.user.almacen:
+        almacen_usuario_id = request.user.almacen.id
+    
     # Obtener items de la propuesta con lotes asignados
     items_picking = []
     
@@ -433,6 +475,12 @@ def exportar_picking_excel(request, propuesta_id):
         for lote_asignado in item.lotes_asignados.filter(surtido=False):
             lote_ubicacion = lote_asignado.lote_ubicacion
             lote = lote_ubicacion.lote
+            
+            # Filtrar por almacén del usuario si no es administrador ni supervisor
+            if not puede_ver_todo and almacen_usuario_id:
+                if lote_ubicacion.ubicacion.almacen_id != almacen_usuario_id:
+                    continue  # Saltar este item si no pertenece al almacén del usuario
+            
             caducidad = lote.fecha_caducidad.strftime('%d/%m/%Y') if lote.fecha_caducidad else 'N/A'
             items_picking.append({
                 'item_id': item.id,
