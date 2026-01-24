@@ -1,0 +1,167 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Reporte de Salidas - Órdenes Surtidas{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-primary text-white">
+                    <h4 class="mb-0">
+                        <i class="fas fa-clipboard-list"></i> Reporte de Salidas - Órdenes de Surtimiento Surtidas
+                    </h4>
+                </div>
+                <div class="card-body">
+                    <!-- Filtros -->
+                    <form method="get" action="{% url 'reportes_salidas:reporte_salidas_surtidas' %}" class="mb-4">
+                        <div class="row">
+                            <div class="col-md-3">
+                                <label for="fecha_inicio" class="form-label">Fecha Inicio</label>
+                                <input type="date" class="form-control" id="fecha_inicio" name="fecha_inicio" value="{{ fecha_inicio }}">
+                            </div>
+                            <div class="col-md-3">
+                                <label for="fecha_fin" class="form-label">Fecha Fin</label>
+                                <input type="date" class="form-control" id="fecha_fin" name="fecha_fin" value="{{ fecha_fin }}">
+                            </div>
+                            <div class="col-md-2">
+                                <label for="folio" class="form-label">Folio</label>
+                                <input type="text" class="form-control" id="folio" name="folio" value="{{ folio }}" placeholder="Buscar folio...">
+                            </div>
+                            <div class="col-md-2">
+                                <label for="clave_cnis" class="form-label">Clave CNIS</label>
+                                <input type="text" class="form-control" id="clave_cnis" name="clave_cnis" value="{{ clave_cnis }}" placeholder="Buscar clave...">
+                            </div>
+                            <div class="col-md-2">
+                                <label for="institucion" class="form-label">Institución</label>
+                                <select class="form-control" id="institucion" name="institucion">
+                                    <option value="">Todas</option>
+                                    {% for institucion in instituciones %}
+                                    <option value="{{ institucion.id }}" {% if institucion_id == institucion.id|stringformat:"s" %}selected{% endif %}>
+                                        {{ institucion.nombre }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                        </div>
+                        <div class="row mt-3">
+                            <div class="col-12">
+                                <button type="submit" class="btn btn-primary">
+                                    <i class="fas fa-search"></i> Buscar
+                                </button>
+                                <a href="{% url 'reportes_salidas:reporte_salidas_surtidas' %}" class="btn btn-secondary">
+                                    <i class="fas fa-redo"></i> Limpiar
+                                </a>
+                                <a href="{% url 'reportes_salidas:exportar_salidas_surtidas_excel' %}?{{ request.GET.urlencode }}" class="btn btn-success">
+                                    <i class="fas fa-file-excel"></i> Exportar a Excel
+                                </a>
+                            </div>
+                        </div>
+                    </form>
+
+                    <!-- Resumen -->
+                    <div class="alert alert-info">
+                        <strong>Total de registros:</strong> {{ total_registros }}
+                    </div>
+
+                    <!-- Tabla de resultados -->
+                    <div class="table-responsive">
+                        <table class="table table-striped table-bordered table-hover">
+                            <thead class="thead-dark">
+                                <tr>
+                                    <th>PARTIDA</th>
+                                    <th>CLAVE (CNIS)</th>
+                                    <th>DESCRIPCION</th>
+                                    <th>UNIDAD DE MEDIDA</th>
+                                    <th>LOTE</th>
+                                    <th>CADUCIDAD</th>
+                                    <th>CANTIDAD SOLICITADA</th>
+                                    <th>CANTIDAD SURTIDA</th>
+                                    <th>OBSERVACIONES</th>
+                                    <th>RECURSO</th>
+                                    <th>DESTINO</th>
+                                    <th>UBICACIÓN</th>
+                                    <th>FECHA CAPTURA</th>
+                                    <th>FOLIO</th>
+                                    <th>FECHA ENTREGA PROGRAMADA</th>
+                                    <th>STATUS</th>
+                                    <th>REMISION DE INGRESO</th>
+                                    <th>ORDEN DE REPOSICION</th>
+                                    <th>USUARIO</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% if datos %}
+                                    {% for dato in datos %}
+                                    <tr>
+                                        <td>{{ dato.partida }}</td>
+                                        <td>{{ dato.clave_cnis }}</td>
+                                        <td>{{ dato.descripcion|truncatewords:10 }}</td>
+                                        <td>{{ dato.unidad_medida }}</td>
+                                        <td>{{ dato.lote }}</td>
+                                        <td>{{ dato.caducidad }}</td>
+                                        <td class="text-center">{{ dato.cantidad_solicitada }}</td>
+                                        <td class="text-center"><strong>{{ dato.cantidad_surtida }}</strong></td>
+                                        <td>{{ dato.observaciones|truncatewords:5 }}</td>
+                                        <td>{{ dato.recurso }}</td>
+                                        <td>{{ dato.destino }}</td>
+                                        <td>{{ dato.ubicacion }}</td>
+                                        <td>{{ dato.fecha_captura }}</td>
+                                        <td>{{ dato.folio }}</td>
+                                        <td>{{ dato.fecha_entrega_programada }}</td>
+                                        <td>
+                                            <span class="badge bg-success">{{ dato.status }}</span>
+                                        </td>
+                                        <td>{{ dato.remision_ingreso }}</td>
+                                        <td>{{ dato.orden_reposicion }}</td>
+                                        <td>{{ dato.usuario }}</td>
+                                    </tr>
+                                    {% endfor %}
+                                {% else %}
+                                    <tr>
+                                        <td colspan="19" class="text-center text-muted">
+                                            <i class="fas fa-info-circle"></i> No se encontraron registros con los filtros aplicados.
+                                        </td>
+                                    </tr>
+                                {% endif %}
+                            </tbody>
+                        </table>
+                    </div>
+
+                    <!-- Paginación -->
+                    {% if datos.has_other_pages %}
+                    <nav aria-label="Paginación">
+                        <ul class="pagination justify-content-center">
+                            {% if datos.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page=1{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}{% if folio %}&folio={{ folio }}{% endif %}{% if clave_cnis %}&clave_cnis={{ clave_cnis }}{% endif %}{% if institucion_id %}&institucion={{ institucion_id }}{% endif %}">Primera</a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ datos.previous_page_number }}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}{% if folio %}&folio={{ folio }}{% endif %}{% if clave_cnis %}&clave_cnis={{ clave_cnis }}{% endif %}{% if institucion_id %}&institucion={{ institucion_id }}{% endif %}">Anterior</a>
+                            </li>
+                            {% endif %}
+                            
+                            <li class="page-item active">
+                                <span class="page-link">
+                                    Página {{ datos.number }} de {{ datos.paginator.num_pages }}
+                                </span>
+                            </li>
+                            
+                            {% if datos.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ datos.next_page_number }}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}{% if folio %}&folio={{ folio }}{% endif %}{% if clave_cnis %}&clave_cnis={{ clave_cnis }}{% endif %}{% if institucion_id %}&institucion={{ institucion_id }}{% endif %}">Siguiente</a>
+                            </li>
+                            <li class="page-item">
+                                <a class="page-link" href="?page={{ datos.paginator.num_pages }}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}{% if folio %}&folio={{ folio }}{% endif %}{% if clave_cnis %}&clave_cnis={{ clave_cnis }}{% endif %}{% if institucion_id %}&institucion={{ institucion_id }}{% endif %}">Última</a>
+                            </li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

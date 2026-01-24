@@ -12,4 +12,6 @@ urlpatterns = [
     path('general/', views_reportes_salidas.reporte_general_salidas, name='reporte_general'),
     path('distribuciones/', views_reportes_salidas.analisis_distribuciones, name='analisis_distribuciones'),
     path('temporal/', views_reportes_salidas.analisis_temporal, name='analisis_temporal'),
+    path('surtidas/', views_reportes_salidas.reporte_salidas_surtidas, name='reporte_salidas_surtidas'),
+    path('surtidas/exportar-excel/', views_reportes_salidas.exportar_salidas_surtidas_excel, name='exportar_salidas_surtidas_excel'),
 ]
