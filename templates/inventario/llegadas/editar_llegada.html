@@ -349,23 +349,27 @@
                         <thead style="display: none;"></thead>
                         <tbody id="items-tbody">
                             {% for form in formset %}
-                                <!-- Campos ocultos necesarios para el formset -->
-                                {{ form.id }}
-                                {{ form.DELETE }}
-                                
+                                {% if not form.DELETE.value %}
                                 <!-- FILA 1: Datos del Lote y Cantidades -->
-                                <tr class="item-row row-principal" data-form-index="{{ forloop.counter0 }}">
+                                <tr class="item-row row-principal" data-form-index="{{ forloop.counter0 }}" 
+                                    data-item-id="{% if form.instance.pk %}{{ form.instance.pk }}{% endif %}"
+                                    data-producto-id="{% if form.instance.producto_id %}{{ form.instance.producto_id }}{% endif %}">
                                     <td><small class="text-muted d-block mb-1">Producto</small>{{ form.producto }}</td>
-                                    <td><small class="text-muted d-block mb-1">Clave</small>{{ form.clave }}</td>
                                     <td><small class="text-muted d-block mb-1">Lote</small>{{ form.numero_lote }}</td>
                                     <td><small class="text-muted d-block mb-1">F. Caduc.</small>{{ form.fecha_caducidad }}</td>
                                     <td><small class="text-muted d-block mb-1">F. de Fabricación</small>{{ form.fecha_elaboracion }}</td>
                                     <td><small class="text-muted d-block mb-1">Marca</small>{{ form.marca }}</td>
                                     <td><small class="text-muted d-block mb-1">Fabricante</small>{{ form.fabricante }}</td>
+                                    <td><small class="text-muted d-block mb-1">Recibida</small>{{ form.cantidad_recibida }}</td>
+                                    <!-- Campo oculto para clave -->
+                                    <td style="display: none;">{{ form.clave }}</td>
                                     <!-- Campo oculto para cantidad emitida -->
                                     <td style="display: none;"><small class="text-muted d-block mb-1">Emitida</small>{{ form.cantidad_emitida }}</td>
-                                    <td><small class="text-muted d-block mb-1">Recibida</small>{{ form.cantidad_recibida }}</td>
                                     <td style="display: none;"><small class="text-muted d-block mb-1">Piezas/Lote</small>{{ form.piezas_por_lote }}</td>
+                                    <!-- Campo oculto DELETE -->
+                                    <td style="display: none;">{{ form.DELETE }}</td>
+                                    <!-- Campo oculto ID -->
+                                    <td style="display: none;">{{ form.id }}</td>
                                     <td>
                                         {% if not forloop.first %}
                                             <button type="button" class="btn-remove-item" onclick="removeRow(this)">Eliminar</button>
@@ -391,6 +395,7 @@
                                         </td>
                                     </tr>
                                 {% endif %}
+                                {% endif %}
                             {% endfor %}
                         </tbody>
                     </table>
@@ -409,9 +414,10 @@
 </div>
 
 {% block extra_js %}
-<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.1.0-rc.0/js/select2.min.js"></script>
 <script>
 $(document).ready(function() {
+    console.log('[ONLOAD] Document ready - Iniciando inicialización de Select2');
+    
     // Inicializar Select2
     $('#id_cita').select2({
         dropdownParent: $('body'),
@@ -423,7 +429,91 @@ $(document).ready(function() {
         width: '100%'
     });
     
-    initializeProductSelect2();
+    // Verificar selects de productos ANTES de inicializar
+    var selectsProducto = $('select[id$="-producto"]');
+    console.log('[ONLOAD] Total selects de producto encontrados:', selectsProducto.length);
+    
+    selectsProducto.each(function(index) {
+        var $select = $(this);
+        var $row = $select.closest('tr.item-row.row-principal');
+        var itemId = $row.data('item-id');
+        var productoIdFromData = $row.data('producto-id');
+        var valor = $select.val();
+        var $optionSelected = $select.find('option:selected');
+        var textoSelected = $optionSelected.text();
+        var totalOpciones = $select.find('option').length;
+        
+        console.log('[ONLOAD] Select ' + index + ' (ID: ' + $select.attr('id') + '):');
+        console.log('  - Item ID (desde data):', itemId);
+        console.log('  - Producto ID (desde data):', productoIdFromData);
+        console.log('  - Valor:', valor);
+        console.log('  - Texto seleccionado:', textoSelected);
+        console.log('  - Total opciones:', totalOpciones);
+        console.log('  - Tiene selected attribute:', $optionSelected.length > 0 && $optionSelected.attr('selected') !== undefined);
+        
+        // Log información del item (sin alert para no interrumpir)
+        console.log('[ONLOAD] Item #' + (index + 1) + ' - Item ID:', itemId, 'Producto ID (data):', productoIdFromData);
+    });
+    
+    // Esperar a que base.html termine de inicializar Select2 automáticamente
+    // base.html inicializa Select2 para todos los selects, así que necesitamos esperar
+    // y luego re-inicializar o actualizar los selects de productos con el valor correcto
+    // También esperamos a que window.productosData esté cargado para poder buscar por clave
+    setTimeout(function() {
+        console.log('[ONLOAD] Llamando a initializeProductSelect2() después de que base.html inicialice');
+        initializeProductSelect2();
+        
+        // Después de inicializar, esperar un poco más y recalcular IVA para todos los selects con valor
+        // Esto asegura que el IVA se calcule incluso si los productos se preseleccionaron antes de que window.productosData estuviera disponible
+        setTimeout(function() {
+            console.log('[ONLOAD] Recalculando IVA para todos los selects después de initializeProductSelect2');
+            $('select[id$="-producto"]').each(function() {
+                var $select = $(this);
+                var valor = $select.val();
+                if (valor && valor !== '' && valor !== null) {
+                    console.log('[ONLOAD] Disparando change para select:', $select.attr('id'), 'Valor:', valor);
+                    $select.trigger('change');
+                }
+            });
+        }, 800);
+    }, 500);
+    
+    // Cargar productos desde la API para tenerlos en window.productosData
+    // Esto es necesario para cálculos de IVA y para nuevos items
+    $.ajax({
+        url: '/logistica/llegadas/api/productos/',
+        type: 'GET',
+        success: function(data) {
+            console.log('[AJAX] Productos cargados:', data.length);
+            // Guardar los datos de productos para acceso posterior
+            if (!window.productosData) {
+                window.productosData = {};
+            }
+            
+            // Guardar todos los productos en window.productosData
+            $.each(data, function(index, producto) {
+                window.productosData[producto.id] = producto;
+            });
+            
+            console.log('[editar_llegada] Productos cargados en window.productosData:', Object.keys(window.productosData).length);
+            
+            // Después de cargar productos, forzar actualización de Select2 si hay valores
+            // Esto asegura que si algún valor no se mostró correctamente, se actualice
+            setTimeout(function() {
+                $('select[id$="-producto"]').each(function() {
+                    var $select = $(this);
+                    var valor = $select.val();
+                    if (valor) {
+                        // Forzar actualización del display
+                        $select.trigger('change');
+                    }
+                });
+            }, 200);
+        },
+        error: function() {
+            console.error('Error al cargar productos para window.productosData');
+        }
+    });
     
     // Asegurar que todos los campos porcentaje_iva tengan un valor inicial
     $('input[name$="-porcentaje_iva"]').each(function() {
@@ -446,15 +536,18 @@ $(document).ready(function() {
             
             // Calcular IVA según la clave
             if (clave && (clave.startsWith('010') || clave.startsWith('020') || clave.startsWith('030') || clave.startsWith('040'))) {
-                $(this).val('0.00');
+                $(this).val('0');
             } else {
-                $(this).val('16.00');
+                $(this).val('16');
             }
         }
     });
     
     // Llenar campos por defecto (clave y cantidad_emitida)
-    fillDefaultFieldValues();
+    // Esperar un momento para asegurar que todos los datos estén cargados
+    setTimeout(function() {
+        fillDefaultFieldValues();
+    }, 300);
     
     // Calcular total de piezas recibidas al cargar la página
     updateTotalPiezasRecibidas();
@@ -548,12 +641,12 @@ $(document).ready(function() {
                     clave = extraerClaveDelProducto(selectedText);
                 }
                 
-                // Calcular IVA según la clave
-                if (clave && (clave.startsWith('010') || clave.startsWith('020') || clave.startsWith('030') || clave.startsWith('040'))) {
-                    $(this).val('0.00');
-                } else {
-                    $(this).val('16.00');
-                }
+            // Calcular IVA según la clave
+            if (clave && (clave.startsWith('010') || clave.startsWith('020') || clave.startsWith('030') || clave.startsWith('040'))) {
+                $(this).val('0');
+            } else {
+                $(this).val('16');
+            }
             }
         });
         
@@ -592,6 +685,13 @@ $(document).ready(function() {
                     if (data.clave_medicamento) {
                         $('#clave-producto-ref').text(data.clave_medicamento);
                         window.citaClaveDefault = data.clave_medicamento;
+                        console.log('[onchange cita] Clave de cita establecida:', window.citaClaveDefault);
+                        
+                        // Actualizar las claves de los items existentes que tienen "DEFAULT"
+                        setTimeout(function() {
+                            fillDefaultFieldValues();
+                        }, 200);
+                        
                         // Pre-seleccionar producto con esta clave en todos los selects (solo si no tienen valor)
                         $('select[id$="-producto"]').each(function() {
                             var $select = $(this);
@@ -613,8 +713,8 @@ $(document).ready(function() {
         }
     });
     
-    // NO cargar datos de cita automáticamente al cargar la página si ya hay valores guardados
-    // Solo actualizar el folio display si existe
+    // Cargar datos de cita automáticamente al cargar la página si la llegada tiene una cita asociada
+    // Esto asegura que los datos de la cita se muestren incluso si la llegada fue creada con datos incompletos
     var citaIdActual = $('#id_cita').val();
     if (citaIdActual) {
         $.ajax({
@@ -622,80 +722,563 @@ $(document).ready(function() {
             type: 'GET',
             success: function(data) {
                 $('#folio-display').text(data.folio || 'Se genera automáticamente');
+                
                 // Actualizar clave de producto si está disponible y el campo está vacío o tiene "-"
                 if (data.clave_medicamento && ($('#clave-producto-ref').text().trim() === '-' || $('#clave-producto-ref').text().trim() === '')) {
                     $('#clave-producto-ref').text(data.clave_medicamento);
-                    window.citaClaveDefault = data.clave_medicamento;
                 }
-                // NO sobrescribir campos que ya tienen valores guardados
+                
+                // Establecer la clave de la cita para usar en los items
+                if (data.clave_medicamento) {
+                    window.citaClaveDefault = data.clave_medicamento;
+                    console.log('[editar_llegada] Clave de cita establecida:', window.citaClaveDefault);
+                }
+                
+                // Si los campos están vacíos, llenarlos con los datos de la cita
+                // Esto corrige el problema cuando la llegada fue creada con datos incompletos en validar_entrada
+                if (data.remision && !$('#id_remision').val()) {
+                    $('#id_remision').val(data.remision);
+                }
+                if (data.orden_suministro && !$('#id_numero_orden_suministro').val()) {
+                    $('#id_numero_orden_suministro').val(data.orden_suministro);
+                }
+                if (data.contrato && !$('#id_numero_contrato').val()) {
+                    $('#id_numero_contrato').val(data.contrato);
+                }
+                if (data.almacen_id && !$('#id_almacen').val()) {
+                    $('#id_almacen').val(data.almacen_id).trigger('change');
+                }
+                if (data.proveedor_id && !$('#id_proveedor').val()) {
+                    $('#id_proveedor').val(data.proveedor_id);
+                }
+                
+                // Actualizar las claves de los items que tienen "DEFAULT"
+                // Esperar un poco más para asegurar que todos los elementos del DOM estén listos
+                setTimeout(function() {
+                    console.log('[editar_llegada] Ejecutando fillDefaultFieldValues después de cargar datos de cita');
+                    fillDefaultFieldValues();
+                }, 800);
             }
         });
+    } else {
+        // Si no hay cita, intentar obtener la clave desde el campo clave-producto-ref
+        var claveRef = $('#clave-producto-ref').text().trim();
+        if (claveRef && claveRef !== '-') {
+            window.citaClaveDefault = claveRef;
+            console.log('[editar_llegada] Clave obtenida del campo ref:', window.citaClaveDefault);
+            setTimeout(function() {
+                fillDefaultFieldValues();
+            }, 500);
+        }
     }
 });
 
+
 function initializeProductSelect2() {
-    $('select[id$="-producto"]').each(function() {
-        if (!$(this).hasClass('select2-hidden-accessible')) {
-            $(this).select2({
+    console.log('[initializeProductSelect2] Iniciando función');
+    
+    // Obtener la clave del producto desde #clave-producto-ref
+    var claveProductoRef = $('#clave-producto-ref').text().trim();
+    if (claveProductoRef === '-' || claveProductoRef === '') {
+        claveProductoRef = null;
+    }
+    
+    console.log('[initializeProductSelect2] Clave de producto (desde #clave-producto-ref):', claveProductoRef);
+    
+    // Buscar el producto por clave CNIS en window.productosData
+    var productoIdPorClave = null;
+    if (claveProductoRef && window.productosData) {
+        $.each(window.productosData, function(id, producto) {
+            if (producto.clave_cnis === claveProductoRef) {
+                productoIdPorClave = id;
+                console.log('[initializeProductSelect2] ✅ Producto encontrado por clave:', productoIdPorClave, producto.descripcion);
+                return false; // break
+            }
+        });
+        if (!productoIdPorClave) {
+            console.warn('[initializeProductSelect2] ⚠️ No se encontró producto con clave:', claveProductoRef);
+        }
+    }
+    
+    var selectsProducto = $('select[id$="-producto"]');
+    var totalSelects = selectsProducto.length;
+    
+    console.log('[initializeProductSelect2] Total selects encontrados:', totalSelects);
+    console.log('[initializeProductSelect2] Producto ID por clave:', productoIdPorClave);
+    
+    selectsProducto.each(function(index) {
+        var $select = $(this);
+        var selectId = $select.attr('id');
+        var $row = $select.closest('tr.item-row.row-principal');
+        var itemId = $row.data('item-id');
+        var productoIdFromData = $row.data('producto-id');
+        
+        console.log('[initializeProductSelect2] Procesando select ' + index + ': ' + selectId);
+        console.log('[initializeProductSelect2] Item ID (desde data):', itemId);
+        console.log('[initializeProductSelect2] Producto ID (desde data):', productoIdFromData);
+        
+        // Leer el valor actual ANTES de inicializar Select2
+        var valorActual = $select.val();
+        var $optionSeleccionada = $select.find('option:selected');
+        var textoSeleccionado = $optionSeleccionada.text();
+        
+        // Estrategia de preselección (en orden de prioridad):
+        // 1. Si el select ya tiene un valor, usarlo
+        // 2. Si hay productoIdFromData (del item existente), usarlo
+        // 3. Si hay productoIdPorClave (de la clave de la cita), usarlo
+        if (!valorActual) {
+            if (productoIdFromData) {
+                console.log('[initializeProductSelect2] Usando productoIdFromData:', productoIdFromData);
+                valorActual = productoIdFromData;
+            } else if (productoIdPorClave) {
+                console.log('[initializeProductSelect2] Usando productoIdPorClave (de clave):', productoIdPorClave);
+                valorActual = productoIdPorClave;
+            }
+            
+            // Si encontramos un valor, establecerlo en el select
+            if (valorActual) {
+                var $optionConProducto = $select.find('option[value="' + valorActual + '"]');
+                if ($optionConProducto.length > 0) {
+                    console.log('[initializeProductSelect2] ✅ Estableciendo valor en select:', valorActual);
+                    $select.val(valorActual);
+                } else {
+                    console.warn('[initializeProductSelect2] ⚠️ Opción con value="' + valorActual + '" NO encontrada en el select');
+                    valorActual = null; // Resetear si no existe la opción
+                }
+            }
+        }
+        
+        if (!valorActual && $optionSeleccionada.length && $optionSeleccionada.val()) {
+            valorActual = $optionSeleccionada.val();
+        }
+        
+        var yaInicializado = $select.hasClass('select2-hidden-accessible');
+        var totalOpciones = $select.find('option').length;
+        
+        console.log('[initializeProductSelect2] Select ' + index + ' - ANTES de procesar:');
+        console.log('  - Valor:', valorActual);
+        console.log('  - Texto seleccionado:', textoSeleccionado);
+        console.log('  - Opciones disponibles:', totalOpciones);
+        console.log('  - Select2 ya inicializado:', yaInicializado);
+        
+        // IMPORTANTE: Configurar eventos ANTES de establecer el valor
+        // Limpiar eventos anteriores para evitar duplicados
+        $select.off('select2:select select2:unselect change');
+        
+        // Evento cuando se selecciona una opción en Select2
+        $select.on('select2:select', function(e) {
+            var $selectElement = $(this);
+            var valorSeleccionado = $selectElement.val();
+            var textoSeleccionado = $selectElement.find('option:selected').text();
+            
+            console.log('[EVENTO] select2:select disparado para:', $selectElement.attr('id'));
+            console.log('[EVENTO] Valor seleccionado:', valorSeleccionado);
+            console.log('[EVENTO] Texto seleccionado:', textoSeleccionado);
+            
+            // Forzar actualización visual del Select2
+            // Select2 debería actualizarse automáticamente, pero forzamos para asegurar
+            $selectElement.trigger('change.select2');
+            
+            // Verificar que el display se actualizó correctamente
+            setTimeout(function() {
+                var displayText = $selectElement.next('.select2-container').find('.select2-selection__rendered').text();
+                console.log('[EVENTO] Display después de select:', displayText);
+                
+                // Si el display no coincide con el texto seleccionado, forzar actualización
+                if (displayText !== textoSeleccionado && textoSeleccionado) {
+                    console.warn('[EVENTO] ⚠️ Display no coincide, forzando actualización');
+                    $selectElement.val(valorSeleccionado).trigger('change.select2');
+                }
+            }, 100);
+            
+            // Calcular IVA
+            calcularIVADelProducto($selectElement);
+        });
+        
+        // Evento cuando cambia el valor (también funciona con cambios programáticos)
+        $select.on('change', function(e) {
+            var $selectElement = $(this);
+            var valor = $selectElement.val();
+            
+            console.log('[EVENTO] change disparado para:', $selectElement.attr('id'), 'Valor:', valor);
+            
+            if (valor && valor !== '' && valor !== null) {
+                var textoSeleccionado = $selectElement.find('option:selected').text();
+                console.log('[EVENTO] Texto de la opción seleccionada:', textoSeleccionado);
+                
+                // Forzar actualización visual del Select2
+                $selectElement.trigger('change.select2');
+                
+                // Verificar que el display se actualizó correctamente
+                setTimeout(function() {
+                    var displayText = $selectElement.next('.select2-container').find('.select2-selection__rendered').text();
+                    console.log('[EVENTO] Display después de change:', displayText);
+                    
+                    // Si el display no coincide con el texto seleccionado, forzar actualización
+                    if (displayText !== textoSeleccionado && textoSeleccionado) {
+                        console.warn('[EVENTO] ⚠️ Display no coincide en change, forzando actualización');
+                        $selectElement.val(valor).trigger('change.select2');
+                    }
+                }, 100);
+                
+                console.log('[EVENTO] Llamando a calcularIVADelProducto desde evento change');
+                // Calcular IVA
+                calcularIVADelProducto($selectElement);
+            } else {
+                console.log('[EVENTO] No hay valor, no se calcula IVA');
+            }
+        });
+        
+        // Evento cuando se deselecciona
+        $select.on('select2:unselect', function(e) {
+            console.log('[EVENTO] select2:unselect disparado para:', $select.attr('id'));
+            var $ivaInput = $('input[name="items-' + formIndex + '-porcentaje_iva"]');
+            if ($ivaInput.length) {
+                $ivaInput.val('0');
+            }
+        });
+        
+        // Si Select2 ya está inicializado (por base.html), destruirlo y reinicializarlo
+        // para asegurar que funcione correctamente con nuestros eventos
+        if (yaInicializado) {
+            console.log('[initializeProductSelect2] Select2 ya inicializado por base.html, destruyendo y reinicializando');
+            
+            // Destruir Select2 existente
+            try {
+                $select.select2('destroy');
+            } catch(e) {
+                console.warn('[initializeProductSelect2] Error al destruir Select2:', e);
+            }
+            
+            // Reinicializar Select2 con nuestra configuración
+            $select.select2({
                 dropdownParent: $('body'),
                 width: '100%',
-                placeholder: 'Selecciona un producto...'
+                placeholder: 'Selecciona un producto...',
+                allowClear: true,
+                language: {
+                    noResults: function() {
+                        return "No se encontraron resultados";
+                    }
+                }
             });
+            
+            // Establecer el valor después de reinicializar
+            if (valorActual) {
+                var $option = $select.find('option[value="' + valorActual + '"]');
+                if ($option.length > 0) {
+                    console.log('[initializeProductSelect2] Estableciendo valor después de reinicializar');
+                    $select.val(valorActual).trigger('change.select2');
+                    // Disparar evento change para que se ejecute calcularIVADelProducto
+                    setTimeout(function() {
+                        console.log('[initializeProductSelect2] Disparando evento change después de establecer valor');
+                        $select.trigger('change');
+                    }, 300);
+                } else {
+                    console.warn('[initializeProductSelect2] La opción con valor', valorActual, 'no existe');
+                }
+            }
+        } else {
+            // Inicializar Select2 si no está inicializado
+            console.log('[initializeProductSelect2] Inicializando Select2 para select ' + index);
+            
+            $select.select2({
+                dropdownParent: $('body'),
+                width: '100%',
+                placeholder: 'Selecciona un producto...',
+                allowClear: true, // Permitir limpiar la selección
+                language: {
+                    noResults: function() {
+                        return "No se encontraron resultados";
+                    }
+                }
+            });
+            
+            // Si hay un valor, asegurarnos de que Select2 lo muestre correctamente
+            if (valorActual) {
+                var $option = $select.find('option[value="' + valorActual + '"]');
+                if ($option.length > 0) {
+                    console.log('[initializeProductSelect2] Estableciendo valor después de inicializar');
+                    $select.val(valorActual).trigger('change.select2');
+                    // Disparar evento change para que se ejecute calcularIVADelProducto
+                    // El evento change ya está configurado arriba, así que solo necesitamos dispararlo
+                    setTimeout(function() {
+                        console.log('[initializeProductSelect2] Disparando evento change después de inicializar Select2');
+                        $select.trigger('change');
+                    }, 300);
+                } else {
+                    console.warn('[initializeProductSelect2] La opción con valor', valorActual, 'no existe');
+                }
+            }
         }
-        $(this).on('select2:select', function() {
-            calcularIVADelProducto($(this));
-        });
-        $(this).on('change', function() {
-            calcularIVADelProducto($(this));
-        });
+        
+        // Verificar el estado final y calcular IVA si hay un valor
+        setTimeout(function() {
+            var valorFinal = $select.val();
+            var displayFinal = $select.next('.select2-container').find('.select2-selection__rendered').text();
+            var textoOpcion = $select.find('option:selected').text();
+            
+            console.log('[initializeProductSelect2] Select ' + index + ' - ESTADO FINAL:');
+            console.log('  - Valor:', valorFinal);
+            console.log('  - Texto opción:', textoOpcion);
+            console.log('  - Display:', displayFinal);
+            
+            if (valorFinal && (displayFinal === '-- Selecciona un producto --' || displayFinal === '' || displayFinal.trim() === '')) {
+                console.error('[initializeProductSelect2] ⚠️ PROBLEMA: Display no muestra el valor correctamente');
+                // Intentar método alternativo
+                $select.val(valorFinal).trigger('change.select2');
+            }
+            
+            // Si hay un valor final, asegurar que el IVA esté calculado
+            if (valorFinal) {
+                console.log('[initializeProductSelect2] Disparando evento change en verificación final');
+                // Disparar el evento change que ya tiene el handler configurado
+                $select.trigger('change');
+            } else {
+                console.log('[initializeProductSelect2] No hay valor final, no se calcula IVA');
+            }
+        }, 500);
     });
+    
+    console.log('[initializeProductSelect2] Función completada');
 }
 
 function calcularIVADelProducto($selectProducto) {
+    var selectId = $selectProducto.attr('id');
     var productoId = $selectProducto.val();
-    var filaActual = $selectProducto.closest('tr');
-    var formIndex = filaActual.data('form-index');
-    var $ivaInput = $('input[name="items-' + formIndex + '-porcentaje_iva"]');
     
-    if (!$ivaInput.length) {
-        console.warn('No se encontró el campo porcentaje_iva para formIndex:', formIndex);
+    console.log('[calcularIVADelProducto] ========== INICIANDO ==========');
+    console.log('[calcularIVADelProducto] Select ID:', selectId);
+    console.log('[calcularIVADelProducto] Producto ID:', productoId);
+    
+    if (!productoId || productoId === '' || productoId === null) {
+        console.warn('[calcularIVADelProducto] ⚠️ No hay producto ID, no se puede calcular IVA');
         return;
     }
     
+    var filaActual = $selectProducto.closest('tr.row-principal');
+    var formIndex = filaActual.data('form-index');
+    console.log('[calcularIVADelProducto] Form index:', formIndex);
+    
+    // Buscar el campo IVA de múltiples formas para asegurar que lo encontramos
+    var $ivaInput = $('input[name="items-' + formIndex + '-porcentaje_iva"]');
+    if (!$ivaInput.length) {
+        // Intentar buscar por ID
+        $ivaInput = $('#id_items-' + formIndex + '-porcentaje_iva');
+    }
+    if (!$ivaInput.length) {
+        // Intentar buscar en la fila de precios
+        var $rowPrecios = $('tr.row-precios[data-form-index="' + formIndex + '"]');
+        $ivaInput = $rowPrecios.find('input[name$="-porcentaje_iva"]');
+    }
+    if (!$ivaInput.length) {
+        // Intentar buscar por clase
+        var $rowPrecios = $('tr.row-precios[data-form-index="' + formIndex + '"]');
+        $ivaInput = $rowPrecios.find('.porcentaje-iva');
+    }
+    
+    var $claveInput = filaActual.find('input[name$="-clave"]');
+    
+    console.log('[calcularIVADelProducto] Campo IVA encontrado:', $ivaInput.length > 0);
+    if ($ivaInput.length > 0) {
+        console.log('[calcularIVADelProducto] Campo IVA ID:', $ivaInput.attr('id'));
+        console.log('[calcularIVADelProducto] Campo IVA name:', $ivaInput.attr('name'));
+        console.log('[calcularIVADelProducto] Campo IVA valor actual:', $ivaInput.val());
+    } else {
+        console.error('[calcularIVADelProducto] ❌ No se encontró el campo porcentaje_iva');
+        console.error('[calcularIVADelProducto] Buscando todos los campos IVA disponibles...');
+        $('input[name$="-porcentaje_iva"]').each(function() {
+            console.log('[calcularIVADelProducto] Campo IVA encontrado:', $(this).attr('id'), $(this).attr('name'), 'form-index:', $(this).closest('tr').data('form-index'));
+        });
+        return;
+    }
+    
+    console.log('[calcularIVADelProducto] Campo clave encontrado:', $claveInput.length > 0);
+    
+    var clave = '';
+    var ivaProducto = null;
+    
     // Usar el IVA del producto desde los datos cargados
     if (window.productosData && window.productosData[productoId]) {
-        var ivaProducto = window.productosData[productoId].iva;
-        // El IVA viene como porcentaje (0-100), asegurar que esté en formato correcto
-        if (ivaProducto > 1) {
-            ivaProducto = ivaProducto / 100;
+        var productoData = window.productosData[productoId];
+        ivaProducto = productoData.iva;
+        clave = productoData.clave_cnis || '';
+        
+        console.log('[calcularIVADelProducto] Datos del producto encontrados:');
+        console.log('[calcularIVADelProducto] - IVA del producto:', ivaProducto);
+        console.log('[calcularIVADelProducto] - Clave CNIS:', clave);
+        
+        // Actualizar el campo clave con la clave del producto
+        if ($claveInput.length && clave) {
+            // Solo actualizar si está vacío, es DEFAULT, o no tiene valor válido
+            var claveActual = $claveInput.val();
+            if (!claveActual || claveActual === '' || claveActual === 'DEFAULT' || claveActual.toUpperCase() === 'DEFAULT') {
+                $claveInput.val(clave);
+                console.log('[calcularIVADelProducto] Clave actualizada con clave del producto:', clave);
+            }
         }
-        $ivaInput.val((ivaProducto * 100).toFixed(2)); // Mostrar como porcentaje (0.00 o 16.00)
+        
+        // IMPORTANTE: Calcular IVA basado en la CLAVE, no en el IVA del producto
+        // Regla: Claves que inician con 010, 020, 030, 040 tienen IVA 0%
+        // Todas las demás tienen IVA 16%
+        var ivaCalculado = 16; // Por defecto 16%
+        if (clave && (clave.startsWith('010') || clave.startsWith('020') || clave.startsWith('030') || clave.startsWith('040'))) {
+            ivaCalculado = 0;
+        }
+        
+        console.log('[calcularIVADelProducto] ========== CALCULANDO IVA POR CLAVE ==========');
+        console.log('[calcularIVADelProducto] Clave:', clave);
+        console.log('[calcularIVADelProducto] IVA calculado por clave:', ivaCalculado, '%');
+        console.log('[calcularIVADelProducto] (IVA del producto ignorado, se usa lógica de clave)');
+        console.log('[calcularIVADelProducto] Valor ANTES de establecer:', $ivaInput.val());
+        console.log('[calcularIVADelProducto] Campo IVA readonly:', $ivaInput.prop('readonly'));
+        
+        // Remover readonly temporalmente para poder establecer el valor
+        var eraReadonly = $ivaInput.prop('readonly');
+        if (eraReadonly) {
+            $ivaInput.prop('readonly', false);
+        }
+        
+        // Establecer el valor
+        $ivaInput.val(ivaCalculado);
+        
+        // Restaurar readonly si estaba activo
+        if (eraReadonly) {
+            $ivaInput.prop('readonly', true);
+        }
+        
+        // Forzar actualización visual del campo usando múltiples métodos
+        $ivaInput.trigger('change');
+        $ivaInput.trigger('input');
+        $ivaInput.trigger('blur');
+        
+        // También actualizar el atributo value directamente
+        $ivaInput.attr('value', ivaCalculado);
+        
+        // Verificar que se estableció correctamente
+        setTimeout(function() {
+            var valorDespues = $ivaInput.val();
+            var valorAttr = $ivaInput.attr('value');
+            console.log('[calcularIVADelProducto] Valor DESPUÉS de establecer:');
+            console.log('[calcularIVADelProducto] - .val():', valorDespues);
+            console.log('[calcularIVADelProducto] - attr("value"):', valorAttr);
+            
+            if (valorDespues != ivaCalculado && valorAttr != ivaCalculado) {
+                console.error('[calcularIVADelProducto] ⚠️ PROBLEMA: El valor no se estableció correctamente');
+                console.error('[calcularIVADelProducto] Esperado:', ivaCalculado, 'Obtenido .val():', valorDespues, 'attr("value"):', valorAttr);
+                
+                // Intentar establecer nuevamente con método más directo
+                $ivaInput.prop('readonly', false);
+                $ivaInput[0].value = ivaCalculado;
+                $ivaInput.prop('readonly', true);
+                $ivaInput.trigger('change');
+                
+                setTimeout(function() {
+                    var valorFinal = $ivaInput.val();
+                    console.log('[calcularIVADelProducto] Valor después de método directo:', valorFinal);
+                }, 50);
+            } else {
+                console.log('[calcularIVADelProducto] ✅ IVA establecido correctamente:', ivaCalculado, '% en campo:', $ivaInput.attr('id'));
+            }
+        }, 100);
     } else {
         // Fallback: usar la logica de clave si no tenemos los datos
         // Regla: Claves que inician con 010, 020, 030, 040 tienen IVA 0%
         // Todas las demás tienen IVA 16%
         var selectedText = $selectProducto.find('option:selected').text();
-        var clave = extraerClaveDelProducto(selectedText);
+        clave = extraerClaveDelProducto(selectedText);
         
         // Si no hay clave en el texto, intentar obtenerla del campo clave
-        if (!clave) {
-            var $claveInput = filaActual.find('input[name$="-clave"]');
-            if ($claveInput.length && $claveInput.val() && $claveInput.val() !== 'DEFAULT') {
-                clave = $claveInput.val();
+        if (!clave && $claveInput.length && $claveInput.val() && $claveInput.val() !== 'DEFAULT') {
+            clave = $claveInput.val();
+        }
+        
+        // Si aún no hay clave, usar la clave de la cita
+        if (!clave && window.citaClaveDefault) {
+            clave = window.citaClaveDefault;
+            // Actualizar el campo clave
+            if ($claveInput.length) {
+                $claveInput.val(clave);
+                console.log('[calcularIVADelProducto] Clave actualizada con clave de cita:', clave);
             }
         }
         
+        var ivaCalculado = 16; // Por defecto 16%
         if (clave && (clave.startsWith('010') || clave.startsWith('020') || clave.startsWith('030') || clave.startsWith('040'))) {
-            $ivaInput.val('0.00');
-        } else {
-            $ivaInput.val('16.00');
+            ivaCalculado = 0;
         }
+        
+        console.log('[calcularIVADelProducto] ========== CALCULANDO IVA POR CLAVE ==========');
+        console.log('[calcularIVADelProducto] Clave:', clave);
+        console.log('[calcularIVADelProducto] IVA calculado por clave:', ivaCalculado, '%');
+        console.log('[calcularIVADelProducto] Valor ANTES de establecer:', $ivaInput.val());
+        console.log('[calcularIVADelProducto] Campo IVA readonly:', $ivaInput.prop('readonly'));
+        
+        // Remover readonly temporalmente para poder establecer el valor
+        var eraReadonly = $ivaInput.prop('readonly');
+        if (eraReadonly) {
+            $ivaInput.prop('readonly', false);
+        }
+        
+        // Establecer el valor
+        $ivaInput.val(ivaCalculado);
+        
+        // Restaurar readonly si estaba activo
+        if (eraReadonly) {
+            $ivaInput.prop('readonly', true);
+        }
+        
+        // Forzar actualización visual del campo usando múltiples métodos
+        $ivaInput.trigger('change');
+        $ivaInput.trigger('input');
+        $ivaInput.trigger('blur');
+        
+        // También actualizar el atributo value directamente
+        $ivaInput.attr('value', ivaCalculado);
+        
+        // Verificar que se estableció correctamente
+        setTimeout(function() {
+            var valorDespues = $ivaInput.val();
+            var valorAttr = $ivaInput.attr('value');
+            console.log('[calcularIVADelProducto] Valor DESPUÉS de establecer:');
+            console.log('[calcularIVADelProducto] - .val():', valorDespues);
+            console.log('[calcularIVADelProducto] - attr("value"):', valorAttr);
+            
+            if (valorDespues != ivaCalculado && valorAttr != ivaCalculado) {
+                console.error('[calcularIVADelProducto] ⚠️ PROBLEMA: El valor no se estableció correctamente');
+                console.error('[calcularIVADelProducto] Esperado:', ivaCalculado, 'Obtenido .val():', valorDespues, 'attr("value"):', valorAttr);
+                
+                // Intentar establecer nuevamente con método más directo
+                $ivaInput.prop('readonly', false);
+                $ivaInput[0].value = ivaCalculado;
+                $ivaInput.prop('readonly', true);
+                $ivaInput.trigger('change');
+                
+                setTimeout(function() {
+                    var valorFinal = $ivaInput.val();
+                    console.log('[calcularIVADelProducto] Valor después de método directo:', valorFinal);
+                }, 50);
+            } else {
+                console.log('[calcularIVADelProducto] ✅ IVA establecido correctamente:', ivaCalculado, '% en campo:', $ivaInput.attr('id'));
+            }
+        }, 100);
     }
     
     // Asegurar que el campo tenga un valor (nunca esté vacío)
     if (!$ivaInput.val() || $ivaInput.val() === '') {
-        $ivaInput.val('0.00'); // Valor por defecto seguro
+        $ivaInput.val('0'); // Valor por defecto seguro
+        $ivaInput.trigger('change');
     }
+    
+    // Verificar que el valor se estableció correctamente
+    setTimeout(function() {
+        var valorFinalIVA = $ivaInput.val();
+        console.log('[calcularIVADelProducto] ========== FINALIZANDO ==========');
+        console.log('[calcularIVADelProducto] Valor final del IVA en el campo:', valorFinalIVA, 'Campo ID:', $ivaInput.attr('id'));
+        console.log('[calcularIVADelProducto] Campo IVA visible:', $ivaInput.is(':visible'));
+        console.log('[calcularIVADelProducto] Campo IVA disabled:', $ivaInput.is(':disabled'));
+        console.log('[calcularIVADelProducto] Campo IVA readonly:', $ivaInput.prop('readonly'));
+    }, 200);
     
     // Agregar eventos para calcular precios
     var $precioUnitario = $('input[name="items-' + formIndex + '-precio_unitario_sin_iva"]');
@@ -723,16 +1306,17 @@ function addItemRow() {
     var formCount = $('#id_items-TOTAL_FORMS').val();
     var newFormIndex = parseInt(formCount);
     
-    // FILA 1: Datos del Lote
+    // FILA 1: Datos del Lote (orden: Producto, Lote, F. Caduc., F. de Fabricación, Marca, Fabricante, Recibida)
     var newRow1 = $('<tr class="item-row row-principal" data-form-index="' + newFormIndex + '">' +
         '<td><small class="text-muted d-block mb-1">Producto</small><select id="id_items-' + newFormIndex + '-producto" name="items-' + newFormIndex + '-producto" class="form-control select2-single" data-placeholder="-- Selecciona un producto --"></select></td>' +
         '<td><small class="text-muted d-block mb-1">Lote</small><input type="text" id="id_items-' + newFormIndex + '-numero_lote" name="items-' + newFormIndex + '-numero_lote" class="form-control numero-lote"></td>' +
+        '<td><small class="text-muted d-block mb-1">F. Caduc.</small><input type="date" id="id_items-' + newFormIndex + '-fecha_caducidad" name="items-' + newFormIndex + '-fecha_caducidad" class="form-control"></td>' +
+        '<td><small class="text-muted d-block mb-1">F. de Fabricación</small><input type="date" id="id_items-' + newFormIndex + '-fecha_elaboracion" name="items-' + newFormIndex + '-fecha_elaboracion" class="form-control"></td>' +
         '<td><small class="text-muted d-block mb-1">Marca</small><input type="text" id="id_items-' + newFormIndex + '-marca" name="items-' + newFormIndex + '-marca" class="form-control"></td>' +
         '<td><small class="text-muted d-block mb-1">Fabricante</small><input type="text" id="id_items-' + newFormIndex + '-fabricante" name="items-' + newFormIndex + '-fabricante" class="form-control"></td>' +
-        '<td><small class="text-muted d-block mb-1">F. de Fabricación</small><input type="date" id="id_items-' + newFormIndex + '-fecha_elaboracion" name="items-' + newFormIndex + '-fecha_elaboracion" class="form-control"></td>' +
-        '<td><small class="text-muted d-block mb-1">F. Caduc.</small><input type="date" id="id_items-' + newFormIndex + '-fecha_caducidad" name="items-' + newFormIndex + '-fecha_caducidad" class="form-control"></td>' +
-        '<td style="display: none;"><small class="text-muted d-block mb-1">Emitida</small><input type="number" id="id_items-' + newFormIndex + '-cantidad_emitida" name="items-' + newFormIndex + '-cantidad_emitida" class="form-control cantidad-emitida"></td>' +
         '<td><small class="text-muted d-block mb-1">Recibida</small><input type="number" id="id_items-' + newFormIndex + '-cantidad_recibida" name="items-' + newFormIndex + '-cantidad_recibida" class="form-control cantidad-recibida"></td>' +
+        '<td style="display: none;"><input type="text" id="id_items-' + newFormIndex + '-clave" name="items-' + newFormIndex + '-clave" class="form-control"></td>' +
+        '<td style="display: none;"><small class="text-muted d-block mb-1">Emitida</small><input type="number" id="id_items-' + newFormIndex + '-cantidad_emitida" name="items-' + newFormIndex + '-cantidad_emitida" class="form-control cantidad-emitida"></td>' +
         '<td style="display: none;"><small class="text-muted d-block mb-1">Piezas/Lote</small><input type="number" id="id_items-' + newFormIndex + '-piezas_por_lote" name="items-' + newFormIndex + '-piezas_por_lote" class="form-control piezas-por-lote" min="1" value="1"></td>' +
         '<td><button type="button" class="btn-remove-item" onclick="removeRow(this)">Eliminar</button></td>' +
         '</tr>');
@@ -803,6 +1387,24 @@ function addItemRow() {
                 });
                 if (productoEncontrado) {
                     newSelect.val(productoEncontrado).trigger('change');
+                } else {
+                    // Si no se encuentra el producto, al menos establecer la clave en el campo
+                    var formIndex = newRow1.data('form-index');
+                    var $claveField = newRow1.find('input[name="items-' + formIndex + '-clave"]');
+                    if ($claveField.length && window.citaClaveDefault) {
+                        $claveField.val(window.citaClaveDefault);
+                        console.log('[addItemRow] Clave establecida en nuevo item:', window.citaClaveDefault);
+                    }
+                }
+                
+                // Establecer la clave si está disponible
+                if (window.citaClaveDefault) {
+                    var formIndex = newRow1.data('form-index');
+                    var $claveField = newRow1.find('input[name="items-' + formIndex + '-clave"]');
+                    if ($claveField.length && !$claveField.val()) {
+                        $claveField.val(window.citaClaveDefault);
+                        console.log('[addItemRow] Clave establecida desde cita:', window.citaClaveDefault);
+                    }
                 }
             }
         },
@@ -819,15 +1421,50 @@ function addItemRow() {
 }
 
 function fillDefaultFieldValues() {
+    // Obtener la clave de la cita si está disponible
+    var claveCita = window.citaClaveDefault || $('#clave-producto-ref').text().trim();
+    if (claveCita === '-' || claveCita === '') {
+        claveCita = null;
+    }
+    
+    console.log('[fillDefaultFieldValues] Iniciando. Clave de cita disponible:', claveCita);
+    console.log('[fillDefaultFieldValues] Total items encontrados:', $('#items-tbody tr.row-principal').length);
+    
     // Llenar campos por defecto para todos los items
     $('#items-tbody tr.row-principal').each(function() {
         var $row = $(this);
         var formIndex = $row.data('form-index');
         
-        // Llenar clave con valor por defecto si está vacío
+        // Llenar clave con la clave de la cita si está vacío o es DEFAULT
         var $claveField = $row.find('input[name="items-' + formIndex + '-clave"]');
-        if ($claveField.length && !$claveField.val()) {
-            $claveField.val('DEFAULT');
+        if ($claveField.length) {
+            var claveActual = $claveField.val();
+            // Si está vacío, es DEFAULT, o no tiene valor válido, usar la clave de la cita
+            if (!claveActual || claveActual === '' || claveActual === 'DEFAULT' || claveActual.toUpperCase() === 'DEFAULT') {
+                if (claveCita) {
+                    $claveField.val(claveCita);
+                    console.log('[fillDefaultFieldValues] Item ' + formIndex + ': Clave actualizada con clave de cita:', claveCita, '(era:', claveActual + ')');
+                } else {
+                    // Si no hay clave de cita, intentar obtenerla del producto seleccionado
+                    var $productoSelect = $row.find('select[name="items-' + formIndex + '-producto"]');
+                    if ($productoSelect.length && $productoSelect.val()) {
+                        var productoId = $productoSelect.val();
+                        if (window.productosData && window.productosData[productoId]) {
+                            var claveProducto = window.productosData[productoId].clave_cnis;
+                            if (claveProducto) {
+                                $claveField.val(claveProducto);
+                                console.log('[fillDefaultFieldValues] Item ' + formIndex + ': Clave actualizada con clave del producto:', claveProducto);
+                            }
+                        }
+                    } else {
+                        console.log('[fillDefaultFieldValues] Item ' + formIndex + ': No se pudo actualizar clave (sin cita ni producto)');
+                    }
+                }
+            } else {
+                console.log('[fillDefaultFieldValues] Item ' + formIndex + ': Clave ya tiene valor válido:', claveActual);
+            }
+        } else {
+            console.warn('[fillDefaultFieldValues] Item ' + formIndex + ': No se encontró el campo clave');
         }
         
         // Llenar cantidad_emitida con la cantidad_recibida si está vacío
@@ -838,6 +1475,8 @@ function fillDefaultFieldValues() {
             $cantidadEmitidaField.val(cantidadRecibida);
         }
     });
+    
+    console.log('[fillDefaultFieldValues] Finalizado');
 }
 
 function removeRow(btn) {
@@ -876,9 +1515,9 @@ function addFieldValidation(row1, row2) {
         var ivaField = row2Actual.find('.porcentaje-iva');
         
         if (clave && (clave.startsWith('010') || clave.startsWith('020') || clave.startsWith('030') || clave.startsWith('040'))) {
-            ivaField.val('0.00');
+            ivaField.val('0');
         } else {
-            ivaField.val('16.00');
+            ivaField.val('16');
         }
         
         calculatePrices(row1, row2);

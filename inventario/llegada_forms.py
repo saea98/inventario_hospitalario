@@ -24,20 +24,116 @@ class LlegadaProveedorForm(forms.ModelForm):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
+        import logging
+        logger = logging.getLogger(__name__)
+        
         from django.apps import apps
         from django.db.models import Q
         CitaProveedor = apps.get_model('inventario', 'CitaProveedor')
         
-        queryset = CitaProveedor.objects.filter(estado='autorizada').select_related('proveedor')
+        # Filtrar citas autorizadas, sin restricción de fecha
+        # No importa si la fecha es del pasado, presente o futuro
+        # NO usar select_related aquí porque puede causar problemas con el filtro de llegada_proveedor
+        queryset = CitaProveedor.objects.filter(estado='autorizada')
         
         if self.instance and self.instance.pk:
+            # Si estamos editando, permitir la cita actual o citas sin llegada
             queryset = queryset.filter(
                 Q(llegada_proveedor__isnull=True) | Q(llegada_proveedor=self.instance)
             )
         else:
-            queryset = queryset.exclude(llegada_proveedor__isnull=False)
+            # Si estamos creando, permitir citas sin llegada_proveedor O con llegada_proveedor en estado EN_RECEPCION
+            # ESTRATEGIA: Obtener todas las citas autorizadas y luego filtrar manualmente
+            # para evitar problemas con JOINs en relaciones OneToOne
+            LlegadaProveedor = apps.get_model('inventario', 'LlegadaProveedor')
+            
+            # Obtener TODAS las citas autorizadas primero
+            todas_las_citas_autorizadas = list(CitaProveedor.objects.filter(estado='autorizada'))
+            logger.info(f"[DEBUG FORM] Total citas autorizadas: {len(todas_las_citas_autorizadas)}")
+            
+            # Filtrar manualmente las citas que cumplen con los criterios
+            citas_validas = []
+            for cita in todas_las_citas_autorizadas:
+                tiene_llegada = False
+                estado_llegada = None
+                try:
+                    if hasattr(cita, 'llegada_proveedor') and cita.llegada_proveedor:
+                        tiene_llegada = True
+                        estado_llegada = cita.llegada_proveedor.estado
+                except:
+                    tiene_llegada = False
+                
+                # Incluir solo si: NO tiene llegada
+                # Las que ya tienen llegada (incluso en EN_RECEPCION) deben ser editadas desde la vista de editar llegada
+                if not tiene_llegada:
+                    citas_validas.append(cita.id)
+            
+            logger.info(f"[DEBUG FORM] Citas válidas encontradas: {len(citas_validas)}")
+            logger.info(f"[DEBUG FORM] IDs de citas válidas (primeros 20): {citas_validas[:20]}")
+            
+            # Verificar específicamente las citas 5831 y 5832
+            tiene_5831 = 5831 in citas_validas
+            tiene_5832 = 5832 in citas_validas
+            logger.info(f"[DEBUG FORM] Cita 5831 en válidas: {tiene_5831}, Cita 5832 en válidas: {tiene_5832}")
+            
+            # Crear queryset desde los IDs válidos
+            if citas_validas:
+                queryset = CitaProveedor.objects.filter(id__in=citas_validas)
+            else:
+                # Si no hay citas válidas, usar queryset vacío
+                queryset = CitaProveedor.objects.none()
         
-        self.fields['cita'].queryset = queryset.distinct()
+        # Ordenar por fecha de cita descendente (más recientes primero)
+        queryset = queryset.order_by('-fecha_cita')
+        
+        # Debug: Verificar el queryset antes de asignarlo
+        total_antes = queryset.count()
+        logger.info(f"[DEBUG FORM] Total citas en queryset antes de distinct: {total_antes}")
+        
+        # Verificar específicamente las citas 5831 y 5832
+        tiene_5831 = queryset.filter(id=5831).exists()
+        tiene_5832 = queryset.filter(id=5832).exists()
+        logger.info(f"[DEBUG FORM] Cita 5831 en queryset: {tiene_5831}, Cita 5832 en queryset: {tiene_5832}")
+        
+        # Obtener lista de IDs para verificar
+        ids_en_queryset = list(queryset.values_list('id', flat=True)[:20])
+        logger.info(f"[DEBUG FORM] Primeros 20 IDs en queryset: {ids_en_queryset}")
+        
+        # Forzar la evaluación del queryset para asegurar que todas las opciones estén disponibles
+        # Esto es importante cuando se usa con ModelChoiceField
+        queryset_distinct = queryset.distinct()
+        total_despues = queryset_distinct.count()
+        logger.info(f"[DEBUG FORM] Total citas en queryset después de distinct: {total_despues}")
+        
+        # Verificar nuevamente después de distinct
+        tiene_5831_despues = queryset_distinct.filter(id=5831).exists()
+        tiene_5832_despues = queryset_distinct.filter(id=5832).exists()
+        logger.info(f"[DEBUG FORM] Después de distinct - Cita 5831: {tiene_5831_despues}, Cita 5832: {tiene_5832_despues}")
+        
+        # CRÍTICO: Forzar la evaluación completa del queryset convirtiéndolo a lista
+        # Esto asegura que todas las citas estén disponibles cuando Django renderice el formulario
+        # Obtener todos los objetos del queryset
+        todas_las_citas = list(queryset_distinct)
+        logger.info(f"[DEBUG FORM] Total citas en lista: {len(todas_las_citas)}")
+        logger.info(f"[DEBUG FORM] IDs en lista: {[c.id for c in todas_las_citas[:20]]}")
+        
+        # Verificar si 5831 y 5832 están en la lista
+        ids_en_lista = [c.id for c in todas_las_citas]
+        tiene_5831_lista = 5831 in ids_en_lista
+        tiene_5832_lista = 5832 in ids_en_lista
+        logger.info(f"[DEBUG FORM] En lista - Cita 5831: {tiene_5831_lista}, Cita 5832: {tiene_5832_lista}")
+        
+        # Reconstruir el queryset desde la lista para asegurar que todas las citas estén incluidas
+        # Esto evita problemas con evaluación lazy del queryset
+        from django.db.models import Q as Q_models
+        ids_finales = [c.id for c in todas_las_citas]
+        queryset_final = CitaProveedor.objects.filter(id__in=ids_finales).order_by('-fecha_cita')
+        
+        logger.info(f"[DEBUG FORM] Queryset final count: {queryset_final.count()}")
+        logger.info(f"[DEBUG FORM] Queryset final tiene 5831: {queryset_final.filter(id=5831).exists()}")
+        logger.info(f"[DEBUG FORM] Queryset final tiene 5832: {queryset_final.filter(id=5832).exists()}")
+        
+        self.fields['cita'].queryset = queryset_final
     
     class Meta:
         model = LlegadaProveedor

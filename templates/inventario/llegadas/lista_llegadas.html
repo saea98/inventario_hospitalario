@@ -2,41 +2,138 @@
 
 {% block content %}
 <div class="container-fluid">
-    <h1 class="h3 mb-2 text-gray-800">Llegada de Proveedores</h1>
-    <p class="mb-4">Lista de llegadas de proveedores registradas en el sistema.</p>
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <div>
+            <h1 class="h3 mb-2 text-gray-800">Llegada de Proveedores</h1>
+            <p class="mb-0">Lista de llegadas de proveedores registradas en el sistema.</p>
+        </div>
+        <div>
+            <a href="{% url 'logistica:llegadas:exportar_llegadas_excel' %}?{% if folio %}folio={{ folio }}&{% endif %}{% if proveedor %}proveedor={{ proveedor }}&{% endif %}{% if fecha_llegada %}fecha_llegada={{ fecha_llegada }}&{% endif %}{% if estado %}estado={{ estado }}&{% endif %}{% if orden_suministro %}orden_suministro={{ orden_suministro }}&{% endif %}{% if remision %}remision={{ remision }}{% endif %}" class="btn btn-success btn-lg">
+                <i class="fas fa-file-excel"></i> Exportar Excel
+            </a>
+        </div>
+    </div>
 
+    <!-- Formulario de Búsqueda -->
     <div class="card shadow mb-4">
         <div class="card-header py-3">
-            <a href="{% url 'logistica:llegadas:crear_llegada' %}" class="btn btn-primary btn-icon-split">
-                <span class="icon text-white-50">
-                    <i class="fas fa-plus"></i>
-                </span>
-                <span class="text">Registrar Nueva Llegada</span>
-            </a>
+            <h6 class="m-0 font-weight-bold text-primary">
+                <i class="fas fa-filter"></i> Criterios de Búsqueda
+            </h6>
+        </div>
+        <div class="card-body">
+            <form method="GET" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Folio</label>
+                    <input type="text" name="folio" class="form-control" placeholder="Buscar por folio..." value="{{ folio|default:'' }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Proveedor</label>
+                    <input type="text" name="proveedor" class="form-control" placeholder="Buscar por proveedor..." value="{{ proveedor|default:'' }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Fecha de Llegada</label>
+                    <input type="date" name="fecha_llegada" class="form-control" value="{{ fecha_llegada|default:'' }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Estado</label>
+                    <select name="estado" class="form-control">
+                        <option value="">Todos los estados</option>
+                        {% for code, label in estados_choices %}
+                            <option value="{{ code }}" {% if code == estado %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Orden de Suministro</label>
+                    <input type="text" name="orden_suministro" class="form-control" placeholder="Buscar por orden..." value="{{ orden_suministro|default:'' }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Remisión</label>
+                    <input type="text" name="remision" class="form-control" placeholder="Buscar por remisión..." value="{{ remision|default:'' }}">
+                </div>
+                <div class="col-md-6 d-flex align-items-end gap-2">
+                    <button type="submit" class="btn btn-primary flex-grow-1">
+                        <i class="fas fa-search"></i> Buscar
+                    </button>
+                    <a href="{% url 'logistica:llegadas:lista_llegadas' %}" class="btn btn-secondary">
+                        <i class="fas fa-redo"></i> Limpiar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Información de Paginación -->
+    {% if paginator.num_pages > 1 %}
+    <div class="alert alert-info mb-3">
+        <small>
+            Mostrando página <strong>{{ page_obj.number }}</strong> de <strong>{{ paginator.num_pages }}</strong>
+            ({{ paginator.count }} llegadas en total)
+        </small>
+    </div>
+    {% endif %}
+
+    <!-- Tabla de Llegadas -->
+    <div class="card shadow mb-4">
+        <div class="card-header py-3">
+            <h6 class="m-0 font-weight-bold text-primary">Lista de Llegadas</h6>
         </div>
         <div class="card-body">
             <div class="table-responsive">
-                <table class="table table-bordered" id="dataTable" width="100%" cellspacing="0">
+                <table class="table table-bordered" width="100%" cellspacing="0">
                     <thead>
                         <tr>
                             <th>Folio</th>
                             <th>Proveedor</th>
                             <th>Fecha Llegada</th>
+                            <th>Orden de Suministro</th>
+                            <th>Remisión</th>
                             <th>Estado</th>
                             <th>Acciones</th>
                         </tr>
                     </thead>
                     <tbody>
-                        {% for llegada in llegadas %}
+                        {% for llegada in page_obj %}
                         <tr>
                             <td>{{ llegada.folio }}</td>
                             <td>{{ llegada.proveedor.razon_social|default:"No disponible" }}</td>
-                            <td>{{ llegada.fecha_llegada_real|date:"d/m/Y H:i" }}</td>
+                            <td>
+                                {% if llegada.cita and llegada.cita.fecha_cita %}
+                                    {{ llegada.cita.fecha_cita|date:"d/m/Y H:i" }}
+                                {% else %}
+                                    <span class="text-muted">No disponible</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if llegada.numero_orden_suministro %}
+                                    {{ llegada.numero_orden_suministro }}
+                                {% elif llegada.cita and llegada.cita.numero_orden_suministro %}
+                                    {{ llegada.cita.numero_orden_suministro }}
+                                {% else %}
+                                    <span class="text-muted">No disponible</span>
+                                {% endif %}
+                            </td>
+                            <td>
+                                {% if llegada.remision %}
+                                    {{ llegada.remision }}
+                                {% elif llegada.cita and llegada.cita.numero_orden_remision %}
+                                    {{ llegada.cita.numero_orden_remision }}
+                                {% else %}
+                                    <span class="text-muted">No disponible</span>
+                                {% endif %}
+                            </td>
                             <td><span class="badge badge-info" style="color: black;">{{ llegada.get_estado_display }}</span></td>
                             <td>
-                                <a href="{% url 'logistica:llegadas:detalle_llegada' pk=llegada.pk %}" class="btn btn-info btn-circle btn-sm">
+                                <a href="{% url 'logistica:llegadas:detalle_llegada' pk=llegada.pk %}" class="btn btn-info btn-circle btn-sm" title="Ver detalle">
                                     <i class="fas fa-eye"></i>
                                 </a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr>
+                            <td colspan="7" class="text-center text-muted py-4">
+                                <i class="fas fa-inbox"></i> No se encontraron llegadas con los criterios de búsqueda
                             </td>
                         </tr>
                         {% endfor %}
@@ -44,6 +141,47 @@
                 </table>
             </div>
         </div>
+        
+        <!-- Paginación -->
+        {% if page_obj.has_other_pages %}
+        <div class="card-footer">
+            <nav aria-label="Paginación de llegadas">
+                <ul class="pagination justify-content-center mb-0">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1{% if folio %}&folio={{ folio }}{% endif %}{% if proveedor %}&proveedor={{ proveedor }}{% endif %}{% if fecha_llegada %}&fecha_llegada={{ fecha_llegada }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}{% if orden_suministro %}&orden_suministro={{ orden_suministro }}{% endif %}{% if remision %}&remision={{ remision }}{% endif %}">
+                                <i class="fas fa-angle-double-left"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if folio %}&folio={{ folio }}{% endif %}{% if proveedor %}&proveedor={{ proveedor }}{% endif %}{% if fecha_llegada %}&fecha_llegada={{ fecha_llegada }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}{% if orden_suministro %}&orden_suministro={{ orden_suministro }}{% endif %}{% if remision %}&remision={{ remision }}{% endif %}">
+                                <i class="fas fa-angle-left"></i>
+                            </a>
+                        </li>
+                    {% endif %}
+                    
+                    <li class="page-item active">
+                        <span class="page-link">
+                            Página {{ page_obj.number }} de {{ paginator.num_pages }}
+                        </span>
+                    </li>
+                    
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if folio %}&folio={{ folio }}{% endif %}{% if proveedor %}&proveedor={{ proveedor }}{% endif %}{% if fecha_llegada %}&fecha_llegada={{ fecha_llegada }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}{% if orden_suministro %}&orden_suministro={{ orden_suministro }}{% endif %}{% if remision %}&remision={{ remision }}{% endif %}">
+                                <i class="fas fa-angle-right"></i>
+                            </a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ paginator.num_pages }}{% if folio %}&folio={{ folio }}{% endif %}{% if proveedor %}&proveedor={{ proveedor }}{% endif %}{% if fecha_llegada %}&fecha_llegada={{ fecha_llegada }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}{% if orden_suministro %}&orden_suministro={{ orden_suministro }}{% endif %}{% if remision %}&remision={{ remision }}{% endif %}">
+                                <i class="fas fa-angle-double-right"></i>
+                            </a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

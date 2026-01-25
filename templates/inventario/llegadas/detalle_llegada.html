@@ -16,12 +16,36 @@
                     <p><strong>Folio:</strong> {{ llegada.folio }}</p>
                     <p><strong>Folio de Validación:</strong> {{ llegada.folio_validacion|default:"No disponible" }}</p>
                     <p><strong>Proveedor:</strong> {{ llegada.proveedor.razon_social|default:"No disponible" }}</p>
-                    <p><strong>Remisión:</strong> {{ llegada.remision|default:"No disponible" }}</p>
+                    <p><strong>Remisión:</strong> 
+                        {% if llegada.remision %}
+                            {{ llegada.remision }}
+                        {% elif llegada.cita and llegada.cita.numero_orden_remision %}
+                            {{ llegada.cita.numero_orden_remision }}
+                        {% else %}
+                            No disponible
+                        {% endif %}
+                    </p>
                     <p><strong>Almacén:</strong> {{ llegada.almacen.nombre|default:"No disponible" }}</p>
                 </div>
                 <div class="col-md-6">
-                    <p><strong>Orden de Suministro:</strong> {{ llegada.numero_orden_suministro|default:"No disponible" }}</p>
-                    <p><strong>Contrato:</strong> {{ llegada.numero_contrato|default:"No disponible" }}</p>
+                    <p><strong>Orden de Suministro:</strong> 
+                        {% if llegada.numero_orden_suministro %}
+                            {{ llegada.numero_orden_suministro }}
+                        {% elif llegada.cita and llegada.cita.numero_orden_suministro %}
+                            {{ llegada.cita.numero_orden_suministro }}
+                        {% else %}
+                            No disponible
+                        {% endif %}
+                    </p>
+                    <p><strong>Contrato:</strong> 
+                        {% if llegada.numero_contrato %}
+                            {{ llegada.numero_contrato }}
+                        {% elif llegada.cita and llegada.cita.numero_contrato %}
+                            {{ llegada.cita.numero_contrato }}
+                        {% else %}
+                            No disponible
+                        {% endif %}
+                    </p>
                     <p><strong>Numero de Procedimiento:</strong> {{ llegada.numero_procedimiento|default:"No disponible" }}</p>
                     <p><strong>Fecha Llegada:</strong> {{ llegada.fecha_llegada_real|date:"d/m/Y H:i" }}</p>
                 </div>
@@ -98,10 +122,18 @@
     <div class="d-flex justify-content-end">
         {% if user|has_role:'Entrada' and llegada.puede_editar_recepcion %}
             <a href="{% url 'logistica:llegadas:editar_llegada' pk=llegada.pk %}" class="btn btn-primary mr-2">Editar</a>
-            <form method="post" action="{% url 'logistica:llegadas:aprobar_entrada' pk=llegada.pk %}" style="display:inline;">
-                {% csrf_token %}
-                <button type="submit" class="btn btn-success mr-2" onclick="return confirm('Aprobar esta entrada?')">Aprobar Entrada</button>
-            </form>
+            {% if llegada.items.all %}
+                <form method="post" action="{% url 'logistica:llegadas:aprobar_entrada' pk=llegada.pk %}" style="display:inline;">
+                    {% csrf_token %}
+                    <div class="form-check form-check-inline mr-2">
+                        <input class="form-check-input" type="checkbox" name="solicita_inspeccion_visual" id="solicita_inspeccion_visual" value="1">
+                        <label class="form-check-label" for="solicita_inspeccion_visual">
+                            Solicita inspección visual
+                        </label>
+                    </div>
+                    <button type="submit" class="btn btn-success mr-2" onclick="return confirm('¿Aprobar esta entrada?')">Aprobar Entrada</button>
+                </form>
+            {% endif %}
         {% endif %}
         {% if user|has_role:'Control Calidad' and llegada.puede_validar_calidad %}
             <a href="{% url 'logistica:llegadas:control_calidad' pk=llegada.pk %}" class="btn btn-warning mr-2">Aprobar Inspección Visual</a>
@@ -109,7 +141,7 @@
         {% if user|has_role:'Almacen' and llegada.puede_ubicar %}
             <a href="{% url 'logistica:llegadas:ubicacion' pk=llegada.pk %}" class="btn btn-primary mr-2">Asignar Ubicación</a>
         {% endif %}
-        {% if llegada.estado == 'APROBADA' %}
+        {% if llegada.estado == 'APROBADA' or llegada.estado == 'UBICACION' %}
             <a href="{% url 'logistica:llegadas:imprimir_epa' pk=llegada.pk %}" class="btn btn-info mr-2" target="_blank">Imprimir EPA</a>
         {% endif %}
         <a href="{% url 'logistica:llegadas:lista_llegadas' %}" class="btn btn-secondary">Volver a la Lista</a>

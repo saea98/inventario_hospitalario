@@ -290,16 +290,21 @@ def validar_entrada(request, pk):
                     except LlegadaProveedor.DoesNotExist:
                         # Si no existe la llegada, crearla con los datos básicos
                         # Esto puede suceder si la validación se hace antes de crear la llegada
+                        # IMPORTANTE: Copiar todos los datos relevantes de la cita
                         llegada = LlegadaProveedor.objects.create(
                             cita=cita,
                             proveedor=cita.proveedor,
                             almacen=cita.almacen,
                             folio=cita.folio or '',
-                            remision='',
+                            remision=cita.numero_orden_remision or '',  # Copiar remisión de la cita
                             numero_piezas_emitidas=0,
                             numero_piezas_recibidas=0,
                             tipo_red=tipo_red,
-                            estado='EN_RECEPCION'
+                            estado='EN_RECEPCION',
+                            # Copiar datos de la cita que son relevantes para la llegada
+                            numero_orden_suministro=cita.numero_orden_suministro or '',
+                            numero_contrato=cita.numero_contrato or '',
+                            numero_procedimiento='',  # Este campo no existe en CitaProveedor
                         )
                 
                 ServicioListaRevision.validar_entrada(

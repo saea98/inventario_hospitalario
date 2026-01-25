@@ -205,6 +205,11 @@
                                 {% if form.cita.errors %}
                                     <div class="alert alert-danger mt-2">{{ form.cita.errors }}</div>
                                 {% endif %}
+                                {% if debug_total_citas is not None %}
+                                    <small class="text-muted d-block mt-1">
+                                        [DEBUG] Citas disponibles en queryset: {{ debug_total_citas }}
+                                    </small>
+                                {% endif %}
                             </div>
                         </div>
                         <div class="col-md-6">
@@ -384,11 +389,25 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.1.0-rc.0/js/select2.min.js"></script>
 <script>
 $(document).ready(function() {
+    // Debug: Verificar opciones del select de cita antes de inicializar Select2
+    var $citaSelect = $('#id_cita');
+    var opcionesCita = $citaSelect.find('option');
+    console.log('[DEBUG CLIENTE] Total opciones en select cita:', opcionesCita.length);
+    opcionesCita.each(function(index) {
+        if (index < 10) { // Primeras 10 opciones
+            console.log('[DEBUG CLIENTE] Opción', index, '- Value:', $(this).val(), 'Text:', $(this).text());
+        }
+    });
+    
     // Inicializar Select2
     $('#id_cita').select2({
         dropdownParent: $('body'),
         width: '100%'
     });
+    
+    // Debug: Verificar después de inicializar Select2
+    console.log('[DEBUG CLIENTE] Select2 inicializado para #id_cita');
+    console.log('[DEBUG CLIENTE] Opciones después de Select2:', $('#id_cita').find('option').length);
     
     $('#id_almacen').select2({
         dropdownParent: $('body'),
@@ -506,24 +525,57 @@ $(document).ready(function() {
                 type: 'GET',
                 success: function(data) {
                     $('#folio-display').text(data.folio || 'Se genera automáticamente');
-                    if (data.remision) $('#id_remision').val(data.remision);
-                    if (data.orden_suministro) {
+                    
+                    // Cargar datos básicos de la cita
+                    if (data.remision && !$('#id_remision').val()) {
+                        $('#id_remision').val(data.remision);
+                    }
+                    if (data.orden_suministro && !$('#id_numero_orden_suministro').val()) {
                         $('#id_numero_orden_suministro').val(data.orden_suministro);
                     }
-                    if (data.contrato) $('#id_numero_contrato').val(data.contrato);
-                    if (data.almacen_id) $('#id_almacen').val(data.almacen_id).trigger('change');
-                    if (data.proveedor_id) $('#id_proveedor').val(data.proveedor_id);
+                    if (data.contrato && !$('#id_numero_contrato').val()) {
+                        $('#id_numero_contrato').val(data.contrato);
+                    }
+                    if (data.almacen_id && !$('#id_almacen').val()) {
+                        $('#id_almacen').val(data.almacen_id).trigger('change');
+                    }
+                    if (data.proveedor_id && !$('#id_proveedor').val()) {
+                        $('#id_proveedor').val(data.proveedor_id);
+                    }
+                    
+                    // Si existe una llegada previa, cargar sus datos
+                    if (data.llegada_existe) {
+                        console.log('Cargando datos de llegada existente para cita:', citaId);
+                        if (data.tipo_red) {
+                            $('#id_tipo_red').val(data.tipo_red);
+                        }
+                        if (data.numero_piezas_emitidas) {
+                            $('#id_numero_piezas_emitidas').val(data.numero_piezas_emitidas);
+                        }
+                        if (data.numero_piezas_recibidas) {
+                            $('#id_numero_piezas_recibidas').val(data.numero_piezas_recibidas);
+                        }
+                        if (data.numero_procedimiento) {
+                            $('#id_numero_procedimiento').val(data.numero_procedimiento);
+                        }
+                        if (data.observaciones_recepcion) {
+                            $('#id_observaciones_recepcion').val(data.observaciones_recepcion);
+                        }
+                    }
+                    
                     if (data.clave_medicamento) {
                         $('#clave-producto-ref').text(data.clave_medicamento);
                         window.citaClaveDefault = data.clave_medicamento;
-                        // Pre-seleccionar producto con esta clave en todos los selects
+                        // Pre-seleccionar producto con esta clave en todos los selects (solo si no tienen valor)
                         $('select[id$="-producto"]').each(function() {
                             var $select = $(this);
-                            var $option = $select.find('option').filter(function() {
-                                return $(this).text().includes(data.clave_medicamento);
-                            }).first();
-                            if ($option.length) {
-                                $select.val($option.val()).trigger('change');
+                            if (!$select.val()) {  // Solo si el select no tiene valor seleccionado
+                                var $option = $select.find('option').filter(function() {
+                                    return $(this).text().includes(data.clave_medicamento);
+                                }).first();
+                                if ($option.length) {
+                                    $select.val($option.val()).trigger('change');
+                                }
                             }
                         });
                     }
