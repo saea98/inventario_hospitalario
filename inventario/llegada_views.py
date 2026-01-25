@@ -263,8 +263,14 @@ class UbicacionView(LoginRequiredMixin, PermissionRequiredMixin, View):
         # Preparar datos para el template
         items_with_ubicaciones = []
         for idx, item in enumerate(items):
+            # Verificar de forma segura si existe producto
+            try:
+                producto = item.producto if hasattr(item, 'producto_id') and item.producto_id else None
+            except Exception:
+                producto = None
+            
             items_with_ubicaciones.append({
-                'producto': item.producto,
+                'producto': producto,
                 'lote': item.lote_creado,
                 'cantidad_recibida': item.cantidad_recibida,
                 'index': idx
@@ -287,10 +293,16 @@ class UbicacionView(LoginRequiredMixin, PermissionRequiredMixin, View):
         try:
             with transaction.atomic():
                 for i, item in enumerate(items):
+                    # Verificar que el item tenga producto
+                    try:
+                        producto_desc = item.producto.descripcion if item.producto else "Item sin producto"
+                    except Exception:
+                        producto_desc = "Item sin producto"
+                    
                     almacen_id = request.POST.get(f'ubicacion-detalle-{i}-0-almacen')
                     
                     if not almacen_id:
-                        messages.error(request, f"Debe seleccionar un almacén para {item.producto.descripcion}")
+                        messages.error(request, f"Debe seleccionar un almacén para {producto_desc}")
                         return redirect("logistica:llegadas:ubicacion", pk=llegada.pk)
                     
                     almacen = get_object_or_404(Almacen, pk=almacen_id)
@@ -322,7 +334,7 @@ class UbicacionView(LoginRequiredMixin, PermissionRequiredMixin, View):
                     
                     # Validar que hay al menos una ubicación
                     if not ubicacion_data:
-                        messages.error(request, f"Debe asignar al menos una ubicación para {item.producto.descripcion}")
+                        messages.error(request, f"Debe asignar al menos una ubicación para {producto_desc}")
                         return redirect("logistica:llegadas:ubicacion", pk=llegada.pk)
                     
                     # Validar que la suma de cantidades sea igual a la cantidad recibida
@@ -330,7 +342,7 @@ class UbicacionView(LoginRequiredMixin, PermissionRequiredMixin, View):
                     if total_cantidad != item.cantidad_recibida:
                         messages.error(
                             request,
-                            f"Para {item.producto.descripcion}: La suma de cantidades ({total_cantidad}) "
+                            f"Para {producto_desc}: La suma de cantidades ({total_cantidad}) "
                             f"debe ser igual a la cantidad recibida ({item.cantidad_recibida})"
                         )
                         return redirect("logistica:llegadas:ubicacion", pk=llegada.pk)

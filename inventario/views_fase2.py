@@ -278,6 +278,30 @@ def validar_entrada(request, pk):
         if 'aprobar' in request.POST:
             form = ValidarEntradaForm(request.POST)
             if form.is_valid():
+                # Guardar tipo_red si se proporcionó
+                tipo_red = form.cleaned_data.get('tipo_red')
+                if tipo_red:
+                    # Obtener o crear LlegadaProveedor
+                    from .llegada_models import LlegadaProveedor
+                    try:
+                        llegada = LlegadaProveedor.objects.get(cita=cita)
+                        llegada.tipo_red = tipo_red
+                        llegada.save()
+                    except LlegadaProveedor.DoesNotExist:
+                        # Si no existe la llegada, crearla con los datos básicos
+                        # Esto puede suceder si la validación se hace antes de crear la llegada
+                        llegada = LlegadaProveedor.objects.create(
+                            cita=cita,
+                            proveedor=cita.proveedor,
+                            almacen=cita.almacen,
+                            folio=cita.folio or '',
+                            remision='',
+                            numero_piezas_emitidas=0,
+                            numero_piezas_recibidas=0,
+                            tipo_red=tipo_red,
+                            estado='EN_RECEPCION'
+                        )
+                
                 ServicioListaRevision.validar_entrada(
                     lista_revision,
                     request.user,
@@ -297,12 +321,21 @@ def validar_entrada(request, pk):
                 messages.warning(request, '✗ Entrada rechazada. La cita ha sido cancelada.')
                 return redirect('logistica:lista_citas')
     
+    # Preparar contexto con valor inicial de tipo_red si existe
+    form_validar_initial = {}
+    try:
+        llegada = cita.llegada_proveedor
+        if llegada and llegada.tipo_red:
+            form_validar_initial['tipo_red'] = llegada.tipo_red
+    except:
+        pass
+    
     # Preparar contexto
     context = {
         'cita': cita,
         'lista_revision': lista_revision,
         'items': lista_revision.items.all(),
-        'form_validar': ValidarEntradaForm(),
+        'form_validar': ValidarEntradaForm(initial=form_validar_initial),
         'form_rechazar': RechazarEntradaForm(),
     }
     

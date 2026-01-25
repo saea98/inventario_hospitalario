@@ -52,7 +52,15 @@
                     <tbody>
                         {% for item in llegada.items.all %}
                         <tr>
-                            <td>{{ item.clave|default:"No disponible" }}</td>
+                            <td>
+                                {% if item.clave and item.clave != "DEFAULT" and item.clave|upper != "DEFAULT" %}
+                                    {{ item.clave }}
+                                {% elif item.producto.clave_cnis %}
+                                    {{ item.producto.clave_cnis }}
+                                {% else %}
+                                    No disponible
+                                {% endif %}
+                            </td>
                             <td>{{ item.producto.descripcion }}</td>
                             <td>{{ item.numero_lote }}</td>
                             <td>{{ item.fecha_caducidad|date:"d/m/Y" }}</td>

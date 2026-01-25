@@ -1226,6 +1226,18 @@ class ListaRevisionForm(forms.ModelForm):
 
 class ValidarEntradaForm(forms.Form):
     """Formulario para validar entrada (aprobación)"""
+    tipo_red = forms.ChoiceField(
+        label='Tipo de Red',
+        choices=[
+            ('', 'Seleccione...'),
+            ('FRIA', 'Red Fría'),
+            ('SECA', 'Red Seca'),
+        ],
+        required=False,
+        widget=forms.Select(attrs={
+            'class': 'form-control',
+        })
+    )
     observaciones = forms.CharField(
         label='Observaciones Finales',
         required=False,

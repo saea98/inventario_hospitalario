@@ -97,6 +97,64 @@ class ItemLlegadaForm(forms.ModelForm):
         from django.apps import apps
         Producto = apps.get_model('inventario', 'Producto')
         self.fields['producto'].queryset = Producto.objects.all().order_by('descripcion')
+        
+        # Establecer valor inicial de IVA basado en la clave del producto
+        # Verificar de forma segura si existe producto (evitar RelatedObjectDoesNotExist)
+        try:
+            if self.instance and self.instance.pk and hasattr(self.instance, 'producto_id') and self.instance.producto_id:
+                producto = self.instance.producto
+                clave = producto.clave_cnis or '' if producto else ''
+                if any(clave.startswith(prefix) for prefix in ['010', '020', '030', '040']):
+                    self.fields['porcentaje_iva'].initial = 0.00
+                else:
+                    self.fields['porcentaje_iva'].initial = 16.00
+            elif self.initial and 'producto' in self.initial:
+                # Si hay un producto inicial, calcular IVA
+                try:
+                    producto = Producto.objects.get(id=self.initial['producto'])
+                    clave = producto.clave_cnis or ''
+                    if any(clave.startswith(prefix) for prefix in ['010', '020', '030', '040']):
+                        self.fields['porcentaje_iva'].initial = 0.00
+                    else:
+                        self.fields['porcentaje_iva'].initial = 16.00
+                except:
+                    self.fields['porcentaje_iva'].initial = 0.00
+            else:
+                # Valor por defecto
+                self.fields['porcentaje_iva'].initial = 0.00
+        except Exception:
+            # Si hay cualquier error al acceder a producto, usar valor por defecto
+            self.fields['porcentaje_iva'].initial = 0.00
+    
+    def clean_porcentaje_iva(self):
+        """Asegurar que porcentaje_iva siempre tenga un valor"""
+        from decimal import Decimal
+        porcentaje_iva = self.cleaned_data.get('porcentaje_iva')
+        
+        # Si está vacío o es None, calcularlo basado en la clave del producto
+        if porcentaje_iva is None or porcentaje_iva == '':
+            clave = ''
+            # Verificar de forma segura si existe producto (evitar RelatedObjectDoesNotExist)
+            try:
+                if self.instance and self.instance.pk and hasattr(self.instance, 'producto_id') and self.instance.producto_id:
+                    producto = self.instance.producto
+                    clave = producto.clave_cnis or '' if producto else ''
+                elif 'producto' in self.cleaned_data and self.cleaned_data['producto']:
+                    clave = self.cleaned_data['producto'].clave_cnis or ''
+                elif 'clave' in self.cleaned_data:
+                    clave = self.cleaned_data['clave'] or ''
+            except Exception:
+                # Si hay error al acceder a producto, intentar usar clave del cleaned_data
+                if 'clave' in self.cleaned_data:
+                    clave = self.cleaned_data['clave'] or ''
+            
+            # Calcular IVA según la clave
+            if any(clave.startswith(prefix) for prefix in ['010', '020', '030', '040']):
+                return Decimal('0.00')
+            else:
+                return Decimal('16.00')
+        
+        return Decimal(str(porcentaje_iva))
     
     class Meta:
         model = ItemLlegada
@@ -257,23 +315,36 @@ class ItemFacturacionForm(forms.ModelForm):
     
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        if self.instance and self.instance.producto:
-            clave = self.instance.producto.clave_cnis or ''
-            if any(clave.startswith(prefix) for prefix in ['010', '020', '030', '040']):
-                self.fields['porcentaje_iva'].initial = Decimal('0.00')
+        # Verificar de forma segura si existe producto (evitar RelatedObjectDoesNotExist)
+        try:
+            if self.instance and self.instance.pk and hasattr(self.instance, 'producto_id') and self.instance.producto_id:
+                producto = self.instance.producto
+                clave = producto.clave_cnis or '' if producto else ''
+                if any(clave.startswith(prefix) for prefix in ['010', '020', '030', '040']):
+                    self.fields['porcentaje_iva'].initial = Decimal('0.00')
+                else:
+                    self.fields['porcentaje_iva'].initial = Decimal('0.16')
             else:
-                self.fields['porcentaje_iva'].initial = Decimal('0.16')
+                self.fields['porcentaje_iva'].initial = Decimal('0.00')
+        except Exception:
+            # Si hay cualquier error al acceder a producto, usar valor por defecto
+            self.fields['porcentaje_iva'].initial = Decimal('0.00')
     
     def clean_porcentaje_iva(self):
         """
         Sobrescribir el valor del IVA con el que corresponde segun la clave CNIS.
         """
-        if self.instance and self.instance.producto:
-            clave = self.instance.producto.clave_cnis or ''
-            if any(clave.startswith(prefix) for prefix in ['010', '020', '030', '040']):
-                return Decimal('0.00')
-            else:
-                return Decimal('0.16')
+        # Verificar de forma segura si existe producto (evitar RelatedObjectDoesNotExist)
+        try:
+            if self.instance and self.instance.pk and hasattr(self.instance, 'producto_id') and self.instance.producto_id:
+                producto = self.instance.producto
+                clave = producto.clave_cnis or '' if producto else ''
+                if any(clave.startswith(prefix) for prefix in ['010', '020', '030', '040']):
+                    return Decimal('0.00')
+                else:
+                    return Decimal('0.16')
+        except Exception:
+            pass
         return self.cleaned_data.get('porcentaje_iva')
 
 

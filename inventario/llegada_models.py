@@ -284,7 +284,11 @@ class ItemLlegada(models.Model):
         unique_together = [['llegada', 'numero_lote', 'producto']]
     
     def __str__(self):
-        return f"{self.producto.descripcion} - Lote {self.numero_lote}"
+        try:
+            producto_desc = self.producto.descripcion if self.producto else "Sin producto"
+        except Exception:
+            producto_desc = "Sin producto"
+        return f"{producto_desc} - Lote {self.numero_lote}"
     
     def calcular_iva_automatico(self):
         """Calcula el IVA automático según la clave"""

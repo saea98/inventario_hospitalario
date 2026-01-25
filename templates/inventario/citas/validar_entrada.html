@@ -155,10 +155,20 @@
                         <h6 class="mb-0"><i class="fas fa-thumbs-up text-success"></i> Aprobar Entrada</h6>
                     </div>
                     <div class="card-body">
-                        <div class="mb-3">
-                            <label for="observaciones" class="form-label">Observaciones Finales (Opcional)</label>
-                            <textarea class="form-control" id="observaciones" name="observaciones" 
-                                rows="3" placeholder="Agregue observaciones finales si lo considera necesario">{{ form_validar.observaciones.value|default:'' }}</textarea>
+                        <div class="row">
+                            <div class="col-md-6 mb-3">
+                                <label for="tipo_red" class="form-label">Tipo de Red</label>
+                                <select class="form-control" id="tipo_red" name="tipo_red">
+                                    <option value="">Seleccione...</option>
+                                    <option value="FRIA" {% if form_validar.tipo_red.value == 'FRIA' %}selected{% endif %}>Red Fría</option>
+                                    <option value="SECA" {% if form_validar.tipo_red.value == 'SECA' %}selected{% endif %}>Red Seca</option>
+                                </select>
+                            </div>
+                            <div class="col-md-6 mb-3">
+                                <label for="observaciones" class="form-label">Observaciones Finales (Opcional)</label>
+                                <textarea class="form-control" id="observaciones" name="observaciones" 
+                                    rows="3" placeholder="Agregue observaciones finales si lo considera necesario">{{ form_validar.observaciones.value|default:'' }}</textarea>
+                            </div>
                         </div>
                         <button type="submit" name="aprobar" id="btn-aprobar" class="btn btn-success btn-lg">
                             <i class="fas fa-check-circle"></i> Aprobar y Autorizar Entrada
