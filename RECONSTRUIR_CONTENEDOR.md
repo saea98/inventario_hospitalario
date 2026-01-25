@@ -1,8 +1,23 @@
-# Pasos para Reconstruir el Contenedor con ReportLab
+# Pasos para Reconstruir el Contenedor con WeasyPrint
 
-## 1. Verificar que reportlab está en requirements.txt
+## ⚠️ IMPORTANTE: Compatibilidad de Arquitectura
 
-Ya está agregado: `reportlab==4.0.7`
+Si estás en una Mac M3 (ARM64) y producción es x86:
+- El `docker-compose.yml` y `Dockerfile` están configurados para forzar la arquitectura `linux/amd64`
+- Esto garantiza que las dependencias binarias (Pango, Cairo) sean compatibles con producción
+- La emulación puede ser más lenta, pero asegura compatibilidad
+
+## 1. Verificar dependencias
+
+- WeasyPrint ya está en `requirements.txt`: `weasyprint==61.2`
+- El Dockerfile ha sido actualizado para incluir las dependencias del sistema necesarias:
+  - `libpango-1.0-0`
+  - `libpangoft2-1.0-0`
+  - `libpangocairo-1.0-0`
+  - `libgdk-pixbuf2.0-0`
+  - `libffi-dev`
+  - `shared-mime-info`
+- **Arquitectura forzada a `linux/amd64`** para compatibilidad con producción
 
 ## 2. Detener el contenedor actual (si está corriendo)
 

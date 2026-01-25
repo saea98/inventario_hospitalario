@@ -5,6 +5,7 @@ services:
     build:
       context: .
       dockerfile: Dockerfile
+    platform: linux/amd64  # Forzar arquitectura x86 para compatibilidad con producción (solo desarrollo)
     container_name: inventario_dev
     restart: always
     ports:
