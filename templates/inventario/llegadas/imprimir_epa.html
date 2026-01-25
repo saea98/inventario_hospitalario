@@ -21,17 +21,23 @@
         
         .container {
             max-width: 8.5in;
-            height: 11in;
+            min-height: 11in;
             margin: 0 auto;
             padding: 0.5in;
+            padding-bottom: 2in; /* Espacio para el pie de página fijo */
             background: white;
+            position: relative;
         }
         
         .header {
             text-align: center;
-            margin-bottom: 20px;
+            margin-bottom: 15px;
             border-bottom: 2px solid #000;
-            padding-bottom: 10px;
+            padding-bottom: 8px;
+        }
+        
+        .header-print {
+            display: none; /* Oculto en pantalla */
         }
         
         .header-logos {
@@ -61,20 +67,22 @@
         .main-title {
             font-size: 13px;
             font-weight: bold;
-            margin: 15px 0;
+            margin: 12px 0;
             text-align: center;
+            text-transform: uppercase;
         }
         
         .info-section {
-            margin: 15px 0;
+            margin: 12px 0;
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 20px;
+            gap: 15px;
         }
         
         .info-item {
             display: flex;
-            margin-bottom: 8px;
+            margin-bottom: 6px;
+            align-items: baseline;
         }
         
         .info-label {
@@ -90,12 +98,12 @@
         }
         
         .observations {
-            margin: 15px 0;
-            padding: 10px;
+            margin: 12px 0;
+            padding: 8px;
             border: 1px solid #000;
             background: #f9f9f9;
-            font-size: 10px;
-            line-height: 1.5;
+            font-size: 9px;
+            line-height: 1.4;
         }
         
         .observations-title {
@@ -104,7 +112,21 @@
         }
         
         .table-section {
-            margin: 20px 0;
+            margin: 15px 0;
+        }
+        
+        .table-section table {
+            font-size: 9px;
+        }
+        
+        .table-section td {
+            max-width: 0;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        
+        .table-section td:nth-child(3) {
+            max-width: 200px; /* Descripción - permitir más espacio */
         }
         
         .table-title {
@@ -119,31 +141,58 @@
             margin-bottom: 15px;
         }
         
+        @media print {
+            table {
+                page-break-inside: auto; /* Permitir que la tabla se divida entre páginas si es necesario */
+            }
+            
+            thead {
+                display: table-header-group; /* Repetir encabezados en cada página */
+            }
+            
+            tbody {
+                display: table-row-group;
+            }
+            
+            tr {
+                page-break-inside: avoid; /* Evitar que las filas se dividan */
+            }
+        }
+        
         th, td {
             border: 1px solid #000;
-            padding: 6px;
+            padding: 5px 4px;
             text-align: left;
-            font-size: 10px;
+            font-size: 9px;
+            vertical-align: top;
         }
         
         th {
             background: #e0e0e0;
             font-weight: bold;
             text-align: center;
+            font-size: 9px;
+            padding: 6px 4px;
+        }
+        
+        td {
+            word-wrap: break-word;
+            overflow-wrap: break-word;
         }
         
         .signatures {
-            margin-top: 30px;
+            margin-top: 25px;
             display: grid;
             grid-template-columns: 1fr 1fr 1fr;
-            gap: 20px;
+            gap: 15px;
             text-align: center;
         }
         
         .signature-box {
             border-top: 1px solid #000;
             padding-top: 5px;
-            font-size: 10px;
+            font-size: 9px;
+            min-height: 60px;
         }
         
         .signature-box .title {
@@ -163,30 +212,182 @@
             font-size: 10px;
         }
         
+        .footer-print {
+            display: none; /* Oculto en pantalla */
+        }
+        
         .footer-logo {
-            width: 100px;
+            max-width: 100%;
             height: auto;
-            margin: 0 auto;
+            margin: 10px auto;
+            display: block;
+            max-height: 60px;
+        }
+        
+        .footer-leyenda {
+            margin-top: 10px;
+            font-size: 9px;
+            font-weight: bold;
+            line-height: 1.4;
         }
         
         @media print {
+            @page {
+                size: letter;
+                margin: 0.5in;
+                margin-top: 1.3in; /* Espacio para el encabezado fijo - aplica a TODAS las páginas */
+                margin-bottom: 1.2in; /* Espacio para el pie de página - aplica a TODAS las páginas */
+            }
+            
+            /* Asegurar márgenes consistentes en todas las páginas (primera, izquierda, derecha) */
+            @page :first {
+                margin-top: 1.3in;
+                margin-bottom: 1.2in;
+            }
+            
             body {
                 margin: 0;
                 padding: 0;
             }
+            
             .container {
                 max-width: 100%;
-                height: auto;
+                min-height: 10in;
                 padding: 0.5in;
-                page-break-after: always;
+                padding-top: 1.3in; /* Espacio para el encabezado fijo en la primera página */
+                padding-bottom: 1.5in; /* Espacio para el pie de página */
+                position: relative;
+            }
+            
+            /* Asegurar que el contenido de las páginas siguientes también respete el espacio del encabezado */
+            /* El @page margin-top ya maneja esto, pero el padding-top del container ayuda en la primera página */
+            
+            .header-screen {
+                display: none !important; /* Ocultar header normal en impresión */
+            }
+            
+            .header-print {
+                display: block !important; /* Mostrar header fijo en impresión */
+                position: fixed;
+                top: 0;
+                left: 0;
+                right: 0;
+                width: 100%;
+                border-bottom: 2px solid #000;
+                padding: 8px 0.5in;
+                padding-bottom: 10px;
+                background: white;
+                z-index: 1000;
+                page-break-inside: avoid;
+                margin: 0;
+                height: auto;
+                /* Asegurar que aparezca en todas las páginas */
+                -webkit-print-color-adjust: exact;
+                print-color-adjust: exact;
+            }
+            
+            .header-print .header-logos {
+                margin-bottom: 5px;
+            }
+            
+            .header-print .header-logos img {
+                max-height: 50px !important;
+            }
+            
+            .header-print h2 {
+                font-size: 11px !important;
+                margin: 3px 0 !important;
+            }
+            
+            .header-print h3 {
+                font-size: 9px !important;
+                margin: 1px 0 !important;
+            }
+            
+            .footer-screen {
+                display: none !important; /* Ocultar footer normal en impresión */
+            }
+            
+            .footer-print {
+                display: block !important; /* Mostrar footer fijo en impresión */
+                position: fixed;
+                bottom: 0;
+                left: 0;
+                right: 0;
+                width: 100%;
+                border-top: 2px solid #000;
+                padding: 5px 0.5in;
+                background: white;
+                page-break-inside: avoid;
+                z-index: 1000;
+                margin: 0;
+            }
+            
+            .footer-print .footer-logo {
+                max-height: 45px !important;
+                margin: 3px auto !important;
+            }
+            
+            .footer-print .footer-leyenda {
+                font-size: 7px !important;
+                margin-top: 3px !important;
+                padding: 0 5px !important;
+                line-height: 1.3 !important;
+            }
+            
+            /* Evitar que el contenido se superponga con el footer */
+            .signatures {
+                margin-bottom: 1.2in;
+                page-break-after: always; /* Forzar nueva página después de las firmas */
+                page-break-inside: avoid; /* Evitar que las firmas se dividan entre páginas */
+            }
+            
+            /* Forzar que la tabla comience en nueva página (después de las firmas) */
+            .table-section {
+                page-break-before: always; /* Forzar nueva página antes de la tabla */
+                margin-top: 0;
+                /* Asegurar que respete el espacio del encabezado en todas las páginas */
+                padding-top: 0;
+            }
+            
+            /* Asegurar que el contenido de la tabla respete el espacio del encabezado */
+            .table-section table {
+                margin-top: 0;
+            }
+            
+            /* Asegurar que todas las páginas tengan el mismo comportamiento */
+            .container > * {
+                position: relative;
+            }
+            
+            /* Asegurar que observaciones y firmas queden juntas en primera página */
+            .observations {
+                page-break-after: avoid; /* Evitar salto después de observaciones */
+                page-break-inside: avoid;
+            }
+            
+            /* Mejorar el espaciado general */
+            .info-section {
+                margin: 10px 0;
+            }
+            
+            /* Asegurar que el header no se divida */
+            .header-screen {
+                page-break-after: avoid;
+                page-break-inside: avoid;
+            }
+            
+            .main-title {
+                page-break-after: avoid;
+                margin-top: 10px;
             }
         }
     </style>
 </head>
 <body>
     <div class="container">
-        <!-- Encabezado -->
-        <div class="header">
+        <!-- Encabezado - Solo visible en pantalla -->
+        <div class="header header-screen">
             <div class="header-logos">
                 <img src="/static/images/logo_epa.jpg" alt="Logo EPA" style="max-width: 100%; height: auto; max-height: 80px;">
             </div>
@@ -194,6 +395,17 @@
             <h2 style="margin-top: 10px;">DIRECCIÓN GENERAL</h2>
             <h3>COORDINACIÓN ESTATAL EN LA CIUDAD DE MÉXICO IMSS BIENESTAR</h3>
             <h3>JEFATURA DE SERVICIOS ADMINISTRATIVOS Y FINANZAS</h3>
+        </div>
+        
+        <!-- Encabezado fijo para impresión - Se repite en cada página -->
+        <div class="header header-print">
+            <div class="header-logos">
+                <img src="/static/images/logo_epa.jpg" alt="Logo EPA" style="max-width: 100%; height: auto; max-height: 60px;">
+            </div>
+            
+            <h2 style="margin-top: 5px; font-size: 12px;">DIRECCIÓN GENERAL</h2>
+            <h3 style="font-size: 10px; margin: 2px 0;">COORDINACIÓN ESTATAL EN LA CIUDAD DE MÉXICO IMSS BIENESTAR</h3>
+            <h3 style="font-size: 10px; margin: 2px 0;">JEFATURA DE SERVICIOS ADMINISTRATIVOS Y FINANZAS</h3>
         </div>
         
         <!-- Título Principal -->
@@ -220,8 +432,16 @@
             </div>
             <div>
                 <div class="info-item">
-                    <span class="info-label">PEDIDO</span>
-                    <span class="info-value">{{ llegada.numero_orden_suministro }}</span>
+                    <span class="info-label">ORDEN DE SUMINISTRO</span>
+                    <span class="info-value">
+                        {% if llegada.numero_orden_suministro %}
+                            {{ llegada.numero_orden_suministro }}
+                        {% elif llegada.cita and llegada.cita.numero_orden_suministro %}
+                            {{ llegada.cita.numero_orden_suministro }}
+                        {% else %}
+                            No disponible
+                        {% endif %}
+                    </span>
                 </div>
                 <div class="info-item">
                     <span class="info-label">CONTRATO</span>
@@ -235,13 +455,13 @@
         </div>
         
         <!-- Datos del Proveedor -->
-        <div class="info-item" style="margin: 15px 0;">
+        <div class="info-item" style="margin: 10px 0;">
             <span class="info-label">DATOS DE PROVEEDOR</span>
             <span class="info-value">{{ llegada.proveedor.razon_social }}</span>
         </div>
         
         <!-- Cantidad Total -->
-        <div class="info-item" style="margin: 15px 0;">
+        <div class="info-item" style="margin: 10px 0;">
             <span class="info-label">CANTIDAD DE BIENES MUEBLES RECIBIDA</span>
             <span class="info-value">{{ total_items }}</span>
         </div>
@@ -250,6 +470,22 @@
         <div class="observations">
             <div class="observations-title">OBSERVACIONES</div>
             <p>LA REMISIÓN NO ESTA COSTEADA, POR LO QUE, SE CONSIDERAN LOS PRECIOS UNITARIOS DE LA PLATAFORMA FEDERAL, HASTA QUE SE REALICE LA CONCILIACIÓN CON LA UNIDAD ADMINISTRATIVA FEDERAL</p>
+        </div>
+        
+        <!-- Firmas -->
+        <div class="signatures">
+            <div class="signature-box">
+                <div class="title">ALMACENISTA</div>
+                <div class="name">_____________________</div>
+            </div>
+            <div class="signature-box">
+                <div class="title">ENCARGADA DEL ÁREA DE ENTRADA</div>
+                <div class="name">_____________________</div>
+            </div>
+            <div class="signature-box">
+                <div class="title">TITULAR DE LA OFICINA DE ENTRADA</div>
+                <div class="name">_____________________</div>
+            </div>
         </div>
         
         <!-- Tabla de Items -->
@@ -270,7 +506,15 @@
                     {% for item in items %}
                     <tr>
                         <td style="text-align: center;">{{ forloop.counter }}</td>
-                        <td>{{ item.clave }}</td>
+                        <td>
+                            {% if item.clave and item.clave != "DEFAULT" and item.clave|upper != "DEFAULT" %}
+                                {{ item.clave }}
+                            {% elif item.producto.clave_cnis %}
+                                {{ item.producto.clave_cnis }}
+                            {% else %}
+                                No disponible
+                            {% endif %}
+                        </td>
                         <td>{{ item.producto.descripcion }}</td>
                         <td style="text-align: center;">Pieza</td>
                         <td style="text-align: center;">{{ item.cantidad_recibida }}</td>
@@ -282,25 +526,20 @@
             </table>
         </div>
         
-        <!-- Firmas -->
-        <div class="signatures">
-            <div class="signature-box">
-                <div class="title">ALMACENISTA</div>
-                <div class="name">_____________________</div>
-            </div>
-            <div class="signature-box">
-                <div class="title">ENCARGADA DEL ÁREA DE ENTRADA</div>
-                <div class="name">_____________________</div>
-            </div>
-            <div class="signature-box">
-                <div class="title">TITULAR DE LA OFICINA DE ENTRADA</div>
-                <div class="name">_____________________</div>
+        <!-- Pie de página - Solo visible en pantalla, no en impresión -->
+        <div class="footer footer-screen">
+            <img src="/static/images/logo_pie_pagina.png" alt="Logo Pie de Página" class="footer-logo">
+            <div class="footer-leyenda">
+                ESTE DOCUMENTO AMPARA LA ENTREGA DE BIENES MUEBLES MEDIANTE REMISIÓN Y/O FACTURA, SIN CONSIDERAR LOS COSTOS UNITARIOS Y/O TOTALES
             </div>
         </div>
         
-        <!-- Pie de página -->
-        <div class="footer">
-            <p>2025 Año de La Mujer Indígena</p>
+        <!-- Pie de página fijo para impresión - Se repite en cada página -->
+        <div class="footer footer-print">
+            <img src="/static/images/logo_pie_pagina.png" alt="Logo Pie de Página" class="footer-logo">
+            <div class="footer-leyenda">
+                ESTE DOCUMENTO AMPARA LA ENTREGA DE BIENES MUEBLES MEDIANTE REMISIÓN Y/O FACTURA, SIN CONSIDERAR LOS COSTOS UNITARIOS Y/O TOTALES
+            </div>
         </div>
     </div>
     
