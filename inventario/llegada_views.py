@@ -1117,11 +1117,48 @@ class ImprimirEPAView(LoginRequiredMixin, View):
             messages.error(request, "Solo se pueden imprimir EPA de llegadas en estado 'Asignando Ubicación' o 'Aprobada'")
             return redirect('logistica:llegadas:detalle_llegada', pk=pk)
         
+        # Obtener usuarios con roles específicos para prellenar firmas
+        titular_entrada = None
+        titular_insumos = None
+        
+        try:
+            from django.contrib.auth.models import Group
+            from django.contrib.auth import get_user_model
+            User = get_user_model()
+            
+            # Buscar usuario con rol "Titular entrada"
+            grupo_titular_entrada = Group.objects.filter(name='Titular entrada').first()
+            if grupo_titular_entrada:
+                usuarios_titular_entrada = grupo_titular_entrada.user_set.filter(is_active=True).first()
+                if usuarios_titular_entrada:
+                    titular_entrada = usuarios_titular_entrada
+            
+            # Buscar usuario con rol "Titular insumos"
+            grupo_titular_insumos = Group.objects.filter(name='Titular insumos').first()
+            if grupo_titular_insumos:
+                usuarios_titular_insumos = grupo_titular_insumos.user_set.filter(is_active=True).first()
+                if usuarios_titular_insumos:
+                    titular_insumos = usuarios_titular_insumos
+        except Exception:
+            # Si hay algún error, continuar sin prellenar
+            pass
+        
+        # Preparar nombres para las firmas
+        nombre_titular_entrada = ''
+        if titular_entrada:
+            nombre_titular_entrada = titular_entrada.get_full_name() if titular_entrada.get_full_name() else titular_entrada.username
+        
+        nombre_titular_insumos = ''
+        if titular_insumos:
+            nombre_titular_insumos = titular_insumos.get_full_name() if titular_insumos.get_full_name() else titular_insumos.username
+        
         # Preparar datos para el template
         context = {
             'llegada': llegada,
             'items': llegada.items.all(),
             'total_items': llegada.items.aggregate(total=models.Sum('cantidad_recibida'))['total'] or 0,
+            'nombre_titular_entrada': nombre_titular_entrada,
+            'nombre_titular_insumos': nombre_titular_insumos,
         }
         
         return render(request, 'inventario/llegadas/imprimir_epa.html', context)
