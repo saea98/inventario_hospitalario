@@ -429,6 +429,7 @@ def exportar_salidas_surtidas_excel(request):
     fecha_fin = request.GET.get('fecha_fin')
     folio = request.GET.get('folio', '').strip()
     clave_cnis = request.GET.get('clave_cnis', '').strip()
+    lote = request.GET.get('lote', '').strip()
     institucion_id = request.GET.get('institucion')
     
     # Obtener propuestas surtidas (misma lógica que la vista)
@@ -476,6 +477,7 @@ def exportar_salidas_surtidas_excel(request):
     if clave_cnis:
         clave_cnis = clave_cnis.strip()
         if clave_cnis:
+            # Filtrar propuestas que tengan items con productos que coincidan con la clave CNIS
             propuestas = propuestas.filter(
                 items__producto__clave_cnis__icontains=clave_cnis
             ).distinct()
@@ -483,7 +485,9 @@ def exportar_salidas_surtidas_excel(request):
     if lote:
         lote = lote.strip()
         if lote:
+            # Filtrar propuestas que tengan lotes asignados surtidos con número de lote que coincida
             propuestas = propuestas.filter(
+                items__lotes_asignados__surtido=True,
                 items__lotes_asignados__lote_ubicacion__lote__numero_lote__icontains=lote
             ).distinct()
     
@@ -500,12 +504,22 @@ def exportar_salidas_surtidas_excel(request):
     datos_reporte = []
     partida_counter = 1
     
+    # Normalizar filtros para comparación (guardar valores originales antes de modificar)
+    clave_cnis_filter_value = clave_cnis.strip().upper() if clave_cnis else None
+    lote_filter_value = lote.strip().upper() if lote else None
+    
     for propuesta in propuestas.order_by('-fecha_surtimiento', 'solicitud__folio'):
         solicitud = propuesta.solicitud
         
         for item_propuesta in propuesta.items.all():
             producto = item_propuesta.producto
             
+            # Aplicar filtro de clave_cnis a nivel de item
+            if clave_cnis_filter_value:
+                if not producto.clave_cnis or clave_cnis_filter_value not in producto.clave_cnis.upper():
+                    continue
+            
+            # Obtener lotes asignados surtidos
             lotes_surtidos = item_propuesta.lotes_asignados.filter(surtido=True)
             
             if not lotes_surtidos.exists():
@@ -515,6 +529,11 @@ def exportar_salidas_surtidas_excel(request):
                 lote_ubicacion = lote_asignado.lote_ubicacion
                 lote = lote_ubicacion.lote
                 ubicacion = lote_ubicacion.ubicacion
+                
+                # Aplicar filtro de lote a nivel de lote individual
+                if lote_filter_value:
+                    if not lote.numero_lote or lote_filter_value not in lote.numero_lote.upper():
+                        continue
                 
                 movimiento = MovimientoInventario.objects.filter(
                     lote=lote,
