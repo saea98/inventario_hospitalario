@@ -7,11 +7,13 @@ from openpyxl import load_workbook
 from reportlab.lib.pagesizes import A4, landscape, letter
 from reportlab.lib.units import mm, inch
 from reportlab.lib.styles import ParagraphStyle
-from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageTemplate, Frame
+from reportlab.platypus import SimpleDocTemplate, Table, TableStyle, Paragraph, Spacer, PageTemplate, Frame, Image
 from reportlab.lib import colors
-from reportlab.lib.enums import TA_CENTER, TA_LEFT
+from reportlab.lib.enums import TA_CENTER, TA_LEFT, TA_RIGHT
 from io import BytesIO
 from datetime import datetime
+import os
+from django.conf import settings
 
 
 def convertir_acuse_excel_a_pdf(excel_buffer):
@@ -82,31 +84,81 @@ def convertir_acuse_excel_a_pdf(excel_buffer):
         # Contenido del documento
         story = []
         
-        # Tabla de información del header
-        info_data = [
-            ['#FOLIO:', folio, 'FOLIO DE PEDIDO:', folio_pedido],
-            ['FECHA:', fecha, 'INSTITUCIÓN:', institucion],
+        # Crear tabla de encabezado con logotipo y información
+        # Buscar logotipo
+        logo_paths = [
+            os.path.join(settings.BASE_DIR, 'templates', 'inventario', 'images', 'logo_imss.jpg'),
+            os.path.join(settings.BASE_DIR, 'static', 'images', 'logo_imss.jpg'),
         ]
         
-        info_table = Table(info_data, colWidths=[1.5*inch, 2*inch, 1.8*inch, 4*inch])
-        info_table.setStyle(TableStyle([
-            ('BACKGROUND', (0, 0), (0, -1), colors.HexColor('#f0f0f0')),
-            ('BACKGROUND', (2, 0), (2, -1), colors.HexColor('#f0f0f0')),
-            ('TEXTCOLOR', (0, 0), (-1, -1), colors.black),
-            ('ALIGN', (0, 0), (-1, -1), 'LEFT'),
-            ('VALIGN', (0, 0), (-1, -1), 'MIDDLE'),
-            ('FONTNAME', (0, 0), (0, -1), 'Helvetica-Bold'),
-            ('FONTNAME', (2, 0), (2, -1), 'Helvetica-Bold'),
-            ('FONTSIZE', (0, 0), (-1, -1), 9),
-            ('BOTTOMPADDING', (0, 0), (-1, -1), 4),
-            ('TOPPADDING', (0, 0), (-1, -1), 4),
-            ('GRID', (0, 0), (-1, -1), 1, colors.grey),
-            ('LEFTPADDING', (0, 0), (-1, -1), 3),
-            ('RIGHTPADDING', (0, 0), (-1, -1), 3),
-            ('ROWHEIGHT', (0, 0), (-1, -1), 12*mm),
+        logo_img = None
+        for logo_path in logo_paths:
+            if os.path.exists(logo_path):
+                try:
+                    logo_img = Image(logo_path, width=1.5*inch, height=0.4*inch)
+                    break
+                except:
+                    pass
+        
+        # Crear tabla de encabezado: logo + título a la izquierda, información a la derecha
+        # Estilo para el título del sistema
+        titulo_sistema_style = ParagraphStyle(
+            'TituloSistema',
+            fontSize=9,
+            textColor=colors.HexColor('#8B1538'),
+            alignment=TA_LEFT,
+            fontName='Helvetica-Bold',
+            leading=11,
+            spaceAfter=0
+        )
+        
+        # Crear contenido izquierdo (logo + título)
+        left_content = []
+        if logo_img:
+            left_content.append(logo_img)
+        left_content.append(Paragraph('Sistema de Abasto, Inventarios y Control de<br/>Almacenes', titulo_sistema_style))
+        
+        # Información a la derecha
+        info_style = ParagraphStyle(
+            'InfoStyle',
+            fontSize=8,
+            alignment=TA_RIGHT,
+            fontName='Helvetica',
+            leading=10
+        )
+        info_right = Paragraph(
+            f'#FOLIO: {folio}<br/>FECHA: {fecha}<br/>FOLIO DE PEDIDO: {folio_pedido}',
+            info_style
+        )
+        
+        # Tabla de encabezado
+        header_data = [[left_content, info_right]]
+        header_table = Table(header_data, colWidths=[5.5*inch, 4.5*inch])
+        header_table.setStyle(TableStyle([
+            ('VALIGN', (0, 0), (-1, -1), 'TOP'),
+            ('ALIGN', (0, 0), (0, 0), 'LEFT'),
+            ('ALIGN', (1, 0), (1, 0), 'RIGHT'),
+            ('LEFTPADDING', (0, 0), (0, 0), 0),
+            ('RIGHTPADDING', (0, 0), (0, 0), 0),
+            ('LEFTPADDING', (1, 0), (1, 0), 10),
+            ('RIGHTPADDING', (1, 0), (1, 0), 0),
+            ('TOPPADDING', (0, 0), (-1, -1), 5),
+            ('BOTTOMPADDING', (0, 0), (-1, -1), 5),
         ]))
         
-        story.append(info_table)
+        story.append(header_table)
+        story.append(Spacer(1, 0.05*inch))
+        
+        # Información adicional (TRANSFERENCIA y TIPO) - alineada a la derecha
+        info_adicional_style = ParagraphStyle(
+            'InfoAdicional',
+            fontSize=8,
+            alignment=TA_RIGHT,
+            fontName='Helvetica',
+            leading=10
+        )
+        story.append(Paragraph('TRANSFERENCIA: prueba', info_adicional_style))
+        story.append(Paragraph('TIPO: TRANSFERENCIA (SURTIMIENTO)', info_adicional_style))
         story.append(Spacer(1, 0.15*inch))
         
         # Título de Acuse de Entrega
@@ -122,20 +174,29 @@ def convertir_acuse_excel_a_pdf(excel_buffer):
         
         # Tabla de firmas
         # Crear Paragraph para la institución para que se ajuste al ancho
+        # El ancho de la columna es 2.5*inch, menos padding (10 puntos = ~0.14 inch)
+        # Entonces el ancho disponible es aproximadamente 2.36*inch
         institucion_style = ParagraphStyle(
             'InstitucionStyle',
-            fontSize=8,
-            leading=10,
+            fontSize=7,
+            leading=9,
             alignment=TA_LEFT,
-            fontName='Helvetica'
+            fontName='Helvetica',
+            wordWrap='CJK',  # Permite word wrap
+            leftIndent=0,
+            rightIndent=0,
         )
         
+        # Preparar texto de institución con word wrap manual si es muy largo
+        texto_institucion = f'<b>INSTITUCIÓN:</b><br/>{institucion}'
+        
+        # Reordenar columnas según el formato deseado: UNIDAD DE DESTINO, AUTORIZA (ALMACEN), RECIBE (UNIDAD DE DESTINO), ENTREGA (ALMACEN)
         firma_data = [
-            ['UNIDAD DE DESTINO', 'RECIBE (UNIDAD DE DESTINO)', 'AUTORIZA (ALMACEN)', 'ENTREGA (ALMACEN)'],
+            ['UNIDAD DE DESTINO', 'AUTORIZA (ALMACEN)', 'RECIBE (UNIDAD DE DESTINO)', 'ENTREGA (ALMACEN)'],
             [
-                Paragraph(f'INSTITUCIÓN: {institucion}', institucion_style),
-                'NOMBRE: __________________\n\nPUESTO: __________________\n\nFIRMA: __________________',
+                Paragraph(texto_institucion, institucion_style),
                 'NOMBRE:\n\nPUESTO:\n\nFIRMA: __________________',
+                'NOMBRE: __________________\n\nPUESTO: __________________\n\nFIRMA: __________________',
                 'NOMBRE: __________________\n\nPUESTO: __________________\n\nFIRMA: __________________'
             ]
         ]
@@ -154,12 +215,14 @@ def convertir_acuse_excel_a_pdf(excel_buffer):
             ('GRID', (0, 0), (-1, -1), 1, colors.black),
             ('TOPPADDING', (0, 1), (-1, -1), 10),
             ('BOTTOMPADDING', (0, 1), (-1, -1), 40),
-            # Especial para columna UNIDAD DE DESTINO
-            ('LEFTPADDING', (0, 1), (0, 1), 5),
-            ('RIGHTPADDING', (0, 1), (0, 1), 5),
-            ('TOPPADDING', (0, 1), (0, 1), 5),
-            ('BOTTOMPADDING', (0, 1), (0, 1), 5),
+            # Especial para columna UNIDAD DE DESTINO - más padding para el texto
+            ('LEFTPADDING', (0, 1), (0, 1), 8),
+            ('RIGHTPADDING', (0, 1), (0, 1), 8),
+            ('TOPPADDING', (0, 1), (0, 1), 8),
+            ('BOTTOMPADDING', (0, 1), (0, 1), 8),
             ('VALIGN', (0, 1), (0, 1), 'TOP'),
+            # Asegurar que el texto se ajuste al ancho de la columna
+            ('ALIGN', (0, 1), (0, 1), 'LEFT'),
         ]))
         
         story.append(firma_table)
