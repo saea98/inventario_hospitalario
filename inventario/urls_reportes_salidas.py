@@ -14,4 +14,7 @@ urlpatterns = [
     path('temporal/', views_reportes_salidas.analisis_temporal, name='analisis_temporal'),
     path('surtidas/', views_reportes_salidas.reporte_salidas_surtidas, name='reporte_salidas_surtidas'),
     path('surtidas/exportar-excel/', views_reportes_salidas.exportar_salidas_surtidas_excel, name='exportar_salidas_surtidas_excel'),
+    path('reservas/', views_reportes_salidas.reporte_reservas, name='reporte_reservas'),
+    path('reservas/exportar-excel/', views_reportes_salidas.exportar_reservas_excel, name='exportar_reservas_excel'),
+    path('reservas/<uuid:reserva_id>/liberar/', views_reportes_salidas.liberar_reserva, name='liberar_reserva'),
 ]

@@ -34,6 +34,10 @@
                                 <input type="text" class="form-control" id="clave_cnis" name="clave_cnis" value="{{ clave_cnis }}" placeholder="Buscar clave...">
                             </div>
                             <div class="col-md-2">
+                                <label for="lote" class="form-label">Lote</label>
+                                <input type="text" class="form-control" id="lote" name="lote" value="{{ lote }}" placeholder="Buscar lote..." autocomplete="off">
+                            </div>
+                            <div class="col-md-2">
                                 <label for="institucion" class="form-label">Institución</label>
                                 <select class="form-control" id="institucion" name="institucion">
                                     <option value="">Todas</option>
@@ -135,10 +139,10 @@
                         <ul class="pagination justify-content-center">
                             {% if datos.has_previous %}
                             <li class="page-item">
-                                <a class="page-link" href="?page=1{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}{% if folio %}&folio={{ folio }}{% endif %}{% if clave_cnis %}&clave_cnis={{ clave_cnis }}{% endif %}{% if institucion_id %}&institucion={{ institucion_id }}{% endif %}">Primera</a>
+                                <a class="page-link" href="?page=1{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}{% if folio %}&folio={{ folio }}{% endif %}{% if clave_cnis %}&clave_cnis={{ clave_cnis }}{% endif %}{% if lote %}&lote={{ lote }}{% endif %}{% if institucion_id %}&institucion={{ institucion_id }}{% endif %}">Primera</a>
                             </li>
                             <li class="page-item">
-                                <a class="page-link" href="?page={{ datos.previous_page_number }}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}{% if folio %}&folio={{ folio }}{% endif %}{% if clave_cnis %}&clave_cnis={{ clave_cnis }}{% endif %}{% if institucion_id %}&institucion={{ institucion_id }}{% endif %}">Anterior</a>
+                                <a class="page-link" href="?page={{ datos.previous_page_number }}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}{% if folio %}&folio={{ folio }}{% endif %}{% if clave_cnis %}&clave_cnis={{ clave_cnis }}{% endif %}{% if lote %}&lote={{ lote }}{% endif %}{% if institucion_id %}&institucion={{ institucion_id }}{% endif %}">Anterior</a>
                             </li>
                             {% endif %}
                             
@@ -150,10 +154,10 @@
                             
                             {% if datos.has_next %}
                             <li class="page-item">
-                                <a class="page-link" href="?page={{ datos.next_page_number }}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}{% if folio %}&folio={{ folio }}{% endif %}{% if clave_cnis %}&clave_cnis={{ clave_cnis }}{% endif %}{% if institucion_id %}&institucion={{ institucion_id }}{% endif %}">Siguiente</a>
+                                <a class="page-link" href="?page={{ datos.next_page_number }}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}{% if folio %}&folio={{ folio }}{% endif %}{% if clave_cnis %}&clave_cnis={{ clave_cnis }}{% endif %}{% if lote %}&lote={{ lote }}{% endif %}{% if institucion_id %}&institucion={{ institucion_id }}{% endif %}">Siguiente</a>
                             </li>
                             <li class="page-item">
-                                <a class="page-link" href="?page={{ datos.paginator.num_pages }}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}{% if folio %}&folio={{ folio }}{% endif %}{% if clave_cnis %}&clave_cnis={{ clave_cnis }}{% endif %}{% if institucion_id %}&institucion={{ institucion_id }}{% endif %}">Última</a>
+                                <a class="page-link" href="?page={{ datos.paginator.num_pages }}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}{% if folio %}&folio={{ folio }}{% endif %}{% if clave_cnis %}&clave_cnis={{ clave_cnis }}{% endif %}{% if lote %}&lote={{ lote }}{% endif %}{% if institucion_id %}&institucion={{ institucion_id }}{% endif %}">Última</a>
                             </li>
                             {% endif %}
                         </ul>
@@ -164,4 +168,39 @@
         </div>
     </div>
 </div>
+{% endblock %}
+
+{% block extra_js %}
+<script>
+$(document).ready(function() {
+    // Asegurar que el campo de lote no tenga select2 o autocomplete
+    var $loteField = $('#lote');
+    
+    // Remover select2 si está aplicado
+    if ($loteField.hasClass('select2-hidden-accessible')) {
+        try {
+            $loteField.select2('destroy');
+        } catch(e) {
+            console.log('Select2 no estaba inicializado en campo lote');
+        }
+    }
+    
+    // Asegurar que es un input de texto simple
+    $loteField.removeClass('select2-hidden-accessible');
+    $loteField.attr('autocomplete', 'off');
+    $loteField.attr('type', 'text');
+    
+    // Limpiar el valor si contiene datos de producto (formato: "ID — DESCRIPCION")
+    var currentValue = $loteField.val();
+    if (currentValue && currentValue.includes('—')) {
+        $loteField.val('');
+    }
+    
+    // Prevenir que cualquier script futuro aplique select2 a este campo
+    $loteField.on('select2:init', function(e) {
+        e.preventDefault();
+        return false;
+    });
+});
+</script>
 {% endblock %}

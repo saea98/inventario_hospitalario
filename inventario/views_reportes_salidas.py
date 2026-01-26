@@ -22,6 +22,8 @@ from .models import (
 )
 from .pedidos_models import PropuestaPedido, ItemPropuesta, LoteAsignado, SolicitudPedido
 from .decorators_roles import requiere_rol
+from .propuesta_utils import liberar_cantidad_lote
+from django.db import transaction
 
 
 # ============================================================
@@ -240,11 +242,14 @@ def reporte_salidas_surtidas(request):
     fecha_fin = request.GET.get('fecha_fin')
     folio = request.GET.get('folio', '').strip()
     clave_cnis = request.GET.get('clave_cnis', '').strip()
+    lote = request.GET.get('lote', '').strip()
     institucion_id = request.GET.get('institucion')
     
     # Obtener propuestas surtidas con sus relaciones
+    # Solo propuestas que tienen fecha_surtimiento (realmente surtidas)
     propuestas = PropuestaPedido.objects.filter(
-        estado='SURTIDA'
+        estado='SURTIDA',
+        fecha_surtimiento__isnull=False
     ).select_related(
         'solicitud',
         'solicitud__institucion_solicitante',
@@ -276,30 +281,57 @@ def reporte_salidas_surtidas(request):
             pass
     
     if folio:
-        propuestas = propuestas.filter(
-            Q(solicitud__folio__icontains=folio) |
-            Q(solicitud__observaciones_solicitud__icontains=folio)
-        )
+        folio = folio.strip()
+        if folio:
+            propuestas = propuestas.filter(
+                Q(solicitud__folio__icontains=folio) |
+                Q(solicitud__observaciones_solicitud__icontains=folio)
+            )
     
     if clave_cnis:
-        propuestas = propuestas.filter(
-            items__producto__clave_cnis__icontains=clave_cnis
-        ).distinct()
+        clave_cnis = clave_cnis.strip()
+        if clave_cnis:
+            # Filtrar propuestas que tengan items con productos que coincidan con la clave CNIS
+            propuestas = propuestas.filter(
+                items__producto__clave_cnis__icontains=clave_cnis
+            ).distinct()
+    
+    if lote:
+        lote = lote.strip()
+        if lote:
+            # Filtrar propuestas que tengan lotes asignados surtidos con número de lote que coincida
+            propuestas = propuestas.filter(
+                items__lotes_asignados__surtido=True,
+                items__lotes_asignados__lote_ubicacion__lote__numero_lote__icontains=lote
+            ).distinct()
     
     if institucion_id:
-        propuestas = propuestas.filter(
-            solicitud__institucion_solicitante_id=institucion_id
-        )
+        try:
+            institucion_id = int(institucion_id)
+            propuestas = propuestas.filter(
+                solicitud__institucion_solicitante_id=institucion_id
+            )
+        except (ValueError, TypeError):
+            pass
     
     # Construir datos del reporte
     datos_reporte = []
     partida_counter = 1
+    
+    # Normalizar filtros para comparación (guardar valores originales antes de modificar)
+    clave_cnis_filter_value = clave_cnis.strip().upper() if clave_cnis else None
+    lote_filter_value = lote.strip().upper() if lote else None
     
     for propuesta in propuestas.order_by('-fecha_surtimiento', 'solicitud__folio'):
         solicitud = propuesta.solicitud
         
         for item_propuesta in propuesta.items.all():
             producto = item_propuesta.producto
+            
+            # Aplicar filtro de clave_cnis a nivel de item
+            if clave_cnis_filter_value:
+                if not producto.clave_cnis or clave_cnis_filter_value not in producto.clave_cnis.upper():
+                    continue
             
             # Obtener lotes asignados surtidos
             lotes_surtidos = item_propuesta.lotes_asignados.filter(surtido=True)
@@ -311,6 +343,11 @@ def reporte_salidas_surtidas(request):
                 lote_ubicacion = lote_asignado.lote_ubicacion
                 lote = lote_ubicacion.lote
                 ubicacion = lote_ubicacion.ubicacion
+                
+                # Aplicar filtro de lote a nivel de lote individual
+                if lote_filter_value:
+                    if not lote.numero_lote or lote_filter_value not in lote.numero_lote.upper():
+                        continue
                 
                 # Obtener movimiento de inventario relacionado (si existe)
                 movimiento = MovimientoInventario.objects.filter(
@@ -373,6 +410,7 @@ def reporte_salidas_surtidas(request):
         'fecha_fin': fecha_fin,
         'folio': folio,
         'clave_cnis': clave_cnis,
+        'lote': lote,
         'institucion_id': institucion_id,
         'instituciones': instituciones,
     }
@@ -394,8 +432,10 @@ def exportar_salidas_surtidas_excel(request):
     institucion_id = request.GET.get('institucion')
     
     # Obtener propuestas surtidas (misma lógica que la vista)
+    # Solo propuestas que tienen fecha_surtimiento (realmente surtidas)
     propuestas = PropuestaPedido.objects.filter(
-        estado='SURTIDA'
+        estado='SURTIDA',
+        fecha_surtimiento__isnull=False
     ).select_related(
         'solicitud',
         'solicitud__institucion_solicitante',
@@ -408,7 +448,7 @@ def exportar_salidas_surtidas_excel(request):
         'items__lotes_asignados__lote_ubicacion__ubicacion'
     )
     
-    # Aplicar filtros
+    # Aplicar filtros (misma lógica que la vista principal)
     if fecha_inicio:
         try:
             fecha_inicio_obj = datetime.strptime(fecha_inicio, '%Y-%m-%d')
@@ -426,20 +466,35 @@ def exportar_salidas_surtidas_excel(request):
             pass
     
     if folio:
-        propuestas = propuestas.filter(
-            Q(solicitud__folio__icontains=folio) |
-            Q(solicitud__observaciones_solicitud__icontains=folio)
-        )
+        folio = folio.strip()
+        if folio:
+            propuestas = propuestas.filter(
+                Q(solicitud__folio__icontains=folio) |
+                Q(solicitud__observaciones_solicitud__icontains=folio)
+            )
     
     if clave_cnis:
-        propuestas = propuestas.filter(
-            items__producto__clave_cnis__icontains=clave_cnis
-        ).distinct()
+        clave_cnis = clave_cnis.strip()
+        if clave_cnis:
+            propuestas = propuestas.filter(
+                items__producto__clave_cnis__icontains=clave_cnis
+            ).distinct()
+    
+    if lote:
+        lote = lote.strip()
+        if lote:
+            propuestas = propuestas.filter(
+                items__lotes_asignados__lote_ubicacion__lote__numero_lote__icontains=lote
+            ).distinct()
     
     if institucion_id:
-        propuestas = propuestas.filter(
-            solicitud__institucion_solicitante_id=institucion_id
-        )
+        try:
+            institucion_id = int(institucion_id)
+            propuestas = propuestas.filter(
+                solicitud__institucion_solicitante_id=institucion_id
+            )
+        except (ValueError, TypeError):
+            pass
     
     # Construir datos del reporte
     datos_reporte = []
@@ -564,6 +619,383 @@ def exportar_salidas_surtidas_excel(request):
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
     filename = f"reporte_salidas_surtidas_{timezone.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    
+    wb.save(response)
+    return response
+
+
+# ============================================================
+# REPORTE DE RESERVAS
+# ============================================================
+
+@login_required
+@requiere_rol('Administrador', 'Gestor de Inventario', 'Analista', 'Supervisor')
+def reporte_reservas(request):
+    """
+    Reporte detallado de todas las reservas activas (LoteAsignado con surtido=False).
+    Permite al usuario validar y liberar reservas si es necesario.
+    """
+    # Filtros
+    fecha_inicio = request.GET.get('fecha_inicio')
+    fecha_fin = request.GET.get('fecha_fin')
+    folio = request.GET.get('folio', '').strip()
+    clave_cnis = request.GET.get('clave_cnis', '').strip()
+    institucion_id = request.GET.get('institucion')
+    estado_propuesta = request.GET.get('estado_propuesta', '')
+    
+    # Obtener todas las reservas activas (LoteAsignado con surtido=False)
+    reservas = LoteAsignado.objects.filter(
+        surtido=False
+    ).select_related(
+        'item_propuesta__propuesta__solicitud',
+        'item_propuesta__propuesta__solicitud__institucion_solicitante',
+        'item_propuesta__propuesta__solicitud__almacen_destino',
+        'item_propuesta__producto',
+        'lote_ubicacion__lote',
+        'lote_ubicacion__lote__producto',
+        'lote_ubicacion__ubicacion'
+    )
+    
+    # Aplicar filtros
+    if fecha_inicio:
+        try:
+            fecha_inicio_obj = datetime.strptime(fecha_inicio, '%Y-%m-%d')
+            reservas = reservas.filter(fecha_asignacion__gte=fecha_inicio_obj)
+        except ValueError:
+            pass
+    
+    if fecha_fin:
+        try:
+            fecha_fin_obj = datetime.strptime(fecha_fin, '%Y-%m-%d')
+            from datetime import time as dt_time
+            fecha_fin_obj = datetime.combine(fecha_fin_obj.date(), dt_time.max)
+            reservas = reservas.filter(fecha_asignacion__lte=fecha_fin_obj)
+        except ValueError:
+            pass
+    
+    if folio:
+        reservas = reservas.filter(
+            Q(item_propuesta__propuesta__solicitud__folio__icontains=folio) |
+            Q(item_propuesta__propuesta__solicitud__observaciones_solicitud__icontains=folio)
+        )
+    
+    if clave_cnis:
+        reservas = reservas.filter(
+            item_propuesta__producto__clave_cnis__icontains=clave_cnis
+        )
+    
+    if institucion_id:
+        reservas = reservas.filter(
+            item_propuesta__propuesta__solicitud__institucion_solicitante_id=institucion_id
+        )
+    
+    if estado_propuesta:
+        reservas = reservas.filter(
+            item_propuesta__propuesta__estado=estado_propuesta
+        )
+    
+    # Construir datos del reporte
+    datos_reporte = []
+    partida_counter = 1
+    
+    for reserva in reservas.order_by('-fecha_asignacion', 'item_propuesta__propuesta__solicitud__folio'):
+        propuesta = reserva.item_propuesta.propuesta
+        solicitud = propuesta.solicitud
+        producto = reserva.item_propuesta.producto
+        lote_ubicacion = reserva.lote_ubicacion
+        lote = lote_ubicacion.lote
+        ubicacion = lote_ubicacion.ubicacion
+        
+        # Calcular días para caducidad
+        if lote.fecha_caducidad:
+            dias_caducidad = (lote.fecha_caducidad - timezone.now().date()).days
+        else:
+            dias_caducidad = None
+        
+        datos_reporte.append({
+            'id': reserva.id,
+            'partida': partida_counter,
+            'clave_cnis': producto.clave_cnis,
+            'descripcion': producto.descripcion,
+            'unidad_medida': producto.unidad_medida if producto.unidad_medida else '',
+            'lote': lote.numero_lote,
+            'caducidad': lote.fecha_caducidad.strftime('%d/%m/%Y') if lote.fecha_caducidad else '',
+            'dias_caducidad': dias_caducidad,
+            'cantidad_reservada': reserva.cantidad_asignada,
+            'cantidad_solicitada': reserva.item_propuesta.cantidad_solicitada,
+            'observaciones': solicitud.observaciones_solicitud or '',
+            'recurso': solicitud.institucion_solicitante.nombre if solicitud.institucion_solicitante else '',
+            'destino': (solicitud.almacen_destino.institucion.nombre or solicitud.almacen_destino.institucion.denominacion) if solicitud.almacen_destino and solicitud.almacen_destino.institucion else '',
+            'ubicacion': ubicacion.codigo if ubicacion else '',
+            'fecha_reserva': reserva.fecha_asignacion.strftime('%d/%m/%Y %H:%M') if reserva.fecha_asignacion else '',
+            'folio': solicitud.observaciones_solicitud or solicitud.folio,
+            'fecha_entrega_programada': solicitud.fecha_entrega_programada.strftime('%d/%m/%Y') if solicitud.fecha_entrega_programada else '',
+            'estado_propuesta': propuesta.get_estado_display(),
+            'estado_propuesta_codigo': propuesta.estado,
+            'propuesta_id': propuesta.id,
+        })
+        
+        partida_counter += 1
+    
+    # Paginación
+    paginator = Paginator(datos_reporte, 50)
+    page = request.GET.get('page', 1)
+    try:
+        datos_paginados = paginator.page(page)
+    except PageNotAnInteger:
+        datos_paginados = paginator.page(1)
+    except EmptyPage:
+        datos_paginados = paginator.page(paginator.num_pages)
+    
+    # Obtener instituciones para el filtro
+    instituciones = Institucion.objects.all().order_by('nombre')
+    
+    # Estados de propuesta para el filtro
+    estados_propuesta = [
+        ('GENERADA', 'Generada'),
+        ('REVISADA', 'Revisada'),
+        ('EN_SURTIMIENTO', 'En Surtimiento'),
+        ('SURTIDA', 'Surtida'),
+        ('CANCELADA', 'Cancelada'),
+    ]
+    
+    context = {
+        'datos': datos_paginados,
+        'total_registros': len(datos_reporte),
+        'fecha_inicio': fecha_inicio,
+        'fecha_fin': fecha_fin,
+        'folio': folio,
+        'clave_cnis': clave_cnis,
+        'institucion_id': institucion_id,
+        'estado_propuesta': estado_propuesta,
+        'instituciones': instituciones,
+        'estados_propuesta': estados_propuesta,
+    }
+    
+    return render(request, 'inventario/reportes_salidas/reporte_reservas.html', context)
+
+
+@login_required
+@requiere_rol('Administrador', 'Gestor de Inventario', 'Supervisor')
+@require_http_methods(["POST"])
+@transaction.atomic
+def liberar_reserva(request, reserva_id):
+    """
+    Libera una reserva específica (LoteAsignado).
+    Elimina el LoteAsignado y libera la cantidad reservada.
+    """
+    try:
+        reserva = get_object_or_404(
+            LoteAsignado.objects.select_related(
+                'lote_ubicacion__lote',
+                'item_propuesta__propuesta'
+            ),
+            id=reserva_id,
+            surtido=False  # Solo se pueden liberar reservas no surtidas
+        )
+        
+        propuesta = reserva.item_propuesta.propuesta
+        
+        # Verificar que la propuesta esté en un estado que permita liberar
+        estados_liberables = ['GENERADA', 'REVISADA', 'EN_SURTIMIENTO']
+        if propuesta.estado not in estados_liberables:
+            return JsonResponse({
+                'exito': False,
+                'mensaje': f'No se puede liberar la reserva. La propuesta está en estado "{propuesta.get_estado_display()}"'
+            }, status=400)
+        
+        lote_ubicacion = reserva.lote_ubicacion
+        cantidad_liberar = reserva.cantidad_asignada
+        item_propuesta = reserva.item_propuesta  # Guardar referencia antes de eliminar
+        
+        # Liberar la cantidad reservada
+        resultado_liberacion = liberar_cantidad_lote(lote_ubicacion, cantidad_liberar)
+        
+        # Eliminar el LoteAsignado
+        reserva.delete()
+        
+        # Actualizar cantidad_propuesta del item si es necesario
+        item_propuesta.refresh_from_db()
+        
+        # Recalcular cantidad_propuesta sumando las cantidades asignadas restantes (excluyendo la que se eliminó)
+        cantidad_restante = item_propuesta.lotes_asignados.filter(surtido=False).aggregate(
+            total=Sum('cantidad_asignada')
+        )['total'] or 0
+        
+        item_propuesta.cantidad_propuesta = cantidad_restante
+        item_propuesta.save(update_fields=['cantidad_propuesta'])
+        
+        messages.success(
+            request,
+            f'Reserva liberada exitosamente. Se liberaron {cantidad_liberar} unidades del lote {lote_ubicacion.lote.numero_lote}'
+        )
+        
+        return JsonResponse({
+            'exito': True,
+            'mensaje': f'Reserva liberada exitosamente. Se liberaron {cantidad_liberar} unidades.',
+            'cantidad_liberada': cantidad_liberar,
+            'lote': lote_ubicacion.lote.numero_lote
+        })
+        
+    except LoteAsignado.DoesNotExist:
+        return JsonResponse({
+            'exito': False,
+            'mensaje': 'La reserva no existe o ya fue surtida'
+        }, status=404)
+    
+    except Exception as e:
+        return JsonResponse({
+            'exito': False,
+            'mensaje': f'Error al liberar la reserva: {str(e)}'
+        }, status=500)
+
+
+@login_required
+@requiere_rol('Administrador', 'Gestor de Inventario', 'Analista', 'Supervisor')
+def exportar_reservas_excel(request):
+    """
+    Exporta el reporte de reservas a Excel.
+    """
+    # Aplicar los mismos filtros que la vista principal
+    fecha_inicio = request.GET.get('fecha_inicio')
+    fecha_fin = request.GET.get('fecha_fin')
+    folio = request.GET.get('folio', '').strip()
+    clave_cnis = request.GET.get('clave_cnis', '').strip()
+    institucion_id = request.GET.get('institucion')
+    estado_propuesta = request.GET.get('estado_propuesta', '')
+    
+    # Obtener reservas (misma lógica que la vista)
+    reservas = LoteAsignado.objects.filter(
+        surtido=False
+    ).select_related(
+        'item_propuesta__propuesta__solicitud',
+        'item_propuesta__propuesta__solicitud__institucion_solicitante',
+        'item_propuesta__propuesta__solicitud__almacen_destino',
+        'item_propuesta__producto',
+        'lote_ubicacion__lote',
+        'lote_ubicacion__lote__producto',
+        'lote_ubicacion__ubicacion'
+    )
+    
+    # Aplicar filtros (misma lógica que la vista)
+    if fecha_inicio:
+        try:
+            fecha_inicio_obj = datetime.strptime(fecha_inicio, '%Y-%m-%d')
+            reservas = reservas.filter(fecha_asignacion__gte=fecha_inicio_obj)
+        except ValueError:
+            pass
+    
+    if fecha_fin:
+        try:
+            fecha_fin_obj = datetime.strptime(fecha_fin, '%Y-%m-%d')
+            from datetime import time as dt_time
+            fecha_fin_obj = datetime.combine(fecha_fin_obj.date(), dt_time.max)
+            reservas = reservas.filter(fecha_asignacion__lte=fecha_fin_obj)
+        except ValueError:
+            pass
+    
+    if folio:
+        reservas = reservas.filter(
+            Q(item_propuesta__propuesta__solicitud__folio__icontains=folio) |
+            Q(item_propuesta__propuesta__solicitud__observaciones_solicitud__icontains=folio)
+        )
+    
+    if clave_cnis:
+        reservas = reservas.filter(
+            item_propuesta__producto__clave_cnis__icontains=clave_cnis
+        )
+    
+    if institucion_id:
+        reservas = reservas.filter(
+            item_propuesta__propuesta__solicitud__institucion_solicitante_id=institucion_id
+        )
+    
+    if estado_propuesta:
+        reservas = reservas.filter(
+            item_propuesta__propuesta__estado=estado_propuesta
+        )
+    
+    # Crear workbook
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Reservas"
+    
+    # Estilos
+    header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF", size=11)
+    border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+    
+    # Encabezados
+    headers = [
+        'PARTIDA', 'CLAVE CNIS', 'DESCRIPCIÓN', 'UNIDAD DE MEDIDA', 'LOTE', 'CADUCIDAD',
+        'CANTIDAD RESERVADA', 'CANTIDAD SOLICITADA', 'OBSERVACIONES', 'RECURSO', 'DESTINO',
+        'UBICACIÓN', 'FECHA RESERVA', 'FOLIO', 'FECHA ENTREGA PROGRAMADA', 'ESTADO PROPUESTA'
+    ]
+    
+    for col_num, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col_num)
+        cell.value = header
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center', vertical='center')
+        cell.border = border
+    
+    # Datos
+    partida_counter = 1
+    for reserva in reservas.order_by('-fecha_asignacion', 'item_propuesta__propuesta__solicitud__folio'):
+        propuesta = reserva.item_propuesta.propuesta
+        solicitud = propuesta.solicitud
+        producto = reserva.item_propuesta.producto
+        lote = reserva.lote_ubicacion.lote
+        ubicacion = reserva.lote_ubicacion.ubicacion
+        
+        row_num = partida_counter + 1
+        data = [
+            partida_counter,
+            producto.clave_cnis,
+            producto.descripcion,
+            producto.unidad_medida or '',
+            lote.numero_lote,
+            lote.fecha_caducidad.strftime('%d/%m/%Y') if lote.fecha_caducidad else '',
+            reserva.cantidad_asignada,
+            reserva.item_propuesta.cantidad_solicitada,
+            solicitud.observaciones_solicitud or '',
+            solicitud.institucion_solicitante.nombre if solicitud.institucion_solicitante else '',
+            (solicitud.almacen_destino.institucion.nombre or solicitud.almacen_destino.institucion.denominacion) if solicitud.almacen_destino and solicitud.almacen_destino.institucion else '',
+            ubicacion.codigo if ubicacion else '',
+            reserva.fecha_asignacion.strftime('%d/%m/%Y %H:%M') if reserva.fecha_asignacion else '',
+            solicitud.observaciones_solicitud or solicitud.folio,
+            solicitud.fecha_entrega_programada.strftime('%d/%m/%Y') if solicitud.fecha_entrega_programada else '',
+            propuesta.get_estado_display(),
+        ]
+        
+        for col_num, value in enumerate(data, 1):
+            cell = ws.cell(row=row_num, column=col_num)
+            cell.value = value
+            cell.border = border
+            cell.alignment = Alignment(horizontal='left', vertical='top', wrap_text=True)
+        
+        partida_counter += 1
+    
+    # Ajustar anchos de columna
+    column_widths = [10, 18, 50, 15, 15, 12, 18, 18, 30, 30, 30, 15, 18, 20, 20, 20]
+    for col_num, width in enumerate(column_widths, 1):
+        ws.column_dimensions[get_column_letter(col_num)].width = width
+    
+    # Congelar primera fila
+    ws.freeze_panes = 'A2'
+    
+    # Preparar respuesta
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    filename = f"reporte_reservas_{timezone.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
     
     wb.save(response)
