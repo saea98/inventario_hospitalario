@@ -43,7 +43,8 @@ class ListaLlegadasView(LoginRequiredMixin, View):
         # Filtros de búsqueda
         folio = request.GET.get('folio', '').strip()
         proveedor = request.GET.get('proveedor', '').strip()
-        fecha_llegada = request.GET.get('fecha_llegada', '').strip()
+        fecha_inicio = request.GET.get('fecha_inicio', '').strip()
+        fecha_fin = request.GET.get('fecha_fin', '').strip()
         estado = request.GET.get('estado', '').strip()
         orden_suministro = request.GET.get('orden_suministro', '').strip()
         remision = request.GET.get('remision', '').strip()
@@ -58,11 +59,22 @@ class ListaLlegadasView(LoginRequiredMixin, View):
                 Q(proveedor__nombre__icontains=proveedor)
             )
         
-        if fecha_llegada:
+        # Filtro de rango de fechas
+        if fecha_inicio:
             try:
                 from datetime import datetime
-                fecha_obj = datetime.strptime(fecha_llegada, '%Y-%m-%d').date()
-                llegadas = llegadas.filter(cita__fecha_cita__date=fecha_obj)
+                fecha_inicio_obj = datetime.strptime(fecha_inicio, '%Y-%m-%d').date()
+                llegadas = llegadas.filter(cita__fecha_cita__date__gte=fecha_inicio_obj)
+            except ValueError:
+                pass
+        
+        if fecha_fin:
+            try:
+                from datetime import datetime, time as dt_time
+                fecha_fin_obj = datetime.strptime(fecha_fin, '%Y-%m-%d').date()
+                # Incluir todo el día
+                fecha_fin_obj = datetime.combine(fecha_fin_obj, dt_time.max)
+                llegadas = llegadas.filter(cita__fecha_cita__lte=fecha_fin_obj)
             except ValueError:
                 pass
         
@@ -97,7 +109,8 @@ class ListaLlegadasView(LoginRequiredMixin, View):
             'paginator': paginator,
             'folio': folio,
             'proveedor': proveedor,
-            'fecha_llegada': fecha_llegada,
+            'fecha_inicio': fecha_inicio,
+            'fecha_fin': fecha_fin,
             'estado': estado,
             'orden_suministro': orden_suministro,
             'remision': remision,
@@ -119,7 +132,8 @@ def exportar_llegadas_excel(request):
     # Aplicar los mismos filtros que la vista de lista
     folio = request.GET.get('folio', '').strip()
     proveedor = request.GET.get('proveedor', '').strip()
-    fecha_llegada = request.GET.get('fecha_llegada', '').strip()
+    fecha_inicio = request.GET.get('fecha_inicio', '').strip()
+    fecha_fin = request.GET.get('fecha_fin', '').strip()
     estado = request.GET.get('estado', '').strip()
     orden_suministro = request.GET.get('orden_suministro', '').strip()
     remision = request.GET.get('remision', '').strip()
@@ -133,11 +147,22 @@ def exportar_llegadas_excel(request):
             Q(proveedor__nombre__icontains=proveedor)
         )
     
-    if fecha_llegada:
+    # Filtro de rango de fechas
+    if fecha_inicio:
         try:
             from datetime import datetime
-            fecha_obj = datetime.strptime(fecha_llegada, '%Y-%m-%d').date()
-            llegadas = llegadas.filter(cita__fecha_cita__date=fecha_obj)
+            fecha_inicio_obj = datetime.strptime(fecha_inicio, '%Y-%m-%d').date()
+            llegadas = llegadas.filter(cita__fecha_cita__date__gte=fecha_inicio_obj)
+        except ValueError:
+            pass
+    
+    if fecha_fin:
+        try:
+            from datetime import datetime, time as dt_time
+            fecha_fin_obj = datetime.strptime(fecha_fin, '%Y-%m-%d').date()
+            # Incluir todo el día
+            fecha_fin_obj = datetime.combine(fecha_fin_obj, dt_time.max)
+            llegadas = llegadas.filter(cita__fecha_cita__lte=fecha_fin_obj)
         except ValueError:
             pass
     

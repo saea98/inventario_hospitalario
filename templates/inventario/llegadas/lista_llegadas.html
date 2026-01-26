@@ -8,7 +8,7 @@
             <p class="mb-0">Lista de llegadas de proveedores registradas en el sistema.</p>
         </div>
         <div>
-            <a href="{% url 'logistica:llegadas:exportar_llegadas_excel' %}?{% if folio %}folio={{ folio }}&{% endif %}{% if proveedor %}proveedor={{ proveedor }}&{% endif %}{% if fecha_llegada %}fecha_llegada={{ fecha_llegada }}&{% endif %}{% if estado %}estado={{ estado }}&{% endif %}{% if orden_suministro %}orden_suministro={{ orden_suministro }}&{% endif %}{% if remision %}remision={{ remision }}{% endif %}" class="btn btn-success btn-lg">
+            <a href="{% url 'logistica:llegadas:exportar_llegadas_excel' %}?{% if folio %}folio={{ folio }}&{% endif %}{% if proveedor %}proveedor={{ proveedor }}&{% endif %}{% if fecha_inicio %}fecha_inicio={{ fecha_inicio }}&{% endif %}{% if fecha_fin %}fecha_fin={{ fecha_fin }}&{% endif %}{% if estado %}estado={{ estado }}&{% endif %}{% if orden_suministro %}orden_suministro={{ orden_suministro }}&{% endif %}{% if remision %}remision={{ remision }}{% endif %}" class="btn btn-success btn-lg">
                 <i class="fas fa-file-excel"></i> Exportar Excel
             </a>
         </div>
@@ -32,8 +32,12 @@
                     <input type="text" name="proveedor" class="form-control" placeholder="Buscar por proveedor..." value="{{ proveedor|default:'' }}">
                 </div>
                 <div class="col-md-3">
-                    <label class="form-label">Fecha de Llegada</label>
-                    <input type="date" name="fecha_llegada" class="form-control" value="{{ fecha_llegada|default:'' }}">
+                    <label class="form-label">Fecha Inicio</label>
+                    <input type="date" name="fecha_inicio" class="form-control" value="{{ fecha_inicio|default:'' }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Fecha Fin</label>
+                    <input type="date" name="fecha_fin" class="form-control" value="{{ fecha_fin|default:'' }}">
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Estado</label>
@@ -149,12 +153,12 @@
                 <ul class="pagination justify-content-center mb-0">
                     {% if page_obj.has_previous %}
                         <li class="page-item">
-                            <a class="page-link" href="?page=1{% if folio %}&folio={{ folio }}{% endif %}{% if proveedor %}&proveedor={{ proveedor }}{% endif %}{% if fecha_llegada %}&fecha_llegada={{ fecha_llegada }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}{% if orden_suministro %}&orden_suministro={{ orden_suministro }}{% endif %}{% if remision %}&remision={{ remision }}{% endif %}">
+                            <a class="page-link" href="?page=1{% if folio %}&folio={{ folio }}{% endif %}{% if proveedor %}&proveedor={{ proveedor }}{% endif %}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}{% if orden_suministro %}&orden_suministro={{ orden_suministro }}{% endif %}{% if remision %}&remision={{ remision }}{% endif %}">
                                 <i class="fas fa-angle-double-left"></i>
                             </a>
                         </li>
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if folio %}&folio={{ folio }}{% endif %}{% if proveedor %}&proveedor={{ proveedor }}{% endif %}{% if fecha_llegada %}&fecha_llegada={{ fecha_llegada }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}{% if orden_suministro %}&orden_suministro={{ orden_suministro }}{% endif %}{% if remision %}&remision={{ remision }}{% endif %}">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if folio %}&folio={{ folio }}{% endif %}{% if proveedor %}&proveedor={{ proveedor }}{% endif %}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}{% if orden_suministro %}&orden_suministro={{ orden_suministro }}{% endif %}{% if remision %}&remision={{ remision }}{% endif %}">
                                 <i class="fas fa-angle-left"></i>
                             </a>
                         </li>
@@ -168,12 +172,12 @@
                     
                     {% if page_obj.has_next %}
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if folio %}&folio={{ folio }}{% endif %}{% if proveedor %}&proveedor={{ proveedor }}{% endif %}{% if fecha_llegada %}&fecha_llegada={{ fecha_llegada }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}{% if orden_suministro %}&orden_suministro={{ orden_suministro }}{% endif %}{% if remision %}&remision={{ remision }}{% endif %}">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if folio %}&folio={{ folio }}{% endif %}{% if proveedor %}&proveedor={{ proveedor }}{% endif %}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}{% if orden_suministro %}&orden_suministro={{ orden_suministro }}{% endif %}{% if remision %}&remision={{ remision }}{% endif %}">
                                 <i class="fas fa-angle-right"></i>
                             </a>
                         </li>
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ paginator.num_pages }}{% if folio %}&folio={{ folio }}{% endif %}{% if proveedor %}&proveedor={{ proveedor }}{% endif %}{% if fecha_llegada %}&fecha_llegada={{ fecha_llegada }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}{% if orden_suministro %}&orden_suministro={{ orden_suministro }}{% endif %}{% if remision %}&remision={{ remision }}{% endif %}">
+                            <a class="page-link" href="?page={{ paginator.num_pages }}{% if folio %}&folio={{ folio }}{% endif %}{% if proveedor %}&proveedor={{ proveedor }}{% endif %}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}{% if estado %}&estado={{ estado }}{% endif %}{% if orden_suministro %}&orden_suministro={{ orden_suministro }}{% endif %}{% if remision %}&remision={{ remision }}{% endif %}">
                                 <i class="fas fa-angle-double-right"></i>
                             </a>
                         </li>
