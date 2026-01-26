@@ -825,11 +825,39 @@ def liberar_reserva(request, reserva_id):
             }, status=400)
         
         lote_ubicacion = reserva.lote_ubicacion
+        lote = lote_ubicacion.lote
         cantidad_liberar = reserva.cantidad_asignada
         item_propuesta = reserva.item_propuesta  # Guardar referencia antes de eliminar
+        propuesta = reserva.item_propuesta.propuesta
+        solicitud = propuesta.solicitud if propuesta else None
+        
+        # Obtener cantidades antes de liberar para el movimiento
+        cantidad_disponible_anterior = lote.cantidad_disponible
+        cantidad_reservada_anterior = lote_ubicacion.cantidad_reservada
         
         # Liberar la cantidad reservada
         resultado_liberacion = liberar_cantidad_lote(lote_ubicacion, cantidad_liberar)
+        
+        # Refrescar para obtener valores actualizados
+        lote_ubicacion.refresh_from_db()
+        lote.refresh_from_db()
+        
+        # Crear movimiento de inventario para registrar la liberación
+        # Nota: La cantidad disponible no cambia al liberar una reserva,
+        # solo se libera la cantidad reservada, pero registramos el movimiento para auditoría
+        MovimientoInventario.objects.create(
+            lote=lote,
+            tipo_movimiento='AJUSTE_POSITIVO',
+            cantidad=cantidad_liberar,
+            cantidad_anterior=cantidad_disponible_anterior,
+            cantidad_nueva=cantidad_disponible_anterior,  # La cantidad disponible no cambia al liberar reserva
+            motivo=f"Liberación de reserva - Se liberaron {cantidad_liberar} unidades reservadas. Propuesta: {propuesta.id.hex[:8] if propuesta else 'N/A'}, Folio: {solicitud.folio if solicitud and solicitud.folio else 'N/A'}",
+            documento_referencia=solicitud.folio if solicitud and solicitud.folio else '',
+            pedido=solicitud.folio if solicitud and solicitud.folio else '',
+            folio=str(propuesta.id) if propuesta else '',
+            institucion_destino=solicitud.institucion_solicitante if solicitud else None,
+            usuario=request.user
+        )
         
         # Eliminar el LoteAsignado
         reserva.delete()
