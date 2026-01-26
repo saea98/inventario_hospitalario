@@ -178,6 +178,247 @@ def reporte_claves_sin_existencia(request):
 
 
 @login_required
+def reporte_pedidos_sin_existencia(request):
+    """
+    Muestra un reporte de pedidos con claves sin existencia agrupado por destino (institución y almacén).
+    Útil para ver qué destinos tienen más problemas de disponibilidad.
+    """
+    # Obtener errores sin existencia
+    errores_sin_existencia = LogErrorPedido.objects.filter(
+        tipo_error='SIN_EXISTENCIA'
+    ).select_related('usuario', 'institucion', 'almacen').order_by('-fecha_error')
+    
+    # Aplicar filtros
+    fecha_inicio = request.GET.get('fecha_inicio')
+    fecha_fin = request.GET.get('fecha_fin')
+    institucion_id = request.GET.get('institucion')
+    almacen_id = request.GET.get('almacen')
+    
+    if fecha_inicio:
+        try:
+            from datetime import datetime
+            fecha_inicio_obj = datetime.strptime(fecha_inicio, '%Y-%m-%d')
+            errores_sin_existencia = errores_sin_existencia.filter(fecha_error__gte=fecha_inicio_obj)
+        except ValueError:
+            pass
+    
+    if fecha_fin:
+        try:
+            from datetime import datetime, time as dt_time
+            fecha_fin_obj = datetime.strptime(fecha_fin, '%Y-%m-%d')
+            fecha_fin_obj = datetime.combine(fecha_fin_obj.date(), dt_time.max)
+            errores_sin_existencia = errores_sin_existencia.filter(fecha_error__lte=fecha_fin_obj)
+        except ValueError:
+            pass
+    
+    if institucion_id:
+        errores_sin_existencia = errores_sin_existencia.filter(institucion_id=institucion_id)
+    
+    if almacen_id:
+        errores_sin_existencia = errores_sin_existencia.filter(almacen_id=almacen_id)
+    
+    # Agrupar por destino (institución + almacén)
+    from .models import Producto, Institucion, Almacen
+    pedidos_sin_existencia = {}
+    
+    for error in errores_sin_existencia:
+        # Crear clave única por destino
+        institucion_nombre = error.institucion.nombre if error.institucion else 'Sin institución'
+        almacen_nombre = error.almacen.nombre if error.almacen else 'Sin almacén'
+        destino_key = f"{institucion_nombre}|{almacen_nombre}"
+        
+        if destino_key not in pedidos_sin_existencia:
+            pedidos_sin_existencia[destino_key] = {
+                'institucion': institucion_nombre,
+                'almacen': almacen_nombre,
+                'institucion_obj': error.institucion,
+                'almacen_obj': error.almacen,
+                'total_claves': 0,
+                'total_solicitudes': 0,
+                'cantidad_total': 0,
+                'claves': set(),
+                'errores': []
+            }
+        
+        # Agregar información
+        pedidos_sin_existencia[destino_key]['total_solicitudes'] += 1
+        pedidos_sin_existencia[destino_key]['cantidad_total'] += error.cantidad_solicitada or 0
+        pedidos_sin_existencia[destino_key]['claves'].add(error.clave_solicitada)
+        pedidos_sin_existencia[destino_key]['errores'].append(error)
+    
+    # Procesar datos y obtener descripciones de productos
+    for destino_data in pedidos_sin_existencia.values():
+        destino_data['total_claves'] = len(destino_data['claves'])
+        destino_data['claves'] = sorted(list(destino_data['claves']))
+        
+        # Obtener descripciones de productos
+        claves_con_descripcion = []
+        for clave in destino_data['claves']:
+            descripcion = 'Producto no encontrado'
+            try:
+                producto = Producto.objects.get(clave_cnis=clave)
+                descripcion = producto.descripcion
+            except Producto.DoesNotExist:
+                pass
+            claves_con_descripcion.append({
+                'clave': clave,
+                'descripcion': descripcion
+            })
+        destino_data['claves_detalle'] = claves_con_descripcion
+        destino_data['errores'] = destino_data['errores'][:10]  # Limitar a 10 errores recientes
+    
+    # Obtener instituciones y almacenes para filtros
+    instituciones = Institucion.objects.filter(activo=True).order_by('nombre')
+    almacenes = Almacen.objects.filter(activo=True).order_by('nombre')
+    
+    context = {
+        'pedidos_sin_existencia': sorted(
+            pedidos_sin_existencia.values(),
+            key=lambda x: x['total_solicitudes'],
+            reverse=True
+        ),
+        'total_destinos': len(pedidos_sin_existencia),
+        'instituciones': instituciones,
+        'almacenes': almacenes,
+        'fecha_inicio': fecha_inicio,
+        'fecha_fin': fecha_fin,
+        'institucion_id': institucion_id,
+        'almacen_id': almacen_id,
+        'page_title': 'Reporte de Pedidos Sin Existencia por Destino'
+    }
+    
+    return render(request, 'inventario/pedidos/reporte_pedidos_sin_existencia.html', context)
+
+
+@login_required
+def exportar_pedidos_sin_existencia_excel(request):
+    """
+    Exporta el reporte de pedidos sin existencia por destino a Excel
+    """
+    # Obtener errores sin existencia (mismo código que en la vista)
+    errores_sin_existencia = LogErrorPedido.objects.filter(
+        tipo_error='SIN_EXISTENCIA'
+    ).select_related('usuario', 'institucion', 'almacen').order_by('-fecha_error')
+    
+    # Aplicar filtros (mismo que en la vista)
+    fecha_inicio = request.GET.get('fecha_inicio')
+    fecha_fin = request.GET.get('fecha_fin')
+    institucion_id = request.GET.get('institucion')
+    almacen_id = request.GET.get('almacen')
+    
+    if fecha_inicio:
+        try:
+            from datetime import datetime
+            fecha_inicio_obj = datetime.strptime(fecha_inicio, '%Y-%m-%d')
+            errores_sin_existencia = errores_sin_existencia.filter(fecha_error__gte=fecha_inicio_obj)
+        except ValueError:
+            pass
+    
+    if fecha_fin:
+        try:
+            from datetime import datetime, time as dt_time
+            fecha_fin_obj = datetime.strptime(fecha_fin, '%Y-%m-%d')
+            fecha_fin_obj = datetime.combine(fecha_fin_obj.date(), dt_time.max)
+            errores_sin_existencia = errores_sin_existencia.filter(fecha_error__lte=fecha_fin_obj)
+        except ValueError:
+            pass
+    
+    if institucion_id:
+        errores_sin_existencia = errores_sin_existencia.filter(institucion_id=institucion_id)
+    
+    if almacen_id:
+        errores_sin_existencia = errores_sin_existencia.filter(almacen_id=almacen_id)
+    
+    # Agrupar por destino (mismo código que en la vista)
+    from .models import Producto
+    pedidos_sin_existencia = {}
+    
+    for error in errores_sin_existencia:
+        institucion_nombre = error.institucion.nombre if error.institucion else 'Sin institución'
+        almacen_nombre = error.almacen.nombre if error.almacen else 'Sin almacén'
+        destino_key = f"{institucion_nombre}|{almacen_nombre}"
+        
+        if destino_key not in pedidos_sin_existencia:
+            pedidos_sin_existencia[destino_key] = {
+                'institucion': institucion_nombre,
+                'almacen': almacen_nombre,
+                'total_claves': 0,
+                'total_solicitudes': 0,
+                'cantidad_total': 0,
+                'claves': set(),
+            }
+        
+        pedidos_sin_existencia[destino_key]['total_solicitudes'] += 1
+        pedidos_sin_existencia[destino_key]['cantidad_total'] += error.cantidad_solicitada or 0
+        pedidos_sin_existencia[destino_key]['claves'].add(error.clave_solicitada)
+    
+    # Procesar datos
+    for destino_data in pedidos_sin_existencia.values():
+        destino_data['total_claves'] = len(destino_data['claves'])
+        destino_data['claves'] = ', '.join(sorted(list(destino_data['claves'])))
+    
+    # Crear workbook
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'Pedidos Sin Existencia por Destino'
+    
+    # Estilos
+    header_fill = PatternFill(start_color='4472C4', end_color='4472C4', fill_type='solid')
+    header_font = Font(bold=True, color='FFFFFF')
+    border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+    
+    # Encabezados
+    headers = ['Institución Destino', 'Almacén Destino', 'Total Claves', 'Total Solicitudes', 'Cantidad Total Solicitada', 'Claves Afectadas']
+    for col, header in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col)
+        cell.value = header
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+        cell.border = border
+    
+    # Datos
+    for row, destino_data in enumerate(sorted(
+        pedidos_sin_existencia.values(),
+        key=lambda x: x['total_solicitudes'],
+        reverse=True
+    ), 2):
+        ws.cell(row=row, column=1).value = destino_data['institucion']
+        ws.cell(row=row, column=2).value = destino_data['almacen']
+        ws.cell(row=row, column=3).value = destino_data['total_claves']
+        ws.cell(row=row, column=4).value = destino_data['total_solicitudes']
+        ws.cell(row=row, column=5).value = destino_data['cantidad_total']
+        ws.cell(row=row, column=6).value = destino_data['claves']
+        
+        for col in range(1, 7):
+            cell = ws.cell(row=row, column=col)
+            cell.border = border
+            cell.alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
+    
+    # Ajustar ancho de columnas
+    ws.column_dimensions['A'].width = 30
+    ws.column_dimensions['B'].width = 25
+    ws.column_dimensions['C'].width = 15
+    ws.column_dimensions['D'].width = 18
+    ws.column_dimensions['E'].width = 25
+    ws.column_dimensions['F'].width = 50
+    
+    # Generar respuesta
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = 'attachment; filename="pedidos_sin_existencia_por_destino.xlsx"'
+    wb.save(response)
+    
+    return response
+
+
+@login_required
 def exportar_claves_sin_existencia_excel(request):
     """
     Exporta el reporte de claves sin existencia a Excel

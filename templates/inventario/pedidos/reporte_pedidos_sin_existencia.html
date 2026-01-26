@@ -1,0 +1,211 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Reporte de Pedidos Sin Existencia por Destino{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h1 class="mb-3">📦 Reporte de Pedidos Sin Existencia por Destino</h1>
+            <p class="text-muted">Productos solicitados sin existencia disponible, agrupados por institución y almacén destino</p>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">🔍 Filtros</h5>
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label for="fecha_inicio" class="form-label">Fecha Inicio</label>
+                    <input type="date" class="form-control" id="fecha_inicio" name="fecha_inicio" value="{{ fecha_inicio }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="fecha_fin" class="form-label">Fecha Fin</label>
+                    <input type="date" class="form-control" id="fecha_fin" name="fecha_fin" value="{{ fecha_fin }}">
+                </div>
+                <div class="col-md-3">
+                    <label for="institucion" class="form-label">Institución</label>
+                    <select class="form-control" id="institucion" name="institucion">
+                        <option value="">Todas</option>
+                        {% for institucion in instituciones %}
+                        <option value="{{ institucion.id }}" {% if institucion_id == institucion.id|stringformat:"s" %}selected{% endif %}>
+                            {{ institucion.nombre }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="almacen" class="form-label">Almacén</label>
+                    <select class="form-control" id="almacen" name="almacen">
+                        <option value="">Todos</option>
+                        {% for almacen in almacenes %}
+                        <option value="{{ almacen.id }}" {% if almacen_id == almacen.id|stringformat:"s" %}selected{% endif %}>
+                            {{ almacen.nombre }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-12">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search"></i> Filtrar
+                    </button>
+                    <a href="{% url 'pedidos:reporte_pedidos_sin_existencia' %}" class="btn btn-secondary">
+                        <i class="fas fa-redo"></i> Limpiar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Estadísticas -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card text-center border-warning">
+                <div class="card-body">
+                    <h5 class="card-title text-warning">Total de Destinos</h5>
+                    <h2 class="text-warning">{{ total_destinos }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-center border-info">
+                <div class="card-body">
+                    <h5 class="card-title text-info">Total de Solicitudes</h5>
+                    <h2 class="text-info">
+                        {% if pedidos_sin_existencia %}
+                            {% for destino in pedidos_sin_existencia %}
+                                {% if forloop.first %}
+                                    {% widthratio destino.total_solicitudes 1 1 as total %}
+                                {% else %}
+                                    {% widthratio destino.total_solicitudes 1 1 as temp %}
+                                    {% widthratio total|add:temp 1 1 as total %}
+                                {% endif %}
+                            {% endfor %}
+                            {{ total|default:0 }}
+                        {% else %}
+                            0
+                        {% endif %}
+                    </h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-center border-secondary">
+                <div class="card-body">
+                    <h5 class="card-title text-secondary">Cantidad Total Solicitada</h5>
+                    <h2 class="text-secondary">
+                        {% if pedidos_sin_existencia %}
+                            {% for destino in pedidos_sin_existencia %}
+                                {% if forloop.first %}
+                                    {% widthratio destino.cantidad_total 1 1 as total_cant %}
+                                {% else %}
+                                    {% widthratio destino.cantidad_total 1 1 as temp %}
+                                    {% widthratio total_cant|add:temp 1 1 as total_cant %}
+                                {% endif %}
+                            {% endfor %}
+                            {{ total_cant|default:0 }}
+                        {% else %}
+                            0
+                        {% endif %}
+                    </h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla de Pedidos Sin Existencia por Destino -->
+    <div class="card">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">📋 Pedidos Sin Existencia por Destino</h5>
+            <a href="{% url 'pedidos:exportar_pedidos_sin_existencia_excel' %}?{{ request.GET.urlencode }}" class="btn btn-sm btn-success">
+                <i class="fas fa-file-excel"></i> Exportar a Excel
+            </a>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Institución Destino</th>
+                        <th>Almacén Destino</th>
+                        <th>Total Claves</th>
+                        <th>Total Solicitudes</th>
+                        <th>Cantidad Total Solicitada</th>
+                        <th>Claves Afectadas</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for destino in pedidos_sin_existencia %}
+                    <tr>
+                        <td>
+                            <strong>{{ destino.institucion }}</strong>
+                        </td>
+                        <td>
+                            {{ destino.almacen }}
+                        </td>
+                        <td>
+                            <span class="badge bg-warning text-dark">{{ destino.total_claves }}</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-info">{{ destino.total_solicitudes }}</span>
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary">{{ destino.cantidad_total }}</span>
+                        </td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-primary" type="button" data-bs-toggle="collapse" data-bs-target="#claves-{{ forloop.counter }}" aria-expanded="false">
+                                <i class="fas fa-list"></i> Ver {{ destino.total_claves }} claves
+                            </button>
+                        </td>
+                        <td>
+                            <a href="{% url 'pedidos:reporte_claves_sin_existencia' %}?institucion={{ destino.institucion_obj.id|default:'' }}&almacen={{ destino.almacen_obj.id|default:'' }}" class="btn btn-sm btn-primary" title="Ver detalle por claves">
+                                <i class="fas fa-eye"></i> Detalle
+                            </a>
+                        </td>
+                    </tr>
+                    <tr class="collapse" id="claves-{{ forloop.counter }}">
+                        <td colspan="7">
+                            <div class="card card-body bg-light">
+                                <h6 class="mb-3">Claves sin existencia para este destino:</h6>
+                                <div class="row">
+                                    {% for clave_detalle in destino.claves_detalle %}
+                                    <div class="col-md-6 mb-2">
+                                        <code>{{ clave_detalle.clave }}</code> - 
+                                        <small>{{ clave_detalle.descripcion|truncatewords:10 }}</small>
+                                    </div>
+                                    {% endfor %}
+                                </div>
+                            </div>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="7" class="text-center text-muted py-4">
+                            <i class="fas fa-check-circle"></i> No hay pedidos sin existencia en el período seleccionado
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Botones de acción -->
+    <div class="mt-4">
+        <a href="{% url 'pedidos:exportar_pedidos_sin_existencia_excel' %}?{{ request.GET.urlencode }}" class="btn btn-lg btn-success">
+            <i class="fas fa-file-excel"></i> Exportar a Excel
+        </a>
+        <a href="{% url 'pedidos:reporte_claves_sin_existencia' %}" class="btn btn-lg btn-info">
+            <i class="fas fa-key"></i> Ver Reporte por Claves
+        </a>
+        <a href="{% url 'pedidos:reporte_errores' %}" class="btn btn-lg btn-secondary">
+            <i class="fas fa-arrow-left"></i> Volver a Reportes
+        </a>
+    </div>
+
+</div>
+{% endblock %}
