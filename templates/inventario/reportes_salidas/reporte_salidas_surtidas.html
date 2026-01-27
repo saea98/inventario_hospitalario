@@ -81,6 +81,7 @@
                                     <th>LOTE</th>
                                     <th>CADUCIDAD</th>
                                     <th>CANTIDAD SOLICITADA</th>
+                                    <th>CANT. PREVIA AL SURTIMIENTO</th>
                                     <th>CANTIDAD SURTIDA</th>
                                     <th>OBSERVACIONES</th>
                                     <th>RECURSO</th>
@@ -106,6 +107,7 @@
                                         <td>{{ dato.lote }}</td>
                                         <td>{{ dato.caducidad }}</td>
                                         <td class="text-center">{{ dato.cantidad_solicitada }}</td>
+                                        <td class="text-center">{{ dato.cantidad_previa|default:"—" }}</td>
                                         <td class="text-center"><strong>{{ dato.cantidad_surtida }}</strong></td>
                                         <td>{{ dato.observaciones|truncatewords:5 }}</td>
                                         <td>{{ dato.recurso }}</td>
@@ -124,7 +126,7 @@
                                     {% endfor %}
                                 {% else %}
                                     <tr>
-                                        <td colspan="19" class="text-center text-muted">
+                                        <td colspan="20" class="text-center text-muted">
                                             <i class="fas fa-info-circle"></i> No se encontraron registros con los filtros aplicados.
                                         </td>
                                     </tr>

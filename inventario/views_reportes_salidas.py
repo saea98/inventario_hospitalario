@@ -356,6 +356,9 @@ def reporte_salidas_surtidas(request):
                     motivo__icontains=propuesta.id.hex[:8] if propuesta.id else ''
                 ).first()
                 
+                # Cantidad previa al surtimiento = cantidad_anterior del movimiento (disponible antes de la salida)
+                cantidad_previa = movimiento.cantidad_anterior if movimiento else None
+                
                 # Obtener orden de suministro del lote (si existe)
                 orden_reposicion = lote.orden_suministro.numero_orden if lote.orden_suministro else ''
                 
@@ -374,6 +377,7 @@ def reporte_salidas_surtidas(request):
                     'caducidad': lote.fecha_caducidad.strftime('%d/%m/%Y') if lote.fecha_caducidad else '',
                     'dias_caducidad': dias_caducidad,
                     'cantidad_solicitada': item_propuesta.cantidad_solicitada,
+                    'cantidad_previa': cantidad_previa,
                     'cantidad_surtida': lote_asignado.cantidad_asignada,
                     'observaciones': solicitud.observaciones_solicitud or '',
                     'recurso': solicitud.institucion_solicitante.nombre if solicitud.institucion_solicitante else '',
@@ -541,6 +545,7 @@ def exportar_salidas_surtidas_excel(request):
                     motivo__icontains=propuesta.id.hex[:8] if propuesta.id else ''
                 ).first()
                 
+                cantidad_previa = movimiento.cantidad_anterior if movimiento else None
                 orden_reposicion = lote.orden_suministro.numero_orden if lote.orden_suministro else ''
                 
                 datos_reporte.append({
@@ -551,6 +556,7 @@ def exportar_salidas_surtidas_excel(request):
                     'lote': lote.numero_lote,
                     'caducidad': lote.fecha_caducidad.strftime('%d/%m/%Y') if lote.fecha_caducidad else '',
                     'cantidad_solicitada': item_propuesta.cantidad_solicitada,
+                    'cantidad_previa': cantidad_previa,
                     'cantidad_surtida': lote_asignado.cantidad_asignada,
                     'observaciones': solicitud.observaciones_solicitud or '',
                     'recurso': solicitud.institucion_solicitante.nombre if solicitud.institucion_solicitante else '',
@@ -586,7 +592,7 @@ def exportar_salidas_surtidas_excel(request):
     # Encabezados
     headers = [
         'PARTIDA', 'CLAVE (CNIS)', 'DESCRIPCION', 'UNIDAD DE MEDIDA', 'LOTE',
-        'CADUCIDAD', 'CANTIDAD SOLICITADA', 'CANTIDAD SURTIDA', 'OBSERVACIONES',
+        'CADUCIDAD', 'CANTIDAD SOLICITADA', 'CANT. PREVIA AL SURTIMIENTO', 'CANTIDAD SURTIDA', 'OBSERVACIONES',
         'RECURSO', 'DESTINO', 'UBICACIÓN', 'FECHA CAPTURA', 'FOLIO',
         'FECHA ENTREGA PROGRAMADA', 'STATUS', 'REMISION DE INGRESO',
         'ORDEN DE REPOSICION', 'USUARIO'
@@ -608,25 +614,26 @@ def exportar_salidas_surtidas_excel(request):
         ws.cell(row=row_num, column=5, value=dato['lote'])
         ws.cell(row=row_num, column=6, value=dato['caducidad'])
         ws.cell(row=row_num, column=7, value=dato['cantidad_solicitada'])
-        ws.cell(row=row_num, column=8, value=dato['cantidad_surtida'])
-        ws.cell(row=row_num, column=9, value=dato['observaciones'])
-        ws.cell(row=row_num, column=10, value=dato['recurso'])
-        ws.cell(row=row_num, column=11, value=dato['destino'])
-        ws.cell(row=row_num, column=12, value=dato['ubicacion'])
-        ws.cell(row=row_num, column=13, value=dato['fecha_captura'])
-        ws.cell(row=row_num, column=14, value=dato['folio'])
-        ws.cell(row=row_num, column=15, value=dato['fecha_entrega_programada'])
-        ws.cell(row=row_num, column=16, value=dato['status'])
-        ws.cell(row=row_num, column=17, value=dato['remision_ingreso'])
-        ws.cell(row=row_num, column=18, value=dato['orden_reposicion'])
-        ws.cell(row=row_num, column=19, value=dato['usuario'])
+        ws.cell(row=row_num, column=8, value=dato.get('cantidad_previa'))
+        ws.cell(row=row_num, column=9, value=dato['cantidad_surtida'])
+        ws.cell(row=row_num, column=10, value=dato['observaciones'])
+        ws.cell(row=row_num, column=11, value=dato['recurso'])
+        ws.cell(row=row_num, column=12, value=dato['destino'])
+        ws.cell(row=row_num, column=13, value=dato['ubicacion'])
+        ws.cell(row=row_num, column=14, value=dato['fecha_captura'])
+        ws.cell(row=row_num, column=15, value=dato['folio'])
+        ws.cell(row=row_num, column=16, value=dato['fecha_entrega_programada'])
+        ws.cell(row=row_num, column=17, value=dato['status'])
+        ws.cell(row=row_num, column=18, value=dato['remision_ingreso'])
+        ws.cell(row=row_num, column=19, value=dato['orden_reposicion'])
+        ws.cell(row=row_num, column=20, value=dato['usuario'])
         
         # Aplicar bordes
-        for col_num in range(1, 20):
+        for col_num in range(1, 21):
             ws.cell(row=row_num, column=col_num).border = border
     
     # Ajustar ancho de columnas
-    column_widths = [10, 15, 50, 15, 15, 12, 18, 18, 30, 30, 25, 15, 18, 20, 22, 15, 20, 20, 25]
+    column_widths = [10, 15, 50, 15, 15, 12, 18, 22, 18, 30, 30, 25, 15, 18, 20, 22, 15, 20, 20, 25]
     for col_num, width in enumerate(column_widths, 1):
         ws.column_dimensions[get_column_letter(col_num)].width = width
     
