@@ -9,7 +9,7 @@ from django.db.models.functions import Concat
 from django.utils import timezone
 from django.http import HttpResponse
 from datetime import timedelta
-from .pedidos_models import LogErrorPedido
+from .pedidos_models import LogErrorPedido, SolicitudPedido
 from .pedidos_utils import obtener_resumen_errores
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -186,7 +186,7 @@ def reporte_pedidos_sin_existencia(request):
     # Obtener errores sin existencia
     errores_sin_existencia = LogErrorPedido.objects.filter(
         tipo_error='SIN_EXISTENCIA'
-    ).select_related('usuario', 'institucion', 'almacen').order_by('-fecha_error')
+    ).select_related('usuario', 'institucion', 'almacen', 'usuario__almacen', 'usuario__almacen__institucion').order_by('-fecha_error')
     
     # Aplicar filtros
     fecha_inicio = request.GET.get('fecha_inicio')
@@ -222,17 +222,56 @@ def reporte_pedidos_sin_existencia(request):
     pedidos_sin_existencia = {}
     
     for error in errores_sin_existencia:
+        # Buscar la solicitud relacionada para obtener institución y almacén del pedido
+        institucion = None
+        almacen = None
+        folio_pedido = None
+        solicitud_relacionada = None
+        
+        if error.usuario:
+            # Buscar solicitudes del mismo usuario en un rango más amplio (±2 horas) para asegurar encontrar la solicitud
+            fecha_inicio_busqueda = error.fecha_error - timedelta(hours=2)
+            fecha_fin_busqueda = error.fecha_error + timedelta(hours=2)
+            
+            solicitud_relacionada = SolicitudPedido.objects.filter(
+                usuario_solicitante=error.usuario,
+                fecha_solicitud__gte=fecha_inicio_busqueda,
+                fecha_solicitud__lte=fecha_fin_busqueda
+            ).select_related('institucion_solicitante', 'almacen_destino').order_by('-fecha_solicitud').first()
+            
+            if solicitud_relacionada:
+                # SIEMPRE usar institución y almacén del pedido cuando se encuentra la solicitud
+                # Usar los campos correctos: institucion_solicitante y almacen_destino
+                institucion = solicitud_relacionada.institucion_solicitante
+                almacen = solicitud_relacionada.almacen_destino
+                # Usar observaciones_solicitud (folio del pedido) - este es el campo correcto
+                folio_pedido = solicitud_relacionada.observaciones_solicitud.strip() if solicitud_relacionada.observaciones_solicitud else (solicitud_relacionada.folio or '')
+        
+        # Solo usar respaldo si NO se encontró solicitud relacionada
+        # Esto asegura que siempre priorizamos los datos del pedido
+        if not solicitud_relacionada:
+            # Si no se encontró solicitud, intentar obtener del error o usuario como respaldo
+            if not institucion:
+                institucion = error.institucion
+                if not institucion and error.usuario and error.usuario.almacen and error.usuario.almacen.institucion:
+                    institucion = error.usuario.almacen.institucion
+            
+            if not almacen:
+                almacen = error.almacen
+                if not almacen and error.usuario and error.usuario.almacen:
+                    almacen = error.usuario.almacen
+        
         # Crear clave única por destino
-        institucion_nombre = error.institucion.nombre if error.institucion else 'Sin institución'
-        almacen_nombre = error.almacen.nombre if error.almacen else 'Sin almacén'
+        institucion_nombre = institucion.nombre if institucion else 'Sin institución'
+        almacen_nombre = almacen.nombre if almacen else 'Sin almacén'
         destino_key = f"{institucion_nombre}|{almacen_nombre}"
         
         if destino_key not in pedidos_sin_existencia:
             pedidos_sin_existencia[destino_key] = {
                 'institucion': institucion_nombre,
                 'almacen': almacen_nombre,
-                'institucion_obj': error.institucion,
-                'almacen_obj': error.almacen,
+                'institucion_obj': institucion,  # Usar la institución obtenida del pedido
+                'almacen_obj': almacen,  # Usar el almacén obtenido del pedido
                 'total_claves': 0,
                 'total_solicitudes': 0,
                 'cantidad_total': 0,
@@ -244,7 +283,19 @@ def reporte_pedidos_sin_existencia(request):
         pedidos_sin_existencia[destino_key]['total_solicitudes'] += 1
         pedidos_sin_existencia[destino_key]['cantidad_total'] += error.cantidad_solicitada or 0
         pedidos_sin_existencia[destino_key]['claves'].add(error.clave_solicitada)
-        pedidos_sin_existencia[destino_key]['errores'].append(error)
+        
+        # Agregar error con folio del pedido
+        error_data = {
+            'error': error,
+            'folio_pedido': folio_pedido
+        }
+        pedidos_sin_existencia[destino_key]['errores'].append(error_data)
+        
+        # Agregar folio a un set para mostrar en el resumen
+        if folio_pedido:
+            if 'folios_pedidos' not in pedidos_sin_existencia[destino_key]:
+                pedidos_sin_existencia[destino_key]['folios_pedidos'] = set()
+            pedidos_sin_existencia[destino_key]['folios_pedidos'].add(folio_pedido)
     
     # Procesar datos y obtener descripciones de productos
     for destino_data in pedidos_sin_existencia.values():
@@ -266,6 +317,14 @@ def reporte_pedidos_sin_existencia(request):
             })
         destino_data['claves_detalle'] = claves_con_descripcion
         destino_data['errores'] = destino_data['errores'][:10]  # Limitar a 10 errores recientes
+        
+        # Procesar folios de pedidos
+        if 'folios_pedidos' in destino_data:
+            destino_data['folios_pedidos'] = sorted(list(destino_data['folios_pedidos']))
+            destino_data['total_folios'] = len(destino_data['folios_pedidos'])
+        else:
+            destino_data['folios_pedidos'] = []
+            destino_data['total_folios'] = 0
     
     # Obtener instituciones y almacenes para filtros
     instituciones = Institucion.objects.filter(activo=True).order_by('nombre')
@@ -298,7 +357,7 @@ def exportar_pedidos_sin_existencia_excel(request):
     # Obtener errores sin existencia (mismo código que en la vista)
     errores_sin_existencia = LogErrorPedido.objects.filter(
         tipo_error='SIN_EXISTENCIA'
-    ).select_related('usuario', 'institucion', 'almacen').order_by('-fecha_error')
+    ).select_related('usuario', 'institucion', 'almacen', 'usuario__almacen', 'usuario__almacen__institucion').order_by('-fecha_error')
     
     # Aplicar filtros (mismo que en la vista)
     fecha_inicio = request.GET.get('fecha_inicio')
@@ -334,8 +393,48 @@ def exportar_pedidos_sin_existencia_excel(request):
     pedidos_sin_existencia = {}
     
     for error in errores_sin_existencia:
-        institucion_nombre = error.institucion.nombre if error.institucion else 'Sin institución'
-        almacen_nombre = error.almacen.nombre if error.almacen else 'Sin almacén'
+        # Buscar la solicitud relacionada para obtener institución y almacén del pedido
+        institucion = None
+        almacen = None
+        folio_pedido = None
+        solicitud_relacionada = None
+        
+        if error.usuario:
+            # Buscar solicitudes del mismo usuario en un rango más amplio (±2 horas) para asegurar encontrar la solicitud
+            fecha_inicio_busqueda = error.fecha_error - timedelta(hours=2)
+            fecha_fin_busqueda = error.fecha_error + timedelta(hours=2)
+            
+            solicitud_relacionada = SolicitudPedido.objects.filter(
+                usuario_solicitante=error.usuario,
+                fecha_solicitud__gte=fecha_inicio_busqueda,
+                fecha_solicitud__lte=fecha_fin_busqueda
+            ).select_related('institucion_solicitante', 'almacen_destino').order_by('-fecha_solicitud').first()
+            
+            if solicitud_relacionada:
+                # SIEMPRE usar institución y almacén del pedido cuando se encuentra la solicitud
+                # Usar los campos correctos: institucion_solicitante y almacen_destino
+                institucion = solicitud_relacionada.institucion_solicitante
+                almacen = solicitud_relacionada.almacen_destino
+                # Usar observaciones_solicitud (folio del pedido) - este es el campo correcto
+                folio_pedido = solicitud_relacionada.observaciones_solicitud.strip() if solicitud_relacionada.observaciones_solicitud else (solicitud_relacionada.folio or '')
+        
+        # Solo usar respaldo si NO se encontró solicitud relacionada
+        # Esto asegura que siempre priorizamos los datos del pedido
+        if not solicitud_relacionada:
+            # Si no se encontró solicitud, intentar obtener del error o usuario como respaldo
+            if not institucion:
+                institucion = error.institucion
+                if not institucion and error.usuario and error.usuario.almacen and error.usuario.almacen.institucion:
+                    institucion = error.usuario.almacen.institucion
+            
+            if not almacen:
+                almacen = error.almacen
+                if not almacen and error.usuario and error.usuario.almacen:
+                    almacen = error.usuario.almacen
+        
+        # Crear clave única por destino
+        institucion_nombre = institucion.nombre if institucion else 'Sin institución'
+        almacen_nombre = almacen.nombre if almacen else 'Sin almacén'
         destino_key = f"{institucion_nombre}|{almacen_nombre}"
         
         if destino_key not in pedidos_sin_existencia:
@@ -346,16 +445,22 @@ def exportar_pedidos_sin_existencia_excel(request):
                 'total_solicitudes': 0,
                 'cantidad_total': 0,
                 'claves': set(),
+                'folios_pedidos': set(),
             }
         
         pedidos_sin_existencia[destino_key]['total_solicitudes'] += 1
         pedidos_sin_existencia[destino_key]['cantidad_total'] += error.cantidad_solicitada or 0
         pedidos_sin_existencia[destino_key]['claves'].add(error.clave_solicitada)
+        
+        # Agregar folio del pedido si existe
+        if folio_pedido:
+            pedidos_sin_existencia[destino_key]['folios_pedidos'].add(folio_pedido)
     
     # Procesar datos
     for destino_data in pedidos_sin_existencia.values():
         destino_data['total_claves'] = len(destino_data['claves'])
         destino_data['claves'] = ', '.join(sorted(list(destino_data['claves'])))
+        destino_data['folios_pedidos'] = ', '.join(sorted(list(destino_data['folios_pedidos']))) if destino_data['folios_pedidos'] else ''
     
     # Crear workbook
     wb = openpyxl.Workbook()
@@ -373,7 +478,7 @@ def exportar_pedidos_sin_existencia_excel(request):
     )
     
     # Encabezados
-    headers = ['Institución Destino', 'Almacén Destino', 'Total Claves', 'Total Solicitudes', 'Cantidad Total Solicitada', 'Claves Afectadas']
+    headers = ['Institución Destino', 'Almacén Destino', 'Folio(s) Pedido', 'Total Claves', 'Total Solicitudes', 'Cantidad Total Solicitada', 'Claves Afectadas']
     for col, header in enumerate(headers, 1):
         cell = ws.cell(row=1, column=col)
         cell.value = header
@@ -403,10 +508,11 @@ def exportar_pedidos_sin_existencia_excel(request):
     # Ajustar ancho de columnas
     ws.column_dimensions['A'].width = 30
     ws.column_dimensions['B'].width = 25
-    ws.column_dimensions['C'].width = 15
-    ws.column_dimensions['D'].width = 18
-    ws.column_dimensions['E'].width = 25
-    ws.column_dimensions['F'].width = 50
+    ws.column_dimensions['C'].width = 20
+    ws.column_dimensions['D'].width = 15
+    ws.column_dimensions['E'].width = 18
+    ws.column_dimensions['F'].width = 25
+    ws.column_dimensions['G'].width = 50
     
     # Generar respuesta
     response = HttpResponse(
