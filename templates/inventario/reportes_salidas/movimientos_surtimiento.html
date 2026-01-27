@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Movimientos generados por surtimiento{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-3">
+        <div class="col-12">
+            <nav aria-label="breadcrumb">
+                <ol class="breadcrumb">
+                    <li class="breadcrumb-item"><a href="{% url 'reportes_salidas:reporte_salidas_surtidas' %}">Reporte Salidas Surtidas</a></li>
+                    <li class="breadcrumb-item active">Movimientos - Lote {{ lote_numero }}</li>
+                </ol>
+            </nav>
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-12">
+            <div class="card">
+                <div class="card-header bg-info text-white d-flex justify-content-between align-items-center">
+                    <h5 class="mb-0">
+                        <i class="fas fa-truck-loading"></i> Movimientos generados por este surtimiento
+                        {% if lote_numero %}<small class="ms-2">Lote {{ lote_numero }}</small>{% endif %}
+                        {% if producto_desc %}<small class="text-white-50">— {{ producto_desc }}{% if producto_desc|length >= 60 %}…{% endif %}</small>{% endif %}
+                    </h5>
+                    <a href="{% url 'reportes_salidas:reporte_salidas_surtidas' %}" class="btn btn-light btn-sm">
+                        <i class="fas fa-arrow-left"></i> Volver al reporte
+                    </a>
+                </div>
+                <div class="card-body">
+                    {% if movimientos %}
+                    <div class="table-responsive">
+                        <table class="table table-striped table-hover">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Fecha</th>
+                                    <th>Tipo</th>
+                                    <th>Lote</th>
+                                    <th>Cantidad</th>
+                                    <th>Cant. anterior</th>
+                                    <th>Cant. nueva</th>
+                                    <th>Motivo</th>
+                                    <th>Folio / Pedido</th>
+                                    <th>Usuario</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for m in movimientos %}
+                                <tr>
+                                    <td><small>{{ m.fecha_movimiento|date:"d/m/Y H:i" }}</small></td>
+                                    <td><span class="badge bg-danger">Salida</span></td>
+                                    <td>{{ m.lote.numero_lote }}</td>
+                                    <td class="text-end">{{ m.cantidad }}</td>
+                                    <td class="text-end">{{ m.cantidad_anterior }}</td>
+                                    <td class="text-end">{{ m.cantidad_nueva }}</td>
+                                    <td><small>{{ m.motivo|truncatewords:12 }}</small></td>
+                                    <td><small>{{ m.folio|default:"" }} {{ m.pedido|default:"" }}</small></td>
+                                    <td><small>{{ m.usuario.username }}</small></td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="text-muted small mb-0"><strong>{{ movimientos|length }}</strong> movimiento(s) asociado(s) a este registro.</p>
+                    {% else %}
+                    <div class="alert alert-warning mb-0">
+                        <i class="fas fa-exclamation-triangle"></i> No se encontraron movimientos de inventario asociados a este registro de surtimiento.
+                    </div>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

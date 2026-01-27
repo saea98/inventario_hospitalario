@@ -19,11 +19,11 @@
                         <div class="row">
                             <div class="col-md-3">
                                 <label for="fecha_inicio" class="form-label">Fecha Inicio</label>
-                                <input type="date" class="form-control" id="fecha_inicio" name="fecha_inicio" value="{{ fecha_inicio }}">
+                                <input type="date" class="form-control" id="fecha_inicio" name="fecha_inicio" value="{% if fecha_inicio %}{{ fecha_inicio }}{% endif %}">
                             </div>
                             <div class="col-md-3">
                                 <label for="fecha_fin" class="form-label">Fecha Fin</label>
-                                <input type="date" class="form-control" id="fecha_fin" name="fecha_fin" value="{{ fecha_fin }}">
+                                <input type="date" class="form-control" id="fecha_fin" name="fecha_fin" value="{% if fecha_fin %}{{ fecha_fin }}{% endif %}">
                             </div>
                             <div class="col-md-2">
                                 <label for="folio" class="form-label">Folio</label>
@@ -94,6 +94,7 @@
                                     <th>REMISION DE INGRESO</th>
                                     <th>ORDEN DE REPOSICION</th>
                                     <th>USUARIO</th>
+                                    <th class="text-center">ACCIONES</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -107,7 +108,7 @@
                                         <td>{{ dato.lote }}</td>
                                         <td>{{ dato.caducidad }}</td>
                                         <td class="text-center">{{ dato.cantidad_solicitada }}</td>
-                                        <td class="text-center">{{ dato.cantidad_previa|default:"—" }}</td>
+                                        <td class="text-center">{{ dato.cantidad_previa|default_if_none:"—" }}</td>
                                         <td class="text-center"><strong>{{ dato.cantidad_surtida }}</strong></td>
                                         <td>{{ dato.observaciones|truncatewords:5 }}</td>
                                         <td>{{ dato.recurso }}</td>
@@ -122,11 +123,16 @@
                                         <td>{{ dato.remision_ingreso }}</td>
                                         <td>{{ dato.orden_reposicion }}</td>
                                         <td>{{ dato.usuario }}</td>
+                                        <td class="text-center">
+                                            <a href="{% url 'reportes_salidas:movimientos_surtimiento' %}?propuesta={{ dato.propuesta_id }}&lote={{ dato.lote_id }}" class="btn btn-outline-primary btn-sm" title="Ver movimientos generados por este registro">
+                                                <i class="fas fa-exchange-alt"></i> Ver movimientos
+                                            </a>
+                                        </td>
                                     </tr>
                                     {% endfor %}
                                 {% else %}
                                     <tr>
-                                        <td colspan="20" class="text-center text-muted">
+                                        <td colspan="21" class="text-center text-muted">
                                             <i class="fas fa-info-circle"></i> No se encontraron registros con los filtros aplicados.
                                         </td>
                                     </tr>

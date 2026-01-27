@@ -349,8 +349,7 @@ def reporte_salidas_surtidas(request):
                     if not lote.numero_lote or lote_filter_value not in lote.numero_lote.upper():
                         continue
                 
-                # Obtener movimiento de inventario relacionado (si existe)
-                # En fase5_utils el movimiento se crea con folio=str(propuesta.id), no en motivo
+                # Obtener movimiento de inventario relacionado (si existe, para remision_ingreso)
                 movimiento = MovimientoInventario.objects.filter(
                     lote=lote,
                     tipo_movimiento='SALIDA',
@@ -363,8 +362,10 @@ def reporte_salidas_surtidas(request):
                         folio=str(propuesta.id) if propuesta.id else ''
                     ).first()
                 
-                # Cantidad previa al surtimiento = cantidad_anterior del movimiento (disponible antes de la salida)
-                cantidad_previa = movimiento.cantidad_anterior if movimiento else None
+                # Cantidad previa = cantidad_disponible (inventario_lote) + cantidad surtida
+                cantidad_surtida = lote_asignado.cantidad_asignada
+                cantidad_disponible_lote = getattr(lote, 'cantidad_disponible', None) or 0
+                cantidad_previa = cantidad_disponible_lote + cantidad_surtida
                 
                 # Obtener orden de suministro del lote (si existe)
                 orden_reposicion = lote.orden_suministro.numero_orden if lote.orden_suministro else ''
@@ -381,9 +382,12 @@ def reporte_salidas_surtidas(request):
                     'descripcion': producto.descripcion,
                     'unidad_medida': producto.unidad_medida if producto.unidad_medida else '',
                     'lote': lote.numero_lote,
+                    'lote_id': lote.pk,
+                    'propuesta_id': propuesta.id,
                     'caducidad': lote.fecha_caducidad.strftime('%d/%m/%Y') if lote.fecha_caducidad else '',
                     'dias_caducidad': dias_caducidad,
                     'cantidad_solicitada': item_propuesta.cantidad_solicitada,
+                    'cantidad_disponible': cantidad_disponible_lote,
                     'cantidad_previa': cantidad_previa,
                     'cantidad_surtida': lote_asignado.cantidad_asignada,
                     'observaciones': solicitud.observaciones_solicitud or '',
@@ -414,6 +418,12 @@ def reporte_salidas_surtidas(request):
     # Obtener instituciones para el filtro
     instituciones = Institucion.objects.all().order_by('nombre')
     
+    # Query string sin 'page' para que los enlaces de paginación conserven los filtros
+    get_copy = request.GET.copy()
+    if 'page' in get_copy:
+        get_copy.pop('page')
+    query_string_sin_page = get_copy.urlencode()
+    
     context = {
         'datos': datos_paginados,
         'total_registros': len(datos_reporte),
@@ -424,9 +434,45 @@ def reporte_salidas_surtidas(request):
         'lote': lote,
         'institucion_id': institucion_id,
         'instituciones': instituciones,
+        'query_string_sin_page': query_string_sin_page,
     }
     
     return render(request, 'inventario/reportes_salidas/reporte_salidas_surtidas.html', context)
+
+
+@login_required
+@requiere_rol('Administrador', 'Gestor de Inventario', 'Analista', 'Supervisor')
+def movimientos_surtimiento(request):
+    """
+    Muestra los movimientos de inventario generados por un registro de surtimiento
+    (propuesta + lote). Recibe propuesta (uuid) y lote (pk) por GET.
+    """
+    propuesta_id = request.GET.get('propuesta')
+    lote_id = request.GET.get('lote')
+    if not propuesta_id or not lote_id:
+        messages.warning(request, 'Faltan parámetros (propuesta y lote) para ver los movimientos.')
+        return redirect('reportes_salidas:reporte_salidas_surtidas')
+    movimientos = MovimientoInventario.objects.filter(
+        lote_id=lote_id,
+        tipo_movimiento='SALIDA',
+        folio=str(propuesta_id)
+    ).select_related('lote', 'lote__producto', 'usuario').order_by('-fecha_movimiento')
+    # Contexto para el breadcrumb / volver
+    try:
+        lote_obj = Lote.objects.select_related('producto').get(pk=lote_id)
+        lote_numero = lote_obj.numero_lote
+        producto_desc = (lote_obj.producto.descripcion or '')[:60] if lote_obj.producto else ''
+    except Lote.DoesNotExist:
+        lote_numero = ''
+        producto_desc = ''
+    context = {
+        'movimientos': movimientos,
+        'propuesta_id': propuesta_id,
+        'lote_id': lote_id,
+        'lote_numero': lote_numero,
+        'producto_desc': producto_desc,
+    }
+    return render(request, 'inventario/reportes_salidas/movimientos_surtimiento.html', context)
 
 
 @login_required
@@ -546,7 +592,7 @@ def exportar_salidas_surtidas_excel(request):
                     if not lote.numero_lote or lote_filter_value not in lote.numero_lote.upper():
                         continue
                 
-                # En fase5_utils el movimiento se crea con folio=str(propuesta.id)
+                # Movimiento (para remision_ingreso)
                 movimiento = MovimientoInventario.objects.filter(
                     lote=lote,
                     tipo_movimiento='SALIDA',
@@ -558,7 +604,8 @@ def exportar_salidas_surtidas_excel(request):
                         tipo_movimiento='SALIDA',
                         folio=str(propuesta.id) if propuesta.id else ''
                     ).first()
-                cantidad_previa = movimiento.cantidad_anterior if movimiento else None
+                # Cantidad previa = cantidad disponible actual + cantidad surtida
+                cantidad_previa = (lote.cantidad_disponible or 0) + lote_asignado.cantidad_asignada
                 orden_reposicion = lote.orden_suministro.numero_orden if lote.orden_suministro else ''
                 
                 datos_reporte.append({
