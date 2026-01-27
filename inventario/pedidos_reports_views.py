@@ -211,13 +211,9 @@ def reporte_pedidos_sin_existencia(request):
         except ValueError:
             pass
     
-    if institucion_id:
-        errores_sin_existencia = errores_sin_existencia.filter(institucion_id=institucion_id)
+    # Filtros institución/almacén se aplican después por destino del pedido
     
-    if almacen_id:
-        errores_sin_existencia = errores_sin_existencia.filter(almacen_id=almacen_id)
-    
-    # Agrupar por destino (institución + almacén)
+    # Agrupar por destino (institución + almacén del pedido)
     from .models import Producto, Institucion, Almacen
     from .pedidos_models import ItemSolicitud
     pedidos_sin_existencia = {}
@@ -279,21 +275,11 @@ def reporte_pedidos_sin_existencia(request):
                     almacen = solicitud_relacionada.almacen_destino
                     folio_pedido = solicitud_relacionada.observaciones_solicitud.strip() if solicitud_relacionada.observaciones_solicitud else (solicitud_relacionada.folio or '')
         
-        # Solo usar respaldo si NO se encontró solicitud relacionada
-        # Esto asegura que siempre priorizamos los datos del pedido
+        # Solo incluir en el reporte errores que están en un pedido (tienen solicitud asociada)
         if not solicitud_relacionada:
-            # Si no se encontró solicitud, intentar obtener del error o usuario como respaldo
-            if not institucion:
-                institucion = error.institucion
-                if not institucion and error.usuario and error.usuario.almacen and error.usuario.almacen.institucion:
-                    institucion = error.usuario.almacen.institucion
-            
-            if not almacen:
-                almacen = error.almacen
-                if not almacen and error.usuario and error.usuario.almacen:
-                    almacen = error.usuario.almacen
+            continue
         
-        # Crear clave única por destino
+        # Crear clave única por destino (siempre del pedido)
         institucion_nombre = institucion.denominacion if institucion else 'Sin institución'
         almacen_nombre = almacen.nombre if almacen else 'Sin almacén'
         destino_key = f"{institucion_nombre}|{almacen_nombre}"
@@ -302,8 +288,8 @@ def reporte_pedidos_sin_existencia(request):
             pedidos_sin_existencia[destino_key] = {
                 'institucion': institucion_nombre,
                 'almacen': almacen_nombre,
-                'institucion_obj': institucion,  # Usar la institución obtenida del pedido
-                'almacen_obj': almacen,  # Usar el almacén obtenido del pedido
+                'institucion_obj': institucion,
+                'almacen_obj': almacen,
                 'total_claves': 0,
                 'total_solicitudes': 0,
                 'cantidad_total': 0,
@@ -414,11 +400,7 @@ def exportar_pedidos_sin_existencia_excel(request):
         except ValueError:
             pass
     
-    if institucion_id:
-        errores_sin_existencia = errores_sin_existencia.filter(institucion_id=institucion_id)
-    
-    if almacen_id:
-        errores_sin_existencia = errores_sin_existencia.filter(almacen_id=almacen_id)
+    # Filtros institución/almacén se aplican después por destino del pedido
     
     # Agrupar por destino (mismo código que en la vista)
     from .models import Producto
@@ -482,21 +464,17 @@ def exportar_pedidos_sin_existencia_excel(request):
                     almacen = solicitud_relacionada.almacen_destino
                     folio_pedido = solicitud_relacionada.observaciones_solicitud.strip() if solicitud_relacionada.observaciones_solicitud else (solicitud_relacionada.folio or '')
         
-        # Solo usar respaldo si NO se encontró solicitud relacionada
-        # Esto asegura que siempre priorizamos los datos del pedido
+        # Solo incluir en el reporte errores que están en un pedido (tienen solicitud asociada)
         if not solicitud_relacionada:
-            # Si no se encontró solicitud, intentar obtener del error o usuario como respaldo
-            if not institucion:
-                institucion = error.institucion
-                if not institucion and error.usuario and error.usuario.almacen and error.usuario.almacen.institucion:
-                    institucion = error.usuario.almacen.institucion
-            
-            if not almacen:
-                almacen = error.almacen
-                if not almacen and error.usuario and error.usuario.almacen:
-                    almacen = error.usuario.almacen
+            continue
         
-        # Crear clave única por destino
+        # Aplicar filtros por destino del pedido (institución/almacén)
+        if institucion_id and (not institucion or str(institucion.id) != str(institucion_id)):
+            continue
+        if almacen_id and (not almacen or str(almacen.id) != str(almacen_id)):
+            continue
+        
+        # Crear clave única por destino (siempre del pedido)
         institucion_nombre = institucion.denominacion if institucion else 'Sin institución'
         almacen_nombre = almacen.nombre if almacen else 'Sin almacén'
         destino_key = f"{institucion_nombre}|{almacen_nombre}"
@@ -522,9 +500,9 @@ def exportar_pedidos_sin_existencia_excel(request):
     
     # Procesar datos
     for destino_data in pedidos_sin_existencia.values():
-        destino_data['total_claves'] = len(destino_data['claves'])
-        destino_data['claves'] = ', '.join(sorted(list(destino_data['claves'])))
-        destino_data['folios_pedidos'] = ', '.join(sorted(list(destino_data['folios_pedidos']))) if destino_data['folios_pedidos'] else ''
+        destino_data['total_claves'] = len(destino_data.get('claves', set()))
+        destino_data['claves'] = ', '.join(sorted(list(destino_data.get('claves', set())))) if destino_data.get('claves') else ''
+        destino_data['folios_pedidos'] = ', '.join(sorted(list(destino_data.get('folios_pedidos', set())))) if destino_data.get('folios_pedidos') else ''
     
     # Crear workbook
     wb = openpyxl.Workbook()
@@ -557,14 +535,16 @@ def exportar_pedidos_sin_existencia_excel(request):
         key=lambda x: x['total_solicitudes'],
         reverse=True
     ), 2):
-        ws.cell(row=row, column=1).value = destino_data['institucion']
-        ws.cell(row=row, column=2).value = destino_data['almacen']
-        ws.cell(row=row, column=3).value = destino_data['total_claves']
-        ws.cell(row=row, column=4).value = destino_data['total_solicitudes']
-        ws.cell(row=row, column=5).value = destino_data['cantidad_total']
-        ws.cell(row=row, column=6).value = destino_data['claves']
+        # Asegurar que todos los valores sean strings o números, nunca None
+        ws.cell(row=row, column=1).value = str(destino_data.get('institucion', 'Sin institución') or 'Sin institución')
+        ws.cell(row=row, column=2).value = str(destino_data.get('almacen', 'Sin almacén') or 'Sin almacén')
+        ws.cell(row=row, column=3).value = str(destino_data.get('folios_pedidos', '') or '')
+        ws.cell(row=row, column=4).value = destino_data.get('total_claves', 0) or 0
+        ws.cell(row=row, column=5).value = destino_data.get('total_solicitudes', 0) or 0
+        ws.cell(row=row, column=6).value = destino_data.get('cantidad_total', 0) or 0
+        ws.cell(row=row, column=7).value = str(destino_data.get('claves', '') or '')
         
-        for col in range(1, 7):
+        for col in range(1, 8):
             cell = ws.cell(row=row, column=col)
             cell.border = border
             cell.alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
