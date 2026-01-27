@@ -21,11 +21,11 @@
             <form method="get" class="row g-3">
                 <div class="col-md-3">
                     <label for="fecha_inicio" class="form-label">Fecha Inicio</label>
-                    <input type="date" class="form-control" id="fecha_inicio" name="fecha_inicio" value="{{ fecha_inicio }}">
+                    <input type="date" class="form-control" id="fecha_inicio" name="fecha_inicio" value="{% if fecha_inicio %}{{ fecha_inicio }}{% endif %}">
                 </div>
                 <div class="col-md-3">
                     <label for="fecha_fin" class="form-label">Fecha Fin</label>
-                    <input type="date" class="form-control" id="fecha_fin" name="fecha_fin" value="{{ fecha_fin }}">
+                    <input type="date" class="form-control" id="fecha_fin" name="fecha_fin" value="{% if fecha_fin %}{{ fecha_fin }}{% endif %}">
                 </div>
                 <div class="col-md-3">
                     <label for="institucion" class="form-label">Institución</label>
@@ -33,7 +33,7 @@
                         <option value="">Todas</option>
                         {% for institucion in instituciones %}
                         <option value="{{ institucion.id }}" {% if institucion_id == institucion.id|stringformat:"s" %}selected{% endif %}>
-                            {{ institucion.nombre }}
+                            {{ institucion.denominacion }}
                         </option>
                         {% endfor %}
                     </select>

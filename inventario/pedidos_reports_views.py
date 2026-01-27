@@ -219,6 +219,7 @@ def reporte_pedidos_sin_existencia(request):
     
     # Agrupar por destino (institución + almacén)
     from .models import Producto, Institucion, Almacen
+    from .pedidos_models import ItemSolicitud
     pedidos_sin_existencia = {}
     
     for error in errores_sin_existencia:
@@ -228,24 +229,55 @@ def reporte_pedidos_sin_existencia(request):
         folio_pedido = None
         solicitud_relacionada = None
         
-        if error.usuario:
-            # Buscar solicitudes del mismo usuario en un rango más amplio (±2 horas) para asegurar encontrar la solicitud
-            fecha_inicio_busqueda = error.fecha_error - timedelta(hours=2)
-            fecha_fin_busqueda = error.fecha_error + timedelta(hours=2)
+        # Buscar solicitud que contenga un item con la clave del error
+        # Esto es más preciso que buscar solo por usuario y fecha
+        try:
+            # Buscar el producto por clave CNIS
+            producto = Producto.objects.get(clave_cnis=error.clave_solicitada)
             
-            solicitud_relacionada = SolicitudPedido.objects.filter(
-                usuario_solicitante=error.usuario,
-                fecha_solicitud__gte=fecha_inicio_busqueda,
-                fecha_solicitud__lte=fecha_fin_busqueda
-            ).select_related('institucion_solicitante', 'almacen_destino').order_by('-fecha_solicitud').first()
+            # Buscar solicitudes que tengan items con este producto
+            # Buscar en un rango de tiempo más amplio para asegurar encontrar la solicitud
+            fecha_inicio_busqueda = error.fecha_error - timedelta(hours=24)  # 24 horas antes
+            fecha_fin_busqueda = error.fecha_error + timedelta(hours=1)  # 1 hora después
             
-            if solicitud_relacionada:
+            # Buscar items que coincidan con el producto y la fecha
+            items_relacionados = ItemSolicitud.objects.filter(
+                producto=producto,
+                solicitud__fecha_solicitud__gte=fecha_inicio_busqueda,
+                solicitud__fecha_solicitud__lte=fecha_fin_busqueda
+            ).select_related('solicitud', 'solicitud__institucion_solicitante', 'solicitud__almacen_destino').order_by('-solicitud__fecha_solicitud')
+            
+            # Si hay usuario, filtrar por usuario también
+            if error.usuario:
+                items_relacionados = items_relacionados.filter(solicitud__usuario_solicitante=error.usuario)
+            
+            # Tomar la primera solicitud encontrada
+            item_relacionado = items_relacionados.first()
+            
+            if item_relacionado and item_relacionado.solicitud:
+                solicitud_relacionada = item_relacionado.solicitud
                 # SIEMPRE usar institución y almacén del pedido cuando se encuentra la solicitud
                 # Usar los campos correctos: institucion_solicitante y almacen_destino
                 institucion = solicitud_relacionada.institucion_solicitante
                 almacen = solicitud_relacionada.almacen_destino
                 # Usar observaciones_solicitud (folio del pedido) - este es el campo correcto
                 folio_pedido = solicitud_relacionada.observaciones_solicitud.strip() if solicitud_relacionada.observaciones_solicitud else (solicitud_relacionada.folio or '')
+        except Producto.DoesNotExist:
+            # Si el producto no existe, intentar buscar por usuario y fecha como respaldo
+            if error.usuario:
+                fecha_inicio_busqueda = error.fecha_error - timedelta(hours=24)
+                fecha_fin_busqueda = error.fecha_error + timedelta(hours=1)
+                
+                solicitud_relacionada = SolicitudPedido.objects.filter(
+                    usuario_solicitante=error.usuario,
+                    fecha_solicitud__gte=fecha_inicio_busqueda,
+                    fecha_solicitud__lte=fecha_fin_busqueda
+                ).select_related('institucion_solicitante', 'almacen_destino').order_by('-fecha_solicitud').first()
+                
+                if solicitud_relacionada:
+                    institucion = solicitud_relacionada.institucion_solicitante
+                    almacen = solicitud_relacionada.almacen_destino
+                    folio_pedido = solicitud_relacionada.observaciones_solicitud.strip() if solicitud_relacionada.observaciones_solicitud else (solicitud_relacionada.folio or '')
         
         # Solo usar respaldo si NO se encontró solicitud relacionada
         # Esto asegura que siempre priorizamos los datos del pedido
@@ -262,7 +294,7 @@ def reporte_pedidos_sin_existencia(request):
                     almacen = error.usuario.almacen
         
         # Crear clave única por destino
-        institucion_nombre = institucion.nombre if institucion else 'Sin institución'
+        institucion_nombre = institucion.denominacion if institucion else 'Sin institución'
         almacen_nombre = almacen.nombre if almacen else 'Sin almacén'
         destino_key = f"{institucion_nombre}|{almacen_nombre}"
         
@@ -327,7 +359,7 @@ def reporte_pedidos_sin_existencia(request):
             destino_data['total_folios'] = 0
     
     # Obtener instituciones y almacenes para filtros
-    instituciones = Institucion.objects.filter(activo=True).order_by('nombre')
+    instituciones = Institucion.objects.filter(activo=True).order_by('denominacion')
     almacenes = Almacen.objects.filter(activo=True).order_by('nombre')
     
     context = {
@@ -390,6 +422,7 @@ def exportar_pedidos_sin_existencia_excel(request):
     
     # Agrupar por destino (mismo código que en la vista)
     from .models import Producto
+    from .pedidos_models import ItemSolicitud
     pedidos_sin_existencia = {}
     
     for error in errores_sin_existencia:
@@ -399,24 +432,55 @@ def exportar_pedidos_sin_existencia_excel(request):
         folio_pedido = None
         solicitud_relacionada = None
         
-        if error.usuario:
-            # Buscar solicitudes del mismo usuario en un rango más amplio (±2 horas) para asegurar encontrar la solicitud
-            fecha_inicio_busqueda = error.fecha_error - timedelta(hours=2)
-            fecha_fin_busqueda = error.fecha_error + timedelta(hours=2)
+        # Buscar solicitud que contenga un item con la clave del error
+        # Esto es más preciso que buscar solo por usuario y fecha
+        try:
+            # Buscar el producto por clave CNIS
+            producto = Producto.objects.get(clave_cnis=error.clave_solicitada)
             
-            solicitud_relacionada = SolicitudPedido.objects.filter(
-                usuario_solicitante=error.usuario,
-                fecha_solicitud__gte=fecha_inicio_busqueda,
-                fecha_solicitud__lte=fecha_fin_busqueda
-            ).select_related('institucion_solicitante', 'almacen_destino').order_by('-fecha_solicitud').first()
+            # Buscar solicitudes que tengan items con este producto
+            # Buscar en un rango de tiempo más amplio para asegurar encontrar la solicitud
+            fecha_inicio_busqueda = error.fecha_error - timedelta(hours=24)  # 24 horas antes
+            fecha_fin_busqueda = error.fecha_error + timedelta(hours=1)  # 1 hora después
             
-            if solicitud_relacionada:
+            # Buscar items que coincidan con el producto y la fecha
+            items_relacionados = ItemSolicitud.objects.filter(
+                producto=producto,
+                solicitud__fecha_solicitud__gte=fecha_inicio_busqueda,
+                solicitud__fecha_solicitud__lte=fecha_fin_busqueda
+            ).select_related('solicitud', 'solicitud__institucion_solicitante', 'solicitud__almacen_destino').order_by('-solicitud__fecha_solicitud')
+            
+            # Si hay usuario, filtrar por usuario también
+            if error.usuario:
+                items_relacionados = items_relacionados.filter(solicitud__usuario_solicitante=error.usuario)
+            
+            # Tomar la primera solicitud encontrada
+            item_relacionado = items_relacionados.first()
+            
+            if item_relacionado and item_relacionado.solicitud:
+                solicitud_relacionada = item_relacionado.solicitud
                 # SIEMPRE usar institución y almacén del pedido cuando se encuentra la solicitud
                 # Usar los campos correctos: institucion_solicitante y almacen_destino
                 institucion = solicitud_relacionada.institucion_solicitante
                 almacen = solicitud_relacionada.almacen_destino
                 # Usar observaciones_solicitud (folio del pedido) - este es el campo correcto
                 folio_pedido = solicitud_relacionada.observaciones_solicitud.strip() if solicitud_relacionada.observaciones_solicitud else (solicitud_relacionada.folio or '')
+        except Producto.DoesNotExist:
+            # Si el producto no existe, intentar buscar por usuario y fecha como respaldo
+            if error.usuario:
+                fecha_inicio_busqueda = error.fecha_error - timedelta(hours=24)
+                fecha_fin_busqueda = error.fecha_error + timedelta(hours=1)
+                
+                solicitud_relacionada = SolicitudPedido.objects.filter(
+                    usuario_solicitante=error.usuario,
+                    fecha_solicitud__gte=fecha_inicio_busqueda,
+                    fecha_solicitud__lte=fecha_fin_busqueda
+                ).select_related('institucion_solicitante', 'almacen_destino').order_by('-fecha_solicitud').first()
+                
+                if solicitud_relacionada:
+                    institucion = solicitud_relacionada.institucion_solicitante
+                    almacen = solicitud_relacionada.almacen_destino
+                    folio_pedido = solicitud_relacionada.observaciones_solicitud.strip() if solicitud_relacionada.observaciones_solicitud else (solicitud_relacionada.folio or '')
         
         # Solo usar respaldo si NO se encontró solicitud relacionada
         # Esto asegura que siempre priorizamos los datos del pedido
@@ -433,7 +497,7 @@ def exportar_pedidos_sin_existencia_excel(request):
                     almacen = error.usuario.almacen
         
         # Crear clave única por destino
-        institucion_nombre = institucion.nombre if institucion else 'Sin institución'
+        institucion_nombre = institucion.denominacion if institucion else 'Sin institución'
         almacen_nombre = almacen.nombre if almacen else 'Sin almacén'
         destino_key = f"{institucion_nombre}|{almacen_nombre}"
         
