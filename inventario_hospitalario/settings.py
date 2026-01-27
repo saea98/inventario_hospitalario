@@ -165,6 +165,10 @@ MEDIA_ROOT = BASE_DIR / 'media'
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+# Límite de campos GET/POST (formularios con muchos ítems, ej. crear pedido con muchas líneas)
+# Por defecto Django usa 1000; al crear pedidos con cientos de líneas se puede superar
+DATA_UPLOAD_MAX_NUMBER_FIELDS = 10000
+
 # Crispy Forms
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
 CRISPY_TEMPLATE_PACK = "bootstrap5"
