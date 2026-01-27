@@ -65,8 +65,13 @@
                     </form>
 
                     <!-- Resumen -->
-                    <div class="alert alert-info">
-                        <strong>Total de registros:</strong> {{ total_registros }}
+                    <div class="alert alert-info d-flex justify-content-between align-items-center flex-wrap gap-2">
+                        <span><strong>Total de registros:</strong> {{ total_registros }}</span>
+                        {% if total_sin_movimiento and total_sin_movimiento > 0 %}
+                        <span class="badge bg-warning text-dark">
+                            <i class="fas fa-exclamation-triangle"></i> {{ total_sin_movimiento }} registro(s) sin movimiento de inventario — revisar y aplicar ajustes si corresponde
+                        </span>
+                        {% endif %}
                     </div>
 
                     <!-- Tabla de resultados -->
@@ -91,6 +96,7 @@
                                     <th>FOLIO</th>
                                     <th>FECHA ENTREGA PROGRAMADA</th>
                                     <th>STATUS</th>
+                                    <th class="text-center">EST. MOV.</th>
                                     <th>REMISION DE INGRESO</th>
                                     <th>ORDEN DE REPOSICION</th>
                                     <th>USUARIO</th>
@@ -100,7 +106,7 @@
                             <tbody>
                                 {% if datos %}
                                     {% for dato in datos %}
-                                    <tr>
+                                    <tr class="{% if not dato.tiene_movimiento %}table-warning{% endif %}">
                                         <td>{{ dato.partida }}</td>
                                         <td>{{ dato.clave_cnis }}</td>
                                         <td>{{ dato.descripcion|truncatewords:10 }}</td>
@@ -120,6 +126,13 @@
                                         <td>
                                             <span class="badge bg-success">{{ dato.status }}</span>
                                         </td>
+                                        <td class="text-center">
+                                            {% if dato.tiene_movimiento %}
+                                            <span class="badge bg-success" title="Tiene movimiento de inventario asociado"><i class="fas fa-check"></i> Con mov.</span>
+                                            {% else %}
+                                            <span class="badge bg-warning text-dark" title="Sin movimiento de inventario — revisar si hubo error y aplicar ajustes"><i class="fas fa-exclamation-triangle"></i> Sin mov.</span>
+                                            {% endif %}
+                                        </td>
                                         <td>{{ dato.remision_ingreso }}</td>
                                         <td>{{ dato.orden_reposicion }}</td>
                                         <td>{{ dato.usuario }}</td>
@@ -132,7 +145,7 @@
                                     {% endfor %}
                                 {% else %}
                                     <tr>
-                                        <td colspan="21" class="text-center text-muted">
+                                        <td colspan="22" class="text-center text-muted">
                                             <i class="fas fa-info-circle"></i> No se encontraron registros con los filtros aplicados.
                                         </td>
                                     </tr>

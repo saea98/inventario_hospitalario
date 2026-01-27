@@ -376,6 +376,7 @@ def reporte_salidas_surtidas(request):
                 else:
                     dias_caducidad = None
                 
+                tiene_movimiento = movimiento is not None
                 datos_reporte.append({
                     'partida': partida_counter,
                     'clave_cnis': producto.clave_cnis,
@@ -398,12 +399,15 @@ def reporte_salidas_surtidas(request):
                     'folio': solicitud.observaciones_solicitud or solicitud.folio,
                     'fecha_entrega_programada': solicitud.fecha_entrega_programada.strftime('%d/%m/%Y') if solicitud.fecha_entrega_programada else '',
                     'status': propuesta.get_estado_display(),
+                    'tiene_movimiento': tiene_movimiento,
                     'remision_ingreso': movimiento.remision if movimiento else '',
                     'orden_reposicion': orden_reposicion,
                     'usuario': propuesta.usuario_surtimiento.get_full_name() if propuesta.usuario_surtimiento else propuesta.usuario_surtimiento.username if propuesta.usuario_surtimiento else '',
                 })
                 
                 partida_counter += 1
+    
+    total_sin_movimiento = sum(1 for d in datos_reporte if not d.get('tiene_movimiento', True))
     
     # Paginación
     paginator = Paginator(datos_reporte, 50)
@@ -427,6 +431,7 @@ def reporte_salidas_surtidas(request):
     context = {
         'datos': datos_paginados,
         'total_registros': len(datos_reporte),
+        'total_sin_movimiento': total_sin_movimiento,
         'fecha_inicio': fecha_inicio,
         'fecha_fin': fecha_fin,
         'folio': folio,
@@ -606,6 +611,7 @@ def exportar_salidas_surtidas_excel(request):
                     ).first()
                 # Cantidad previa = cantidad disponible actual + cantidad surtida
                 cantidad_previa = (lote.cantidad_disponible or 0) + lote_asignado.cantidad_asignada
+                tiene_movimiento = movimiento is not None
                 orden_reposicion = lote.orden_suministro.numero_orden if lote.orden_suministro else ''
                 
                 datos_reporte.append({
@@ -626,6 +632,7 @@ def exportar_salidas_surtidas_excel(request):
                     'folio': solicitud.observaciones_solicitud or solicitud.folio,
                     'fecha_entrega_programada': solicitud.fecha_entrega_programada.strftime('%d/%m/%Y') if solicitud.fecha_entrega_programada else '',
                     'status': propuesta.get_estado_display(),
+                    'estatus_movimiento': 'Con movimiento' if tiene_movimiento else 'Sin movimiento - Revisar',
                     'remision_ingreso': movimiento.remision if movimiento else '',
                     'orden_reposicion': orden_reposicion,
                     'usuario': propuesta.usuario_surtimiento.get_full_name() if propuesta.usuario_surtimiento else propuesta.usuario_surtimiento.username if propuesta.usuario_surtimiento else '',
