@@ -14,6 +14,7 @@ urlpatterns = [
     path('temporal/', views_reportes_salidas.analisis_temporal, name='analisis_temporal'),
     path('surtidas/', views_reportes_salidas.reporte_salidas_surtidas, name='reporte_salidas_surtidas'),
     path('surtidas/exportar-excel/', views_reportes_salidas.exportar_salidas_surtidas_excel, name='exportar_salidas_surtidas_excel'),
+    path('surtidas/aplicar-salida/', views_reportes_salidas.aplicar_salida_surtida, name='aplicar_salida_surtida'),
     path('surtidas/movimientos/', views_reportes_salidas.movimientos_surtimiento, name='movimientos_surtimiento'),
     path('reservas/', views_reportes_salidas.reporte_reservas, name='reporte_reservas'),
     path('reservas/exportar-excel/', views_reportes_salidas.exportar_reservas_excel, name='exportar_reservas_excel'),
