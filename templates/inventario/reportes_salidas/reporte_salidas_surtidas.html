@@ -48,6 +48,14 @@
                                     {% endfor %}
                                 </select>
                             </div>
+                            <div class="col-md-2">
+                                <label for="estatus_movimiento" class="form-label">Est. Mov.</label>
+                                <select class="form-control" id="estatus_movimiento" name="estatus_movimiento">
+                                    <option value="">Todos</option>
+                                    <option value="con_movimiento" {% if estatus_movimiento == 'con_movimiento' %}selected{% endif %}>Con movimiento</option>
+                                    <option value="sin_movimiento" {% if estatus_movimiento == 'sin_movimiento' %}selected{% endif %}>Sin movimiento</option>
+                                </select>
+                            </div>
                         </div>
                         <div class="row mt-3">
                             <div class="col-12">
@@ -154,16 +162,16 @@
                         </table>
                     </div>
 
-                    <!-- Paginación -->
+                    <!-- Paginación: usar query_string_sin_page para conservar todos los filtros -->
                     {% if datos.has_other_pages %}
                     <nav aria-label="Paginación">
                         <ul class="pagination justify-content-center">
                             {% if datos.has_previous %}
                             <li class="page-item">
-                                <a class="page-link" href="?page=1{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}{% if folio %}&folio={{ folio }}{% endif %}{% if clave_cnis %}&clave_cnis={{ clave_cnis }}{% endif %}{% if lote %}&lote={{ lote }}{% endif %}{% if institucion_id %}&institucion={{ institucion_id }}{% endif %}">Primera</a>
+                                <a class="page-link" href="?{% if query_string_sin_page %}{{ query_string_sin_page }}&{% endif %}page=1">Primera</a>
                             </li>
                             <li class="page-item">
-                                <a class="page-link" href="?page={{ datos.previous_page_number }}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}{% if folio %}&folio={{ folio }}{% endif %}{% if clave_cnis %}&clave_cnis={{ clave_cnis }}{% endif %}{% if lote %}&lote={{ lote }}{% endif %}{% if institucion_id %}&institucion={{ institucion_id }}{% endif %}">Anterior</a>
+                                <a class="page-link" href="?{% if query_string_sin_page %}{{ query_string_sin_page }}&{% endif %}page={{ datos.previous_page_number }}">Anterior</a>
                             </li>
                             {% endif %}
                             
@@ -175,10 +183,10 @@
                             
                             {% if datos.has_next %}
                             <li class="page-item">
-                                <a class="page-link" href="?page={{ datos.next_page_number }}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}{% if folio %}&folio={{ folio }}{% endif %}{% if clave_cnis %}&clave_cnis={{ clave_cnis }}{% endif %}{% if lote %}&lote={{ lote }}{% endif %}{% if institucion_id %}&institucion={{ institucion_id }}{% endif %}">Siguiente</a>
+                                <a class="page-link" href="?{% if query_string_sin_page %}{{ query_string_sin_page }}&{% endif %}page={{ datos.next_page_number }}">Siguiente</a>
                             </li>
                             <li class="page-item">
-                                <a class="page-link" href="?page={{ datos.paginator.num_pages }}{% if fecha_inicio %}&fecha_inicio={{ fecha_inicio }}{% endif %}{% if fecha_fin %}&fecha_fin={{ fecha_fin }}{% endif %}{% if folio %}&folio={{ folio }}{% endif %}{% if clave_cnis %}&clave_cnis={{ clave_cnis }}{% endif %}{% if lote %}&lote={{ lote }}{% endif %}{% if institucion_id %}&institucion={{ institucion_id }}{% endif %}">Última</a>
+                                <a class="page-link" href="?{% if query_string_sin_page %}{{ query_string_sin_page }}&{% endif %}page={{ datos.paginator.num_pages }}">Última</a>
                             </li>
                             {% endif %}
                         </ul>

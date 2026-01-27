@@ -237,16 +237,16 @@ def reporte_salidas_surtidas(request):
     Reporte detallado de órdenes de surtimiento ya surtidas.
     Muestra información completa de cada item surtido.
     """
-    # Filtros
+    # Filtros (filtro_lote para no sobrescribir con la variable "lote" del bucle)
     fecha_inicio = request.GET.get('fecha_inicio')
     fecha_fin = request.GET.get('fecha_fin')
     folio = request.GET.get('folio', '').strip()
     clave_cnis = request.GET.get('clave_cnis', '').strip()
-    lote = request.GET.get('lote', '').strip()
+    filtro_lote = request.GET.get('lote', '').strip()
     institucion_id = request.GET.get('institucion')
+    estatus_movimiento = request.GET.get('estatus_movimiento', '').strip()
     
-    # Obtener propuestas surtidas con sus relaciones
-    # Solo propuestas que tienen fecha_surtimiento (realmente surtidas)
+    # Obtener propuestas surtidas con sus relaciones (filtro_lote evita sobrescribir variable en el bucle)
     propuestas = PropuestaPedido.objects.filter(
         estado='SURTIDA',
         fecha_surtimiento__isnull=False
@@ -296,14 +296,11 @@ def reporte_salidas_surtidas(request):
                 items__producto__clave_cnis__icontains=clave_cnis
             ).distinct()
     
-    if lote:
-        lote = lote.strip()
-        if lote:
-            # Filtrar propuestas que tengan lotes asignados surtidos con número de lote que coincida
-            propuestas = propuestas.filter(
-                items__lotes_asignados__surtido=True,
-                items__lotes_asignados__lote_ubicacion__lote__numero_lote__icontains=lote
-            ).distinct()
+    if filtro_lote:
+        propuestas = propuestas.filter(
+            items__lotes_asignados__surtido=True,
+            items__lotes_asignados__lote_ubicacion__lote__numero_lote__icontains=filtro_lote
+        ).distinct()
     
     if institucion_id:
         try:
@@ -320,7 +317,7 @@ def reporte_salidas_surtidas(request):
     
     # Normalizar filtros para comparación (guardar valores originales antes de modificar)
     clave_cnis_filter_value = clave_cnis.strip().upper() if clave_cnis else None
-    lote_filter_value = lote.strip().upper() if lote else None
+    lote_filter_value = filtro_lote.strip().upper() if filtro_lote else None
     
     for propuesta in propuestas.order_by('-fecha_surtimiento', 'solicitud__folio'):
         solicitud = propuesta.solicitud
@@ -409,6 +406,15 @@ def reporte_salidas_surtidas(request):
     
     total_sin_movimiento = sum(1 for d in datos_reporte if not d.get('tiene_movimiento', True))
     
+    # Filtro por estatus movimiento (EST. MOV.)
+    if estatus_movimiento == 'sin_movimiento':
+        datos_reporte = [d for d in datos_reporte if not d.get('tiene_movimiento')]
+    elif estatus_movimiento == 'con_movimiento':
+        datos_reporte = [d for d in datos_reporte if d.get('tiene_movimiento')]
+    # Renumerar partidas después del filtro
+    for i, d in enumerate(datos_reporte, 1):
+        d['partida'] = i
+    
     # Paginación
     paginator = Paginator(datos_reporte, 50)
     page = request.GET.get('page', 1)
@@ -436,9 +442,10 @@ def reporte_salidas_surtidas(request):
         'fecha_fin': fecha_fin,
         'folio': folio,
         'clave_cnis': clave_cnis,
-        'lote': lote,
+        'lote': filtro_lote,
         'institucion_id': institucion_id,
         'instituciones': instituciones,
+        'estatus_movimiento': estatus_movimiento,
         'query_string_sin_page': query_string_sin_page,
     }
     
@@ -491,7 +498,7 @@ def exportar_salidas_surtidas_excel(request):
     fecha_fin = request.GET.get('fecha_fin')
     folio = request.GET.get('folio', '').strip()
     clave_cnis = request.GET.get('clave_cnis', '').strip()
-    lote = request.GET.get('lote', '').strip()
+    filtro_lote = request.GET.get('lote', '').strip()
     institucion_id = request.GET.get('institucion')
     
     # Obtener propuestas surtidas (misma lógica que la vista)
@@ -544,14 +551,11 @@ def exportar_salidas_surtidas_excel(request):
                 items__producto__clave_cnis__icontains=clave_cnis
             ).distinct()
     
-    if lote:
-        lote = lote.strip()
-        if lote:
-            # Filtrar propuestas que tengan lotes asignados surtidos con número de lote que coincida
-            propuestas = propuestas.filter(
-                items__lotes_asignados__surtido=True,
-                items__lotes_asignados__lote_ubicacion__lote__numero_lote__icontains=lote
-            ).distinct()
+    if filtro_lote:
+        propuestas = propuestas.filter(
+            items__lotes_asignados__surtido=True,
+            items__lotes_asignados__lote_ubicacion__lote__numero_lote__icontains=filtro_lote
+        ).distinct()
     
     if institucion_id:
         try:
@@ -568,7 +572,7 @@ def exportar_salidas_surtidas_excel(request):
     
     # Normalizar filtros para comparación (guardar valores originales antes de modificar)
     clave_cnis_filter_value = clave_cnis.strip().upper() if clave_cnis else None
-    lote_filter_value = lote.strip().upper() if lote else None
+    lote_filter_value = filtro_lote.strip().upper() if filtro_lote else None
     
     for propuesta in propuestas.order_by('-fecha_surtimiento', 'solicitud__folio'):
         solicitud = propuesta.solicitud
@@ -639,6 +643,15 @@ def exportar_salidas_surtidas_excel(request):
                 })
                 
                 partida_counter += 1
+    
+    # Aplicar filtro por estatus movimiento si viene en la URL (mismo criterio que la vista)
+    estatus_movimiento_exp = request.GET.get('estatus_movimiento', '').strip()
+    if estatus_movimiento_exp == 'sin_movimiento':
+        datos_reporte = [d for d in datos_reporte if d.get('estatus_movimiento') == 'Sin movimiento - Revisar']
+    elif estatus_movimiento_exp == 'con_movimiento':
+        datos_reporte = [d for d in datos_reporte if d.get('estatus_movimiento') == 'Con movimiento']
+    for i, d in enumerate(datos_reporte, 1):
+        d['partida'] = i
     
     # Crear workbook
     wb = Workbook()
