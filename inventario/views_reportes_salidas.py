@@ -350,11 +350,18 @@ def reporte_salidas_surtidas(request):
                         continue
                 
                 # Obtener movimiento de inventario relacionado (si existe)
+                # En fase5_utils el movimiento se crea con folio=str(propuesta.id), no en motivo
                 movimiento = MovimientoInventario.objects.filter(
                     lote=lote,
                     tipo_movimiento='SALIDA',
-                    motivo__icontains=propuesta.id.hex[:8] if propuesta.id else ''
-                ).first()
+                    folio=str(propuesta.id) if propuesta.id else ''
+                ).filter(cantidad=lote_asignado.cantidad_asignada).first()
+                if not movimiento:
+                    movimiento = MovimientoInventario.objects.filter(
+                        lote=lote,
+                        tipo_movimiento='SALIDA',
+                        folio=str(propuesta.id) if propuesta.id else ''
+                    ).first()
                 
                 # Cantidad previa al surtimiento = cantidad_anterior del movimiento (disponible antes de la salida)
                 cantidad_previa = movimiento.cantidad_anterior if movimiento else None
@@ -539,12 +546,18 @@ def exportar_salidas_surtidas_excel(request):
                     if not lote.numero_lote or lote_filter_value not in lote.numero_lote.upper():
                         continue
                 
+                # En fase5_utils el movimiento se crea con folio=str(propuesta.id)
                 movimiento = MovimientoInventario.objects.filter(
                     lote=lote,
                     tipo_movimiento='SALIDA',
-                    motivo__icontains=propuesta.id.hex[:8] if propuesta.id else ''
-                ).first()
-                
+                    folio=str(propuesta.id) if propuesta.id else ''
+                ).filter(cantidad=lote_asignado.cantidad_asignada).first()
+                if not movimiento:
+                    movimiento = MovimientoInventario.objects.filter(
+                        lote=lote,
+                        tipo_movimiento='SALIDA',
+                        folio=str(propuesta.id) if propuesta.id else ''
+                    ).first()
                 cantidad_previa = movimiento.cantidad_anterior if movimiento else None
                 orden_reposicion = lote.orden_suministro.numero_orden if lote.orden_suministro else ''
                 
