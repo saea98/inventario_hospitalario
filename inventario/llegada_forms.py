@@ -134,6 +134,20 @@ class LlegadaProveedorForm(forms.ModelForm):
         logger.info(f"[DEBUG FORM] Queryset final tiene 5832: {queryset_final.filter(id=5832).exists()}")
         
         self.fields['cita'].queryset = queryset_final
+        
+        # Al editar, permitir editar tipo_entrega de la cita asociada
+        if self.instance and self.instance.pk:
+            try:
+                cita = self.instance.cita
+                self.fields['tipo_entrega'] = forms.ChoiceField(
+                    label='Tipo de Entrega',
+                    choices=[(t[0], t[1]) for t in CitaProveedor.TIPOS_ENTREGA],
+                    required=False,
+                    widget=forms.Select(attrs={"class": "form-control"})
+                )
+                self.fields['tipo_entrega'].initial = (cita.tipo_entrega if cita and getattr(cita, 'tipo_entrega', None) else None)
+            except Exception:
+                pass
     
     class Meta:
         model = LlegadaProveedor

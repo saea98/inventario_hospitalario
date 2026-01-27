@@ -112,6 +112,7 @@
                         <th>Cantidad Anterior</th>
                         <th>Cantidad Nueva</th>
                         <th>Cambio</th>
+                        <th>Cant. Surtida</th>
                         <th>Motivo</th>
                         <th>Usuario</th>
                     </tr>
@@ -158,15 +159,24 @@
                             <span class="badge bg-light text-dark">{{ movimiento.cantidad_nueva }}</span>
                         </td>
                         <td class="text-end">
-                            {% with cambio=movimiento.cantidad_nueva|add:movimiento.cantidad_anterior|add:"-" %}
-                                {% if movimiento.cantidad_nueva > movimiento.cantidad_anterior %}
-                                    <span class="badge bg-success">+{{ movimiento.cantidad_nueva|add:movimiento.cantidad_anterior|add:"-" }}</span>
-                                {% elif movimiento.cantidad_nueva < movimiento.cantidad_anterior %}
-                                    <span class="badge bg-danger">{{ movimiento.cantidad_nueva|add:movimiento.cantidad_anterior|add:"-" }}</span>
+                            {% if movimiento.cantidad_nueva > movimiento.cantidad_anterior %}
+                                <span class="badge bg-success">+{{ movimiento.cantidad }}</span>
+                            {% elif movimiento.cantidad_nueva < movimiento.cantidad_anterior %}
+                                <span class="badge bg-danger">-{{ movimiento.cantidad }}</span>
+                            {% else %}
+                                <span class="badge bg-secondary">0</span>
+                            {% endif %}
+                        </td>
+                        <td class="text-end">
+                            {% if movimiento.tipo_movimiento == 'SALIDA' %}
+                                {% if movimiento.folio or movimiento.pedido or 'Suministro' in movimiento.motivo|default:'' %}
+                                    <span class="badge bg-info">{{ movimiento.cantidad }}</span>
                                 {% else %}
-                                    <span class="badge bg-secondary">0</span>
+                                    <span class="text-muted">—</span>
                                 {% endif %}
-                            {% endwith %}
+                            {% else %}
+                                <span class="text-muted">—</span>
+                            {% endif %}
                         </td>
                         <td>
                             <small>{{ movimiento.motivo }}</small>
@@ -177,7 +187,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="9" class="text-center text-muted py-4">
+                        <td colspan="10" class="text-center text-muted py-4">
                             <i class="bi bi-inbox"></i> No se encontraron movimientos con los criterios de búsqueda
                         </td>
                     </tr>

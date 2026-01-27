@@ -560,6 +560,9 @@ class EditarLlegadaView(LoginRequiredMixin, PermissionRequiredMixin, View):
         if form.is_valid() and formset.is_valid():
             with transaction.atomic():
                 form.save()
+                if 'tipo_entrega' in form.cleaned_data and llegada.cita_id:
+                    llegada.cita.tipo_entrega = form.cleaned_data['tipo_entrega'] or llegada.cita.tipo_entrega
+                    llegada.cita.save()
                 formset.save()
                 messages.success(request, f"Llegada {llegada.folio} actualizada exitosamente")
                 return redirect('logistica:llegadas:detalle_llegada', pk=llegada.pk)

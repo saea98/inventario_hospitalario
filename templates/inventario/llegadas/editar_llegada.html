@@ -282,18 +282,26 @@
                         </div>
                         <div class="col-md-6">
                             <div class="form-group">
-                                <label><strong>Tipo de Entrega</strong></label>
-                                <div class="form-control" style="background-color: #f8f9fa; color: #666; padding: 8px;">
-                                    {% if llegada.cita and llegada.cita.tipo_entrega %}
-                                        {% for tipo_val, tipo_label, _ in llegada.cita.TIPOS_ENTREGA %}
-                                            {% if tipo_val == llegada.cita.tipo_entrega %}
-                                                {{ tipo_label }}
-                                            {% endif %}
-                                        {% endfor %}
-                                    {% else %}
-                                        No disponible
+                                {% if form.tipo_entrega %}
+                                    <label for="id_tipo_entrega"><strong>Tipo de Entrega</strong></label>
+                                    {{ form.tipo_entrega }}
+                                    {% if form.tipo_entrega.errors %}
+                                        <div class="alert alert-danger mt-2">{{ form.tipo_entrega.errors }}</div>
                                     {% endif %}
-                                </div>
+                                {% else %}
+                                    <label><strong>Tipo de Entrega</strong></label>
+                                    <div class="form-control" style="background-color: #f8f9fa; color: #666; padding: 8px;">
+                                        {% if llegada.cita and llegada.cita.tipo_entrega %}
+                                            {% for tipo_val, tipo_label, _ in llegada.cita.TIPOS_ENTREGA %}
+                                                {% if tipo_val == llegada.cita.tipo_entrega %}
+                                                    {{ tipo_label }}
+                                                {% endif %}
+                                            {% endfor %}
+                                        {% else %}
+                                            No disponible
+                                        {% endif %}
+                                    </div>
+                                {% endif %}
                             </div>
                         </div>
                     </div>
