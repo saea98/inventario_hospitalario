@@ -226,6 +226,7 @@
         
         .footer-leyenda {
             margin-top: 10px;
+            margin-bottom: 10px; /* espacio entre leyenda y logo cuando la leyenda va arriba */
             font-size: 9px;
             font-weight: bold;
             line-height: 1.4;
@@ -374,7 +375,7 @@
         <!-- Encabezado - Solo visible en pantalla -->
         <div class="header header-screen">
             <div class="header-logos">
-                <img src="/static/images/logo_epa.jpg" alt="Logo EPA" style="max-width: 100%; height: auto; max-height: 80px;">
+                <img src="/static/images/encabezado_epa.png" alt="Encabezado IMSS Bienestar" style="max-width: 100%; height: auto; max-height: 80px;">
             </div>
             
             <h2 style="margin-top: 10px;">DIRECCIÓN GENERAL</h2>
@@ -385,7 +386,7 @@
         <!-- Encabezado fijo para impresión - Se repite en cada página -->
         <div class="header header-print">
             <div class="header-logos">
-                <img src="/static/images/logo_epa.jpg" alt="Logo EPA" style="max-width: 100%; height: auto; max-height: 60px;">
+                <img src="/static/images/encabezado_epa.png" alt="Encabezado IMSS Bienestar" style="max-width: 100%; height: auto; max-height: 60px;">
             </div>
             
             <h2 style="margin-top: 5px; font-size: 12px;">DIRECCIÓN GENERAL</h2>
@@ -464,7 +465,7 @@
                 <div class="name">_____________________</div>
             </div>
             <div class="signature-box">
-                <div class="title">Titular del área de entradas</div>
+                <div class="title">ENCARGADA DEL ÁREA DE ENTRADAS</div>
                 <div class="name">{% if nombre_titular_entrada %}{{ nombre_titular_entrada }}{% else %}_____________________{% endif %}</div>
             </div>
             <div class="signature-box">
@@ -513,18 +514,18 @@
         
         <!-- Pie de página - Solo visible en pantalla, no en impresión -->
         <div class="footer footer-screen">
-            <img src="/static/images/logo_pie_pagina.png" alt="Logo Pie de Página" class="footer-logo">
             <div class="footer-leyenda">
                 ESTE DOCUMENTO AMPARA LA ENTREGA DE BIENES MUEBLES MEDIANTE REMISIÓN Y/O FACTURA, SIN CONSIDERAR LOS COSTOS UNITARIOS Y/O TOTALES
             </div>
+            <img src="/static/images/pie_pagina_epa.png" alt="Pie de página IMSS Bienestar" class="footer-logo">
         </div>
         
         <!-- Pie de página fijo para impresión - Se repite en cada página -->
         <div class="footer footer-print">
-            <img src="/static/images/logo_pie_pagina.png" alt="Logo Pie de Página" class="footer-logo">
             <div class="footer-leyenda">
                 ESTE DOCUMENTO AMPARA LA ENTREGA DE BIENES MUEBLES MEDIANTE REMISIÓN Y/O FACTURA, SIN CONSIDERAR LOS COSTOS UNITARIOS Y/O TOTALES
             </div>
+            <img src="/static/images/pie_pagina_epa.png" alt="Pie de página IMSS Bienestar" class="footer-logo">
         </div>
     </div>
     
