@@ -505,14 +505,28 @@ $(document).ready(function() {
             
             console.log('[editar_llegada] Productos cargados en window.productosData:', Object.keys(window.productosData).length);
             
+            // Reaplicar producto del renglón inicial según clave de la llegada (por si initializeProductSelect2 corrió antes de que productosData cargara, p. ej. en Windows)
+            var claveRef = $('#clave-producto-ref').text().trim();
+            if (claveRef && claveRef !== '-') {
+                var pidPorClave = null;
+                $.each(window.productosData, function(id, p) {
+                    if (p.clave_cnis === claveRef) { pidPorClave = String(id); return false; }
+                });
+                if (pidPorClave) {
+                    var $primerSelect = $('select[id$="-producto"]').first();
+                    if ($primerSelect.length && $primerSelect.val() !== pidPorClave && $primerSelect.find('option[value="' + pidPorClave + '"]').length) {
+                        $primerSelect.val(pidPorClave).trigger('change');
+                        console.log('[editar_llegada] Renglón inicial corregido a clave de llegada tras cargar productos:', pidPorClave);
+                    }
+                }
+            }
+            
             // Después de cargar productos, forzar actualización de Select2 si hay valores
-            // Esto asegura que si algún valor no se mostró correctamente, se actualice
             setTimeout(function() {
                 $('select[id$="-producto"]').each(function() {
                     var $select = $(this);
                     var valor = $select.val();
                     if (valor) {
-                        // Forzar actualización del display
                         $select.trigger('change');
                     }
                 });
@@ -785,7 +799,7 @@ $(document).ready(function() {
 function initializeProductSelect2() {
     console.log('[initializeProductSelect2] Iniciando función');
     
-    // Obtener la clave del producto desde #clave-producto-ref
+    // Obtener la clave del producto desde #clave-producto-ref (clave de la llegada)
     var claveProductoRef = $('#clave-producto-ref').text().trim();
     if (claveProductoRef === '-' || claveProductoRef === '') {
         claveProductoRef = null;
@@ -793,18 +807,33 @@ function initializeProductSelect2() {
     
     console.log('[initializeProductSelect2] Clave de producto (desde #clave-producto-ref):', claveProductoRef);
     
-    // Buscar el producto por clave CNIS en window.productosData
+    // Buscar el producto por clave CNIS: primero en window.productosData, luego en las opciones del primer select (fallback para cuando productosData aún no carga, p. ej. en Windows)
     var productoIdPorClave = null;
     if (claveProductoRef && window.productosData) {
         $.each(window.productosData, function(id, producto) {
             if (producto.clave_cnis === claveProductoRef) {
-                productoIdPorClave = id;
-                console.log('[initializeProductSelect2] ✅ Producto encontrado por clave:', productoIdPorClave, producto.descripcion);
+                productoIdPorClave = String(id);
+                console.log('[initializeProductSelect2] ✅ Producto encontrado por clave (productosData):', productoIdPorClave, producto.descripcion);
                 return false; // break
             }
         });
         if (!productoIdPorClave) {
-            console.warn('[initializeProductSelect2] ⚠️ No se encontró producto con clave:', claveProductoRef);
+            console.warn('[initializeProductSelect2] ⚠️ No se encontró producto con clave en productosData:', claveProductoRef);
+        }
+    }
+    // Fallback: buscar en las opciones del primer select (no depende de AJAX, evita que el renglón inicial muestre otro producto en algunos navegadores/Windows)
+    if (!productoIdPorClave && claveProductoRef) {
+        var $primerSelect = $('select[id$="-producto"]').first();
+        if ($primerSelect.length) {
+            $primerSelect.find('option').each(function() {
+                var txt = $(this).text().trim();
+                var val = $(this).val();
+                if (val && (txt.indexOf(claveProductoRef) === 0 || txt.indexOf(claveProductoRef + ' ') === 0)) {
+                    productoIdPorClave = val;
+                    console.log('[initializeProductSelect2] ✅ Producto encontrado por clave (opciones del select):', productoIdPorClave, txt.substring(0, 50));
+                    return false; // break
+                }
+            });
         }
     }
     
@@ -812,7 +841,7 @@ function initializeProductSelect2() {
     var totalSelects = selectsProducto.length;
     
     console.log('[initializeProductSelect2] Total selects encontrados:', totalSelects);
-    console.log('[initializeProductSelect2] Producto ID por clave:', productoIdPorClave);
+    console.log('[initializeProductSelect2] Producto ID por clave (llegada):', productoIdPorClave);
     
     selectsProducto.each(function(index) {
         var $select = $(this);
@@ -820,6 +849,7 @@ function initializeProductSelect2() {
         var $row = $select.closest('tr.item-row.row-principal');
         var itemId = $row.data('item-id');
         var productoIdFromData = $row.data('producto-id');
+        if (productoIdFromData != null) productoIdFromData = String(productoIdFromData);
         
         console.log('[initializeProductSelect2] Procesando select ' + index + ': ' + selectId);
         console.log('[initializeProductSelect2] Item ID (desde data):', itemId);
@@ -830,11 +860,13 @@ function initializeProductSelect2() {
         var $optionSeleccionada = $select.find('option:selected');
         var textoSeleccionado = $optionSeleccionada.text();
         
-        // Estrategia de preselección (en orden de prioridad):
-        // 1. Si el select ya tiene un valor, usarlo
-        // 2. Si hay productoIdFromData (del item existente), usarlo
-        // 3. Si hay productoIdPorClave (de la clave de la cita), usarlo
-        if (!valorActual) {
+        // Estrategia de preselección:
+        // RENGÓN INICIAL (index 0): priorizar siempre la clave de la llegada para que respete "Clave de Producto (Referencia)" en todos los navegadores (p. ej. Windows). Si la clave está definida, usarla aunque el ítem guardado tenga otro producto.
+        // Demás renglones: 1) valor en select, 2) productoIdFromData, 3) productoIdPorClave.
+        if (index === 0 && productoIdPorClave) {
+            valorActual = productoIdPorClave;
+            console.log('[initializeProductSelect2] Renglón inicial: forzando clave de la llegada:', valorActual);
+        } else if (!valorActual) {
             if (productoIdFromData) {
                 console.log('[initializeProductSelect2] Usando productoIdFromData:', productoIdFromData);
                 valorActual = productoIdFromData;

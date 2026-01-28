@@ -153,6 +153,20 @@
         .sidebar-overlay.show {
             display: block;
         }
+        
+        @media print {
+            @page {
+                size: letter;
+                margin: 1cm;
+            }
+            .no-print {
+                display: none !important;
+            }
+            .main-content {
+                max-width: 100% !important;
+                flex: 0 0 100% !important;
+            }
+        }
     </style>
 
 {% block extra_head %}
@@ -175,16 +189,16 @@
 <script src="{% static 'js/debug-logger.js' %}"></script>
 <script src="{% static 'js/init-debug.js' %}"></script>
 <div class="container-fluid">
-    <button class="btn btn-primary navbar-toggler-custom" id="sidebarToggle" style="position: fixed; top: 10px; left: 10px; z-index: 1001; display: block;">
+    <button class="btn btn-primary navbar-toggler-custom no-print" id="sidebarToggle" style="position: fixed; top: 10px; left: 10px; z-index: 1001; display: block;">
         <i class="fas fa-bars fa-lg"></i>
     </button>
     
-    <div class="sidebar-overlay" id="sidebarOverlay"></div>
+    <div class="sidebar-overlay no-print" id="sidebarOverlay"></div>
     
     <div class="row">
 
         <!-- Sidebar -->
-        <nav class="col-md-3 col-lg-2 sidebar" id="sidebar">
+        <nav class="col-md-3 col-lg-2 sidebar no-print" id="sidebar">
             {% load menu_tags %}
             {% load url_safe %}
             {% obtener_items_menu_principales user as menu_items %}
@@ -237,7 +251,7 @@
 
         <!-- Main content -->
         <main class="col-md-9 ms-sm-auto col-lg-10 px-md-4 main-content">
-            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+            <div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom no-print">
                 <h1 class="h2">{% block page_title %}Dashboard{% endblock %}</h1>
                 <div class="btn-toolbar mb-2 mb-md-0">{% block page_actions %}{% endblock %}</div>
             </div>

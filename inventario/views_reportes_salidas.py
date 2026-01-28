@@ -14,6 +14,7 @@ from django.utils import timezone
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from datetime import timedelta, datetime
 import json
+import logging
 from openpyxl import Workbook
 from openpyxl.styles import Font, Alignment, PatternFill, Border, Side
 from openpyxl.utils import get_column_letter
@@ -25,6 +26,8 @@ from .pedidos_models import PropuestaPedido, ItemPropuesta, LoteAsignado, Solici
 from .decorators_roles import requiere_rol
 from .propuesta_utils import liberar_cantidad_lote
 from django.db import transaction
+
+logger = logging.getLogger(__name__)
 
 
 # ============================================================
@@ -464,6 +467,7 @@ def aplicar_salida_surtida(request):
     MovimientoInventario con motivo "Ajuste por sistema".
     """
     if request.method != 'POST':
+        logger.info("aplicar_salida_surtida: método no POST, redirigiendo")
         return redirect(reverse('reportes_salidas:reporte_salidas_surtidas'))
 
     propuesta_id = request.POST.get('propuesta_id')
@@ -472,7 +476,13 @@ def aplicar_salida_surtida(request):
     cantidad = request.POST.get('cantidad')
     return_url = request.POST.get('return_url', '').strip()
 
+    logger.info(
+        "aplicar_salida_surtida: POST recibido | propuesta_id=%s lote_id=%s lote_ubicacion_id=%s cantidad=%s return_url=%s",
+        propuesta_id, lote_id, lote_ubicacion_id, cantidad, return_url[:80] if return_url else ""
+    )
+
     if not all([propuesta_id, lote_id, lote_ubicacion_id, cantidad]):
+        logger.warning("aplicar_salida_surtida: faltan datos en POST")
         messages.error(request, 'Faltan datos para aplicar la salida (propuesta, lote, ubicación o cantidad).')
         return redirect(return_url or reverse('reportes_salidas:reporte_salidas_surtidas'))
 
@@ -480,16 +490,34 @@ def aplicar_salida_surtida(request):
         cantidad = int(cantidad)
         if cantidad <= 0:
             raise ValueError('La cantidad debe ser mayor que cero.')
-    except (ValueError, TypeError):
+    except (ValueError, TypeError) as e:
+        logger.warning("aplicar_salida_surtida: cantidad inválida cantidad=%s error=%s", cantidad, e)
         messages.error(request, 'Cantidad inválida.')
         return redirect(return_url or reverse('reportes_salidas:reporte_salidas_surtidas'))
 
+    # Cargar LoteUbicacion con lote, producto (clave) y ubicación para afectar y auditar por (clave, lote, ubicación)
     lote_ubicacion = get_object_or_404(
-        LoteUbicacion.objects.select_related('lote', 'ubicacion'),
+        LoteUbicacion.objects.select_related('lote__producto', 'ubicacion'),
         pk=lote_ubicacion_id
     )
     lote = lote_ubicacion.lote
+    ubicacion = lote_ubicacion.ubicacion
+    codigo_ubicacion = ubicacion.codigo if ubicacion else ''
+    clave_cnis = (lote.producto.clave_cnis or '') if lote.producto else ''
+
+    logger.info(
+        "aplicar_salida_surtida: LoteUbicacion cargado | pk=%s lote_id=%s lote_numero=%s ubicacion=%s clave_cnis=%s "
+        "cantidad_actual=%s cantidad_reservada_actual=%s",
+        lote_ubicacion.pk, lote.pk, lote.numero_lote, codigo_ubicacion, clave_cnis,
+        lote_ubicacion.cantidad, getattr(lote_ubicacion, 'cantidad_reservada', None)
+    )
+    logger.info(
+        "aplicar_salida_surtida: Lote cargado | lote_id=%s cantidad_disponible=%s cantidad_reservada=%s",
+        lote.pk, lote.cantidad_disponible, getattr(lote, 'cantidad_reservada', None)
+    )
+
     if str(lote.pk) != str(lote_id):
+        logger.warning("aplicar_salida_surtida: lote_id no coincide lote.pk=%s lote_id_POST=%s", lote.pk, lote_id)
         messages.error(request, 'El lote no coincide con la ubicación.')
         return redirect(return_url or reverse('reportes_salidas:reporte_salidas_surtidas'))
 
@@ -500,51 +528,86 @@ def aplicar_salida_surtida(request):
     solicitud = propuesta.solicitud
 
     with transaction.atomic():
+        # Afectación exclusiva de esta ubicación (lote_ubicacion = par lote+ubicación)
         cantidad_anterior_ubicacion = lote_ubicacion.cantidad
         cantidad_nueva_ubicacion = cantidad_anterior_ubicacion - cantidad
         if cantidad_nueva_ubicacion < 0:
+            logger.warning(
+                "aplicar_salida_surtida: cantidad insuficiente en ubicación | lote=%s ubicacion=%s "
+                "cantidad_anterior_ubicacion=%s cantidad_a_descontar=%s",
+                lote.numero_lote, codigo_ubicacion, cantidad_anterior_ubicacion, cantidad
+            )
             messages.error(
                 request,
-                f'Cantidad insuficiente en lote {lote.numero_lote}. '
-                f'Disponible en ubicación: {cantidad_anterior_ubicacion}, a descontar: {cantidad}.'
+                f'Cantidad insuficiente en lote {lote.numero_lote}, ubicación {codigo_ubicacion}. '
+                f'Disponible en esa ubicación: {cantidad_anterior_ubicacion}, a descontar: {cantidad}.'
             )
             return redirect(return_url or reverse('reportes_salidas:reporte_salidas_surtidas'))
 
         cantidad_anterior_lote = lote.cantidad_disponible or 0
         cantidad_nueva_lote = cantidad_anterior_lote - cantidad
         if cantidad_nueva_lote < 0:
+            logger.warning(
+                "aplicar_salida_surtida: cantidad insuficiente a nivel lote | lote_id=%s cantidad_disponible=%s cantidad=%s",
+                lote.pk, cantidad_anterior_lote, cantidad
+            )
             messages.error(request, f'La cantidad disponible del lote ({cantidad_anterior_lote}) es menor que la cantidad a descontar ({cantidad}).')
             return redirect(return_url or reverse('reportes_salidas:reporte_salidas_surtidas'))
 
-        # Descontar en ubicación y rebajar reserva
+        reserva_antes_ubicacion = lote_ubicacion.cantidad_reservada or 0
+        reserva_nueva_ubicacion = max(0, reserva_antes_ubicacion - cantidad)
+
+        # Descontar solo en esta ubicación y rebajar reserva de esta ubicación
         lote_ubicacion.cantidad = cantidad_nueva_ubicacion
-        lote_ubicacion.cantidad_reservada = max(0, (lote_ubicacion.cantidad_reservada or 0) - cantidad)
+        lote_ubicacion.cantidad_reservada = reserva_nueva_ubicacion
+        logger.info(
+            "aplicar_salida_surtida: ANTES save LoteUbicacion | pk=%s cantidad %s -> %s cantidad_reservada %s -> %s",
+            lote_ubicacion.pk, cantidad_anterior_ubicacion, cantidad_nueva_ubicacion, reserva_antes_ubicacion, reserva_nueva_ubicacion
+        )
         lote_ubicacion.save(update_fields=['cantidad', 'cantidad_reservada'])
+        logger.info("aplicar_salida_surtida: LoteUbicacion guardado pk=%s", lote_ubicacion.pk)
 
-        # Recalcular cantidad disponible del lote y rebajar cantidad reservada
+        # Recalcular cantidad disponible del lote y rebajar cantidad reservada a nivel lote
         cantidad_total_ubicaciones = sum(lu.cantidad for lu in lote.ubicaciones_detalle.all())
+        reserva_antes_lote = lote.cantidad_reservada or 0
+        reserva_nueva_lote = max(0, reserva_antes_lote - cantidad)
         lote.cantidad_disponible = cantidad_total_ubicaciones
-        lote.cantidad_reservada = max(0, (lote.cantidad_reservada or 0) - cantidad)
+        lote.cantidad_reservada = reserva_nueva_lote
+        logger.info(
+            "aplicar_salida_surtida: ANTES save Lote | lote_id=%s cantidad_disponible %s -> %s (suma_ubicaciones=%s) "
+            "cantidad_reservada %s -> %s",
+            lote.pk, cantidad_anterior_lote, cantidad_total_ubicaciones, cantidad_total_ubicaciones, reserva_antes_lote, reserva_nueva_lote
+        )
         lote.save(update_fields=['cantidad_disponible', 'cantidad_reservada'])
+        logger.info("aplicar_salida_surtida: Lote guardado lote_id=%s", lote.pk)
 
-        # Registrar movimiento con leyenda "Ajuste por sistema"
-        MovimientoInventario.objects.create(
+        # Registrar movimiento con leyenda "Ajuste por sistema" y tripleta (clave, lote, ubicación)
+        motivo_mov = f"Ajuste por sistema. Clave: {clave_cnis}, Lote: {lote.numero_lote}, Ubicación: {codigo_ubicacion}"
+        mov = MovimientoInventario.objects.create(
             lote=lote,
             tipo_movimiento='SALIDA',
             cantidad=cantidad,
             cantidad_anterior=cantidad_anterior_lote,
             cantidad_nueva=cantidad_nueva_lote,
-            motivo='Ajuste por sistema',
+            motivo=motivo_mov,
             documento_referencia=(solicitud.folio or '')[:100] if solicitud.folio else '',
             pedido=(solicitud.folio or '')[:255] if solicitud.folio else '',
             folio=str(propuesta.id),
             institucion_destino=solicitud.institucion_solicitante,
             usuario=request.user
         )
+        logger.info(
+            "aplicar_salida_surtida: MovimientoInventario creado id=%s lote_id=%s cantidad=%s cantidad_anterior=%s cantidad_nueva=%s motivo=%s",
+            mov.id, lote.pk, cantidad, cantidad_anterior_lote, cantidad_nueva_lote, motivo_mov[:80]
+        )
 
+    logger.info(
+        "aplicar_salida_surtida: OK | afectación aplicada clave=%s lote=%s ubicacion=%s cantidad=%s",
+        clave_cnis, lote.numero_lote, codigo_ubicacion, cantidad
+    )
     messages.success(
         request,
-        f'Salida aplicada correctamente: se descontaron {cantidad} unidades del lote {lote.numero_lote} y se registró el movimiento con motivo "Ajuste por sistema".'
+        f'Salida aplicada correctamente: se descontaron {cantidad} unidades (Clave: {clave_cnis}, Lote: {lote.numero_lote}, Ubicación: {codigo_ubicacion}) y se registró el movimiento con motivo "Ajuste por sistema".'
     )
     if return_url and return_url.startswith('/') and not return_url.startswith('//'):
         return redirect(return_url)

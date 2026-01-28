@@ -8,12 +8,15 @@
     <div class="row">
         <div class="col-md-12">
             <!-- Encabezado -->
-            <div class="d-flex justify-content-between align-items-center mb-4">
+            <div class="d-flex justify-content-between align-items-center mb-4 flex-wrap gap-2">
                 <div>
                     <h2><i class="fas fa-clipboard-check text-primary"></i> Lista de Revisión - Validar Entrada</h2>
                     <p class="text-muted">Folio: <strong>#{{ lista_revision.folio }}</strong></p>
                 </div>
-                <div>
+                <div class="d-flex align-items-center gap-2">
+                    <button type="button" class="btn btn-outline-primary no-print" onclick="window.print();" title="Imprimir esta vista">
+                        <i class="fas fa-print"></i> Imprimir
+                    </button>
                     <span class="badge bg-warning" style="font-size: 1rem;">{{ lista_revision.get_estado_display }}</span>
                 </div>
             </div>
@@ -150,7 +153,7 @@
                 </div>
 
                 <!-- Sección de Aprobación -->
-                <div class="card mb-4 border-success" id="seccion-aprobacion">
+                <div class="card mb-4 border-success no-print" id="seccion-aprobacion">
                     <div class="card-header bg-light border-success">
                         <h6 class="mb-0"><i class="fas fa-thumbs-up text-success"></i> Aprobar Entrada</h6>
                     </div>
@@ -177,7 +180,7 @@
                 </div>
 
                 <!-- Sección de Rechazo -->
-                <div class="card mb-4 border-danger" id="seccion-rechazo" style="opacity: 0.5; pointer-events: none;">
+                <div class="card mb-4 border-danger no-print" id="seccion-rechazo" style="opacity: 0.5; pointer-events: none;">
                     <div class="card-header bg-light border-danger">
                         <h6 class="mb-0"><i class="fas fa-thumbs-down text-danger"></i> Rechazar Entrada</h6>
                     </div>
@@ -195,7 +198,7 @@
                 </div>
 
                 <!-- Botón Volver -->
-                <div class="mb-4">
+                <div class="mb-4 no-print">
                     <a href="{% url 'logistica:detalle_cita' cita.pk %}" class="btn btn-secondary btn-lg">
                         <i class="fas fa-arrow-left"></i> Volver
                     </a>
@@ -231,6 +234,13 @@
     .seccion-habilitada {
         opacity: 1;
         pointer-events: auto;
+    }
+    
+    @media print {
+        .no-print {
+            display: none !important;
+        }
+        body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
     }
 </style>
 
