@@ -47,7 +47,15 @@
                         {% endif %}
                     </p>
                     <p><strong>Numero de Procedimiento:</strong> {{ llegada.numero_procedimiento|default:"No disponible" }}</p>
-                    <p><strong>Fecha Llegada:</strong> {{ llegada.fecha_llegada_real|date:"d/m/Y H:i" }}</p>
+                    <p><strong>Fecha Llegada:</strong>
+                        {% if llegada.cita and llegada.cita.fecha_cita %}
+                            {{ llegada.cita.fecha_cita|date:"d/m/Y H:i" }}
+                        {% elif llegada.fecha_llegada_real %}
+                            {{ llegada.fecha_llegada_real|date:"d/m/Y H:i" }}
+                        {% else %}
+                            {{ "now"|date:"d/m/Y H:i" }}
+                        {% endif %}
+                    </p>
                 </div>
             </div>
             <p><strong>Estado:</strong> <span class="badge badge-info" style="color: black;">{{ llegada.get_estado_display }}</span></p>

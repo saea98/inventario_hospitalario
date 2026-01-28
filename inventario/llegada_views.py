@@ -204,9 +204,9 @@ def exportar_llegadas_excel(request):
         # Campos de Cita
         'Folio Cita', 'Fecha Cita', 'Estado Cita', 'Tipo Entrega',
         'Orden Suministro (Cita)', 'Orden Remisión (Cita)', 'Contrato (Cita)', 'Clave Medicamento (Cita)',
-        'Fecha Autorización Cita', 'Usuario Autorización Cita',
+        'Usuario Autorización Cita',
         # Campos de Llegada
-        'Folio Llegada', 'Fecha Llegada Real', 'Estado Llegada', 'Remisión',
+        'Folio Llegada', 'Estado Llegada', 'Remisión',
         'Piezas Emitidas', 'Piezas Recibidas', 'Tipo Red', 'Almacén',
         'Orden Suministro (Llegada)', 'Contrato (Llegada)', 'Procedimiento',
         # Control de Calidad
@@ -254,16 +254,14 @@ def exportar_llegadas_excel(request):
         col += 1
         ws.cell(row=row_num, column=col).value = llegada.cita.clave_medicamento if llegada.cita else ''
         col += 1
-        ws.cell(row=row_num, column=col).value = llegada.cita.fecha_autorizacion.strftime('%d/%m/%Y %H:%M') if llegada.cita and llegada.cita.fecha_autorizacion else ''
-        col += 1
+        # (Se elimina la columna 'Fecha Autorización Cita' del Excel)
         ws.cell(row=row_num, column=col).value = f"{llegada.cita.usuario_autorizacion.first_name} {llegada.cita.usuario_autorizacion.last_name}".strip() if llegada.cita and llegada.cita.usuario_autorizacion else ''
         col += 1
         
         # Campos de Llegada
         ws.cell(row=row_num, column=col).value = llegada.folio
         col += 1
-        ws.cell(row=row_num, column=col).value = llegada.fecha_llegada_real.strftime('%d/%m/%Y %H:%M') if llegada.fecha_llegada_real else ''
-        col += 1
+        # (Se elimina la columna 'Fecha Llegada Real' del Excel)
         ws.cell(row=row_num, column=col).value = dict(LlegadaProveedor.ESTADO_CHOICES).get(llegada.estado, llegada.estado)
         col += 1
         ws.cell(row=row_num, column=col).value = llegada.remision
