@@ -4,7 +4,80 @@
 {% block title %}Validar Entrada - Sistema de Inventario{% endblock %}
 
 {% block content %}
-<div class="container-fluid mt-4">
+<!-- Formato de impresión: LISTA DE REVISIÓN (según documento Word) - solo visible al imprimir -->
+<div class="print-format-only" id="print-lista-revision">
+    <div class="print-header">
+        <div class="print-header-content">
+            <div class="print-logo-container">
+                <img src="/static/images/logo_imss_bienestar.png" alt="IMSS Bienestar" class="print-logo">
+            </div>
+            <div class="print-org-text">
+                <p class="print-org mb-0">DIRECCIÓN GENERAL</p>
+                <p class="print-org mb-0">COORDINACIÓN ESTATAL EN LA CIUDAD DE MÉXICO</p>
+                <p class="print-org mb-0">JEFATURA DE SERVICIOS ADMINISTRATIVOS Y FINANZAS</p>
+                <p class="print-org mb-0">COORDINACIÓN ESTATAL DE CONTROL DE ABASTO</p>
+                <p class="print-org mb-0">OFICINA DE INSUMOS</p>
+            </div>
+        </div>
+    </div>
+    <h1 class="print-title">LISTA DE REVISIÓN</h1>
+    <div class="print-tipo-doc">
+        <span class="print-check">{% if lista_revision.tipo_documento == 'factura' %}✓{% else %}□{% endif %}</span> FACTURA
+        <span class="print-check ms-3">{% if lista_revision.tipo_documento == 'remision' or not lista_revision.tipo_documento %}✓{% else %}□{% endif %}</span> REMISIÓN
+    </div>
+    <table class="print-datos-table">
+        <tr>
+            <td><strong>FECHA:</strong> {{ cita.fecha_cita|date:"d/m/Y" }}</td>
+            <td><strong>No. Documento</strong></td>
+            <td><strong>FOLIO:</strong> {{ lista_revision.folio }}</td>
+            <td><strong>Proveedor:</strong> {{ lista_revision.proveedor }}</td>
+        </tr>
+        <tr>
+            <td>No. Control</td>
+            <td>CAPTURÓ / No. Prealta</td>
+            <td>REVISÓ: / No. Alta</td>
+            <td>Vo. Bo.</td>
+        </tr>
+        <tr>
+            <td><strong>EPA:</strong></td>
+            <td><strong>No. Contrato:</strong> {{ cita.numero_contrato|default:"" }}</td>
+            <td><strong>Pedido:</strong> {{ cita.numero_orden_suministro|default:"" }}</td>
+            <td><strong>ORIGEN:</strong> □ IMSS BIENESTAR □ TRANSFERENCIA □ OTRO:</td>
+        </tr>
+    </table>
+    <p class="print-obs"><strong>OBSERVACIONES:</strong></p>
+    <p class="print-titulo-tabla"><strong>REVISIÓN DOCUMENTAL POR PARTE DE CONTROL TÉCNICO DE INSUMOS (RESPONSIVA SANITARIA)</strong></p>
+    <table class="print-criterios-table">
+        <thead>
+            <tr>
+                <th>DESCRIPCIÓN / CUMPLE</th>
+                <th>ACEPTACIÓN CALIDAD (RS)<br>□ SI □ NO □ N/A</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for item in items %}
+            <tr>
+                <td>{{ item.descripcion }}</td>
+                <td class="text-center">
+                    {% if item.resultado == 'si' %}✓ SI{% elif item.resultado == 'no' %}✓ NO{% elif item.resultado == 'na' %}✓ N/A{% else %}□ SI □ NO □ N/A{% endif %}
+                </td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    <div class="print-firmas-section">
+        <p class="print-firma-label"><strong>ELABORÓ</strong></p>
+        <p class="print-firma-line">NOMBRE Y FIRMA: _________________________________________</p>
+        <table class="print-firmas-table">
+            <tr>
+                <td>PROVEEDOR</td>
+                <td>NOMBRE Y FIRMA</td>
+            </tr>
+        </table>
+    </div>
+</div>
+
+<div class="container-fluid mt-4 screen-only-validar">
     <div class="row">
         <div class="col-md-12">
             <!-- Encabezado -->
@@ -14,9 +87,11 @@
                     <p class="text-muted">Folio: <strong>#{{ lista_revision.folio }}</strong></p>
                 </div>
                 <div class="d-flex align-items-center gap-2">
+                    {% if lista_revision.estado == 'aprobada' %}
                     <button type="button" class="btn btn-outline-primary no-print" onclick="window.print();" title="Imprimir esta vista">
                         <i class="fas fa-print"></i> Imprimir
                     </button>
+                    {% endif %}
                     <span class="badge bg-warning" style="font-size: 1rem;">{{ lista_revision.get_estado_display }}</span>
                 </div>
             </div>
@@ -74,7 +149,8 @@
                                 name="tipo_documento" 
                                 id="tipo_factura" 
                                 value="factura"
-                                {% if lista_revision.tipo_documento == 'factura' %}checked{% endif %}>
+                                {% if lista_revision.tipo_documento == 'factura' %}checked{% endif %}
+                                {% if es_solo_lectura %}disabled{% endif %}>
                             <label class="btn btn-outline-primary" for="tipo_factura">
                                 <i class="fas fa-receipt"></i> Factura
                             </label>
@@ -83,7 +159,8 @@
                                 name="tipo_documento" 
                                 id="tipo_remision" 
                                 value="remision"
-                                {% if lista_revision.tipo_documento == 'remision' %}checked{% else %}checked{% endif %}>
+                                {% if lista_revision.tipo_documento == 'remision' %}checked{% else %}checked{% endif %}
+                                {% if es_solo_lectura %}disabled{% endif %}>
                             <label class="btn btn-outline-primary" for="tipo_remision">
                                 <i class="fas fa-truck"></i> Remisión (Default)
                             </label>
@@ -120,7 +197,8 @@
                                                     name="item_{{ item.id }}_resultado" 
                                                     id="item_{{ item.id }}_si" 
                                                     value="si"
-                                                    {% if item.resultado == 'si' %}checked{% endif %}>
+                                                    {% if item.resultado == 'si' %}checked{% endif %}
+                                                    {% if es_solo_lectura %}disabled{% endif %}>
                                                 <label class="btn btn-outline-success" for="item_{{ item.id }}_si">
                                                     <i class="fas fa-check"></i> SI
                                                 </label>
@@ -129,7 +207,8 @@
                                                     name="item_{{ item.id }}_resultado" 
                                                     id="item_{{ item.id }}_no" 
                                                     value="no"
-                                                    {% if item.resultado == 'no' %}checked{% endif %}>
+                                                    {% if item.resultado == 'no' %}checked{% endif %}
+                                                    {% if es_solo_lectura %}disabled{% endif %}>
                                                 <label class="btn btn-outline-danger" for="item_{{ item.id }}_no">
                                                     <i class="fas fa-times"></i> NO
                                                 </label>
@@ -138,7 +217,8 @@
                                                     name="item_{{ item.id }}_resultado" 
                                                     id="item_{{ item.id }}_na" 
                                                     value="na"
-                                                    {% if item.resultado == 'na' %}checked{% endif %}>
+                                                    {% if item.resultado == 'na' %}checked{% endif %}
+                                                    {% if es_solo_lectura %}disabled{% endif %}>
                                                 <label class="btn btn-outline-secondary" for="item_{{ item.id }}_na">
                                                     <i class="fas fa-minus"></i> N/A
                                                 </label>
@@ -153,6 +233,7 @@
                 </div>
 
                 <!-- Sección de Aprobación -->
+                {% if not es_solo_lectura %}
                 <div class="card mb-4 border-success no-print" id="seccion-aprobacion">
                     <div class="card-header bg-light border-success">
                         <h6 class="mb-0"><i class="fas fa-thumbs-up text-success"></i> Aprobar Entrada</h6>
@@ -178,8 +259,10 @@
                         </button>
                     </div>
                 </div>
+                {% endif %}
 
                 <!-- Sección de Rechazo -->
+                {% if not es_solo_lectura %}
                 <div class="card mb-4 border-danger no-print" id="seccion-rechazo" style="opacity: 0.5; pointer-events: none;">
                     <div class="card-header bg-light border-danger">
                         <h6 class="mb-0"><i class="fas fa-thumbs-down text-danger"></i> Rechazar Entrada</h6>
@@ -196,6 +279,7 @@
                         </button>
                     </div>
                 </div>
+                {% endif %}
 
                 <!-- Botón Volver -->
                 <div class="mb-4 no-print">
@@ -236,11 +320,107 @@
         pointer-events: auto;
     }
     
+    /* Formato de impresión: LISTA DE REVISIÓN (según Word) - oculto en pantalla */
+    .print-format-only {
+        display: none;
+        font-family: Arial, sans-serif;
+        font-size: 11px;
+        max-width: 21cm;
+        margin: 0 auto;
+        padding: 0.5cm;
+    }
+    .print-format-only .print-header {
+        margin-bottom: 8px;
+        line-height: 1.3;
+    }
+    .print-format-only .print-header-content {
+        display: flex;
+        align-items: center;
+        gap: 15px;
+    }
+    .print-format-only .print-logo-container {
+        flex-shrink: 0;
+    }
+    .print-format-only .print-logo {
+        max-width: 200px;
+        max-height: 80px;
+        height: auto;
+        width: auto;
+    }
+    .print-format-only .print-org-text {
+        flex: 1;
+        text-align: left;
+    }
+    .print-format-only .print-org {
+        font-size: 10px;
+    }
+    .print-format-only .print-title {
+        text-align: center;
+        font-size: 14px;
+        font-weight: bold;
+        margin: 10px 0;
+        text-transform: uppercase;
+    }
+    .print-format-only .print-tipo-doc {
+        margin-bottom: 8px;
+    }
+    .print-format-only .print-check {
+        display: inline-block;
+        width: 1em;
+    }
+    .print-format-only .print-datos-table,
+    .print-format-only .print-criterios-table,
+    .print-format-only .print-firmas-table {
+        width: 100%;
+        border-collapse: collapse;
+        margin-bottom: 10px;
+        font-size: 10px;
+    }
+    .print-format-only .print-datos-table td,
+    .print-format-only .print-criterios-table td,
+    .print-format-only .print-criterios-table th,
+    .print-format-only .print-firmas-table td {
+        border: 1px solid #000;
+        padding: 4px 6px;
+        vertical-align: top;
+    }
+    .print-format-only .print-criterios-table th {
+        background: #f0f0f0;
+        font-weight: bold;
+        text-align: center;
+    }
+    .print-format-only .print-obs {
+        margin: 6px 0 4px 0;
+    }
+    .print-format-only .print-titulo-tabla {
+        text-align: center;
+        font-weight: bold;
+        margin: 8px 0 6px 0;
+        font-size: 10px;
+    }
+    .print-format-only .print-firmas-section {
+        margin-top: 15px;
+    }
+    .print-format-only .print-firma-label {
+        margin: 8px 0 4px 0;
+        font-weight: bold;
+    }
+    .print-format-only .print-firma-line {
+        margin: 4px 0 8px 0;
+    }
+    
     @media print {
         .no-print {
             display: none !important;
         }
+        .print-format-only {
+            display: block !important;
+        }
+        .screen-only-validar {
+            display: none !important;
+        }
         body { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+        @page { size: letter; margin: 1.5cm; }
     }
 </style>
 

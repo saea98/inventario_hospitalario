@@ -209,8 +209,16 @@ def detalle_cita(request, pk):
     # Verificar si el usuario tiene permiso para validar entrada de cita
     puede_validar = request.user.has_perm('inventario.validar_entrada_cita') or request.user.is_superuser
     
+    # Obtener lista de revisión si existe
+    lista_revision = None
+    try:
+        lista_revision = cita.lista_revision
+    except ListaRevision.DoesNotExist:
+        pass
+    
     context = {
         'cita': cita,
+        'lista_revision': lista_revision,
         'puede_autorizar': cita.estado == 'programada' and puede_validar,
         'puede_completar': cita.estado == 'autorizada',
         'puede_validar': puede_validar,
@@ -264,17 +272,32 @@ def validar_entrada(request, pk):
     if not cita.folio:
         ServicioFolio.asignar_folio_a_cita(cita)
     
-    # Solo permitir validar si está en estado 'programada'
-    if cita.estado != 'programada':
-        messages.warning(request, f'Solo se pueden validar citas en estado "Programada"')
-        return redirect('logistica:detalle_cita', pk=pk)
-    
-    # Crear o obtener lista de revisión
+    # Obtener lista de revisión si existe
+    lista_revision = None
     try:
         lista_revision = ListaRevision.objects.get(cita=cita)
     except ListaRevision.DoesNotExist:
-        # Crear nueva lista de revisión
-        lista_revision = ServicioListaRevision.crear_lista_revision(cita, request.user)
+        pass
+    
+    # Validar acceso según el estado de la cita
+    # - Si está 'programada': permitir validar (crear/editar lista de revisión)
+    # - Si está 'autorizada' y tiene lista aprobada: permitir solo lectura (imprimir)
+    # - Cualquier otro caso: denegar acceso
+    if cita.estado == 'programada':
+        # Crear lista de revisión si no existe
+        if not lista_revision:
+            lista_revision = ServicioListaRevision.crear_lista_revision(cita, request.user)
+    elif cita.estado == 'autorizada' and lista_revision and lista_revision.estado == 'aprobada':
+        # Permitir acceso de solo lectura para imprimir
+        pass
+    else:
+        messages.warning(request, f'Solo se pueden validar citas en estado "Programada"')
+        return redirect('logistica:detalle_cita', pk=pk)
+    
+    # Solo permitir POST (validar/aprobar/rechazar) cuando la cita está en 'programada'
+    if request.method == 'POST' and cita.estado != 'programada':
+        messages.warning(request, f'Solo se pueden validar citas en estado "Programada"')
+        return redirect('logistica:detalle_cita', pk=pk)
     
     if request.method == 'POST':
         # Procesar items de revisión
@@ -348,13 +371,17 @@ def validar_entrada(request, pk):
     except:
         pass
     
+    # Determinar si es modo solo lectura (cita autorizada)
+    es_solo_lectura = cita.estado == 'autorizada'
+    
     # Preparar contexto
     context = {
         'cita': cita,
         'lista_revision': lista_revision,
-        'items': lista_revision.items.all(),
+        'items': lista_revision.items.all() if lista_revision else [],
         'form_validar': ValidarEntradaForm(initial=form_validar_initial),
         'form_rechazar': RechazarEntradaForm(),
+        'es_solo_lectura': es_solo_lectura,
     }
     
     return render(request, 'inventario/citas/validar_entrada.html', context)

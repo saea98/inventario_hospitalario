@@ -210,6 +210,12 @@
 
             <!-- Acciones -->
             <div class="d-flex gap-2 mb-4 flex-wrap">
+                {% if cita.estado == 'autorizada' and lista_revision and lista_revision.estado == 'aprobada' %}
+                    <a href="{% url 'logistica:validar_entrada' cita.pk %}" class="btn btn-outline-primary btn-lg" title="Ver e imprimir Lista de Revisión">
+                        <i class="fas fa-print"></i> Imprimir Lista de Revisión
+                    </a>
+                {% endif %}
+                
                 {% if puede_autorizar and puede_validar %}
                     <a href="{% url 'logistica:validar_entrada' cita.pk %}" class="btn btn-success btn-lg">
                         <i class="fas fa-check"></i> Validar Entrada

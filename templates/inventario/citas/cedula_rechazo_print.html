@@ -5,19 +5,7 @@
 
 {% block content %}
 <div class="container-fluid mt-4">
-    <!-- Botones de acción -->
-    <div class="row mb-4">
-        <div class="col-md-12">
-            <a href="{% url 'logistica:detalle_cita' cita.id %}" class="btn btn-secondary">
-                <i class="fas fa-arrow-left"></i> Volver
-            </a>
-            <button onclick="window.print()" class="btn btn-primary">
-                <i class="fas fa-print"></i> Imprimir
-            </button>
-        </div>
-    </div>
-
-    <!-- Cédula de Rechazo -->
+    <!-- Cédula de Rechazo (versión para PDF/impresión) -->
     <div class="cedula-container" id="cedula">
         <!-- Encabezado -->
         <div class="cedula-header text-center mb-4">
@@ -38,7 +26,7 @@
                     <p><strong>Fecha:</strong> {{ fecha }}</p>
                     <p><strong>Folio:</strong> {{ folio }}</p>
                 </div>
-                <div class="col-md-6 text-right">
+                <div classol-md-6 text-right">
                     <p><strong>CLUES:</strong> {{ almacen.clues }}</p>
                     <p><strong>Almacén:</strong> {{ almacen.nombre }}</p>
                 </div>
@@ -139,26 +127,12 @@
 
 <style>
     @media print {
-        * {
-            margin: 0 !important;
-            padding: 0 !important;
-        }
-        body {
-            margin: 0;
-            padding: 0;
-        }
         @page {
-            margin: 0;
-            padding: 0;
+            size: letter;
+            margin: 1.5cm;
         }
-        /* Ocultar solo la fila de botones superior, no el encabezado con el logo */
-        .btn,
         .container-fluid > .row:first-of-type {
             display: none !important;
-        }
-        .container-fluid {
-            margin-top: 0 !important;
-            padding-top: 0 !important;
         }
         .cedula-container {
             max-width: 100%;
@@ -206,3 +180,4 @@
     }
 </style>
 {% endblock %}
+
