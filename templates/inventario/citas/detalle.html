@@ -61,6 +61,27 @@
                 </div>
             </div>
 
+            <!-- No es material médico (switch) -->
+            <div class="card mb-4">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
+                    <h6 class="mb-0"><i class="fas fa-box-open"></i> No es material médico</h6>
+                    <form method="post" action="{% url 'logistica:toggle_no_material_medico' cita.pk %}" class="d-inline" id="form-no-material-medico">
+                        {% csrf_token %}
+                        <div class="form-check form-switch mb-0">
+                            <input class="form-check-input" type="checkbox" role="switch" id="switch-no-material-medico"
+                                   {% if cita.no_es_material_medico %}checked{% endif %}
+                                   onchange="this.form.submit()">
+                            <label class="form-check-label text-muted small" for="switch-no-material-medico">
+                                {% if cita.no_es_material_medico %}Sí (no es material médico){% else %}No (es material médico){% endif %}
+                            </label>
+                        </div>
+                    </form>
+                </div>
+                <div class="card-body py-2">
+                    <small class="text-muted">Indica si esta cita corresponde a material que no es médico. Activa o desactiva el interruptor para actualizar.</small>
+                </div>
+            </div>
+
             <!-- Detalles de Cita -->
             <div class="row mb-4">
                 <div class="col-md-6">

@@ -933,6 +933,13 @@ class CitaProveedor(models.Model):
         verbose_name="Tipo de Entrega"
     )
     
+    # Bandera: no es material médico (visible como check/interruptor en detalle de cita)
+    no_es_material_medico = models.BooleanField(
+        default=False,
+        verbose_name="No es material médico",
+        help_text="Marcar cuando la cita corresponde a material que no es médico"
+    )
+    
     fecha_actualizacion = models.DateTimeField(auto_now=True)
 
     class Meta:

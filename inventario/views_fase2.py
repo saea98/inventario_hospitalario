@@ -217,6 +217,19 @@ def detalle_cita(request, pk):
     }
     return render(request, 'inventario/citas/detalle.html', context)
 
+
+@login_required
+@require_http_methods(["POST"])
+def toggle_no_material_medico(request, pk):
+    """Alterna la bandera 'No es material médico' de la cita y redirige al detalle."""
+    cita = get_object_or_404(CitaProveedor, pk=pk)
+    cita.no_es_material_medico = not cita.no_es_material_medico
+    cita.save(update_fields=['no_es_material_medico'])
+    estado = "marcado como no material médico" if cita.no_es_material_medico else "marcado como material médico"
+    messages.success(request, f"La cita se actualizó: {estado}.")
+    return redirect('logistica:detalle_cita', pk=pk)
+
+
 @login_required
 def editar_cita(request, pk):
     """Editar una cita existente"""

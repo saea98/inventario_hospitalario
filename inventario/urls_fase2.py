@@ -25,6 +25,7 @@ urlpatterns = [
     path('citas/<int:pk>/editar/paso1/', views_citas_dos_pasos.editar_cita_paso1, name='editar_cita_paso1'),
     path('citas/<int:pk>/editar/paso2/', views_citas_dos_pasos.editar_cita_paso2, name='editar_cita_paso2'),
     path('citas/<int:pk>/', views_fase2.detalle_cita, name='detalle_cita'),
+    path('citas/<int:pk>/toggle-no-material-medico/', views_fase2.toggle_no_material_medico, name='toggle_no_material_medico'),
     path('citas/<int:pk>/editar/', views_citas_dos_pasos.editar_cita_paso1, name='editar_cita'),
     path('citas/<int:pk>/validar-entrada/', views_fase2.validar_entrada, name='validar_entrada'),
     path('citas/<int:pk>/cancelar/', views_fase2.cancelar_cita, name='cancelar_cita'),
