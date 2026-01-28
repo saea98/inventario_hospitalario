@@ -409,7 +409,15 @@
                 </div>
                 <div class="info-item">
                     <span class="info-label">FECHA</span>
-                    <span class="info-value">{{ llegada.fecha_llegada_real|date:"d/m/Y" }}</span>
+                    <span class="info-value">
+                        {% if llegada.cita and llegada.cita.fecha_cita %}
+                            {{ llegada.cita.fecha_cita|date:"d/m/Y" }}
+                        {% elif llegada.fecha_llegada_real %}
+                            {{ llegada.fecha_llegada_real|date:"d/m/Y" }}
+                        {% else %}
+                            {{ "now"|date:"d/m/Y" }}
+                        {% endif %}
+                    </span>
                 </div>
                 <div class="info-item">
                     <span class="info-label">FACTURA O REMISIÓN</span>
