@@ -20,61 +20,97 @@
             </div>
         </div>
     </div>
-    <h1 class="print-title">LISTA DE REVISIÓN</h1>
-    <div class="print-tipo-doc">
-        <span class="print-check">{% if lista_revision.tipo_documento == 'factura' %}✓{% else %}□{% endif %}</span> FACTURA
-        <span class="print-check ms-3">{% if lista_revision.tipo_documento == 'remision' or not lista_revision.tipo_documento %}✓{% else %}□{% endif %}</span> REMISIÓN
+    <h1 class="print-title">LISTA DE REVISIÓN<br><span style="font-size: 11px; font-weight: normal;">(Área Técnica)</span></h1>
+    <div class="print-tipo-doc" style="text-align: right; margin-bottom: 10px;">
+        <span class="print-check">{% if lista_revision.tipo_documento == 'remision' or not lista_revision.tipo_documento %}✓{% else %}□{% endif %}</span> REMISIÓN
     </div>
+    
+    <!-- Primera fila de datos -->
     <table class="print-datos-table">
         <tr>
-            <td><strong>FECHA:</strong> {{ cita.fecha_cita|date:"d/m/Y" }}</td>
-            <td><strong>No. Documento</strong></td>
-            <td><strong>FOLIO:</strong> {{ lista_revision.folio }}</td>
-            <td><strong>Proveedor:</strong> {{ lista_revision.proveedor }}</td>
-        </tr>
-        <tr>
-            <td>No. Control</td>
-            <td>CAPTURÓ / No. Prealta</td>
-            <td>REVISÓ: / No. Alta</td>
-            <td>Vo. Bo.</td>
-        </tr>
-        <tr>
-            <td><strong>EPA:</strong></td>
-            <td><strong>No. Contrato:</strong> {{ cita.numero_contrato|default:"" }}</td>
-            <td><strong>Pedido:</strong> {{ cita.numero_orden_suministro|default:"" }}</td>
-            <td><strong>ORIGEN:</strong> □ IMSS BIENESTAR □ TRANSFERENCIA □ OTRO:</td>
+            <td style="width: 20%;"><strong>FECHA:</strong> {{ cita.fecha_cita|date:"d/m/Y" }}</td>
+            <td style="width: 20%;"><strong>NO. DOCUMENTO:</strong></td>
+            <td style="width: 25%;"><strong>FOLIO:</strong> {{ lista_revision.folio }}</td>
+            <td style="width: 35%;"><strong>PROVEEDOR:</strong> {{ lista_revision.proveedor }}</td>
         </tr>
     </table>
-    <p class="print-obs"><strong>OBSERVACIONES:</strong></p>
+    
+    <!-- Segunda fila de datos -->
+    <table class="print-datos-table" style="margin-top: 5px;">
+        <tr>
+            <td style="width: 20%;"><strong>NO. CONTRATO:</strong> {{ cita.numero_contrato|default:"" }}</td>
+            <td style="width: 30%;"><strong>PEDIDO:</strong> {{ cita.numero_orden_suministro|default:"" }}</td>
+            <td style="width: 50%;"><strong>ORIGEN:</strong> □ IMSS BIENESTAR □ TRANSFERENCIA □ OTRO:</td>
+        </tr>
+    </table>
+    
+    <!-- Área de Entradas -->
+    <table class="print-datos-table" style="margin-top: 10px;">
+        <tr>
+            <td colspan="2" style="font-weight: bold;">ÁREA DE ENTRADAS:</td>
+        </tr>
+        <tr>
+            <td style="width: 50%;"><strong>NOMBRE:</strong> _________________________________________</td>
+            <td style="width: 50%;"><strong>FIRMA:</strong> _________________________________________</td>
+        </tr>
+    </table>
+    
+    <!-- Capturó, Revisó, Vo. Bo. -->
+    <table class="print-datos-table" style="margin-top: 5px;">
+        <tr>
+            <td style="width: 33%;"><strong>CAPTURÓ:</strong> _________________________________________</td>
+            <td style="width: 33%;"><strong>REVISÓ CAPTURA:</strong> _________________________________________</td>
+            <td style="width: 34%;"><strong>VO. BO. EPA:</strong> _________________________________________</td>
+        </tr>
+    </table>
+    
+    <p class="print-obs" style="margin-top: 10px;"><strong>OBSERVACIONES:</strong></p>
     <p class="print-titulo-tabla"><strong>REVISIÓN DOCUMENTAL POR PARTE DE CONTROL TÉCNICO DE INSUMOS (RESPONSIVA SANITARIA)</strong></p>
     <table class="print-criterios-table">
         <thead>
             <tr>
                 <th>DESCRIPCIÓN / CUMPLE</th>
                 <th>ACEPTACIÓN CALIDAD (RS)<br>□ SI □ NO □ N/A</th>
+                <th class="print-blank-col">RESPONSIVA SANITARIA</th>
             </tr>
         </thead>
         <tbody>
             {% for item in items %}
             <tr>
-                <td>{{ item.descripcion }}</td>
-                <td class="text-center">
-                    {% if item.resultado == 'si' %}✓ SI{% elif item.resultado == 'no' %}✓ NO{% elif item.resultado == 'na' %}✓ N/A{% else %}□ SI □ NO □ N/A{% endif %}
+                <td style="padding: 4px 5px;">{{ item.descripcion }}</td>
+                <td class="text-center" style="padding: 4px 5px;">
+                    {% if item.resultado == 'si' %}
+                        ✓ SI □ NO □ N/A
+                    {% elif item.resultado == 'no' %}
+                        □ SI ✓ NO □ N/A
+                    {% elif item.resultado == 'na' %}
+                        □ SI □ NO ✓ N/A
+                    {% else %}
+                        □ SI □ NO □ N/A
+                    {% endif %}
                 </td>
+                <td class="print-blank-col"></td>
             </tr>
             {% endfor %}
         </tbody>
     </table>
-    <div class="print-firmas-section">
-        <p class="print-firma-label"><strong>ELABORÓ</strong></p>
-        <p class="print-firma-line">NOMBRE Y FIRMA: _________________________________________</p>
-        <table class="print-firmas-table">
-            <tr>
-                <td>PROVEEDOR</td>
-                <td>NOMBRE Y FIRMA</td>
-            </tr>
-        </table>
-    </div>
+    <!-- Texto sobre condiciones físicas -->
+    <p style="margin-top: 15px; margin-bottom: 10px; font-size: 9px; font-style: italic; text-align: center;">
+        LAS CONDICIONES FÍSICAS DEL INSUMO SE REVISAN DE ACUERDO A LA GUÍA TÉCNICA
+    </p>
+    
+    <!-- Bloque de PROVEEDOR (una sola columna, dos renglones) -->
+    <table class="print-firmas-table" style="margin-top: 10px;">
+        <tr>
+            <td style="font-weight: bold;">PROVEEDOR:</td>
+        </tr>
+        <tr>
+            <td style="height: 70px; vertical-align: top;">
+                <div style="margin-bottom: 25px;">{{ lista_revision.proveedor }}</div>
+                <div><strong>NOMBRE Y FIRMA</strong></div>
+            </td>
+        </tr>
+    </table>
 </div>
 
 <div class="container-fluid mt-4 screen-only-validar">
@@ -324,14 +360,15 @@
     .print-format-only {
         display: none;
         font-family: Arial, sans-serif;
-        font-size: 11px;
+        font-size: 10px;
         max-width: 21cm;
         margin: 0 auto;
         padding: 0.5cm;
+        line-height: 1.2;
     }
     .print-format-only .print-header {
-        margin-bottom: 8px;
-        line-height: 1.3;
+        margin-bottom: 10px;
+        line-height: 1.2;
     }
     .print-format-only .print-header-content {
         display: flex;
@@ -342,8 +379,8 @@
         flex-shrink: 0;
     }
     .print-format-only .print-logo {
-        max-width: 200px;
-        max-height: 80px;
+        max-width: 180px;
+        max-height: 70px;
         height: auto;
         width: auto;
     }
@@ -352,61 +389,96 @@
         text-align: left;
     }
     .print-format-only .print-org {
-        font-size: 10px;
+        font-size: 9px;
+        line-height: 1.1;
+        margin: 1px 0;
     }
     .print-format-only .print-title {
         text-align: center;
-        font-size: 14px;
+        font-size: 13px;
         font-weight: bold;
-        margin: 10px 0;
+        margin: 12px 0 8px 0;
         text-transform: uppercase;
+        line-height: 1.3;
     }
     .print-format-only .print-tipo-doc {
-        margin-bottom: 8px;
+        margin-bottom: 10px;
+        font-size: 10px;
     }
     .print-format-only .print-check {
         display: inline-block;
         width: 1em;
+        font-size: 12px;
     }
     .print-format-only .print-datos-table,
     .print-format-only .print-criterios-table,
     .print-format-only .print-firmas-table {
         width: 100%;
         border-collapse: collapse;
-        margin-bottom: 10px;
-        font-size: 10px;
+        margin-bottom: 5px;
+        font-size: 9px;
     }
     .print-format-only .print-datos-table td,
     .print-format-only .print-criterios-table td,
     .print-format-only .print-criterios-table th,
     .print-format-only .print-firmas-table td {
         border: 1px solid #000;
-        padding: 4px 6px;
+        padding: 3px 5px;
         vertical-align: top;
+        font-size: 9px;
+    }
+    /* Columna de RESPONSIVA SANITARIA: ocupa ~1/3 de la tabla.
+       En encabezado muestra el recuadro normal; en filas de datos solo se ve el marco exterior (sin líneas internas). */
+    .print-format-only .print-criterios-table .print-blank-col {
+        width: 33%;
+        border-left: 1px solid #000;
+        border-right: 1px solid #000;
+        border-top: none;
+        border-bottom: none;
+        background: transparent;
+    }
+    .print-format-only .print-criterios-table thead .print-blank-col {
+        border: 1px solid #000;
+        font-weight: bold;
+        text-align: center;
+    }
+    /* Mantener solo el borde superior e inferior del bloque completo en filas de datos */
+    .print-format-only .print-criterios-table tbody tr:first-child .print-blank-col {
+        border-top: 1px solid #000;
+    }
+    .print-format-only .print-criterios-table tbody tr:last-child .print-blank-col {
+        border-bottom: 1px solid #000;
     }
     .print-format-only .print-criterios-table th {
         background: #f0f0f0;
         font-weight: bold;
         text-align: center;
+        font-size: 9px;
+        padding: 4px 5px;
     }
     .print-format-only .print-obs {
-        margin: 6px 0 4px 0;
+        margin: 8px 0 5px 0;
+        font-size: 9px;
+        font-weight: bold;
     }
     .print-format-only .print-titulo-tabla {
         text-align: center;
         font-weight: bold;
-        margin: 8px 0 6px 0;
-        font-size: 10px;
+        margin: 10px 0 6px 0;
+        font-size: 9px;
+        line-height: 1.2;
     }
     .print-format-only .print-firmas-section {
-        margin-top: 15px;
+        margin-top: 10px;
     }
     .print-format-only .print-firma-label {
-        margin: 8px 0 4px 0;
+        margin: 5px 0;
         font-weight: bold;
+        font-size: 9px;
     }
     .print-format-only .print-firma-line {
-        margin: 4px 0 8px 0;
+        margin: 3px 0;
+        font-size: 9px;
     }
     
     @media print {
