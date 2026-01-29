@@ -1606,14 +1606,17 @@ function calculatePrices(row1, row2) {
     var porcentajeIva = parseFloat(row2.find('.porcentaje-iva').val()) || 0;
     var cantRecibida = parseInt(row1.find('.cantidad-recibida').val()) || 0;
     
-    // Calcular precio con IVA (porcentajeIva ya está en formato 0.16 o 0.00)
-    var precioConIva = precioUnitario * (1 + porcentajeIva);
+    // El campo % IVA guarda 16 (porcentaje), convertir a decimal 0.16 para el cálculo
+    var porcentajeIvaDecimal = (porcentajeIva > 1) ? (porcentajeIva / 100) : porcentajeIva;
+    
+    // Calcular precio con IVA: precio * (1 + 0.16) = precio * 1.16
+    var precioConIva = precioUnitario * (1 + porcentajeIvaDecimal);
     
     // Calcular subtotal (precio unitario * cantidad)
     var subtotal = precioUnitario * cantRecibida;
     
-    // Calcular importe IVA (porcentajeIva ya está en formato 0.16 o 0.00)
-    var importeIva = subtotal * porcentajeIva;
+    // Calcular importe IVA: subtotal * 0.16
+    var importeIva = subtotal * porcentajeIvaDecimal;
     
     // Calcular importe total
     var importeTotal = subtotal + importeIva;
