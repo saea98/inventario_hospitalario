@@ -33,12 +33,30 @@ from django.http import HttpResponse
 # VISTAS PARA CITAS DE PROVEEDORES
 # ============================================================================
 
+# Columnas ordenables en lista de citas (campo modelo -> nombre para URL)
+COLUMNAS_ORDENABLES_CITAS = {
+    'proveedor': 'proveedor__razon_social',
+    'fecha': 'fecha_cita',
+    'almacen': 'almacen__nombre',
+    'orden_suministro': 'numero_orden_suministro',
+    'orden_remision': 'numero_orden_remision',
+    'estado': 'estado',
+}
+
+
 @login_required
 def lista_citas(request):
     """Lista todas las citas programadas con paginación y filtros avanzados"""
     from django.db.models import Q
     
-    citas = CitaProveedor.objects.all().order_by('-fecha_cita')
+    citas = CitaProveedor.objects.select_related('proveedor', 'almacen')
+    
+    # Ordenación por columna
+    ordenar = request.GET.get('ordenar', 'fecha')
+    dir_ = request.GET.get('dir', 'desc')
+    campo = COLUMNAS_ORDENABLES_CITAS.get(ordenar, 'fecha_cita')
+    prefijo = '-' if dir_ == 'desc' else ''
+    citas = citas.order_by(prefijo + campo)
     
     # Filtros
     estado = request.GET.get('estado')
@@ -120,6 +138,8 @@ def lista_citas(request):
         'numero_contrato_seleccionado': numero_contrato,
         'clave_medicamento_seleccionada': clave_medicamento,
         'total_citas': paginator.count,
+        'ordenar_actual': ordenar,
+        'dir_actual': dir_,
     }
     return render(request, 'inventario/citas/lista.html', context)
 
@@ -636,8 +656,12 @@ def detalle_conteo(request, pk):
 def exportar_citas_excel(request):
     """Exporta la lista de citas a Excel"""
     
-    # Obtener todas las citas
-    citas = CitaProveedor.objects.all().order_by('-fecha_cita')
+    # Ordenación (misma lógica que lista_citas)
+    ordenar = request.GET.get('ordenar', 'fecha')
+    dir_ = request.GET.get('dir', 'desc')
+    campo = COLUMNAS_ORDENABLES_CITAS.get(ordenar, 'fecha_cita')
+    prefijo = '-' if dir_ == 'desc' else ''
+    citas = CitaProveedor.objects.select_related('proveedor', 'almacen').order_by(prefijo + campo)
     
     # Crear workbook
     wb = Workbook()
