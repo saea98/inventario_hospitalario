@@ -236,14 +236,80 @@ def detalle_cita(request, pk):
     except ListaRevision.DoesNotExist:
         pass
     
+    # Para botón "Replicar aprobación": solo admin, cita autorizada, sin llegada creada
+    from .llegada_models import LlegadaProveedor
+    try:
+        llegada_cita = cita.llegada_proveedor
+        tiene_llegada = True
+    except LlegadaProveedor.DoesNotExist:
+        llegada_cita = None
+        tiene_llegada = False
+    puede_replicar_aprobacion = (
+        request.user.is_superuser and
+        cita.estado == 'autorizada' and
+        not tiene_llegada
+    )
+    
     context = {
         'cita': cita,
         'lista_revision': lista_revision,
         'puede_autorizar': cita.estado == 'programada' and puede_validar,
         'puede_completar': cita.estado == 'autorizada',
         'puede_validar': puede_validar,
+        'puede_replicar_aprobacion': puede_replicar_aprobacion,
+        'llegada_cita': llegada_cita,
     }
     return render(request, 'inventario/citas/detalle.html', context)
+
+
+@login_required
+@require_http_methods(["POST"])
+def replicar_aprobacion_llegada(request, pk):
+    """
+    Crea la LlegadaProveedor para una cita autorizada que no la tiene.
+    Solo para administradores. Útil cuando la aprobación no generó la llegada.
+    """
+    if not request.user.is_superuser:
+        messages.error(request, 'No tiene permisos para realizar esta acción.')
+        return redirect('logistica:detalle_cita', pk=pk)
+    
+    cita = get_object_or_404(CitaProveedor, pk=pk)
+    
+    from .llegada_models import LlegadaProveedor
+    
+    # Verificar que la cita esté autorizada
+    if cita.estado != 'autorizada':
+        messages.warning(request, f'La cita debe estar autorizada. Estado actual: {cita.get_estado_display()}')
+        return redirect('logistica:detalle_cita', pk=pk)
+    
+    # Verificar que NO exista ya una llegada para esta cita
+    if LlegadaProveedor.objects.filter(cita=cita).exists():
+        messages.warning(request, 'Esta cita ya tiene una llegada de proveedor registrada.')
+        return redirect('logistica:detalle_cita', pk=pk)
+    
+    # Asignar folio a la cita si no tiene
+    if not cita.folio:
+        ServicioFolio.asignar_folio_a_cita(cita)
+        cita.refresh_from_db()
+    
+    # Crear LlegadaProveedor con datos de la cita (replicando la lógica de validar_entrada)
+    llegada = LlegadaProveedor.objects.create(
+        cita=cita,
+        proveedor=cita.proveedor,
+        almacen=cita.almacen,
+        folio=cita.folio or f'REP-{cita.pk}',
+        remision=cita.numero_orden_remision or 'PENDIENTE',
+        numero_piezas_emitidas=1,
+        numero_piezas_recibidas=0,
+        numero_orden_suministro=cita.numero_orden_suministro or '',
+        numero_contrato=cita.numero_contrato or '',
+        numero_procedimiento='',
+        estado='EN_RECEPCION',
+        creado_por=request.user,
+    )
+    
+    messages.success(request, f'✓ Llegada de proveedor creada exitosamente. Folio: {llegada.folio}')
+    return redirect('logistica:llegadas:detalle_llegada', pk=llegada.pk)
 
 
 @login_required

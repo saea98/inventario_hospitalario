@@ -215,6 +215,21 @@
                         <i class="fas fa-print"></i> Imprimir Lista de Revisión
                     </a>
                 {% endif %}
+
+                {% if llegada_cita %}
+                    <a href="{% url 'logistica:llegadas:detalle_llegada' pk=llegada_cita.pk %}" class="btn btn-info btn-lg" title="Ver Llegada de Proveedor">
+                        <i class="fas fa-truck-loading"></i> Ver Llegada
+                    </a>
+                {% endif %}
+
+                {% if puede_replicar_aprobacion %}
+                    <form method="post" action="{% url 'logistica:replicar_aprobacion_llegada' cita.pk %}" class="d-inline" onsubmit="return confirm('¿Crear Llegada de Proveedor para esta cita? Se generará el registro faltante.');">
+                        {% csrf_token %}
+                        <button type="submit" class="btn btn-warning btn-lg" title="Crear Llegada de Proveedor (esta cita no tiene llegada registrada)">
+                            <i class="fas fa-sync-alt"></i> Replicar Aprobación → Llegada
+                        </button>
+                    </form>
+                {% endif %}
                 
                 {% if puede_autorizar and puede_validar %}
                     <a href="{% url 'logistica:validar_entrada' cita.pk %}" class="btn btn-success btn-lg">

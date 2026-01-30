@@ -28,6 +28,7 @@ urlpatterns = [
     path('citas/<int:pk>/toggle-no-material-medico/', views_fase2.toggle_no_material_medico, name='toggle_no_material_medico'),
     path('citas/<int:pk>/editar/', views_citas_dos_pasos.editar_cita_paso1, name='editar_cita'),
     path('citas/<int:pk>/validar-entrada/', views_fase2.validar_entrada, name='validar_entrada'),
+    path('citas/<int:pk>/replicar-aprobacion-llegada/', views_fase2.replicar_aprobacion_llegada, name='replicar_aprobacion_llegada'),
     path('citas/<int:pk>/cancelar/', views_fase2.cancelar_cita, name='cancelar_cita'),
     path('citas/<int:pk>/cedula-rechazo/', views_cedula_rechazo.generar_cedula_rechazo, name='cedula_rechazo'),
     path('citas/<int:pk>/cedula-rechazo/imprimir/', views_cedula_rechazo.imprimir_cedula_rechazo, name='imprimir_cedula_rechazo'),
