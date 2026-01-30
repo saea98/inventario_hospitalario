@@ -94,6 +94,7 @@
                 <thead class="table-light">
                     <tr>
                         <th>Folio</th>
+                        <th>Folio de Pedido</th>
                         <th>Proveedor</th>
                         <th>Motivo</th>
                         <th>Fecha</th>
@@ -106,6 +107,7 @@
                     {% for devolucion in devoluciones_recientes %}
                     <tr>
                         <td><strong>{{ devolucion.folio }}</strong></td>
+                        <td><small>{{ devolucion.descripcion|default:"-"|truncatechars:30 }}</small></td>
                         <td>{{ devolucion.proveedor.razon_social }}</td>
                         <td>{{ devolucion.get_motivo_general_display }}</td>
                         <td><small>{{ devolucion.fecha_creacion|date:"d/m/Y H:i" }}</small></td>
@@ -129,7 +131,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="7" class="text-center text-muted py-4">
+                        <td colspan="8" class="text-center text-muted py-4">
                             No hay devoluciones registradas
                         </td>
                     </tr>

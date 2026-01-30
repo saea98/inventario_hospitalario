@@ -9,7 +9,7 @@ from django.db.models.functions import Concat
 from django.utils import timezone
 from django.http import HttpResponse
 from datetime import timedelta
-from .pedidos_models import LogErrorPedido, SolicitudPedido, ItemSolicitud
+from .pedidos_models import LogErrorPedido, SolicitudPedido, ItemSolicitud, PropuestaPedido, ItemPropuesta, LoteAsignado
 from .pedidos_utils import obtener_resumen_errores
 from .models import Producto, Institucion
 import openpyxl
@@ -174,6 +174,91 @@ def _obtener_folio_pedido_para_error(error):
             if solicitud:
                 return (solicitud.observaciones_solicitud or '').strip() or (solicitud.folio or '')
     return None
+
+
+@login_required
+def reporte_items_no_surtidos(request):
+    """
+    Reporte de items que no se surtieron (o se surtieron parcialmente) en las propuestas de suministro.
+    Muestra ItemPropuesta donde cantidad_surtida < cantidad_propuesta.
+    """
+    from django.db.models import Sum
+
+    # Filtros
+    estado_propuesta = request.GET.get('estado', '')
+    institucion_id = request.GET.get('institucion', '')
+    folio = request.GET.get('folio', '').strip()
+    clave_cnis = request.GET.get('clave_cnis', '').strip()
+
+    # Base: propuestas con items
+    propuestas = PropuestaPedido.objects.filter(
+        solicitud__isnull=False
+    ).select_related(
+        'solicitud__institucion_solicitante',
+        'solicitud__almacen_destino'
+    ).prefetch_related(
+        'items__producto',
+        'items__lotes_asignados'
+    ).order_by('-fecha_generacion')
+
+    if estado_propuesta:
+        propuestas = propuestas.filter(estado=estado_propuesta)
+    if institucion_id:
+        propuestas = propuestas.filter(solicitud__institucion_solicitante_id=institucion_id)
+    if folio:
+        propuestas = propuestas.filter(
+            Q(solicitud__folio__icontains=folio) |
+            Q(solicitud__observaciones_solicitud__icontains=folio)
+        )
+    if clave_cnis:
+        propuestas = propuestas.filter(items__producto__clave_cnis__icontains=clave_cnis).distinct()
+
+    # Recolectar items no surtidos (cantidad_propuesta > cantidad realmente surtida)
+    items_no_surtidos = []
+    for propuesta in propuestas:
+        solicitud = propuesta.solicitud
+        folio_pedido = (solicitud.observaciones_solicitud or '').strip() or (solicitud.folio or '')
+        institucion_nombre = solicitud.institucion_solicitante.denominacion if solicitud.institucion_solicitante else '-'
+        almacen_nombre = solicitud.almacen_destino.nombre if solicitud.almacen_destino else '-'
+
+        for item in propuesta.items.all():
+            if item.cantidad_propuesta <= 0:
+                continue
+            cantidad_surtida_real = item.lotes_asignados.filter(surtido=True).aggregate(
+                total=Sum('cantidad_asignada')
+            )['total'] or 0
+            if cantidad_surtida_real < item.cantidad_propuesta:
+                cantidad_faltante = item.cantidad_propuesta - cantidad_surtida_real
+                if clave_cnis and clave_cnis.lower() not in (item.producto.clave_cnis or '').lower():
+                    continue
+                items_no_surtidos.append({
+                    'propuesta': propuesta,
+                    'item': item,
+                    'producto': item.producto,
+                    'folio_pedido': folio_pedido,
+                    'institucion': institucion_nombre,
+                    'almacen': almacen_nombre,
+                    'cantidad_propuesta': item.cantidad_propuesta,
+                    'cantidad_surtida': cantidad_surtida_real,
+                    'cantidad_faltante': cantidad_faltante,
+                    'estado_propuesta': propuesta.get_estado_display(),
+                })
+
+    # Instituciones para filtro
+    instituciones = Institucion.objects.filter(activo=True).order_by('denominacion')
+
+    context = {
+        'items_no_surtidos': items_no_surtidos,
+        'total_items': len(items_no_surtidos),
+        'instituciones': instituciones,
+        'filtro_estado': estado_propuesta,
+        'filtro_institucion': institucion_id,
+        'filtro_folio': folio,
+        'filtro_clave': clave_cnis,
+        'estado_choices': PropuestaPedido.ESTADO_CHOICES,
+        'page_title': 'Reporte de Items No Surtidos en Propuestas',
+    }
+    return render(request, 'inventario/pedidos/reporte_items_no_surtidos.html', context)
 
 
 @login_required

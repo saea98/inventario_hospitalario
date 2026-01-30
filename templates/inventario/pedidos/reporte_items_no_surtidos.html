@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Reporte de Items No Surtidos en Propuestas{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h1 class="mb-3">📦 Reporte de Items No Surtidos en Propuestas de Suministro</h1>
+            <p class="text-muted">Items de propuestas donde la cantidad surtida es menor que la cantidad propuesta</p>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">🔍 Filtros</h5>
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-2">
+                    <label for="estado" class="form-label">Estado Propuesta</label>
+                    <select class="form-control" id="estado" name="estado">
+                        <option value="">Todos</option>
+                        {% for codigo, nombre in estado_choices %}
+                        <option value="{{ codigo }}" {% if filtro_estado == codigo %}selected{% endif %}>{{ nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label for="institucion" class="form-label">Institución</label>
+                    <select class="form-control" id="institucion" name="institucion">
+                        <option value="">Todas</option>
+                        {% for inst in instituciones %}
+                        <option value="{{ inst.id }}" {% if filtro_institucion == inst.id|stringformat:"s" %}selected{% endif %}>{{ inst.denominacion|truncatechars:50 }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="folio" class="form-label">Folio / Pedido</label>
+                    <input type="text" class="form-control" id="folio" name="folio" placeholder="Buscar folio..." value="{{ filtro_folio }}">
+                </div>
+                <div class="col-md-2">
+                    <label for="clave_cnis" class="form-label">Clave CNIS</label>
+                    <input type="text" class="form-control" id="clave_cnis" name="clave_cnis" placeholder="Buscar clave..." value="{{ filtro_clave }}">
+                </div>
+                <div class="col-md-3 d-flex align-items-end gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search"></i> Filtrar
+                    </button>
+                    <a href="{% url 'pedidos:reporte_items_no_surtidos' %}" class="btn btn-secondary">
+                        <i class="fas fa-redo"></i> Limpiar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Estadística -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card text-center border-warning">
+                <div class="card-body">
+                    <h5 class="card-title text-warning">Total Items No Surtidos</h5>
+                    <h2 class="text-warning">{{ total_items }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla -->
+    <div class="card">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">📋 Listado de Items No Surtidos</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Folio de Pedido</th>
+                        <th>Institución</th>
+                        <th>Almacén</th>
+                        <th>Clave CNIS</th>
+                        <th>Descripción</th>
+                        <th class="text-end">Cant. Propuesta</th>
+                        <th class="text-end">Cant. Surtida</th>
+                        <th class="text-end">Cant. Faltante</th>
+                        <th>Estado Propuesta</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in items_no_surtidos %}
+                    <tr>
+                        <td><small><strong>{{ row.folio_pedido|default:"-" }}</strong></small></td>
+                        <td><small>{{ row.institucion }}</small></td>
+                        <td><small>{{ row.almacen }}</small></td>
+                        <td><code>{{ row.producto.clave_cnis }}</code></td>
+                        <td><small>{{ row.producto.descripcion|truncatechars:50 }}</small></td>
+                        <td class="text-end"><span class="badge bg-info">{{ row.cantidad_propuesta }}</span></td>
+                        <td class="text-end"><span class="badge bg-secondary">{{ row.cantidad_surtida }}</span></td>
+                        <td class="text-end"><span class="badge bg-danger">{{ row.cantidad_faltante }}</span></td>
+                        <td><span class="badge bg-light text-dark">{{ row.estado_propuesta }}</span></td>
+                        <td>
+                            <a href="{% url 'logistica:detalle_propuesta' propuesta_id=row.propuesta.id %}" class="btn btn-sm btn-outline-primary" title="Ver propuesta">
+                                <i class="fas fa-external-link-alt"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="10" class="text-center text-muted py-4">
+                            <i class="fas fa-check-circle fa-2x mb-2"></i>
+                            <p class="mb-0">No hay items no surtidos con los filtros seleccionados</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="mt-4 d-flex gap-2">
+        <a href="{% url 'pedidos:reporte_errores' %}" class="btn btn-secondary">
+            <i class="fas fa-exclamation-triangle"></i> Reporte de Errores
+        </a>
+        <a href="{% url 'logistica:lista_propuestas' %}" class="btn btn-outline-primary">
+            <i class="fas fa-list"></i> Propuestas de Surtimiento
+        </a>
+    </div>
+</div>
+{% endblock %}
