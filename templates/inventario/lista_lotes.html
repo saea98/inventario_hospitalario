@@ -52,6 +52,18 @@
 
                 <!-- Filtros Adicionales -->
                 <div class="col-md-3">
+                    <label class="form-label">Institución</label>
+                    <select name="institucion" id="filtro_institucion" class="form-select">
+                        <option value="">Todas las instituciones</option>
+                        {% for inst in instituciones %}
+                        <option value="{{ inst.id }}" {% if filtro_institucion|stringformat:"s" == inst.id|stringformat:"s" %}selected{% endif %}>
+                            {{ inst.clue }} - {{ inst.denominacion|truncatechars:35 }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-3">
                     <label class="form-label">Estado</label>
                     <select name="estado" class="form-select">
                         <option value="">Todos los estados</option>
@@ -65,10 +77,10 @@
 
                 <div class="col-md-3">
                     <label class="form-label">Almacén</label>
-                    <select name="almacen" class="form-select">
+                    <select name="almacen" id="filtro_almacen" class="form-select">
                         <option value="">Todos los almacenes</option>
                         {% for almacen in almacenes %}
-                        <option value="{{ almacen.id }}" {% if filtro_almacen|stringformat:"s" == almacen.id|stringformat:"s" %}selected{% endif %}>
+                        <option value="{{ almacen.id }}" data-institucion="{{ almacen.institucion_id }}" {% if filtro_almacen|stringformat:"s" == almacen.id|stringformat:"s" %}selected{% endif %}>
                             {{ almacen.nombre }}
                         </option>
                         {% endfor %}
@@ -117,12 +129,13 @@
     </div>
 
     <!-- Información de Búsqueda Activa -->
-    {% if busqueda_lote or busqueda_cnis or busqueda_producto or filtro_estado or filtro_almacen or filtro_producto or filtro_caducidad %}
+    {% if busqueda_lote or busqueda_cnis or busqueda_producto or filtro_institucion or filtro_estado or filtro_almacen or filtro_producto or filtro_caducidad %}
     <div class="alert alert-info mb-4">
         <strong>Filtros Activos:</strong>
         {% if busqueda_lote %}<span class="badge bg-info">Lote: {{ busqueda_lote }}</span>{% endif %}
         {% if busqueda_cnis %}<span class="badge bg-info">CNIS: {{ busqueda_cnis }}</span>{% endif %}
         {% if busqueda_producto %}<span class="badge bg-info">Producto: {{ busqueda_producto }}</span>{% endif %}
+        {% if filtro_institucion %}<span class="badge bg-info">Institución: {{ filtro_institucion }}</span>{% endif %}
         {% if filtro_estado %}<span class="badge bg-info">Estado: {{ filtro_estado }}</span>{% endif %}
         {% if filtro_almacen %}<span class="badge bg-info">Almacén: {{ filtro_almacen }}</span>{% endif %}
         {% if filtro_producto %}<span class="badge bg-info">Producto ID: {{ filtro_producto }}</span>{% endif %}
@@ -137,7 +150,7 @@
     <!-- Tabla de Lotes -->
     <div class="card">
         <div class="card-header bg-light">
-            <h5 class="mb-0">Resultados ({{ lotes|length }} lotes)</h5>
+            <h5 class="mb-0">Resultados ({{ page_obj.paginator.count }} lotes)</h5>
         </div>
         <div class="table-responsive">
             <table class="table table-hover mb-0">
@@ -256,10 +269,10 @@
             <ul class="pagination justify-content-center">
                 {% if page_obj.has_previous %}
                     <li class="page-item">
-                        <a class="page-link" href="?page=1{% if busqueda_lote %}&busqueda_lote={{ busqueda_lote }}{% endif %}{% if busqueda_cnis %}&busqueda_cnis={{ busqueda_cnis }}{% endif %}{% if busqueda_producto %}&busqueda_producto={{ busqueda_producto }}{% endif %}{% if filtro_estado %}&estado={{ filtro_estado }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_producto %}&producto={{ filtro_producto }}{% endif %}">Primera</a>
+                        <a class="page-link" href="?page=1{% if busqueda_lote %}&busqueda_lote={{ busqueda_lote }}{% endif %}{% if busqueda_cnis %}&busqueda_cnis={{ busqueda_cnis }}{% endif %}{% if busqueda_producto %}&busqueda_producto={{ busqueda_producto }}{% endif %}{% if filtro_institucion %}&institucion={{ filtro_institucion }}{% endif %}{% if filtro_estado %}&estado={{ filtro_estado }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_producto %}&producto={{ filtro_producto }}{% endif %}">Primera</a>
                     </li>
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if busqueda_lote %}&busqueda_lote={{ busqueda_lote }}{% endif %}{% if busqueda_cnis %}&busqueda_cnis={{ busqueda_cnis }}{% endif %}{% if busqueda_producto %}&busqueda_producto={{ busqueda_producto }}{% endif %}{% if filtro_estado %}&estado={{ filtro_estado }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_producto %}&producto={{ filtro_producto }}{% endif %}">Anterior</a>
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if busqueda_lote %}&busqueda_lote={{ busqueda_lote }}{% endif %}{% if busqueda_cnis %}&busqueda_cnis={{ busqueda_cnis }}{% endif %}{% if busqueda_producto %}&busqueda_producto={{ busqueda_producto }}{% endif %}{% if filtro_institucion %}&institucion={{ filtro_institucion }}{% endif %}{% if filtro_estado %}&estado={{ filtro_estado }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_producto %}&producto={{ filtro_producto }}{% endif %}">Anterior</a>
                     </li>
                 {% endif %}
                 
@@ -269,10 +282,10 @@
                 
                 {% if page_obj.has_next %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if busqueda_lote %}&busqueda_lote={{ busqueda_lote }}{% endif %}{% if busqueda_cnis %}&busqueda_cnis={{ busqueda_cnis }}{% endif %}{% if busqueda_producto %}&busqueda_producto={{ busqueda_producto }}{% endif %}{% if filtro_estado %}&estado={{ filtro_estado }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_producto %}&producto={{ filtro_producto }}{% endif %}">Siguiente</a>
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if busqueda_lote %}&busqueda_lote={{ busqueda_lote }}{% endif %}{% if busqueda_cnis %}&busqueda_cnis={{ busqueda_cnis }}{% endif %}{% if busqueda_producto %}&busqueda_producto={{ busqueda_producto }}{% endif %}{% if filtro_institucion %}&institucion={{ filtro_institucion }}{% endif %}{% if filtro_estado %}&estado={{ filtro_estado }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_producto %}&producto={{ filtro_producto }}{% endif %}">Siguiente</a>
                     </li>
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if busqueda_lote %}&busqueda_lote={{ busqueda_lote }}{% endif %}{% if busqueda_cnis %}&busqueda_cnis={{ busqueda_cnis }}{% endif %}{% if busqueda_producto %}&busqueda_producto={{ busqueda_producto }}{% endif %}{% if filtro_estado %}&estado={{ filtro_estado }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_producto %}&producto={{ filtro_producto }}{% endif %}">Última</a>
+                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if busqueda_lote %}&busqueda_lote={{ busqueda_lote }}{% endif %}{% if busqueda_cnis %}&busqueda_cnis={{ busqueda_cnis }}{% endif %}{% if busqueda_producto %}&busqueda_producto={{ busqueda_producto }}{% endif %}{% if filtro_institucion %}&institucion={{ filtro_institucion }}{% endif %}{% if filtro_estado %}&estado={{ filtro_estado }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_producto %}&producto={{ filtro_producto }}{% endif %}">Última</a>
                     </li>
                 {% endif %}
             </ul>
@@ -326,6 +339,7 @@
 
           <input type="hidden" name="orden_columnas" id="orden_columnas">
           <!-- Pasar filtros activos -->
+          <input type="hidden" name="filtro_institucion" value="{{ filtro_institucion }}">
           <input type="hidden" name="filtro_estado" value="{{ filtro_estado }}">
           <input type="hidden" name="filtro_almacen" value="{{ filtro_almacen }}">
           <input type="hidden" name="filtro_producto" value="{{ filtro_producto }}">
@@ -344,8 +358,62 @@
     </div>
   </div>
 </div>
+{% endblock %}
 
 <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+{% block extra_js %}
+{{ block.super }}
+<script>
+// Filtrar almacenes según institución - compatible con Select2
+$(document).ready(function() {
+  var $selectInstitucion = $('#filtro_institucion');
+  var $selectAlmacen = $('#filtro_almacen');
+  if (!$selectInstitucion.length || !$selectAlmacen.length) return;
+
+  // Guardar copia de opciones ANTES de que Select2 las modifique (ejecutar primero)
+  var opcionTodos = $selectAlmacen.find('option[value=""]').first().clone();
+  var opcionesAlmacenes = [];
+  $selectAlmacen.find('option[data-institucion]').each(function() {
+    opcionesAlmacenes.push($(this).clone());
+  });
+
+  function filtrarAlmacenes() {
+    var institucionId = $selectInstitucion.val();
+    var valorActual = $selectAlmacen.val();
+
+    // Destruir Select2 del almacén para modificar opciones
+    if ($selectAlmacen.hasClass('select2-hidden-accessible')) {
+      try { $selectAlmacen.select2('destroy'); } catch(e) {}
+    }
+
+    // Limpiar y reconstruir opciones
+    $selectAlmacen.empty().append(opcionTodos.clone());
+    $.each(opcionesAlmacenes, function(i, opt) {
+      if (!institucionId || opt.attr('data-institucion') === institucionId) {
+        $selectAlmacen.append(opt.clone());
+      }
+    });
+
+    // Restaurar selección si sigue siendo válida
+    if (valorActual && $selectAlmacen.find('option[value="' + valorActual + '"]').length) {
+      $selectAlmacen.val(valorActual);
+    } else {
+      $selectAlmacen.val('');
+    }
+
+    // Reaplicar Select2 al almacén
+    $selectAlmacen.select2({ width: '100%', allowClear: true, dropdownParent: $('body') });
+  }
+
+  // Ejecutar después de que base.html inicialice Select2 en todos los selects
+  setTimeout(function() {
+    filtrarAlmacenes();
+    // Eventos: change (nativo), select2:select (al elegir), select2:unselect (al limpiar)
+    $selectInstitucion.off('change.institucion select2:select.institucion select2:unselect.institucion');
+    $selectInstitucion.on('change.institucion select2:select.institucion select2:unselect.institucion', filtrarAlmacenes);
+  }, 100);
+});
+</script>
 <script>
 document.addEventListener("DOMContentLoaded", function() {
   const lista = document.getElementById("lista-campos");

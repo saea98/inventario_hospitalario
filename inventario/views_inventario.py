@@ -127,6 +127,7 @@ def lista_lotes(request):
         )
     
     # Filtros
+    filtro_institucion = request.GET.get('institucion', '')
     filtro_estado = request.GET.get('estado', '')
     filtro_almacen = request.GET.get('almacen', '')
     filtro_producto = request.GET.get('producto', '')
@@ -137,6 +138,9 @@ def lista_lotes(request):
     filtro_partida = request.GET.get("partida", "")
     
     # Aplicar filtros
+    if filtro_institucion:
+        lotes = lotes.filter(institucion_id=int(filtro_institucion))
+    
     if filtro_estado:
         lotes = lotes.filter(estado=int(filtro_estado))
     
@@ -181,7 +185,8 @@ def lista_lotes(request):
     page_obj = paginator.get_page(page_number)
     
     # Opciones para filtros
-    almacenes = Almacen.objects.filter(activo=True)
+    instituciones = Institucion.objects.filter(activo=True).order_by('clue')
+    almacenes = Almacen.objects.filter(activo=True).select_related('institucion')
     productos = Producto.objects.filter(activo=True)
     estados = Lote.ESTADOS_CHOICES
     
@@ -227,9 +232,11 @@ def lista_lotes(request):
     
     context = {
         'page_obj': page_obj,
+        'instituciones': instituciones,
         'almacenes': almacenes,
         'productos': productos,
         'estados': estados,
+        'filtro_institucion': filtro_institucion,
         'filtro_estado': filtro_estado,
         'filtro_almacen': filtro_almacen,
         'filtro_producto': filtro_producto,
@@ -576,6 +583,7 @@ def exportar_lotes_personalizado(request):
                 ).prefetch_related('ubicaciones_detalle__ubicacion')
             
             # 4✍⃣ Aplicar filtros (si vienen en la petición)
+            filtro_institucion = request.POST.get('filtro_institucion', '')
             filtro_estado = request.POST.get('filtro_estado', '')
             filtro_almacen = request.POST.get('filtro_almacen', '')
             filtro_producto = request.POST.get('filtro_producto', '')
@@ -584,6 +592,9 @@ def exportar_lotes_personalizado(request):
             busqueda_cnis = request.POST.get('busqueda_cnis', '')
             busqueda_producto = request.POST.get('busqueda_producto', '')
             filtro_partida = request.POST.get('filtro_partida', '')
+            
+            if filtro_institucion:
+                lotes = lotes.filter(institucion_id=int(filtro_institucion))
             
             if filtro_estado:
                 lotes = lotes.filter(estado=int(filtro_estado))
