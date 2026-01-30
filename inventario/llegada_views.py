@@ -56,7 +56,7 @@ class ListaLlegadasView(LoginRequiredMixin, View):
         if proveedor:
             llegadas = llegadas.filter(
                 Q(proveedor__razon_social__icontains=proveedor) |
-                Q(proveedor__nombre__icontains=proveedor)
+                Q(proveedor__rfc__icontains=proveedor)
             )
         
         # Filtro de rango de fechas
@@ -144,7 +144,7 @@ def exportar_llegadas_excel(request):
     if proveedor:
         llegadas = llegadas.filter(
             Q(proveedor__razon_social__icontains=proveedor) |
-            Q(proveedor__nombre__icontains=proveedor)
+            Q(proveedor__rfc__icontains=proveedor)
         )
     
     # Filtro de rango de fechas
