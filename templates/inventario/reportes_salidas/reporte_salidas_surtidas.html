@@ -39,18 +39,18 @@
                             </div>
                             <div class="col-md-2">
                                 <label for="institucion" class="form-label">Institución</label>
-                                <select class="form-control" id="institucion" name="institucion">
+                                <select class="form-control form-select select2-institucion" id="institucion" name="institucion">
                                     <option value="">Todas</option>
                                     {% for institucion in instituciones %}
                                     <option value="{{ institucion.id }}" {% if institucion_id == institucion.id|stringformat:"s" %}selected{% endif %}>
-                                        {{ institucion.nombre }}
+                                        {{ institucion.denominacion }}
                                     </option>
                                     {% endfor %}
                                 </select>
                             </div>
                             <div class="col-md-2">
                                 <label for="estatus_movimiento" class="form-label">Est. Mov.</label>
-                                <select class="form-control" id="estatus_movimiento" name="estatus_movimiento">
+                                <select class="form-control form-select select2-estatus" id="estatus_movimiento" name="estatus_movimiento">
                                     <option value="">Todos</option>
                                     <option value="con_movimiento" {% if estatus_movimiento == 'con_movimiento' %}selected{% endif %}>Con movimiento</option>
                                     <option value="sin_movimiento" {% if estatus_movimiento == 'sin_movimiento' %}selected{% endif %}>Sin movimiento</option>
@@ -213,6 +213,7 @@
 {% endblock %}
 
 {% block extra_js %}
+{{ block.super }}
 <script>
 $(document).ready(function() {
     // Asegurar que el campo de lote no tenga select2 o autocomplete

@@ -431,7 +431,7 @@ def reporte_salidas_surtidas(request):
         datos_paginados = paginator.page(paginator.num_pages)
     
     # Obtener instituciones para el filtro
-    instituciones = Institucion.objects.all().order_by('nombre')
+    instituciones = Institucion.objects.all().order_by('denominacion')
     
     # Query string sin 'page' para que los enlaces de paginación conserven los filtros
     get_copy = request.GET.copy()
