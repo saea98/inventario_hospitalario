@@ -452,6 +452,11 @@ def lista_lotes(request):
             dias = int(caducidad)
             lotes = lotes.filter(fecha_caducidad__gte=hoy, fecha_caducidad__lte=hoy + timedelta(days=dias))
 
+    # 🔹 Filtro: excluir lotes sin orden de suministro
+    excluir_sin_orden = request.GET.get('excluir_sin_orden', '')
+    if excluir_sin_orden == 'si':
+        lotes = lotes.exclude(orden_suministro__isnull=True)
+
     # 🔹 Filtro de productos NO procesados en última carga
     no_procesados = request.GET.get('no_procesados', '')
     if no_procesados == 'si':
@@ -551,6 +556,7 @@ def lista_lotes(request):
         "columnas_disponibles": columnas_disponibles,
         'no_procesados_selected': no_procesados,
         'ultima_carga': ultima_carga,
+        'excluir_sin_orden_selected': excluir_sin_orden,
     }
     return render(request, 'inventario/lotes/lista_lotes.html', context)
 
@@ -894,6 +900,10 @@ def reporte_lotes_excel(request):
         elif caducidad in ['30', '60', '90']:
             dias = int(caducidad)
             lotes = lotes.filter(fecha_caducidad__gte=hoy, fecha_caducidad__lte=hoy + timedelta(days=dias))
+
+    excluir_sin_orden = request.GET.get('excluir_sin_orden', '')
+    if excluir_sin_orden == 'si':
+        lotes = lotes.exclude(orden_suministro__isnull=True)
 
     # 🔹 Crear workbook Excel
     wb = openpyxl.Workbook()
