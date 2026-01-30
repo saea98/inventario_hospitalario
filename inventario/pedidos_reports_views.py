@@ -9,8 +9,9 @@ from django.db.models.functions import Concat
 from django.utils import timezone
 from django.http import HttpResponse
 from datetime import timedelta
-from .pedidos_models import LogErrorPedido, SolicitudPedido
+from .pedidos_models import LogErrorPedido, SolicitudPedido, ItemSolicitud
 from .pedidos_utils import obtener_resumen_errores
+from .models import Producto, Institucion
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 
@@ -27,6 +28,7 @@ def reporte_errores_pedidos(request):
     tipo_error = request.GET.get('tipo_error')
     institucion = request.GET.get('institucion')
     clave_solicitada = request.GET.get('clave_solicitada')
+    filtro_pedido = request.GET.get('pedido', '').strip()
     
     # Base queryset
     errores = LogErrorPedido.objects.select_related(
@@ -100,9 +102,28 @@ def reporte_errores_pedidos(request):
         ),
         count=Count('id')
     ).order_by('-count')[:10]
+
+    # Obtener folio del pedido (observaciones_solicitud) para cada error
+    # Si hay filtro por pedido, procesar más registros para poder filtrar
+    limite = 500 if filtro_pedido else 100
+    errores_lista = list(errores[:limite])
+    errores_con_folio = []
+    for error in errores_lista:
+        folio_pedido = _obtener_folio_pedido_para_error(error)
+        folio_str = folio_pedido or '-'
+        errores_con_folio.append({'error': error, 'folio_pedido': folio_str})
+    # Aplicar filtro por pedido (folio) si está activo
+    if filtro_pedido:
+        termino = filtro_pedido.lower()
+        errores_con_folio = [x for x in errores_con_folio if termino in (x['folio_pedido'] or '').lower()]
+    errores_con_folio = errores_con_folio[:100]
     
+    # Instituciones para filtro
+    instituciones = Institucion.objects.filter(activo=True).order_by('denominacion')
+
     context = {
-        'errores': errores[:100],  # Mostrar últimos 100
+        'errores': [x['error'] for x in errores_con_folio],
+        'errores_con_folio': errores_con_folio,
         'total_errores': total_errores,
         'errores_hoy': errores_hoy,
         'errores_semana': errores_semana,
@@ -112,11 +133,47 @@ def reporte_errores_pedidos(request):
         'instituciones_frecuentes': instituciones_frecuentes,
         'usuarios_frecuentes': usuarios_frecuentes,
         'resumen': resumen,
+        'errores_por_tipo': resumen.get('errores_por_tipo', {}),
+        'alertas_enviadas': errores.filter(alerta_enviada=True).count(),
         'tipo_error_choices': LogErrorPedido.TIPO_ERROR_CHOICES,
+        'instituciones': instituciones,
+        'filtro_pedido': filtro_pedido,
+        'filtro_institucion': institucion,
         'page_title': 'Reporte de Errores en Carga Masiva de Pedidos'
     }
     
     return render(request, 'inventario/pedidos/reporte_errores_pedidos.html', context)
+
+
+def _obtener_folio_pedido_para_error(error):
+    """
+    Busca la solicitud relacionada con el error y retorna el folio del pedido
+    (observaciones_solicitud). Se busca por clave+usuario+fecha.
+    """
+    try:
+        producto = Producto.objects.get(clave_cnis=error.clave_solicitada)
+        fecha_inicio = error.fecha_error - timedelta(hours=24)
+        fecha_fin = error.fecha_error + timedelta(hours=1)
+        items = ItemSolicitud.objects.filter(
+            producto=producto,
+            solicitud__fecha_solicitud__gte=fecha_inicio,
+            solicitud__fecha_solicitud__lte=fecha_fin
+        ).select_related('solicitud').order_by('-solicitud__fecha_solicitud')
+        if error.usuario:
+            items = items.filter(solicitud__usuario_solicitante=error.usuario)
+        item = items.first()
+        if item and item.solicitud:
+            return (item.solicitud.observaciones_solicitud or '').strip() or (item.solicitud.folio or '')
+    except Producto.DoesNotExist:
+        if error.usuario:
+            solicitud = SolicitudPedido.objects.filter(
+                usuario_solicitante=error.usuario,
+                fecha_solicitud__gte=error.fecha_error - timedelta(hours=24),
+                fecha_solicitud__lte=error.fecha_error + timedelta(hours=1)
+            ).order_by('-fecha_solicitud').first()
+            if solicitud:
+                return (solicitud.observaciones_solicitud or '').strip() or (solicitud.folio or '')
+    return None
 
 
 @login_required

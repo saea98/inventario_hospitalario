@@ -37,15 +37,28 @@
                         <option value="OTRO" {% if request.GET.tipo_error == 'OTRO' %}selected{% endif %}>Otro</option>
                     </select>
                 </div>
-                <div class="col-md-3">
+                <div class="col-md-2">
+                    <label for="institucion" class="form-label">Institución</label>
+                    <select class="form-control" id="institucion" name="institucion">
+                        <option value="">Todas</option>
+                        {% for inst in instituciones %}
+                        <option value="{{ inst.id }}" {% if filtro_institucion == inst.id|stringformat:"s" %}selected{% endif %}>{{ inst.denominacion|truncatechars:40 }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
                     <label for="clave_solicitada" class="form-label">Clave Solicitada</label>
                     <input type="text" class="form-control" id="clave_solicitada" name="clave_solicitada" placeholder="Buscar clave..." value="{{ request.GET.clave_solicitada }}">
                 </div>
-                <div class="col-md-3 d-flex align-items-end">
-                    <button type="submit" class="btn btn-primary w-100">
+                <div class="col-md-2">
+                    <label for="pedido" class="form-label">Pedido (Folio)</label>
+                    <input type="text" class="form-control" id="pedido" name="pedido" placeholder="Buscar por folio..." value="{{ filtro_pedido }}">
+                </div>
+                <div class="col-md-12 d-flex align-items-end gap-2">
+                    <button type="submit" class="btn btn-primary">
                         <i class="fas fa-search"></i> Filtrar
                     </button>
-                    <a href="{% url 'pedidos:reporte_errores' %}" class="btn btn-secondary ms-2 w-100">
+                    <a href="{% url 'pedidos:reporte_errores' %}" class="btn btn-secondary">
                         <i class="fas fa-redo"></i> Limpiar
                     </a>
                 </div>
@@ -59,7 +72,7 @@
             <div class="card text-center border-danger">
                 <div class="card-body">
                     <h5 class="card-title text-danger">Total de Errores</h5>
-                    <h2 class="text-danger">{{ errores.count }}</h2>
+                    <h2 class="text-danger">{{ total_errores }}</h2>
                 </div>
             </div>
         </div>
@@ -99,6 +112,7 @@
                 <thead class="table-light">
                     <tr>
                         <th>Fecha</th>
+                        <th>Pedido</th>
                         <th>Clave Solicitada</th>
                         <th>Cantidad</th>
                         <th>Tipo de Error</th>
@@ -109,39 +123,42 @@
                     </tr>
                 </thead>
                 <tbody>
-                    {% for error in errores %}
+                    {% for item in errores_con_folio %}
                     <tr>
                         <td>
-                            <small>{{ error.fecha_error|date:"d/m/Y H:i" }}</small>
+                            <small>{{ item.error.fecha_error|date:"d/m/Y H:i" }}</small>
                         </td>
                         <td>
-                            <code>{{ error.clave_solicitada }}</code>
+                            <small><strong>{{ item.folio_pedido }}</strong></small>
                         </td>
                         <td>
-                            <span class="badge bg-info">{{ error.cantidad_solicitada }}</span>
+                            <code>{{ item.error.clave_solicitada }}</code>
                         </td>
                         <td>
-                            {% if error.tipo_error == 'CLAVE_NO_EXISTE' %}
+                            <span class="badge bg-info">{{ item.error.cantidad_solicitada }}</span>
+                        </td>
+                        <td>
+                            {% if item.error.tipo_error == 'CLAVE_NO_EXISTE' %}
                                 <span class="badge bg-danger">Clave no existe</span>
-                            {% elif error.tipo_error == 'SIN_EXISTENCIA' %}
+                            {% elif item.error.tipo_error == 'SIN_EXISTENCIA' %}
                                 <span class="badge bg-warning">Sin existencia</span>
-                            {% elif error.tipo_error == 'CANTIDAD_INVALIDA' %}
+                            {% elif item.error.tipo_error == 'CANTIDAD_INVALIDA' %}
                                 <span class="badge bg-secondary">Cantidad inválida</span>
                             {% else %}
-                                <span class="badge bg-light text-dark">{{ error.get_tipo_error_display }}</span>
+                                <span class="badge bg-light text-dark">{{ item.error.get_tipo_error_display }}</span>
                             {% endif %}
                         </td>
                         <td>
-                            <small>{{ error.descripcion_error|truncatewords:10 }}</small>
+                            <small>{{ item.error.descripcion_error|truncatewords:10 }}</small>
                         </td>
                         <td>
-                            <small>{{ error.usuario.get_full_name|default:error.usuario.username }}</small>
+                            <small>{{ item.error.usuario.get_full_name|default:item.error.usuario.username }}</small>
                         </td>
                         <td>
-                            <small>{{ error.institucion.nombre|default:"-" }}</small>
+                            <small>{% if item.error.institucion %}{{ item.error.institucion.denominacion|default:item.error.institucion.nombre|default:"-" }}{% else %}-{% endif %}</small>
                         </td>
                         <td>
-                            {% if error.alerta_enviada %}
+                            {% if item.error.alerta_enviada %}
                                 <span class="badge bg-success">✓ Enviada</span>
                             {% else %}
                                 <span class="badge bg-danger">✗ No enviada</span>
@@ -150,7 +167,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="8" class="text-center text-muted py-4">
+                        <td colspan="9" class="text-center text-muted py-4">
                             <i class="fas fa-inbox"></i> No hay errores registrados con los filtros seleccionados
                         </td>
                     </tr>
