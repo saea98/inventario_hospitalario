@@ -69,7 +69,7 @@ class CargaMasivaOrdenesSuministroForm(forms.Form):
 
     archivo = forms.FileField(
         label='Archivo Excel',
-        help_text='Formato: .xlsx o .xls. Columnas: CLUES, ORDEN DE SUMINISTRO, RFC, CLAVE, LOTE, F_REC',
+        help_text='Formato: .xlsx o .xls. Columnas: CLUES, ORDEN DE SUMINISTRO, RFC, CLAVE, LOTE, F_REC. Opcionales: F_FAB, F_CAD.',
         widget=forms.FileInput(attrs={
             'class': 'form-control',
             'accept': '.xlsx,.xls',

@@ -87,6 +87,10 @@
                                 <span>Lotes Vinculados:</span>
                                 <strong class="text-success">{{ stats.lotes_vinculados }}</strong>
                             </div>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span>Lotes con Fechas Actualizadas (F_FAB/F_CAD):</span>
+                                <strong class="text-info">{{ stats.lotes_fechas_actualizadas|default:0 }}</strong>
+                            </div>
                         </div>
                         <div class="col-md-6">
                             <div class="d-flex justify-content-between align-items-center mb-2">

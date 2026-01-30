@@ -11,6 +11,8 @@ Columnas esperadas en Excel:
 - CLAVE: Clave CNIS del producto
 - LOTE: Número de lote
 - F_REC: Fecha de recepción (para fecha_orden)
+- F_FAB: Fecha de fabricación (opcional, actualiza Lote.fecha_fabricacion)
+- F_CAD: Fecha de caducidad (opcional, actualiza Lote.fecha_caducidad)
 """
 from django.core.management.base import BaseCommand, CommandError
 from django.db import transaction
@@ -100,6 +102,7 @@ class Command(BaseCommand):
             'ordenes_creadas': 0,
             'ordenes_existentes': 0,
             'lotes_vinculados': 0,
+            'lotes_fechas_actualizadas': 0,
             'lotes_no_encontrados': 0,
             'productos_no_encontrados': 0,
             'instituciones_no_encontradas': 0,
@@ -188,18 +191,40 @@ class Command(BaseCommand):
                         else:
                             stats['ordenes_existentes'] += 1
 
-                    # 5. Buscar Lote y vincular
+                    # 5. Procesar F_FAB y F_CAD (opcionales)
+                    f_fab = _procesar_fecha(row.get('F_FAB'))
+                    f_cad = _procesar_fecha(row.get('F_CAD'))
+
+                    # 6. Buscar Lote y vincular (y actualizar fechas si aplica)
                     try:
                         lote = Lote.objects.get(
                             numero_lote=lote_numero,
                             producto=producto,
                             institucion=institucion,
                         )
+                        actualizado = False
+                        fechas_actualizadas = False
                         if lote.orden_suministro_id != orden.id:
                             if not dry_run:
                                 lote.orden_suministro = orden
-                                lote.save()
                             stats['lotes_vinculados'] += 1
+                            actualizado = True
+                        # Actualizar fecha_fabricacion si viene en Excel y el lote no la tiene o difiere
+                        if f_fab and (lote.fecha_fabricacion != f_fab):
+                            if not dry_run:
+                                lote.fecha_fabricacion = f_fab
+                            fechas_actualizadas = True
+                            actualizado = True
+                        # Actualizar fecha_caducidad si viene en Excel y el lote no la tiene o difiere
+                        if f_cad and (lote.fecha_caducidad != f_cad):
+                            if not dry_run:
+                                lote.fecha_caducidad = f_cad
+                            fechas_actualizadas = True
+                            actualizado = True
+                        if fechas_actualizadas:
+                            stats['lotes_fechas_actualizadas'] += 1
+                        if not dry_run and actualizado:
+                            lote.save()
                     except Lote.DoesNotExist:
                         stats['lotes_no_encontrados'] += 1
                         stats['errores_detalle'].append(
@@ -212,10 +237,27 @@ class Command(BaseCommand):
                             producto=producto,
                             institucion=institucion,
                         ).first()
-                        if not dry_run and lote.orden_suministro_id != orden.id:
-                            lote.orden_suministro = orden
+                        actualizado = False
+                        fechas_actualizadas = False
+                        if lote.orden_suministro_id != orden.id:
+                            if not dry_run:
+                                lote.orden_suministro = orden
+                            stats['lotes_vinculados'] += 1
+                            actualizado = True
+                        if f_fab and (lote.fecha_fabricacion != f_fab):
+                            if not dry_run:
+                                lote.fecha_fabricacion = f_fab
+                            fechas_actualizadas = True
+                            actualizado = True
+                        if f_cad and (lote.fecha_caducidad != f_cad):
+                            if not dry_run:
+                                lote.fecha_caducidad = f_cad
+                            fechas_actualizadas = True
+                            actualizado = True
+                        if fechas_actualizadas:
+                            stats['lotes_fechas_actualizadas'] += 1
+                        if not dry_run and actualizado:
                             lote.save()
-                        stats['lotes_vinculados'] += 1
 
                 except Exception as e:
                     stats['errores'] += 1
@@ -238,6 +280,7 @@ class Command(BaseCommand):
         self.stdout.write(f"📦 Órdenes creadas: {stats['ordenes_creadas']}")
         self.stdout.write(f"📋 Órdenes ya existentes: {stats['ordenes_existentes']}")
         self.stdout.write(f"🔗 Lotes vinculados: {stats['lotes_vinculados']}")
+        self.stdout.write(f"📅 Lotes con fechas actualizadas (F_FAB/F_CAD): {stats['lotes_fechas_actualizadas']}")
         self.stdout.write(f"⏭️  Omitidos (S/CLAVE): {stats['omitidos']}")
         self.stdout.write(self.style.WARNING(
             f"⚠️  Lotes no encontrados: {stats['lotes_no_encontrados']}"

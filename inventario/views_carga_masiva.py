@@ -344,7 +344,8 @@ def _procesar_fecha_orden(valor):
 def procesar_carga_masiva_ordenes(archivo_path, partida_default='N/A', dry_run=False):
     """
     Procesa Excel para crear órdenes de suministro y vincular lotes.
-    Columnas: CLUES, ORDEN DE SUMINISTRO, RFC, CLAVE, LOTE, F_REC
+    Columnas: CLUES, ORDEN DE SUMINISTRO, RFC, CLAVE, LOTE, F_REC.
+    Opcionales: F_FAB (fecha fabricación), F_CAD (fecha caducidad) - actualizan Lote.
     """
     try:
         df = pd.read_excel(archivo_path)
@@ -363,6 +364,7 @@ def procesar_carga_masiva_ordenes(archivo_path, partida_default='N/A', dry_run=F
         'ordenes_creadas': 0,
         'ordenes_existentes': 0,
         'lotes_vinculados': 0,
+        'lotes_fechas_actualizadas': 0,
         'lotes_no_encontrados': 0,
         'productos_no_encontrados': 0,
         'instituciones_no_encontradas': 0,
@@ -443,17 +445,36 @@ def procesar_carga_masiva_ordenes(archivo_path, partida_default='N/A', dry_run=F
                     else:
                         stats['ordenes_existentes'] += 1
 
+                f_fab = _procesar_fecha_orden(row.get('F_FAB'))
+                f_cad = _procesar_fecha_orden(row.get('F_CAD'))
+
                 try:
                     lote = Lote.objects.get(
                         numero_lote=lote_numero,
                         producto=producto,
                         institucion=institucion,
                     )
+                    actualizado = False
+                    fechas_actualizadas = False
                     if lote.orden_suministro_id != orden.id:
                         if not dry_run:
                             lote.orden_suministro = orden
-                            lote.save()
                         stats['lotes_vinculados'] += 1
+                        actualizado = True
+                    if f_fab and (lote.fecha_fabricacion != f_fab):
+                        if not dry_run:
+                            lote.fecha_fabricacion = f_fab
+                        fechas_actualizadas = True
+                        actualizado = True
+                    if f_cad and (lote.fecha_caducidad != f_cad):
+                        if not dry_run:
+                            lote.fecha_caducidad = f_cad
+                        fechas_actualizadas = True
+                        actualizado = True
+                    if fechas_actualizadas:
+                        stats['lotes_fechas_actualizadas'] += 1
+                    if not dry_run and actualizado:
+                        lote.save()
                 except Lote.DoesNotExist:
                     stats['lotes_no_encontrados'] += 1
                     stats['errores_detalle'].append(
@@ -465,10 +486,27 @@ def procesar_carga_masiva_ordenes(archivo_path, partida_default='N/A', dry_run=F
                         producto=producto,
                         institucion=institucion,
                     ).first()
-                    if not dry_run and lote and lote.orden_suministro_id != orden.id:
-                        lote.orden_suministro = orden
+                    actualizado = False
+                    fechas_actualizadas = False
+                    if lote and lote.orden_suministro_id != orden.id:
+                        if not dry_run:
+                            lote.orden_suministro = orden
+                        stats['lotes_vinculados'] += 1
+                        actualizado = True
+                    if lote and f_fab and (lote.fecha_fabricacion != f_fab):
+                        if not dry_run:
+                            lote.fecha_fabricacion = f_fab
+                        fechas_actualizadas = True
+                        actualizado = True
+                    if lote and f_cad and (lote.fecha_caducidad != f_cad):
+                        if not dry_run:
+                            lote.fecha_caducidad = f_cad
+                        fechas_actualizadas = True
+                        actualizado = True
+                    if fechas_actualizadas:
+                        stats['lotes_fechas_actualizadas'] += 1
+                    if not dry_run and lote and actualizado:
                         lote.save()
-                    stats['lotes_vinculados'] += 1
 
             except Exception as e:
                 stats['errores'] += 1
