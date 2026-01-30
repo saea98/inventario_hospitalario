@@ -1,0 +1,156 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Resultado - Carga Órdenes de Suministro{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-lg-10 mx-auto">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="me-3">
+                            {% if stats.errores == 0 and stats.lotes_no_encontrados == 0 %}
+                                <i class="fas fa-check-circle fa-3x text-success"></i>
+                            {% else %}
+                                <i class="fas fa-exclamation-triangle fa-3x text-warning"></i>
+                            {% endif %}
+                        </div>
+                        <div>
+                            <h1 class="card-title mb-0">
+                                {% if stats.dry_run %}
+                                    Previsualización - Carga Órdenes de Suministro
+                                {% else %}
+                                    Resultado de Carga Órdenes de Suministro
+                                {% endif %}
+                            </h1>
+                            <p class="text-muted mb-0">
+                                {% if stats.dry_run %}
+                                    <i class="fas fa-binoculars"></i> Modo Previsualización (sin cambios aplicados)
+                                {% else %}
+                                    Cambios aplicados al sistema
+                                {% endif %}
+                            </p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="row mb-4">
+                <div class="col-md-4 mb-3">
+                    <div class="card bg-success text-white">
+                        <div class="card-body text-center">
+                            <h3 class="card-title mb-0">{{ stats.ordenes_creadas }}</h3>
+                            <p class="card-text mb-0">Órdenes Creadas</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="card bg-info text-white">
+                        <div class="card-body text-center">
+                            <h3 class="card-title mb-0">{{ stats.lotes_vinculados }}</h3>
+                            <p class="card-text mb-0">Lotes Vinculados</p>
+                        </div>
+                    </div>
+                </div>
+                <div class="col-md-4 mb-3">
+                    <div class="card bg-warning text-dark">
+                        <div class="card-body text-center">
+                            <h3 class="card-title mb-0">{{ stats.lotes_no_encontrados }}</h3>
+                            <p class="card-text mb-0">Lotes No Encontrados</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="card shadow-sm mb-4">
+                <div class="card-header bg-light">
+                    <h5 class="mb-0"><i class="fas fa-chart-bar"></i> Estadísticas Detalladas</h5>
+                </div>
+                <div class="card-body">
+                    <div class="row">
+                        <div class="col-md-6">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span>Total de Registros:</span>
+                                <strong>{{ stats.total_registros }}</strong>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span>Órdenes Creadas:</span>
+                                <strong class="text-success">{{ stats.ordenes_creadas }}</strong>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span>Órdenes Ya Existentes:</span>
+                                <strong class="text-info">{{ stats.ordenes_existentes }}</strong>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span>Lotes Vinculados:</span>
+                                <strong class="text-success">{{ stats.lotes_vinculados }}</strong>
+                            </div>
+                        </div>
+                        <div class="col-md-6">
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span>Omitidos (S/CLAVE):</span>
+                                <strong class="text-muted">{{ stats.omitidos }}</strong>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span>Lotes No Encontrados:</span>
+                                <strong class="text-warning">{{ stats.lotes_no_encontrados }}</strong>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span>Productos No Encontrados:</span>
+                                <strong class="text-warning">{{ stats.productos_no_encontrados }}</strong>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span>Instituciones No Encontradas:</span>
+                                <strong class="text-warning">{{ stats.instituciones_no_encontradas }}</strong>
+                            </div>
+                            <div class="d-flex justify-content-between align-items-center mb-2">
+                                <span>Errores:</span>
+                                <strong class="text-danger">{{ stats.errores }}</strong>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            {% if stats.errores_detalle %}
+            <div class="card shadow-sm mb-4 border-danger">
+                <div class="card-header bg-danger text-white">
+                    <h5 class="mb-0"><i class="fas fa-exclamation-circle"></i> Errores y Advertencias</h5>
+                </div>
+                <div class="card-body">
+                    <div class="list-group" style="max-height: 300px; overflow-y: auto;">
+                        {% for error in stats.errores_detalle %}
+                            <div class="list-group-item list-group-item-danger">
+                                <i class="fas fa-times-circle text-danger"></i> {{ error }}
+                            </div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            {% endif %}
+
+            {% if stats.dry_run %}
+            <div class="alert alert-warning alert-dismissible fade show" role="alert">
+                <h5 class="alert-heading"><i class="fas fa-binoculars"></i> Modo Previsualización</h5>
+                <p class="mb-0">Los cambios mostrados <strong>NO fueron aplicados</strong>. Ejecuta nuevamente sin previsualización para aplicar.</p>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+            {% endif %}
+
+            <div class="d-flex gap-2 justify-content-center mb-4">
+                <a href="{% url 'carga_masiva_ordenes_suministro' %}" class="btn btn-primary btn-lg">
+                    <i class="fas fa-redo"></i> Nueva Carga
+                </a>
+                <a href="{% url 'carga_masiva_lotes' %}" class="btn btn-outline-primary btn-lg">
+                    <i class="fas fa-box"></i> Carga Lotes
+                </a>
+                <a href="{% url 'dashboard' %}" class="btn btn-secondary btn-lg">
+                    <i class="fas fa-home"></i> Dashboard
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

@@ -357,7 +357,7 @@ class FuenteFinanciamiento(models.Model):
 
 class OrdenSuministro(models.Model):
     """Órdenes de suministro"""
-    numero_orden = models.CharField(max_length=50, unique=True)
+    numero_orden = models.CharField(max_length=200, unique=True)
     proveedor = models.ForeignKey(Proveedor, on_delete=models.SET_NULL, null=True, blank=True)
     fuente_financiamiento = models.ForeignKey(FuenteFinanciamiento, on_delete=models.SET_NULL, null=True, blank=True)
     partida_presupuestal = models.CharField(max_length=20)

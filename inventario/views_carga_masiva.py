@@ -10,8 +10,11 @@ from django.core.management import call_command
 from io import StringIO
 import pandas as pd
 
-from .forms_carga_masiva import CargaMasivaLotesForm
-from .models import Producto, Almacen, UbicacionAlmacen, Lote, LoteUbicacion, CategoriaProducto
+from .forms_carga_masiva import CargaMasivaLotesForm, CargaMasivaOrdenesSuministroForm
+from .models import (
+    Producto, Almacen, UbicacionAlmacen, Lote, LoteUbicacion, CategoriaProducto,
+    OrdenSuministro, Proveedor, Institucion
+)
 from django.utils import timezone
 
 
@@ -317,6 +320,173 @@ def procesar_carga_masiva(archivo_path, institucion_id, usuario, dry_run=False, 
     return stats
 
 
+def _procesar_fecha_orden(valor):
+    """Convierte valor a date para órdenes."""
+    if pd.isna(valor) or valor == '':
+        return None
+    try:
+        if hasattr(valor, 'date'):
+            return valor.date()
+        from datetime import date, datetime
+        if isinstance(valor, date):
+            return valor
+        if isinstance(valor, str):
+            for fmt in ['%Y-%m-%d', '%d/%m/%Y', '%m/%d/%Y', '%d-%m-%Y']:
+                try:
+                    return datetime.strptime(valor.strip(), fmt).date()
+                except ValueError:
+                    continue
+        return pd.to_datetime(valor).date()
+    except Exception:
+        return None
+
+
+def procesar_carga_masiva_ordenes(archivo_path, partida_default='N/A', dry_run=False):
+    """
+    Procesa Excel para crear órdenes de suministro y vincular lotes.
+    Columnas: CLUES, ORDEN DE SUMINISTRO, RFC, CLAVE, LOTE, F_REC
+    """
+    try:
+        df = pd.read_excel(archivo_path)
+    except Exception as e:
+        raise Exception(f'Error al leer archivo: {str(e)}')
+
+    columnas_requeridas = ['ORDEN DE SUMINISTRO', 'RFC', 'CLAVE', 'LOTE', 'CLUES']
+    columnas_excel = [str(c).strip() for c in df.columns]
+    faltantes = [c for c in columnas_requeridas if c not in columnas_excel]
+    if faltantes:
+        raise Exception(f'Columnas requeridas faltantes: {faltantes}')
+
+    partida_default = str(partida_default or 'N/A')[:20]
+    stats = {
+        'total_registros': len(df),
+        'ordenes_creadas': 0,
+        'ordenes_existentes': 0,
+        'lotes_vinculados': 0,
+        'lotes_no_encontrados': 0,
+        'productos_no_encontrados': 0,
+        'instituciones_no_encontradas': 0,
+        'omitidos': 0,
+        'errores': 0,
+        'errores_detalle': [],
+        'dry_run': dry_run,
+    }
+    cache_ordenes = {}
+
+    if not dry_run:
+        transaction.set_autocommit(False)
+
+    try:
+        for idx, row in df.iterrows():
+            try:
+                clave = str(row.get('CLAVE', '')).strip()
+                if clave in ('S/CLAVE', 'nan', ''):
+                    stats['omitidos'] += 1
+                    continue
+
+                orden_numero = str(row.get('ORDEN DE SUMINISTRO', '')).strip()[:200]
+                rfc = str(row.get('RFC', '')).strip()[:13]
+                lote_numero = str(row.get('LOTE', '')).strip()[:50]
+                clues = str(row.get('CLUES', '')).strip()
+
+                if not orden_numero or not rfc or not lote_numero or not clues:
+                    stats['errores'] += 1
+                    stats['errores_detalle'].append(
+                        f"Fila {idx+2}: Datos incompletos"
+                    )
+                    continue
+
+                try:
+                    proveedor = Proveedor.objects.get(rfc=rfc)
+                except Proveedor.DoesNotExist:
+                    proveedor = Proveedor.objects.create(
+                        rfc=rfc, razon_social=f'Proveedor {rfc}', activo=True
+                    )
+
+                try:
+                    producto = Producto.objects.get(clave_cnis=clave)
+                    partida = (producto.partida_presupuestal or partida_default)[:20]
+                except Producto.DoesNotExist:
+                    stats['productos_no_encontrados'] += 1
+                    stats['errores_detalle'].append(
+                        f"Fila {idx+2}: Producto '{clave}' no existe"
+                    )
+                    continue
+
+                try:
+                    institucion = Institucion.objects.get(clue=clues)
+                except Institucion.DoesNotExist:
+                    stats['instituciones_no_encontradas'] += 1
+                    stats['errores_detalle'].append(
+                        f"Fila {idx+2}: Institución CLUES '{clues}' no existe"
+                    )
+                    continue
+
+                cache_key = orden_numero
+                if cache_key in cache_ordenes:
+                    orden = cache_ordenes[cache_key]
+                else:
+                    f_rec = _procesar_fecha_orden(row.get('F_REC'))
+                    fecha_orden = f_rec or timezone.now().date()
+                    orden, creada = OrdenSuministro.objects.get_or_create(
+                        numero_orden=orden_numero,
+                        defaults={
+                            'proveedor': proveedor,
+                            'partida_presupuestal': partida,
+                            'fecha_orden': fecha_orden,
+                            'activo': True,
+                        }
+                    )
+                    cache_ordenes[cache_key] = orden
+                    if creada:
+                        stats['ordenes_creadas'] += 1
+                    else:
+                        stats['ordenes_existentes'] += 1
+
+                try:
+                    lote = Lote.objects.get(
+                        numero_lote=lote_numero,
+                        producto=producto,
+                        institucion=institucion,
+                    )
+                    if lote.orden_suministro_id != orden.id:
+                        if not dry_run:
+                            lote.orden_suministro = orden
+                            lote.save()
+                        stats['lotes_vinculados'] += 1
+                except Lote.DoesNotExist:
+                    stats['lotes_no_encontrados'] += 1
+                    stats['errores_detalle'].append(
+                        f"Fila {idx+2}: Lote no encontrado (LOTE={lote_numero}, CLAVE={clave})"
+                    )
+                except Lote.MultipleObjectsReturned:
+                    lote = Lote.objects.filter(
+                        numero_lote=lote_numero,
+                        producto=producto,
+                        institucion=institucion,
+                    ).first()
+                    if not dry_run and lote and lote.orden_suministro_id != orden.id:
+                        lote.orden_suministro = orden
+                        lote.save()
+                    stats['lotes_vinculados'] += 1
+
+            except Exception as e:
+                stats['errores'] += 1
+                stats['errores_detalle'].append(f"Fila {idx+2}: {str(e)}")
+
+        if not dry_run:
+            transaction.commit()
+    except Exception as e:
+        if not dry_run:
+            transaction.rollback()
+        raise e
+    finally:
+        if not dry_run:
+            transaction.set_autocommit(True)
+
+    return stats
+
+
 @login_required
 @require_http_methods(["GET"])
 def carga_masiva_resultado(request):
@@ -510,3 +680,57 @@ def carga_masiva_ubicaciones_almacen(request):
     }
     
     return render(request, 'inventario/carga_masiva/ubicaciones_almacen.html', context)
+
+
+@login_required
+@require_http_methods(["GET", "POST"])
+def carga_masiva_ordenes_suministro(request):
+    """Vista para carga masiva de órdenes de suministro desde Excel."""
+    if request.method == 'POST':
+        form = CargaMasivaOrdenesSuministroForm(request.POST, request.FILES)
+        if form.is_valid():
+            archivo = form.cleaned_data['archivo']
+            partida_default = form.cleaned_data.get('partida_default', 'N/A')
+            dry_run = form.cleaned_data.get('dry_run', False)
+
+            with tempfile.NamedTemporaryFile(delete=False, suffix='.xlsx') as tmp_file:
+                for chunk in archivo.chunks():
+                    tmp_file.write(chunk)
+                tmp_path = tmp_file.name
+
+            try:
+                stats = procesar_carga_masiva_ordenes(
+                    tmp_path, partida_default=partida_default, dry_run=dry_run
+                )
+                request.session['carga_ordenes_stats'] = stats
+                return redirect('carga_masiva_ordenes_resultado')
+            except Exception as e:
+                messages.error(request, f'Error al procesar archivo: {str(e)}')
+            finally:
+                if os.path.exists(tmp_path):
+                    os.remove(tmp_path)
+        else:
+            messages.error(request, 'Corrige los errores del formulario.')
+    else:
+        form = CargaMasivaOrdenesSuministroForm()
+
+    context = {
+        'form': form,
+        'titulo': 'Carga Masiva de Órdenes de Suministro',
+    }
+    return render(request, 'inventario/carga_masiva/ordenes_suministro.html', context)
+
+
+@login_required
+@require_http_methods(["GET"])
+def carga_masiva_ordenes_resultado(request):
+    """Muestra resultado de carga masiva de órdenes."""
+    stats = request.session.pop('carga_ordenes_stats', None)
+    if not stats:
+        return redirect('carga_masiva_ordenes_suministro')
+
+    context = {
+        'stats': stats,
+        'titulo': 'Resultado - Carga Órdenes de Suministro',
+    }
+    return render(request, 'inventario/carga_masiva/resultado_ordenes.html', context)

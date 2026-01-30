@@ -1,0 +1,113 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Carga Masiva de Órdenes de Suministro{% endblock %}
+
+{% block content %}
+<div class="container mt-4">
+    <div class="row">
+        <div class="col-lg-8 mx-auto">
+            <div class="card border-0 shadow-sm mb-4">
+                <div class="card-body">
+                    <div class="d-flex align-items-center">
+                        <div class="me-3">
+                            <i class="fas fa-file-excel fa-3x text-success"></i>
+                        </div>
+                        <div>
+                            <h1 class="card-title mb-0">Carga Masiva de Órdenes de Suministro</h1>
+                            <p class="text-muted mb-0">Crea órdenes de suministro y vincula lotes existentes desde Excel</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <div class="alert alert-info alert-dismissible fade show" role="alert">
+                <h5 class="alert-heading">
+                    <i class="fas fa-info-circle"></i> Instrucciones
+                </h5>
+                <ul class="mb-0">
+                    <li>Formato: <strong>.xlsx</strong> o <strong>.xls</strong></li>
+                    <li>Columnas requeridas: <strong>CLUES</strong>, <strong>ORDEN DE SUMINISTRO</strong>, <strong>RFC</strong>, <strong>CLAVE</strong>, <strong>LOTE</strong></li>
+                    <li>Opcional: <strong>F_REC</strong> (fecha de recepción para fecha_orden)</li>
+                    <li>Los lotes deben existir previamente (numero_lote + producto + institución)</li>
+                    <li>Los productos deben existir (CLAVE = clave_cnis)</li>
+                    <li>Las instituciones deben existir (CLUES = clue)</li>
+                    <li>Usa "Previsualización" para ver cambios sin aplicarlos</li>
+                </ul>
+                <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+            </div>
+
+            <form method="post" enctype="multipart/form-data" id="carga_ordenes_form" class="card shadow-sm">
+                {% csrf_token %}
+                <div class="card-body">
+                    <div class="mb-4">
+                        <label for="archivo_ordenes_input" class="form-label fw-bold">
+                            <i class="fas fa-file-upload"></i> Archivo Excel
+                        </label>
+                        <input type="file"
+                               class="form-control {% if form.archivo.errors %}is-invalid{% endif %}"
+                               id="archivo_ordenes_input"
+                               name="archivo"
+                               accept=".xlsx,.xls"
+                               required>
+                        {% if form.archivo.errors %}
+                            <div class="invalid-feedback d-block">{{ form.archivo.errors.0 }}</div>
+                        {% endif %}
+                        <small class="form-text text-muted">Máximo 10MB. Formatos: .xlsx, .xls</small>
+                    </div>
+
+                    <div class="mb-4">
+                        <label for="id_partida_default" class="form-label fw-bold">
+                            <i class="fas fa-tag"></i> Partida presupuestal por defecto
+                        </label>
+                        {{ form.partida_default }}
+                        <small class="form-text text-muted">Se usa cuando el producto no tiene partida (max 20 caracteres)</small>
+                    </div>
+
+                    <div class="mb-4">
+                        <div class="form-check">
+                            <input type="checkbox"
+                                   class="form-check-input"
+                                   id="dry_run_ordenes_check"
+                                   name="dry_run"
+                                   value="on">
+                            <label class="form-check-label" for="dry_run_ordenes_check">
+                                <strong><i class="fas fa-binoculars"></i> Modo Previsualización (Dry-Run)</strong>
+                                <br>
+                                <small class="text-muted">Ver cambios sin aplicarlos</small>
+                            </label>
+                        </div>
+                    </div>
+                </div>
+                <div class="card-footer bg-light d-flex gap-2">
+                    <button type="submit" class="btn btn-success btn-lg" id="submit_ordenes_btn">
+                        <i class="fas fa-upload"></i> Procesar Archivo
+                    </button>
+                    <a href="{% url 'dashboard' %}" class="btn btn-secondary btn-lg">
+                        <i class="fas fa-times"></i> Cancelar
+                    </a>
+                </div>
+            </form>
+
+            <div class="card mt-4 bg-light border-0">
+                <div class="card-body">
+                    <h5 class="card-title"><i class="fas fa-lightbulb"></i> Consejos</h5>
+                    <ul class="mb-0">
+                        <li>Prueba primero con modo Previsualización</li>
+                        <li>Verifica que productos, lotes e instituciones existan en el sistema</li>
+                        <li>Si hay lotes no encontrados, ejecuta primero la carga masiva de lotes</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script>
+document.getElementById('carga_ordenes_form').addEventListener('submit', function() {
+    const btn = document.getElementById('submit_ordenes_btn');
+    btn.disabled = true;
+    btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Procesando...';
+});
+</script>
+{% endblock %}
