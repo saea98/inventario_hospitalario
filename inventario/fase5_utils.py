@@ -15,32 +15,40 @@ logger = logging.getLogger(__name__)
 
 def generar_movimientos_suministro(propuesta_id, usuario):
     """
-    Genera movimientos de inventario cuando una propuesta se marca como SURTIDA.
-    
+    Genera movimientos de inventario cuando una propuesta se va a marcar como SURTIDA.
+    Se llama ANTES de marcar como surtido para validar y crear movimientos.
+    Si falla, no se marca la propuesta como SURTIDA (evita falsos positivos).
+
+    Procesa TODOS los lotes asignados (no filtra por surtido=True porque aún no se han marcado).
+
     Args:
         propuesta_id: UUID de la propuesta
         usuario: Usuario que realizó el surtimiento
-        
+
     Returns:
-        dict: Información sobre los movimientos creados
+        dict: {'exito': bool, 'mensaje': str, 'movimientos_creados': int}
     """
     try:
         logger.info(f"Iniciando generación de movimientos para propuesta {propuesta_id}")
         propuesta = PropuestaPedido.objects.get(id=propuesta_id)
         movimientos_creados = 0
-        
+
         with transaction.atomic():
             # Iterar sobre los items de la propuesta
             for item in propuesta.items.all():
                 logger.info(f"Procesando item {item.id} de propuesta {propuesta_id}")
-                # Iterar sobre los lotes asignados surtidos
-                lotes_surtidos = item.lotes_asignados.filter(surtido=True)
-                logger.info(f"Lotes surtidos encontrados: {lotes_surtidos.count()}")
-                for lote_asignado in lotes_surtidos:
+                # Procesar TODOS los lotes asignados (se llama antes de marcar surtido)
+                lotes_asignados = item.lotes_asignados.select_related(
+                    'lote_ubicacion__lote', 'lote_ubicacion__ubicacion'
+                ).all()
+                logger.info(f"Lotes asignados a procesar: {lotes_asignados.count()}")
+                for lote_asignado in lotes_asignados:
+                    cantidad_surtida = lote_asignado.cantidad_asignada
+                    if cantidad_surtida <= 0:
+                        continue
                     lote_ubicacion = lote_asignado.lote_ubicacion
                     lote = lote_ubicacion.lote
-                    cantidad_surtida = lote_asignado.cantidad_asignada
-                    
+
                     # Obtener cantidad anterior de la ubicación específica
                     cantidad_anterior_ubicacion = lote_ubicacion.cantidad
                     cantidad_nueva_ubicacion = cantidad_anterior_ubicacion - cantidad_surtida

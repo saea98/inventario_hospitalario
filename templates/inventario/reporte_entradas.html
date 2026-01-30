@@ -127,7 +127,7 @@
             <h5 class="mb-0">
                 <i class="fas fa-table me-2"></i>Entradas Registradas ({{ page_obj.paginator.count }} total)
             </h5>
-            <a href="{% url 'exportar_entradas_excel' %}{% if filtro_fecha_desde %}?fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}{% if filtro_clave %}&clave={{ filtro_clave }}{% endif %}{% if filtro_lote %}&lote={{ filtro_lote }}{% endif %}{% if filtro_institucion %}&institucion={{ filtro_institucion }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_proveedor %}&proveedor={{ filtro_proveedor }}{% endif %}" 
+            <a href="{% url 'exportar_entradas_excel' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" 
                class="btn btn-success btn-sm">
                 <i class="fas fa-file-excel me-2"></i>Exportar a Excel
             </a>

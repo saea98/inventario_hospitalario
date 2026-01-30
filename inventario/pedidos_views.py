@@ -625,32 +625,36 @@ def surtir_propuesta(request, propuesta_id):
     propuesta = get_object_or_404(PropuestaPedido, id=propuesta_id, estado='REVISADA')  # 'REVISADA' = 'Revisada por Almacén'
     
     if request.method == 'POST':
+        # IMPORTANTE: Generar movimientos PRIMERO. Si falla, hacemos rollback y NO marcamos como SURTIDA.
+        # Así evitamos falsos positivos (propuestas SURTIDA sin movimientos de inventario).
+        resultado = generar_movimientos_suministro(propuesta.id, request.user)
+        if not resultado.get('exito', False):
+            messages.error(
+                request,
+                f"No se pudo surtir la propuesta: {resultado.get('mensaje', 'Error desconocido')}. "
+                "No se aplicaron cambios. Corrija el problema (ej. cantidad insuficiente) e intente de nuevo."
+            )
+            return redirect('logistica:surtir_propuesta', propuesta_id=propuesta.id)
+
+        # Movimientos creados OK. Ahora marcar propuesta y lotes como surtidos.
         propuesta.estado = 'EN_SURTIMIENTO'
         propuesta.fecha_surtimiento = timezone.now()
         propuesta.usuario_surtimiento = request.user
         propuesta.save()
-        
+
         for item in propuesta.items.all():
             for lote_asignado in item.lotes_asignados.all():
                 lote_asignado.surtido = True
                 lote_asignado.fecha_surtimiento = timezone.now()
                 lote_asignado.save()
-        
+
         propuesta.estado = 'SURTIDA'
         propuesta.save()
-        
-        resultado = generar_movimientos_suministro(propuesta.id, request.user)
-        if resultado['exito']:
-            messages.success(
-                request, 
-                f"Propuesta surtida exitosamente. {resultado['mensaje']}"
-            )
-        else:
-            messages.warning(
-                request, 
-                f"Propuesta surtida pero con advertencia: {resultado['mensaje']}"
-            )
-        
+
+        messages.success(
+            request,
+            f"Propuesta surtida exitosamente. {resultado.get('mensaje', '')}"
+        )
         return redirect('logistica:lista_propuestas')
     
     context = {
