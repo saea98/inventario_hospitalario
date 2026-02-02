@@ -4,6 +4,7 @@ Vistas para reportes de errores en carga masiva de pedidos
 
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.db.models import Count, Q, F, Value, CharField
 from django.db.models.functions import Concat
 from django.utils import timezone
@@ -247,9 +248,29 @@ def reporte_items_no_surtidos(request):
     # Instituciones para filtro
     instituciones = Institucion.objects.filter(activo=True).order_by('denominacion')
 
+    # Paginación (25 items por página)
+    paginator = Paginator(items_no_surtidos, 25)
+    page = request.GET.get('page', 1)
+    try:
+        page_obj = paginator.page(page)
+    except PageNotAnInteger:
+        page_obj = paginator.page(1)
+    except EmptyPage:
+        page_obj = paginator.page(paginator.num_pages)
+
+    # Query string para paginación (preservar filtros)
+    params = request.GET.copy()
+    if 'page' in params:
+        params.pop('page')
+    query_string = params.urlencode()
+
     context = {
-        'items_no_surtidos': items_no_surtidos,
-        'total_items': len(items_no_surtidos),
+        'items_no_surtidos': page_obj,
+        'page_obj': page_obj,
+        'paginator': paginator,
+        'total_items': paginator.count,
+        'is_paginated': paginator.num_pages > 1,
+        'query_string': query_string,
         'instituciones': instituciones,
         'filtro_estado': estado_propuesta,
         'filtro_institucion': institucion_id,
