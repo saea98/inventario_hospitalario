@@ -322,21 +322,51 @@ def crear_solicitud(request):
             formset = ItemSolicitudFormSet(request.POST, instance=SolicitudPedido())
             
             if form.is_valid() and formset.is_valid():
-                solicitud = form.save(commit=False)
-                solicitud.usuario_solicitante = request.user
-                solicitud.save()
-                
-                formset.instance = solicitud
-                formset.save()
-                messages.success(request, f"Solicitud {solicitud.folio} creada con éxito.")
-                return redirect('logistica:detalle_pedido', solicitud_id=solicitud.id)
+                try:
+                    solicitud = form.save(commit=False)
+                    solicitud.usuario_solicitante = request.user
+                    solicitud.save()
+                    
+                    formset.instance = solicitud
+                    formset.save()
+                    messages.success(request, f"Solicitud {solicitud.folio} creada con éxito.")
+                    return redirect('logistica:detalle_pedido', solicitud_id=solicitud.id)
+                except Exception as e:
+                    messages.error(
+                        request,
+                        f"No se pudo guardar la solicitud. Detalle: {type(e).__name__}: {str(e)}"
+                    )
             else:
+                # Errores del formulario principal: mostrar con nombre legible del campo
+                nombres_campos = {
+                    'institucion_solicitante': 'Institución solicitante',
+                    'almacen_destino': 'Almacén destino',
+                    'fecha_entrega_programada': 'Fecha de entrega programada',
+                    'observaciones_solicitud': 'Folio / Observaciones',
+                }
                 if form.errors:
                     for field, errors in form.errors.items():
+                        label = nombres_campos.get(field) or (form.fields[field].label if field in form.fields else field)
                         for error in errors:
-                            messages.error(request, f"{field}: {error}")
+                            messages.error(request, f"Datos de la solicitud — {label}: {error}")
+                # Errores del formset: indicar fila (item) y campo con error
+                if formset.non_form_errors():
+                    for error in formset.non_form_errors():
+                        messages.error(request, f"Items: {error}")
                 if formset.errors:
-                    messages.error(request, "Por favor, corrige los errores en los items.")
+                    for i, item_form in enumerate(formset.forms):
+                        if item_form.errors:
+                            num_fila = i + 1
+                            nombres_item = {
+                                'producto': 'Producto',
+                                'cantidad_solicitada': 'Cantidad solicitada',
+                                'cantidad_aprobada': 'Cantidad aprobada',
+                                'justificacion_cambio': 'Justificación',
+                            }
+                            for field, errors in item_form.errors.items():
+                                label = nombres_item.get(field) or (item_form.fields[field].label if field in item_form.fields else field)
+                                for error in errors:
+                                    messages.error(request, f"Item {num_fila} — {label}: {error}")
 
     else:
         form = SolicitudPedidoForm()
@@ -364,14 +394,20 @@ def detalle_solicitud(request, solicitud_id):
     )
     
     propuesta = PropuestaPedido.objects.filter(solicitud=solicitud).first()
-    
+
+    # Lista previa: solo items con cantidad aprobada > 0 (a surtir)
+    items_a_surtir = [item for item in solicitud.items.all() if item.cantidad_aprobada > 0]
+    items_sin_existencia = [item for item in solicitud.items.all() if item.cantidad_aprobada == 0]
+
     # Validar disponibilidad para mostrar alertas
     validacion_disponibilidad = validar_disponibilidad_solicitud(solicitud_id)
-    
+
     context = {
         'solicitud': solicitud,
         'propuesta': propuesta,
         'validacion_disponibilidad': validacion_disponibilidad,
+        'items_a_surtir': items_a_surtir,
+        'items_sin_existencia': items_sin_existencia,
         'page_title': f"Detalle de Solicitud {solicitud.folio}"
     }
     return render(request, 'inventario/pedidos/detalle_solicitud.html', context)
@@ -423,15 +459,29 @@ def validar_solicitud(request, solicitud_id):
                         # Si hay disponibilidad parcial, mantener cantidad_aprobada para que el algoritmo
                         # pueda asignar lo disponible y buscar otros lotes
                         if resultado['cantidad_disponible'] == 0:
-                            # No hay disponibilidad en absoluto - excluir completamente
+                            # No hay disponibilidad en absoluto - excluir y registrar en log
+                            cantidad_solicitada_log = item.cantidad_aprobada
                             items_sin_disponibilidad.append({
                                 'clave': item.producto.clave_cnis,
                                 'descripcion': item.producto.descripcion,
-                                'solicitado': item.cantidad_aprobada,
+                                'solicitado': cantidad_solicitada_log,
                                 'disponible': resultado['cantidad_disponible']
                             })
                             item.cantidad_aprobada = 0
                             item.save()
+                            registrar_error_pedido(
+                                usuario=request.user,
+                                tipo_error='SIN_EXISTENCIA',
+                                clave_solicitada=item.producto.clave_cnis,
+                                cantidad_solicitada=cantidad_solicitada_log,
+                                descripcion_error=(
+                                    f"Sin existencia al validar solicitud {solicitud.folio}. "
+                                    f"Solicitado: {cantidad_solicitada_log}, disponible: 0."
+                                ),
+                                institucion=solicitud.institucion_solicitante,
+                                almacen=solicitud.almacen_destino,
+                                enviar_alerta=False
+                            )
                         elif not resultado['disponible']:
                             # Hay disponibilidad parcial - mantener cantidad_aprobada
                             # El algoritmo de generación asignará lo disponible y buscará otros lotes
@@ -457,26 +507,28 @@ def validar_solicitud(request, solicitud_id):
                             f"  - {item['clave']}: Se solicitaron {item['solicitado']} pero solo hay {item['disponible']} disponibles"
                         )
                 
+                # Marcar solicitud como VALIDADA siempre (queda registrado; items con 0 ya están en LogErrorPedido)
+                solicitud.estado = 'VALIDADA'
+                solicitud.save()
+
                 # Generar propuesta solo si hay items con disponibilidad
                 if items_con_disponibilidad:
-                    solicitud.estado = 'VALIDADA'
-                    solicitud.save()
-                    
                     try:
                         generator = PropuestaGenerator(solicitud.id, request.user)
                         propuesta = generator.generate()
                         cantidad_items = propuesta.items.count()
                         messages.success(
-                            request, 
+                            request,
                             f"Solicitud {solicitud.folio} validada. Propuesta generada con {cantidad_items} producto(s)."
                         )
                     except Exception as e:
                         messages.error(request, f"Error al generar la propuesta: {str(e)}")
                 else:
-                    # Si no hay items con disponibilidad, mantener en PENDIENTE
-                    messages.error(
+                    # Todos los items quedaron sin existencia; ya registrados en LogErrorPedido
+                    messages.success(
                         request,
-                        f"No se puede generar propuesta: ningún producto tiene disponibilidad suficiente. Edita la solicitud para reducir cantidades."
+                        "Solicitud validada. No se generó propuesta porque no hubo existencia para ninguno de los insumos; "
+                        "quedó registrado en el log de errores de pedidos."
                     )
             
             return redirect('logistica:detalle_pedido', solicitud_id=solicitud.id)

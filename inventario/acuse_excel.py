@@ -41,13 +41,17 @@ def agregar_bordes_celda(celda):
     celda.border = thin_border
 
 
-def generar_acuse_excel(propuesta):
+def generar_acuse_excel(propuesta, almacen_id=None):
     """
-    Genera un archivo Excel con el acuse de entrega usando un template como base
-    
+    Genera un archivo Excel con el acuse de entrega usando un template como base.
+
+    Si almacen_id está definido (usuario no administrador con almacén asignado),
+    solo se incluyen los insumos cuyos lotes pertenecen a ese almacén.
+
     Args:
         propuesta: Objeto PropuestaPedido
-        
+        almacen_id: Opcional. Si se indica, solo se incluyen items del almacén dado.
+
     Returns:
         BytesIO: Buffer con el archivo Excel
     """
@@ -145,10 +149,15 @@ def generar_acuse_excel(propuesta):
         item.refresh_from_db()
         
         # Obtener lotes asignados directamente desde la base de datos (consulta fresca)
-        # Esto asegura que se obtengan los datos actualizados después de editar la propuesta
+        # Si almacen_id está definido, solo insumos del almacén del usuario (no admin)
+        filtro_lotes = {
+            'item_propuesta': item,
+            'cantidad_asignada__gt': 0,
+        }
+        if almacen_id is not None:
+            filtro_lotes['lote_ubicacion__ubicacion__almacen_id'] = almacen_id
         lotes_asignados = LoteAsignado.objects.filter(
-            item_propuesta=item,
-            cantidad_asignada__gt=0
+            **filtro_lotes
         ).select_related(
             'lote_ubicacion__lote',
             'lote_ubicacion__ubicacion'

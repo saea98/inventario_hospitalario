@@ -6,17 +6,10 @@
         <h1 class="h3 mb-0 text-gray-800">{{ page_title }}</h1>
         <div>
             {% if solicitud.estado == 'PENDIENTE' %}
-                {% if validacion_disponibilidad.disponible %}
-                    <a href="{% url 'logistica:validar_pedido' solicitud.id %}" class="btn btn-success btn-icon-split">
-                        <span class="icon text-white-50"><i class="fas fa-check"></i></span>
-                        <span class="text">Validar Solicitud</span>
-                    </a>
-                {% else %}
-                    <button class="btn btn-success btn-icon-split" disabled title="No hay disponibilidad suficiente para validar">
-                        <span class="icon text-white-50"><i class="fas fa-check"></i></span>
-                        <span class="text">Validar Solicitud</span>
-                    </button>
-                {% endif %}
+                <a href="{% url 'logistica:validar_pedido' solicitud.id %}" class="btn btn-success btn-icon-split">
+                    <span class="icon text-white-50"><i class="fas fa-check"></i></span>
+                    <span class="text">Validar Solicitud</span>
+                </a>
                 <a href="{% url 'logistica:editar_solicitud' solicitud.id %}" class="btn btn-warning btn-icon-split">
                     <span class="icon text-white-50"><i class="fas fa-edit"></i></span>
                     <span class="text">Editar Solicitud</span>
@@ -186,9 +179,10 @@
         </div>
     </div>
 
+    {# Lista previa: solo items con cantidad aprobada > 0 (a surtir) #}
     <div class="card shadow mb-4">
         <div class="card-header py-3">
-            <h6 class="m-0 font-weight-bold text-primary">Items de la Solicitud</h6>
+            <h6 class="m-0 font-weight-bold text-primary">Items a surtir (lista previa del pedido)</h6>
         </div>
         <div class="card-body">
             <div class="table-responsive">
@@ -203,7 +197,7 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for item in solicitud.items.all %}
+                        {% for item in items_a_surtir %}
                             <tr>
                                 <td>{{ item.producto.clave_cnis }}</td>
                                 <td>{{ item.producto.descripcion }}</td>
@@ -211,11 +205,48 @@
                                 <td>{{ item.cantidad_aprobada }}</td>
                                 <td>{{ item.justificacion_cambio|default:"N/A" }}</td>
                             </tr>
+                        {% empty %}
+                            <tr><td colspan="5" class="text-center text-muted">No hay items con cantidad aprobada en esta solicitud.</td></tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
+            <p class="text-muted small mb-0">Solo se muestran los insumos con cantidad aprobada mayor a cero.</p>
         </div>
     </div>
+
+    {# Items sin existencia (cantidad aprobada = 0); no forman parte de la lista previa #}
+    {% if items_sin_existencia %}
+    <div class="card shadow mb-4 border-warning">
+        <div class="card-header py-3 bg-light">
+            <h6 class="m-0 font-weight-bold text-warning">Items sin existencia (registrados en log de errores)</h6>
+        </div>
+        <div class="card-body">
+            <div class="table-responsive">
+                <table class="table table-bordered table-sm">
+                    <thead>
+                        <tr>
+                            <th>Producto (CNIS)</th>
+                            <th>Descripción</th>
+                            <th>Cantidad Solicitada</th>
+                            <th>Justificación del Cambio</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for item in items_sin_existencia %}
+                        <tr>
+                            <td>{{ item.producto.clave_cnis }}</td>
+                            <td>{{ item.producto.descripcion }}</td>
+                            <td>{{ item.cantidad_solicitada }}</td>
+                            <td>{{ item.justificacion_cambio|default:"—" }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <p class="text-muted small mb-0">Estos insumos no tienen existencia disponible; quedaron registrados como “Sin existencia” en el reporte de errores de pedidos.</p>
+        </div>
+    </div>
+    {% endif %}
 </div>
 {% endblock %}

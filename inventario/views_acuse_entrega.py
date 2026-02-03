@@ -25,6 +25,7 @@ from .pedidos_models import PropuestaPedido, ItemPropuesta, SolicitudPedido
 from .models import Institucion, Almacen
 from .acuse_excel import generar_acuse_excel
 from .acuse_excel_to_pdf import convertir_acuse_excel_a_pdf
+from .decorators_roles import es_administrador
 
 
 def wrap_text(text, max_chars=25, max_lines=3):
@@ -190,8 +191,9 @@ TIPO: TRANSFERENCIA (SURTIMIENTO)'''
 @login_required
 def generar_acuse_entrega_pdf(request, propuesta_id):
     """
-    Genera el PDF del Acuse de Entrega para una propuesta surtida al 100%
-    Genera el Excel primero y luego lo convierte a PDF
+    Genera el PDF del Acuse de Entrega para una propuesta surtida al 100%.
+    Genera el Excel primero y luego lo convierte a PDF.
+    Si el usuario no es administrador, solo se imprimen los insumos del almacén que tiene asignado.
     """
     # Obtener propuesta con todas sus relaciones para asegurar datos actualizados
     propuesta = get_object_or_404(
@@ -205,10 +207,15 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
         ),
         id=propuesta_id
     )
-    
+
+    # Si no tiene rol de administrador y tiene almacén asignado, solo insumos de su almacén
+    almacen_id = None
+    if not es_administrador(request.user) and getattr(request.user, 'almacen', None):
+        almacen_id = request.user.almacen.id
+
     try:
-        # Generar Excel
-        excel_buffer = generar_acuse_excel(propuesta)
+        # Generar Excel (con filtro de almacén si aplica)
+        excel_buffer = generar_acuse_excel(propuesta, almacen_id=almacen_id)
         
         # Convertir Excel a PDF
         pdf_buffer = convertir_acuse_excel_a_pdf(excel_buffer)
@@ -226,7 +233,8 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
 @login_required
 def generar_acuse_entrega_excel(request, propuesta_id):
     """
-    Genera el Excel del Acuse de Entrega para una propuesta surtida al 100%
+    Genera el Excel del Acuse de Entrega para una propuesta surtida al 100%.
+    Si el usuario no es administrador, solo se incluyen los insumos del almacén que tiene asignado.
     """
     # Obtener propuesta con todas sus relaciones para asegurar datos actualizados
     propuesta = get_object_or_404(
@@ -240,9 +248,14 @@ def generar_acuse_entrega_excel(request, propuesta_id):
         ),
         id=propuesta_id
     )
-    
-    # Generar Excel
-    buffer = generar_acuse_excel(propuesta)
+
+    # Si no tiene rol de administrador y tiene almacén asignado, solo insumos de su almacén
+    almacen_id = None
+    if not es_administrador(request.user) and getattr(request.user, 'almacen', None):
+        almacen_id = request.user.almacen.id
+
+    # Generar Excel (con filtro de almacén si aplica)
+    buffer = generar_acuse_excel(propuesta, almacen_id=almacen_id)
     
     # Obtener folio para el nombre del archivo
     folio = propuesta.solicitud.folio
