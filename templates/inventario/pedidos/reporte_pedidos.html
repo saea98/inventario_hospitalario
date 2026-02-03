@@ -1,0 +1,189 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Reporte de Pedidos{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h1 class="mb-3">📋 Reporte de Pedidos</h1>
+            <p class="text-muted">Detalle de solicitudes de pedido por institución, folio, fecha y claves</p>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">🔍 Filtros</h5>
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-2">
+                    <label for="institucion" class="form-label">Institución</label>
+                    <select class="form-control" id="institucion" name="institucion">
+                        <option value="">Todas</option>
+                        {% for inst in instituciones %}
+                        <option value="{{ inst.id }}" {% if filtro_institucion == inst.id|stringformat:"s" %}selected{% endif %}>{{ inst.denominacion|truncatechars:40 }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="folio" class="form-label">Folio de Pedido</label>
+                    <input type="text" class="form-control" id="folio" name="folio" placeholder="Buscar folio..." value="{{ filtro_folio }}">
+                </div>
+                <div class="col-md-2">
+                    <label for="fecha_inicio" class="form-label">Fecha desde</label>
+                    <input type="date" class="form-control" id="fecha_inicio" name="fecha_inicio" value="{{ filtro_fecha_inicio }}">
+                </div>
+                <div class="col-md-2">
+                    <label for="fecha_fin" class="form-label">Fecha hasta</label>
+                    <input type="date" class="form-control" id="fecha_fin" name="fecha_fin" value="{{ filtro_fecha_fin }}">
+                </div>
+                <div class="col-md-2">
+                    <label for="clave_cnis" class="form-label">Clave CNIS</label>
+                    <input type="text" class="form-control" id="clave_cnis" name="clave_cnis" placeholder="Clave..." value="{{ filtro_clave }}">
+                </div>
+                <div class="col-md-2">
+                    <label for="estado" class="form-label">Estado</label>
+                    <select class="form-control" id="estado" name="estado">
+                        <option value="">Todos</option>
+                        {% for codigo, nombre in estado_choices %}
+                        <option value="{{ codigo }}" {% if filtro_estado == codigo %}selected{% endif %}>{{ nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-12 d-flex align-items-end gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search"></i> Filtrar
+                    </button>
+                    <a href="{% url 'pedidos:reporte_pedidos' %}" class="btn btn-secondary">
+                        <i class="fas fa-redo"></i> Limpiar
+                    </a>
+                    <a href="{% url 'pedidos:exportar_reporte_pedidos_excel' %}?{{ request.GET.urlencode }}" class="btn btn-success">
+                        <i class="fas fa-file-excel"></i> Exportar a Excel
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Estadísticas -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card text-center border-primary">
+                <div class="card-body">
+                    <h5 class="card-title text-primary">Total líneas (items)</h5>
+                    <h2 class="text-primary">{{ total_items }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-center border-info">
+                <div class="card-body">
+                    <h5 class="card-title text-info">Pedidos (solicitudes)</h5>
+                    <h2 class="text-info">{{ total_solicitudes }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Tabla -->
+    <div class="card">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">📋 Detalle de Pedidos</h5>
+            <a href="{% url 'pedidos:exportar_reporte_pedidos_excel' %}?{{ request.GET.urlencode }}" class="btn btn-sm btn-success">
+                <i class="fas fa-file-excel"></i> Excel
+            </a>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Folio Pedido</th>
+                        <th>Folio Sistema</th>
+                        <th>Institución</th>
+                        <th>Almacén</th>
+                        <th>Fecha</th>
+                        <th>Estado</th>
+                        <th>Clave CNIS</th>
+                        <th>Descripción</th>
+                        <th class="text-end">Cant. Sol.</th>
+                        <th class="text-end">Cant. Apr.</th>
+                        <th class="text-end">Cant. Suministrada</th>
+                        <th>Acción</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for f in filas %}
+                    <tr>
+                        <td><small><strong>{{ f.folio_pedido|default:"-" }}</strong></small></td>
+                        <td><small><code>{{ f.folio_sistema|default:"-" }}</code></small></td>
+                        <td><small>{{ f.institucion }}</small></td>
+                        <td><small>{{ f.almacen }}</small></td>
+                        <td><small>{{ f.fecha_solicitud|date:"d/m/Y H:i" }}</small></td>
+                        <td><span class="badge bg-secondary">{{ f.estado }}</span></td>
+                        <td><code>{{ f.clave_cnis }}</code></td>
+                        <td><small>{{ f.descripcion|truncatechars:50 }}</small></td>
+                        <td class="text-end">{{ f.cantidad_solicitada }}</td>
+                        <td class="text-end">{{ f.cantidad_aprobada }}</td>
+                        <td class="text-end"><span class="badge bg-success">{{ f.cantidad_surtida|default:0 }}</span></td>
+                        <td>
+                            <a href="{% url 'pedidos:detalle_solicitud' solicitud_id=f.solicitud.id %}" class="btn btn-sm btn-outline-primary" title="Ver pedido">
+                                <i class="fas fa-external-link-alt"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="12" class="text-center text-muted py-4">
+                            <i class="fas fa-inbox fa-2x mb-2"></i>
+                            <p class="mb-0">No hay pedidos con los filtros seleccionados</p>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <!-- Paginación -->
+    {% if is_paginated %}
+    <nav aria-label="Page navigation" class="mt-4">
+        <ul class="pagination justify-content-center flex-wrap">
+            {% if page_obj.has_previous %}
+                <li class="page-item">
+                    <a class="page-link" href="?{% if query_string %}{{ query_string }}&{% endif %}page=1">Primera</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?{% if query_string %}{{ query_string }}&{% endif %}page={{ page_obj.previous_page_number }}">‹ Anterior</a>
+                </li>
+            {% endif %}
+            <li class="page-item active">
+                <span class="page-link">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+            </li>
+            {% if page_obj.has_next %}
+                <li class="page-item">
+                    <a class="page-link" href="?{% if query_string %}{{ query_string }}&{% endif %}page={{ page_obj.next_page_number }}">Siguiente ›</a>
+                </li>
+                <li class="page-item">
+                    <a class="page-link" href="?{% if query_string %}{{ query_string }}&{% endif %}page={{ page_obj.paginator.num_pages }}">Última</a>
+                </li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
+
+    <div class="mt-4 d-flex gap-2">
+        <a href="{% url 'pedidos:lista_solicitudes' %}" class="btn btn-outline-primary">
+            <i class="fas fa-list"></i> Lista de Pedidos
+        </a>
+        <a href="{% url 'pedidos:reporte_errores' %}" class="btn btn-secondary">
+            <i class="fas fa-exclamation-triangle"></i> Reporte de Errores
+        </a>
+        <a href="{% url 'pedidos:reporte_items_no_surtidos' %}" class="btn btn-secondary">
+            <i class="fas fa-box-open"></i> Items No Surtidos
+        </a>
+    </div>
+</div>
+{% endblock %}

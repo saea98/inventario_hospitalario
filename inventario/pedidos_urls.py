@@ -16,9 +16,12 @@ urlpatterns = [
     path('<uuid:solicitud_id>/editar/', pedidos_views.editar_solicitud, name='editar_solicitud'),
     path('<uuid:solicitud_id>/cancelar/', pedidos_views.cancelar_solicitud, name='cancelar_solicitud'),
     
-    # Reportes de Errores
+    # Reportes
+    path('reportes/pedidos/', pedidos_reports_views.reporte_pedidos, name='reporte_pedidos'),
+    path('reportes/pedidos/exportar/', pedidos_reports_views.exportar_reporte_pedidos_excel, name='exportar_reporte_pedidos_excel'),
     path('reportes/errores/', pedidos_reports_views.reporte_errores_pedidos, name='reporte_errores'),
     path('reportes/items-no-surtidos/', pedidos_reports_views.reporte_items_no_surtidos, name='reporte_items_no_surtidos'),
+    path('reportes/items-no-surtidos/exportar/', pedidos_reports_views.exportar_items_no_surtidos_excel, name='exportar_items_no_surtidos_excel'),
     path('reportes/claves-sin-existencia/exportar/', pedidos_reports_views.exportar_claves_sin_existencia_excel, name='exportar_claves_sin_existencia_excel'),
     path('reportes/claves-sin-existencia/', pedidos_reports_views.reporte_claves_sin_existencia, name='reporte_claves_sin_existencia'),
     path('reportes/pedidos-sin-existencia/exportar/', pedidos_reports_views.exportar_pedidos_sin_existencia_excel, name='exportar_pedidos_sin_existencia_excel'),

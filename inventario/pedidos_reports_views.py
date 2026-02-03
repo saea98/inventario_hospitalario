@@ -177,21 +177,18 @@ def _obtener_folio_pedido_para_error(error):
     return None
 
 
-@login_required
-def reporte_items_no_surtidos(request):
+def _obtener_items_no_surtidos(request):
     """
-    Reporte de items que no se surtieron (o se surtieron parcialmente) en las propuestas de suministro.
-    Muestra ItemPropuesta donde cantidad_surtida < cantidad_propuesta.
+    Aplica filtros y construye la lista de items no surtidos.
+    Usado por reporte_items_no_surtidos y exportar_items_no_surtidos_excel.
     """
     from django.db.models import Sum
 
-    # Filtros
     estado_propuesta = request.GET.get('estado', '')
     institucion_id = request.GET.get('institucion', '')
     folio = request.GET.get('folio', '').strip()
     clave_cnis = request.GET.get('clave_cnis', '').strip()
 
-    # Base: propuestas con items
     propuestas = PropuestaPedido.objects.filter(
         solicitud__isnull=False
     ).select_related(
@@ -214,7 +211,6 @@ def reporte_items_no_surtidos(request):
     if clave_cnis:
         propuestas = propuestas.filter(items__producto__clave_cnis__icontains=clave_cnis).distinct()
 
-    # Recolectar items no surtidos (cantidad_propuesta > cantidad realmente surtida)
     items_no_surtidos = []
     for propuesta in propuestas:
         solicitud = propuesta.solicitud
@@ -244,6 +240,16 @@ def reporte_items_no_surtidos(request):
                     'cantidad_faltante': cantidad_faltante,
                     'estado_propuesta': propuesta.get_estado_display(),
                 })
+    return items_no_surtidos
+
+
+@login_required
+def reporte_items_no_surtidos(request):
+    """
+    Reporte de items que no se surtieron (o se surtieron parcialmente) en las propuestas de suministro.
+    Muestra ItemPropuesta donde cantidad_surtida < cantidad_propuesta.
+    """
+    items_no_surtidos = _obtener_items_no_surtidos(request)
 
     # Instituciones para filtro
     instituciones = Institucion.objects.filter(activo=True).order_by('denominacion')
@@ -272,14 +278,293 @@ def reporte_items_no_surtidos(request):
         'is_paginated': paginator.num_pages > 1,
         'query_string': query_string,
         'instituciones': instituciones,
-        'filtro_estado': estado_propuesta,
-        'filtro_institucion': institucion_id,
-        'filtro_folio': folio,
-        'filtro_clave': clave_cnis,
+        'filtro_estado': request.GET.get('estado', ''),
+        'filtro_institucion': request.GET.get('institucion', ''),
+        'filtro_folio': request.GET.get('folio', '').strip(),
+        'filtro_clave': request.GET.get('clave_cnis', '').strip(),
         'estado_choices': PropuestaPedido.ESTADO_CHOICES,
         'page_title': 'Reporte de Items No Surtidos en Propuestas',
     }
     return render(request, 'inventario/pedidos/reporte_items_no_surtidos.html', context)
+
+
+@login_required
+def exportar_items_no_surtidos_excel(request):
+    """Exporta el reporte de items no surtidos a Excel respetando los filtros actuales."""
+    items_no_surtidos = _obtener_items_no_surtidos(request)
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'Items No Surtidos'
+
+    header_fill = PatternFill(start_color='B45F06', end_color='B45F06', fill_type='solid')
+    header_font = Font(bold=True, color='FFFFFF', size=11)
+    border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin'),
+    )
+
+    headers = [
+        'Folio de Pedido',
+        'Institución',
+        'Almacén',
+        'Clave CNIS',
+        'Descripción',
+        'Cant. Propuesta',
+        'Cant. Surtida',
+        'Cant. Faltante',
+        'Estado Propuesta',
+    ]
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col)
+        cell.value = h
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+        cell.border = border
+
+    for row_idx, row in enumerate(items_no_surtidos, 2):
+        desc = (row['producto'].descripcion or '')[:100] if row['producto'] else ''
+        ws.cell(row=row_idx, column=1).value = row['folio_pedido'] or ''
+        ws.cell(row=row_idx, column=2).value = row['institucion'] or ''
+        ws.cell(row=row_idx, column=3).value = row['almacen'] or ''
+        ws.cell(row=row_idx, column=4).value = row['producto'].clave_cnis if row['producto'] else ''
+        ws.cell(row=row_idx, column=5).value = desc
+        ws.cell(row=row_idx, column=6).value = row['cantidad_propuesta'] or 0
+        ws.cell(row=row_idx, column=7).value = row['cantidad_surtida'] or 0
+        ws.cell(row=row_idx, column=8).value = row['cantidad_faltante'] or 0
+        ws.cell(row=row_idx, column=9).value = row['estado_propuesta'] or ''
+        for col in range(1, 10):
+            ws.cell(row=row_idx, column=col).border = border
+            ws.cell(row=row_idx, column=col).alignment = Alignment(horizontal='left', vertical='center')
+
+    ws.column_dimensions['A'].width = 22
+    ws.column_dimensions['B'].width = 38
+    ws.column_dimensions['C'].width = 25
+    ws.column_dimensions['D'].width = 14
+    ws.column_dimensions['E'].width = 45
+    ws.column_dimensions['F'].width = 14
+    ws.column_dimensions['G'].width = 14
+    ws.column_dimensions['H'].width = 14
+    ws.column_dimensions['I'].width = 22
+
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    from datetime import date
+    fecha_str = date.today().strftime('%Y%m%d')
+    response['Content-Disposition'] = f'attachment; filename="items_no_surtidos_{fecha_str}.xlsx"'
+    wb.save(response)
+    return response
+
+
+def _obtener_filtros_reporte_pedidos(request):
+    """Extrae y aplica filtros comunes para el reporte de pedidos (vista y Excel)."""
+    from datetime import datetime
+    institucion_id = request.GET.get('institucion', '').strip()
+    folio = request.GET.get('folio', '').strip()
+    fecha_inicio = request.GET.get('fecha_inicio', '').strip()
+    fecha_fin = request.GET.get('fecha_fin', '').strip()
+    clave_cnis = request.GET.get('clave_cnis', '').strip()
+    estado = request.GET.get('estado', '').strip()
+
+    solicitudes = SolicitudPedido.objects.select_related(
+        'institucion_solicitante', 'almacen_destino', 'usuario_solicitante'
+    ).prefetch_related(
+        'items__producto',
+        'items__items_propuesta__propuesta',
+        'items__items_propuesta__lotes_asignados',
+    ).order_by('-fecha_solicitud')
+
+    if institucion_id:
+        solicitudes = solicitudes.filter(institucion_solicitante_id=institucion_id)
+    if folio:
+        solicitudes = solicitudes.filter(
+            Q(observaciones_solicitud__icontains=folio) | Q(folio__icontains=folio)
+        )
+    if fecha_inicio:
+        try:
+            f_inicio = datetime.strptime(fecha_inicio, '%Y-%m-%d').date()
+            solicitudes = solicitudes.filter(fecha_solicitud__date__gte=f_inicio)
+        except ValueError:
+            pass
+    if fecha_fin:
+        try:
+            f_fin = datetime.strptime(fecha_fin, '%Y-%m-%d').date()
+            solicitudes = solicitudes.filter(fecha_solicitud__date__lte=f_fin)
+        except ValueError:
+            pass
+    if clave_cnis:
+        solicitudes = solicitudes.filter(items__producto__clave_cnis__icontains=clave_cnis).distinct()
+    if estado:
+        solicitudes = solicitudes.filter(estado=estado)
+
+    return solicitudes, {
+        'filtro_institucion': institucion_id,
+        'filtro_folio': folio,
+        'filtro_fecha_inicio': fecha_inicio,
+        'filtro_fecha_fin': fecha_fin,
+        'filtro_clave': clave_cnis,
+        'filtro_estado': estado,
+    }
+
+
+def _construir_filas_reporte_pedidos(solicitudes):
+    """Construye lista de filas (una por item de solicitud) para el reporte de pedidos.
+    Incluye cantidad suministrada (surtida) desde LoteAsignado donde surtido=True.
+    """
+    filas = []
+    for solicitud in solicitudes:
+        folio_pedido = (solicitud.observaciones_solicitud or '').strip() or (solicitud.folio or '')
+        institucion_nombre = solicitud.institucion_solicitante.denominacion if solicitud.institucion_solicitante else '-'
+        almacen_nombre = solicitud.almacen_destino.nombre if solicitud.almacen_destino else '-'
+        for item in solicitud.items.all():
+            # Cantidad suministrada: suma de LoteAsignado.cantidad_asignada donde surtido=True
+            cantidad_surtida = 0
+            for ip in item.items_propuesta.all():
+                if ip.propuesta and ip.propuesta.solicitud_id == solicitud.id:
+                    cantidad_surtida = sum(
+                        la.cantidad_asignada for la in ip.lotes_asignados.all() if la.surtido
+                    )
+                    break
+            filas.append({
+                'solicitud': solicitud,
+                'item': item,
+                'folio_pedido': folio_pedido,
+                'folio_sistema': solicitud.folio or '',
+                'institucion': institucion_nombre,
+                'almacen': almacen_nombre,
+                'fecha_solicitud': solicitud.fecha_solicitud,
+                'estado': solicitud.get_estado_display(),
+                'clave_cnis': item.producto.clave_cnis if item.producto else '',
+                'descripcion': (item.producto.descripcion or '')[:100] if item.producto else '',
+                'cantidad_solicitada': item.cantidad_solicitada,
+                'cantidad_aprobada': item.cantidad_aprobada,
+                'cantidad_surtida': cantidad_surtida,
+            })
+    return filas
+
+
+@login_required
+def reporte_pedidos(request):
+    """
+    Reporte de pedidos (solicitudes) con filtros: institución, folio, fecha, claves, estado.
+    Muestra detalle por item (una fila por producto en cada pedido).
+    """
+    solicitudes, filtros = _obtener_filtros_reporte_pedidos(request)
+    filas = _construir_filas_reporte_pedidos(solicitudes)
+
+    instituciones = Institucion.objects.filter(activo=True).order_by('denominacion')
+
+    # Paginación (25 por página)
+    paginator = Paginator(filas, 25)
+    page = request.GET.get('page', 1)
+    try:
+        page_obj = paginator.page(page)
+    except PageNotAnInteger:
+        page_obj = paginator.page(1)
+    except EmptyPage:
+        page_obj = paginator.page(paginator.num_pages)
+
+    params = request.GET.copy()
+    if 'page' in params:
+        params.pop('page')
+    query_string = params.urlencode()
+
+    context = {
+        'filas': page_obj,
+        'page_obj': page_obj,
+        'paginator': paginator,
+        'total_items': paginator.count,
+        'total_solicitudes': len(set(f['solicitud'].id for f in filas)),
+        'is_paginated': paginator.num_pages > 1,
+        'query_string': query_string,
+        'instituciones': instituciones,
+        'estado_choices': SolicitudPedido.ESTADO_CHOICES,
+        'page_title': 'Reporte de Pedidos',
+        **filtros,
+    }
+    return render(request, 'inventario/pedidos/reporte_pedidos.html', context)
+
+
+@login_required
+def exportar_reporte_pedidos_excel(request):
+    """Exporta el reporte de pedidos a Excel con los mismos filtros de la vista."""
+    solicitudes, _ = _obtener_filtros_reporte_pedidos(request)
+    filas = _construir_filas_reporte_pedidos(solicitudes)
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'Reporte de Pedidos'
+
+    header_fill = PatternFill(start_color='1F4E78', end_color='1F4E78', fill_type='solid')
+    header_font = Font(bold=True, color='FFFFFF', size=11)
+    border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin'),
+    )
+
+    headers = [
+        'Folio de Pedido',
+        'Folio Sistema',
+        'Institución',
+        'Almacén',
+        'Fecha Solicitud',
+        'Estado',
+        'Clave CNIS',
+        'Descripción',
+        'Cant. Solicitada',
+        'Cant. Aprobada',
+        'Cant. Suministrada',
+    ]
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col)
+        cell.value = h
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+        cell.border = border
+
+    for row_idx, f in enumerate(filas, 2):
+        ws.cell(row=row_idx, column=1).value = f['folio_pedido'] or ''
+        ws.cell(row=row_idx, column=2).value = f['folio_sistema'] or ''
+        ws.cell(row=row_idx, column=3).value = f['institucion'] or ''
+        ws.cell(row=row_idx, column=4).value = f['almacen'] or ''
+        ws.cell(row=row_idx, column=5).value = f['fecha_solicitud'].strftime('%d/%m/%Y %H:%M') if f['fecha_solicitud'] else ''
+        ws.cell(row=row_idx, column=6).value = f['estado'] or ''
+        ws.cell(row=row_idx, column=7).value = f['clave_cnis'] or ''
+        ws.cell(row=row_idx, column=8).value = f['descripcion'] or ''
+        ws.cell(row=row_idx, column=9).value = f['cantidad_solicitada'] or 0
+        ws.cell(row=row_idx, column=10).value = f['cantidad_aprobada'] or 0
+        ws.cell(row=row_idx, column=11).value = f.get('cantidad_surtida', 0) or 0
+        for col in range(1, 12):
+            ws.cell(row=row_idx, column=col).border = border
+            ws.cell(row=row_idx, column=col).alignment = Alignment(horizontal='left', vertical='center')
+
+    ws.column_dimensions['A'].width = 22
+    ws.column_dimensions['B'].width = 22
+    ws.column_dimensions['C'].width = 35
+    ws.column_dimensions['D'].width = 25
+    ws.column_dimensions['E'].width = 18
+    ws.column_dimensions['F'].width = 22
+    ws.column_dimensions['G'].width = 14
+    ws.column_dimensions['H'].width = 45
+    ws.column_dimensions['I'].width = 14
+    ws.column_dimensions['J'].width = 14
+    ws.column_dimensions['K'].width = 18
+
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    from datetime import date
+    fecha_str = date.today().strftime('%Y%m%d')
+    response['Content-Disposition'] = f'attachment; filename="reporte_pedidos_{fecha_str}.xlsx"'
+    wb.save(response)
+    return response
 
 
 @login_required

@@ -52,6 +52,9 @@
                     <a href="{% url 'pedidos:reporte_items_no_surtidos' %}" class="btn btn-secondary">
                         <i class="fas fa-redo"></i> Limpiar
                     </a>
+                    <a href="{% url 'pedidos:exportar_items_no_surtidos_excel' %}?{{ request.GET.urlencode }}" class="btn btn-success">
+                        <i class="fas fa-file-excel"></i> Exportar a Excel
+                    </a>
                 </div>
             </form>
         </div>
@@ -71,8 +74,11 @@
 
     <!-- Tabla -->
     <div class="card">
-        <div class="card-header bg-light">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
             <h5 class="mb-0">📋 Listado de Items No Surtidos</h5>
+            <a href="{% url 'pedidos:exportar_items_no_surtidos_excel' %}?{{ request.GET.urlencode }}" class="btn btn-sm btn-success">
+                <i class="fas fa-file-excel"></i> Excel
+            </a>
         </div>
         <div class="table-responsive">
             <table class="table table-hover mb-0">
