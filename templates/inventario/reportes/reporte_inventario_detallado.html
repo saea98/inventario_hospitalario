@@ -3,6 +3,12 @@
 
 {% block title %}Reporte de Inventario Detallado{% endblock %}
 
+{% block extra_css %}
+<style>
+.sortable-header:hover { opacity: 0.9; text-decoration: underline !important; }
+</style>
+{% endblock %}
+
 {% block content %}
 <div class="container-fluid mt-4">
     <!-- Encabezado -->
@@ -103,17 +109,61 @@
                 <table class="table table-striped table-hover mb-0">
                     <thead class="table-dark">
                         <tr>
-                            <th>ENTIDAD</th>
-                            <th>CLUES</th>
-                            <th>ORDEN DE SUMINISTRO</th>
-                            <th>RFC</th>
-                            <th>CLAVE</th>
-                            <th>ESTADO DEL INSUMO</th>
-                            <th class="text-end">INVENTARIO DISPONIBLE</th>
-                            <th>LOTE</th>
-                            <th>F_CAD</th>
-                            <th>F_FAB</th>
-                            <th>F_REC</th>
+                            <th>
+                                <a href="?{{ sort_base_query }}{% if sort_base_query %}&{% endif %}sort=entidad&order={% if sort_column == 'entidad' and sort_order == 'asc' %}desc{% else %}asc{% endif %}" class="text-white text-decoration-none sortable-header">
+                                    ENTIDAD {% if sort_column == 'entidad' %}<i class="fas fa-caret-{% if sort_order == 'asc' %}up{% else %}down{% endif %} ms-1"></i>{% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="?{{ sort_base_query }}{% if sort_base_query %}&{% endif %}sort=clues&order={% if sort_column == 'clues' and sort_order == 'asc' %}desc{% else %}asc{% endif %}" class="text-white text-decoration-none sortable-header">
+                                    CLUES {% if sort_column == 'clues' %}<i class="fas fa-caret-{% if sort_order == 'asc' %}up{% else %}down{% endif %} ms-1"></i>{% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="?{{ sort_base_query }}{% if sort_base_query %}&{% endif %}sort=orden&order={% if sort_column == 'orden' and sort_order == 'asc' %}desc{% else %}asc{% endif %}" class="text-white text-decoration-none sortable-header">
+                                    ORDEN DE SUMINISTRO {% if sort_column == 'orden' %}<i class="fas fa-caret-{% if sort_order == 'asc' %}up{% else %}down{% endif %} ms-1"></i>{% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="?{{ sort_base_query }}{% if sort_base_query %}&{% endif %}sort=rfc&order={% if sort_column == 'rfc' and sort_order == 'asc' %}desc{% else %}asc{% endif %}" class="text-white text-decoration-none sortable-header">
+                                    RFC {% if sort_column == 'rfc' %}<i class="fas fa-caret-{% if sort_order == 'asc' %}up{% else %}down{% endif %} ms-1"></i>{% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="?{{ sort_base_query }}{% if sort_base_query %}&{% endif %}sort=clave&order={% if sort_column == 'clave' and sort_order == 'asc' %}desc{% else %}asc{% endif %}" class="text-white text-decoration-none sortable-header">
+                                    CLAVE {% if sort_column == 'clave' %}<i class="fas fa-caret-{% if sort_order == 'asc' %}up{% else %}down{% endif %} ms-1"></i>{% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="?{{ sort_base_query }}{% if sort_base_query %}&{% endif %}sort=estado&order={% if sort_column == 'estado' and sort_order == 'asc' %}desc{% else %}asc{% endif %}" class="text-white text-decoration-none sortable-header">
+                                    ESTADO DEL INSUMO {% if sort_column == 'estado' %}<i class="fas fa-caret-{% if sort_order == 'asc' %}up{% else %}down{% endif %} ms-1"></i>{% endif %}
+                                </a>
+                            </th>
+                            <th class="text-end">
+                                <a href="?{{ sort_base_query }}{% if sort_base_query %}&{% endif %}sort=inventario&order={% if sort_column == 'inventario' and sort_order == 'asc' %}desc{% else %}asc{% endif %}" class="text-white text-decoration-none sortable-header">
+                                    INVENTARIO DISPONIBLE {% if sort_column == 'inventario' %}<i class="fas fa-caret-{% if sort_order == 'asc' %}up{% else %}down{% endif %} ms-1"></i>{% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="?{{ sort_base_query }}{% if sort_base_query %}&{% endif %}sort=lote&order={% if sort_column == 'lote' and sort_order == 'asc' %}desc{% else %}asc{% endif %}" class="text-white text-decoration-none sortable-header">
+                                    LOTE {% if sort_column == 'lote' %}<i class="fas fa-caret-{% if sort_order == 'asc' %}up{% else %}down{% endif %} ms-1"></i>{% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="?{{ sort_base_query }}{% if sort_base_query %}&{% endif %}sort=f_cad&order={% if sort_column == 'f_cad' and sort_order == 'asc' %}desc{% else %}asc{% endif %}" class="text-white text-decoration-none sortable-header">
+                                    F_CAD {% if sort_column == 'f_cad' %}<i class="fas fa-caret-{% if sort_order == 'asc' %}up{% else %}down{% endif %} ms-1"></i>{% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="?{{ sort_base_query }}{% if sort_base_query %}&{% endif %}sort=f_fab&order={% if sort_column == 'f_fab' and sort_order == 'asc' %}desc{% else %}asc{% endif %}" class="text-white text-decoration-none sortable-header">
+                                    F_FAB {% if sort_column == 'f_fab' %}<i class="fas fa-caret-{% if sort_order == 'asc' %}up{% else %}down{% endif %} ms-1"></i>{% endif %}
+                                </a>
+                            </th>
+                            <th>
+                                <a href="?{{ sort_base_query }}{% if sort_base_query %}&{% endif %}sort=f_rec&order={% if sort_column == 'f_rec' and sort_order == 'asc' %}desc{% else %}asc{% endif %}" class="text-white text-decoration-none sortable-header">
+                                    F_REC {% if sort_column == 'f_rec' %}<i class="fas fa-caret-{% if sort_order == 'asc' %}up{% else %}down{% endif %} ms-1"></i>{% endif %}
+                                </a>
+                            </th>
                         </tr>
                     </thead>
                     <tbody>

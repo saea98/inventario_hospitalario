@@ -65,10 +65,35 @@ def reporte_inventario_detallado(request):
     
     if filtro_lote:
         lotes = lotes.filter(numero_lote__icontains=filtro_lote)
-    
-    # Ordenar por institución y fecha de recepción
-    lotes = lotes.order_by('institucion__denominacion', '-fecha_recepcion', 'producto__clave_cnis')
-    
+
+    # Ordenación por clic en encabezado (sort=columna&order=asc|desc)
+    sort_column = request.GET.get('sort', '').strip()
+    sort_order = request.GET.get('order', 'asc').strip().lower()
+    if sort_order not in ('asc', 'desc'):
+        sort_order = 'asc'
+    # Mapeo: parámetro GET -> campo(s) order_by (prefijo - para desc)
+    sort_map = {
+        'entidad': 'institucion__denominacion',
+        'clues': 'institucion__clue',
+        'orden': 'orden_suministro__numero_orden',
+        'rfc': 'orden_suministro__proveedor__rfc',
+        'clave': 'producto__clave_cnis',
+        'estado': 'estado',
+        'inventario': 'cantidad_disponible',
+        'lote': 'numero_lote',
+        'f_cad': 'fecha_caducidad',
+        'f_fab': 'fecha_fabricacion',
+        'f_rec': 'fecha_recepcion',
+    }
+    if sort_column and sort_column in sort_map:
+        order_field = sort_map[sort_column]
+        if sort_order == 'desc':
+            order_field = f'-{order_field}'
+        lotes = lotes.order_by(order_field)
+    else:
+        # Orden por defecto
+        lotes = lotes.order_by('institucion__denominacion', '-fecha_recepcion', 'producto__clave_cnis')
+
     # Paginación
     paginator = Paginator(lotes, 50)  # 50 items por página
     page = request.GET.get('page', 1)
@@ -102,9 +127,16 @@ def reporte_inventario_detallado(request):
             'f_rec': lote.fecha_recepcion.strftime('%d/%m/%Y') if lote.fecha_recepcion else '',
         })
     
+    # Query string base para enlaces de ordenación (conserva filtros, quita sort/order/page)
+    get_copy = request.GET.copy()
+    get_copy.pop('sort', None)
+    get_copy.pop('order', None)
+    get_copy.pop('page', None)
+    sort_base_query = get_copy.urlencode()
+
     # Obtener listas para filtros
     instituciones = Institucion.objects.filter(activo=True).order_by('denominacion')[:100]
-    
+
     context = {
         'datos_reporte': datos_reporte,
         'lotes_paginados': lotes_paginados,
@@ -116,6 +148,9 @@ def reporte_inventario_detallado(request):
         'filtro_estado': filtro_estado,
         'filtro_lote': filtro_lote,
         'excluir_sin_orden': excluir_sin_orden,
+        'sort_column': sort_column,
+        'sort_order': sort_order,
+        'sort_base_query': sort_base_query,
         'estados_lote': [
             (1, 'Disponible'),
             (4, 'Suspendido'),
