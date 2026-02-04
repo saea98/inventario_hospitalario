@@ -31,14 +31,19 @@ def reporte_inventario_detallado(request):
     filtro_clave = request.GET.get('clave', '').strip()
     filtro_estado = request.GET.get('estado', '').strip()
     filtro_lote = request.GET.get('lote', '').strip()
-    
+    excluir_sin_orden = request.GET.get('excluir_sin_orden', '') == 'si'
+
     # Query base con todas las relaciones necesarias
     lotes = Lote.objects.select_related(
         'producto',
         'institucion',
         'orden_suministro__proveedor'
     ).all()
-    
+
+    # Excluir lotes sin orden de suministro (opción del usuario)
+    if excluir_sin_orden:
+        lotes = lotes.exclude(orden_suministro__isnull=True)
+
     # Aplicar filtros
     if filtro_entidad:
         lotes = lotes.filter(institucion__denominacion__icontains=filtro_entidad)
@@ -110,6 +115,7 @@ def reporte_inventario_detallado(request):
         'filtro_clave': filtro_clave,
         'filtro_estado': filtro_estado,
         'filtro_lote': filtro_lote,
+        'excluir_sin_orden': excluir_sin_orden,
         'estados_lote': [
             (1, 'Disponible'),
             (4, 'Suspendido'),
@@ -135,14 +141,18 @@ def exportar_inventario_detallado_excel(request):
     filtro_clave = request.GET.get('clave', '').strip()
     filtro_estado = request.GET.get('estado', '').strip()
     filtro_lote = request.GET.get('lote', '').strip()
-    
+    excluir_sin_orden = request.GET.get('excluir_sin_orden', '') == 'si'
+
     # Query base con todas las relaciones necesarias
     lotes = Lote.objects.select_related(
         'producto',
         'institucion',
         'orden_suministro__proveedor'
     ).all()
-    
+
+    if excluir_sin_orden:
+        lotes = lotes.exclude(orden_suministro__isnull=True)
+
     # Aplicar filtros (mismos que en la vista)
     if filtro_entidad:
         lotes = lotes.filter(institucion__denominacion__icontains=filtro_entidad)
