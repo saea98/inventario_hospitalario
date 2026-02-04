@@ -321,7 +321,7 @@ class Producto(models.Model):
 
 class Proveedor(models.Model):
     """Modelo para proveedores"""
-    rfc = models.CharField(max_length=13, unique=True, verbose_name="RFC")
+    rfc = models.CharField(max_length=20, unique=True, verbose_name="RFC")
     razon_social = models.CharField(max_length=200, verbose_name="Razón Social")
     direccion = models.TextField(blank=True, null=True)
     telefono = models.CharField(max_length=20, blank=True, null=True)

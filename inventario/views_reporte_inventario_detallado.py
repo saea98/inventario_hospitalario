@@ -78,19 +78,13 @@ def reporte_inventario_detallado(request):
     # Preparar datos para el template
     datos_reporte = []
     for lote in lotes_paginados:
-        # Obtener estado del insumo como texto
-        estado_texto = lote.get_estado_display() if hasattr(lote, 'get_estado_display') else ''
-        if lote.estado == 1:
-            estado_texto = 'Disponible'
-        elif lote.estado == 4:
-            estado_texto = 'Suspendido'
-        elif lote.estado == 5:
-            estado_texto = 'Deteriorado'
-        elif lote.estado == 6:
-            estado_texto = 'Caducado'
-        
+        # Estado del insumo: leyenda (get_estado_display), no el dígito
+        estado_texto = lote.get_estado_display() if lote.estado is not None else ''
+        if not estado_texto and lote.estado is not None:
+            estado_texto = str(lote.estado)
+
         datos_reporte.append({
-            'entidad': lote.institucion.denominacion if lote.institucion else '',
+            'entidad': 'CIUDAD DE MÉXICO',  # Leyenda fija (no almacén/institucion)
             'clues': lote.institucion.clue if lote.institucion else '',
             'orden_suministro': lote.orden_suministro.numero_orden if lote.orden_suministro else '',
             'rfc': lote.orden_suministro.proveedor.rfc if lote.orden_suministro and lote.orden_suministro.proveedor else '',
@@ -218,22 +212,21 @@ def exportar_inventario_detallado_excel(request):
     
     # Escribir datos
     for row_num, lote in enumerate(lotes, 2):
-        # Obtener estado del insumo como texto
-        estado_texto = ''
-        if lote.estado == 1:
-            estado_texto = 'Disponible'
-        elif lote.estado == 4:
-            estado_texto = 'Suspendido'
-        elif lote.estado == 5:
-            estado_texto = 'Deteriorado'
-        elif lote.estado == 6:
-            estado_texto = 'Caducado'
-        
+        # Estado del insumo: leyenda (get_estado_display), no el dígito
+        estado_texto = lote.get_estado_display() if lote.estado is not None else ''
+        if not estado_texto and lote.estado is not None:
+            estado_texto = str(lote.estado)
+
+        # RFC como string para que Excel no lo interprete como número/fecha (evita truncar o modificar)
+        rfc_val = ''
+        if lote.orden_suministro and lote.orden_suministro.proveedor:
+            rfc_val = (lote.orden_suministro.proveedor.rfc or '').strip()
+
         row_data = [
-            lote.institucion.denominacion if lote.institucion else '',
+            'CIUDAD DE MÉXICO',  # Entidad fija (leyenda), no almacén/institucion
             lote.institucion.clue if lote.institucion else '',
             lote.orden_suministro.numero_orden if lote.orden_suministro else '',
-            lote.orden_suministro.proveedor.rfc if lote.orden_suministro and lote.orden_suministro.proveedor else '',
+            rfc_val,
             lote.producto.clave_cnis if lote.producto else '',
             estado_texto,
             lote.cantidad_disponible,
@@ -242,23 +235,26 @@ def exportar_inventario_detallado_excel(request):
             lote.fecha_fabricacion.strftime('%d/%m/%Y') if lote.fecha_fabricacion else '',
             lote.fecha_recepcion.strftime('%d/%m/%Y') if lote.fecha_recepcion else '',
         ]
-        
+
         for col_num, value in enumerate(row_data, 1):
             col_letter = get_column_letter(col_num)
             cell = ws[f"{col_letter}{row_num}"]
             cell.value = value
             cell.border = border
+            # Columna RFC (D): formato texto para que no se corte ni se interprete como número/fecha
+            if col_num == 4:
+                cell.number_format = '@'
             if col_num == 7:  # INVENTARIO DISPONIBLE - alinear a la derecha
                 cell.alignment = Alignment(horizontal="right", vertical="center")
             else:
                 cell.alignment = Alignment(horizontal="left", vertical="center")
     
-    # Ajustar ancho de columnas
+    # Ajustar ancho de columnas (RFC más ancho por posibles guiones y 13+ caracteres)
     column_widths = {
-        'A': 40,  # ENTIDAD
+        'A': 22,  # ENTIDAD (CIUDAD DE MEXICO)
         'B': 15,  # CLUES
         'C': 25,  # ORDEN DE SUMINISTRO
-        'D': 15,  # RFC
+        'D': 20,  # RFC (formato texto; ancho para RFC con guiones)
         'E': 20,  # CLAVE
         'F': 20,  # ESTADO DEL INSUMO
         'G': 20,  # INVENTARIO DISPONIBLE
