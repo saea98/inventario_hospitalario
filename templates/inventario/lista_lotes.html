@@ -424,11 +424,16 @@ document.addEventListener("DOMContentLoaded", function() {
   if (!lista) return;
 
   // Inicializar SortableJS (arrastrar por el ícono ☰)
-  new Sortable(lista, {
-    animation: 150,
-    handle: ".handle",
-    onEnd: actualizarOrden
-  });
+  // Proteger por si la librería no se cargó (por ejemplo, CDN bloqueado)
+  if (typeof Sortable !== "undefined") {
+    new Sortable(lista, {
+      animation: 150,
+      handle: ".handle",
+      onEnd: actualizarOrden
+    });
+  } else {
+    console.warn("Sortable.js no está disponible; el reordenamiento visual de columnas está deshabilitado.");
+  }
 
   // Función para actualizar el orden de columnas seleccionadas
   function actualizarOrden() {

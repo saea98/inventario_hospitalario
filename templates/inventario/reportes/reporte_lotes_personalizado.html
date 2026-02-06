@@ -1,0 +1,284 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Reporte Personalizado de Lotes{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Encabezado -->
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h1 class="h2">📊 Reporte Personalizado de Lotes</h1>
+            <p class="text-muted">
+                Genera un archivo Excel de existencias sin acceder a la sección completa de lotes.
+                Usa los filtros y selecciona las columnas que necesitas.
+            </p>
+        </div>
+        <div class="col-md-4 text-end d-flex align-items-end justify-content-end">
+            <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalReporte">
+                <i class="fas fa-file-excel"></i> Exportar Excel
+            </button>
+        </div>
+    </div>
+
+    <!-- Filtros (misma lógica que lista_lotes) -->
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">Filtros de Búsqueda</h5>
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">🔍 Buscar por Lote</label>
+                    <input type="text" name="busqueda_lote" class="form-control"
+                           placeholder="Ej: 123456" value="{{ busqueda_lote }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">🏷️ Buscar por Clave CNIS</label>
+                    <input type="text" name="busqueda_cnis" class="form-control"
+                           placeholder="Ej: CNIS001" value="{{ busqueda_cnis }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">📋 Buscar por Producto</label>
+                    <input type="text" name="busqueda_producto" class="form-control"
+                           placeholder="Ej: Paracetamol" value="{{ busqueda_producto }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Partida</label>
+                    <input type="text" name="partida" class="form-control"
+                           placeholder="Ej: 1234" value="{{ filtro_partida }}">
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">Institución</label>
+                    <select name="institucion" id="filtro_institucion" class="form-select">
+                        <option value="">Todas las instituciones</option>
+                        {% for inst in instituciones %}
+                        <option value="{{ inst.id }}" {% if filtro_institucion|stringformat:"s" == inst.id|stringformat:"s" %}selected{% endif %}>
+                            {{ inst.clue }} - {{ inst.denominacion|truncatechars:35 }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Estado</label>
+                    <select name="estado" class="form-select">
+                        <option value="">Todos los estados</option>
+                        {% for value, label in estados %}
+                        <option value="{{ value }}" {% if filtro_estado|stringformat:"s" == value|stringformat:"s" %}selected{% endif %}>
+                            {{ label }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Almacén</label>
+                    <select name="almacen" id="filtro_almacen" class="form-select">
+                        <option value="">Todos los almacenes</option>
+                        {% for almacen in almacenes %}
+                        <option value="{{ almacen.id }}" data-institucion="{{ almacen.institucion_id }}" {% if filtro_almacen|stringformat:"s" == almacen.id|stringformat:"s" %}selected{% endif %}>
+                            {{ almacen.nombre }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Producto</label>
+                    <select name="producto" class="form-select">
+                        <option value="">Todos los productos</option>
+                        {% for producto in productos %}
+                        <option value="{{ producto.id }}" {% if filtro_producto|stringformat:"s" == producto.id|stringformat:"s" %}selected{% endif %}>
+                            {{ producto.descripcion }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-3">
+                    <label class="form-label">Caducidad</label>
+                    <select name="caducidad" class="form-select">
+                        <option value="">Todas las fechas</option>
+                        <option value="caducados" {% if filtro_caducidad == "caducados" %}selected{% endif %}>Caducados</option>
+                        <option value="menos_30" {% if filtro_caducidad == "menos_30" %}selected{% endif %}>Menos de 30 días</option>
+                        <option value="menos_60" {% if filtro_caducidad == "menos_60" %}selected{% endif %}>Menos de 60 días</option>
+                        <option value="menos_90" {% if filtro_caducidad == "menos_90" %}selected{% endif %}>Menos de 90 días</option>
+                    </select>
+                </div>
+
+                <div class="col-md-3 d-flex align-items-end gap-2">
+                    <button type="submit" class="btn btn-primary flex-grow-1">
+                        <i class="bi bi-search"></i> Filtrar
+                    </button>
+                    <a href="{% url 'reporte_lotes_personalizado' %}" class="btn btn-outline-secondary flex-grow-1">
+                        <i class="bi bi-arrow-clockwise"></i> Limpiar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="alert alert-info">
+        <strong>Nota:</strong> Este reporte solo permite consulta y exportación. No incluye acciones sobre los lotes.
+    </div>
+</div>
+
+<!-- Modal Reporte Personalizado (reutiliza el mismo contenido que lista_lotes) -->
+<div class="modal fade" id="modalReporte" tabindex="-1" aria-labelledby="modalReporteLabel" aria-hidden="true">
+  <div class="modal-dialog modal-lg modal-dialog-centered">
+    <div class="modal-content">
+      <div class="modal-header bg-light">
+        <h5 class="modal-title" id="modalReporteLabel">📊 Generar reporte personalizado</h5>
+        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+      </div>
+      <div class="modal-body">
+        <form id="formReportePersonalizado" method="POST" action="{% url 'exportar_lotes_personalizado' %}">
+          {% csrf_token %}
+          <div class="alert alert-info small">
+            Selecciona los campos y <strong>arrastra</strong> para definir su orden en el Excel.
+          </div>
+
+          <ul id="lista-campos" class="list-group mb-3">
+            {% for columna in columnas_disponibles %}
+            <li class="list-group-item d-flex justify-content-between align-items-center draggable-item">
+              <div>
+                <input type="checkbox" name="columnas" value="{{ columna.value }}" id="col_{{ forloop.counter }}" checked>
+                <label for="col_{{ forloop.counter }}">{{ columna.label }}</label>
+              </div>
+              <span class="handle text-secondary" style="cursor: grab;">☰</span>
+            </li>
+            {% endfor %}
+          </ul>
+
+          <input type="hidden" name="orden_columnas" id="orden_columnas">
+          <!-- Pasar filtros activos (mismos nombres que exportar_lotes_personalizado) -->
+          <input type="hidden" name="filtro_institucion" value="{{ filtro_institucion }}">
+          <input type="hidden" name="filtro_estado" value="{{ filtro_estado }}">
+          <input type="hidden" name="filtro_almacen" value="{{ filtro_almacen }}">
+          <input type="hidden" name="filtro_producto" value="{{ filtro_producto }}">
+          <input type="hidden" name="filtro_caducidad" value="{{ filtro_caducidad }}">
+          <input type="hidden" name="busqueda_lote" value="{{ busqueda_lote }}">
+          <input type="hidden" name="busqueda_cnis" value="{{ busqueda_cnis }}">
+          <input type="hidden" name="busqueda_producto" value="{{ busqueda_producto }}">
+          <input type="hidden" name="filtro_partida" value="{{ filtro_partida }}">
+        </form>
+      </div>
+      <div class="modal-footer">
+        <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+        <button type="button" class="btn btn-success" id="btn-generar-excel">
+          <i class="fas fa-file-excel"></i> Generar Excel
+        </button>
+      </div>
+    </div>
+  </div>
+</div>
+{% endblock %}
+
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+{% block extra_js %}
+{{ block.super }}
+<script>
+// Filtrar almacenes según institución - misma lógica que en lista_lotes
+$(document).ready(function() {
+  var $selectInstitucion = $('#filtro_institucion');
+  var $selectAlmacen = $('#filtro_almacen');
+  if (!$selectInstitucion.length || !$selectAlmacen.length) return;
+
+  var opcionTodos = $selectAlmacen.find('option[value=""]').first().clone();
+  var opcionesAlmacenes = [];
+  $selectAlmacen.find('option[data-institucion]').each(function() {
+    opcionesAlmacenes.push($(this).clone());
+  });
+
+  function filtrarAlmacenes() {
+    var institucionId = $selectInstitucion.val();
+    var valorActual = $selectAlmacen.val();
+
+    if ($selectAlmacen.hasClass('select2-hidden-accessible')) {
+      try { $selectAlmacen.select2('destroy'); } catch(e) {}
+    }
+
+    $selectAlmacen.empty().append(opcionTodos.clone());
+    $.each(opcionesAlmacenes, function(i, opt) {
+      if (!institucionId || opt.attr('data-institucion') === institucionId) {
+        $selectAlmacen.append(opt.clone());
+      }
+    });
+
+    if (valorActual && $selectAlmacen.find('option[value=\"' + valorActual + '\"]').length) {
+      $selectAlmacen.val(valorActual);
+    } else {
+      $selectAlmacen.val('');
+    }
+
+    $selectAlmacen.select2({ width: '100%', allowClear: true, dropdownParent: $('body') });
+  }
+
+  setTimeout(function() {
+    filtrarAlmacenes();
+    $selectInstitucion.off('change.institucion select2:select.institucion select2:unselect.institucion');
+    $selectInstitucion.on('change.institucion select2:select.institucion select2:unselect.institucion', filtrarAlmacenes);
+  }, 100);
+});
+</script>
+<script>
+document.addEventListener("DOMContentLoaded", function() {
+  const lista = document.getElementById("lista-campos");
+  const ordenInput = document.getElementById("orden_columnas");
+  const form = document.getElementById("formReportePersonalizado");
+  const btnGenerar = document.getElementById("btn-generar-excel");
+
+  if (!lista) return;
+
+  // Inicializar SortableJS (arrastrar por el ícono ☰)
+  if (typeof Sortable !== "undefined") {
+    new Sortable(lista, {
+      animation: 150,
+      handle: ".handle",
+      onEnd: actualizarOrden
+    });
+  } else {
+    console.warn("Sortable.js no está disponible; el reordenamiento visual de columnas está deshabilitado.");
+  }
+
+  function actualizarOrden() {
+    const items = lista.querySelectorAll("input[type='checkbox']");
+    const orden = [];
+    items.forEach(item => {
+      if (item.checked) orden.push(item.value);
+    });
+    ordenInput.value = orden.join(",");
+  }
+
+  lista.addEventListener("change", actualizarOrden);
+  actualizarOrden();
+
+  btnGenerar.addEventListener("click", function() {
+    actualizarOrden();
+
+    const formData = new FormData(form);
+
+    fetch(form.getAttribute("action"), {
+      method: "POST",
+      body: formData,
+      headers: { "X-CSRFToken": "{{ csrf_token }}" },
+    })
+    .then(response => {
+      if (!response.ok) throw new Error("Error generando el reporte");
+      return response.blob();
+    })
+    .then(blob => {
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = "lotes.xlsx";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      bootstrap.Modal.getInstance(document.getElementById("modalReporte")).hide();
+    })
+    .catch(err => alert(err));
+  });
+});
+</script>
+{% endblock %}
+

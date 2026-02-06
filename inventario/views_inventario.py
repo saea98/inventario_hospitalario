@@ -252,6 +252,94 @@ def lista_lotes(request):
 
 
 @login_required
+def reporte_lotes_personalizado(request):
+    """
+    Reporte independiente para exportar lotes a Excel con campos personalizados.
+    Esta vista solo muestra filtros y el configurador de columnas, sin la tabla de existencias,
+    para poder asignarla a otros roles sin dar acceso completo a 'lista_lotes'.
+    """
+    # Obtener institución del usuario (mismo criterio que lista_lotes)
+    institucion = request.user.institucion if hasattr(request.user, 'institucion') else None
+
+    # Filtros (mismos nombres que usa exportar_lotes_personalizado)
+    filtro_institucion = request.GET.get('institucion', '')
+    filtro_estado = request.GET.get('estado', '')
+    filtro_almacen = request.GET.get('almacen', '')
+    filtro_producto = request.GET.get('producto', '')
+    filtro_caducidad = request.GET.get('caducidad', '')
+    busqueda_lote = request.GET.get('busqueda_lote', '')
+    busqueda_cnis = request.GET.get('busqueda_cnis', '')
+    busqueda_producto = request.GET.get("busqueda_producto", "")
+    filtro_partida = request.GET.get("partida", "")
+
+    # Opciones para filtros (idénticas a lista_lotes)
+    instituciones = Institucion.objects.filter(activo=True).order_by('clue')
+    almacenes = Almacen.objects.filter(activo=True).select_related('institucion')
+    productos = Producto.objects.filter(activo=True)
+    estados = Lote.ESTADOS_CHOICES
+
+    # Columnas disponibles para exportación (reutilizar la misma definición)
+    columnas_disponibles = [
+        {'value': 'numero_lote', 'label': 'Número de Lote'},
+        {'value': 'producto__descripcion', 'label': 'Producto'},
+        {'value': 'institucion__denominacion', 'label': 'Institución'},
+        {'value': 'cantidad_inicial', 'label': 'Cantidad Inicial'},
+        {'value': 'cantidad_disponible', 'label': 'Cantidad Disponible'},
+        {'value': 'cantidad_reservada', 'label': 'Cantidad Reservada'},
+        {'value': 'precio_unitario', 'label': 'Precio Unitario'},
+        {'value': 'valor_total', 'label': 'Valor Total'},
+        {'value': 'fecha_fabricacion', 'label': 'Fecha de Fabricación'},
+        {'value': 'fecha_caducidad', 'label': 'Fecha de Caducidad'},
+        {'value': 'fecha_recepcion', 'label': 'Fecha de Recepción'},
+        {'value': 'estado', 'label': 'Estado'},
+        {'value': 'observaciones', 'label': 'Observaciones'},
+        {'value': 'rfc_proveedor', 'label': 'RFC Proveedor'},
+        {'value': 'proveedor', 'label': 'Proveedor'},
+        {'value': 'partida', 'label': 'Partida'},
+        {'value': 'clave_saica', 'label': 'Clave SAICA'},
+        {'value': 'descripcion_saica', 'label': 'Descripción SAICA'},
+        {'value': 'unidad_saica', 'label': 'Unidad SAICA'},
+        {'value': 'fuente_datos', 'label': 'Fuente de Datos'},
+        {'value': 'contrato', 'label': 'Contrato'},
+        {'value': 'folio', 'label': 'Folio'},
+        {'value': 'subtotal', 'label': 'Subtotal'},
+        {'value': 'iva', 'label': 'IVA'},
+        {'value': 'importe_total', 'label': 'Importe Total'},
+        {'value': 'licitacion', 'label': 'Licitación / Procedimiento'},
+        {'value': 'pedido', 'label': 'Pedido'},
+        {'value': 'remision', 'label': 'Remisión'},
+        {'value': 'responsable', 'label': 'Responsable'},
+        {'value': 'reviso', 'label': 'Revisó'},
+        {'value': 'tipo_entrega', 'label': 'Tipo de Entrega'},
+        {'value': 'tipo_red', 'label': 'Tipo de Red'},
+        {'value': 'epa', 'label': 'EPA'},
+        {'value': 'producto__clave_cnis', 'label': 'Clave CNIS'},
+        {'value': 'almacen__nombre', 'label': 'Almacén'},
+        {'value': 'ubicacion__codigo', 'label': 'Ubicación'},
+    ]
+
+    context = {
+        'instituciones': instituciones,
+        'almacenes': almacenes,
+        'productos': productos,
+        'estados': estados,
+        'filtro_institucion': filtro_institucion,
+        'filtro_estado': filtro_estado,
+        'filtro_almacen': filtro_almacen,
+        'filtro_producto': filtro_producto,
+        'filtro_caducidad': filtro_caducidad,
+        'busqueda_lote': busqueda_lote,
+        'busqueda_cnis': busqueda_cnis,
+        "busqueda_producto": busqueda_producto,
+        "filtro_partida": filtro_partida,
+        'columnas_disponibles': columnas_disponibles,
+        'institucion_usuario': institucion,
+    }
+
+    return render(request, 'inventario/reportes/reporte_lotes_personalizado.html', context)
+
+
+@login_required
 def detalle_lote(request, lote_id):
     """Detalle de un lote específico"""
     

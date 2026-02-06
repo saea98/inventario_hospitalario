@@ -26,8 +26,10 @@ urlpatterns = [
     # Cambio de estado
     path('lotes/<int:lote_id>/cambiar-estado/', views_inventario.cambiar_estado_lote, name='cambiar_estado_lote'),
     
-    # Exportación personalizada de lotes
+    # Exportación personalizada de lotes (desde lista_lotes)
     path('lotes/exportar-personalizado/', views_inventario.exportar_lotes_personalizado, name='exportar_lotes_personalizado'),
+    # Reporte independiente de lotes para exportación (solo lectura)
+    path('lotes/reporte-personalizado/', views_inventario.reporte_lotes_personalizado, name='reporte_lotes_personalizado'),
     
     # Reporte de registros no afectados
     path('reporte-no-afectados/', views_reporte_no_afectados.reporte_no_afectados, name='reporte_no_afectados'),
