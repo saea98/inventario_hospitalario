@@ -175,6 +175,59 @@ def lista_opciones_menu(request):
 
 @login_required
 @requiere_rol('Administrador')
+def crear_opcion_menu(request):
+    """
+    Crear una nueva opción de menú (vista) y asignar roles.
+    Permite registrar nuevas URLs sin tocar código: solo se necesita el url_name
+    que devuelve Django para esa ruta (ej: lista_lotes, pedidos:reporte_items_no_surtidos).
+    """
+    roles = Group.objects.all().order_by('name')
+    
+    if request.method == 'POST':
+        menu_item = (request.POST.get('menu_item') or '').strip()
+        nombre_mostrado = (request.POST.get('nombre_mostrado') or '').strip()
+        url_name = (request.POST.get('url_name') or '').strip()
+        icono = (request.POST.get('icono') or 'fas fa-circle').strip()
+        try:
+            orden = int(request.POST.get('orden', 0))
+        except ValueError:
+            orden = 0
+        activo = request.POST.get('activo') == 'on'
+        roles_seleccionados = request.POST.getlist('roles')
+        
+        if not menu_item or not nombre_mostrado or not url_name:
+            messages.error(request, 'Completa: Identificador de menú, Nombre mostrado y Nombre de URL.')
+        elif MenuItemRol.objects.filter(menu_item=menu_item).exists():
+            messages.error(request, f'Ya existe una opción con el identificador "{menu_item}".')
+        else:
+            try:
+                opcion = MenuItemRol.objects.create(
+                    menu_item=menu_item,
+                    nombre_mostrado=nombre_mostrado,
+                    url_name=url_name,
+                    icono=icono,
+                    orden=orden,
+                    activo=activo,
+                )
+                for rol_id in roles_seleccionados:
+                    try:
+                        rol = Group.objects.get(id=rol_id)
+                        opcion.roles_permitidos.add(rol)
+                    except Group.DoesNotExist:
+                        pass
+                messages.success(request, f'Opción "{nombre_mostrado}" creada. Asigna roles y controla el acceso desde aquí.')
+                return redirect('admin_roles:editar_opcion_menu', opcion.id)
+            except Exception as e:
+                messages.error(request, f'Error al crear: {str(e)}')
+    
+    contexto = {
+        'roles': roles,
+    }
+    return render(request, 'admin_roles/crear_opcion_menu.html', contexto)
+
+
+@login_required
+@requiere_rol('Administrador')
 def editar_opcion_menu(request, opcion_id):
     """
     Editar roles permitidos para una opción de menú

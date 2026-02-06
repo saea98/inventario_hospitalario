@@ -30,8 +30,11 @@
 
     <!-- Tabla de opciones -->
     <div class="card">
-        <div class="card-header">
+        <div class="card-header d-flex justify-content-between align-items-center">
             <h5 class="mb-0">Opciones de Menú ({{ opciones.count }})</h5>
+            <a href="{% url 'admin_roles:crear_opcion_menu' %}" class="btn btn-success btn-sm">
+                <i class="fas fa-plus me-1"></i>Añadir opción de menú
+            </a>
         </div>
         <div class="table-responsive">
             <table class="table table-hover mb-0">

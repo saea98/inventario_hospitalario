@@ -22,6 +22,7 @@ urlpatterns = [
     
     # Gestión de opciones de menú
     path('menu/', admin_roles_views.lista_opciones_menu, name='lista_opciones_menu'),
+    path('menu/crear/', admin_roles_views.crear_opcion_menu, name='crear_opcion_menu'),
     path('menu/<int:opcion_id>/editar/', admin_roles_views.editar_opcion_menu, name='editar_opcion_menu'),
     
     # Reportes
