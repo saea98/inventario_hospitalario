@@ -22,6 +22,155 @@ from .access_control import requiere_rol
 
 from .llegada_models import LlegadaProveedor, ItemLlegada, DocumentoLlegada
 from .models import Almacen
+
+# Almacén y ubicación por defecto para asignación automática al aprobar llegada
+STAGING_ALMACEN_CODIGO = 'XXXX010101'
+STAGING_UBICACION_CODIGO = 'staging'
+
+
+def get_staging_almacen_ubicacion():
+    """Devuelve (Almacen, UbicacionAlmacen) para el almacén XXXX010101 y la ubicación 'staging'."""
+    from .models import UbicacionAlmacen
+    almacen = Almacen.objects.filter(codigo=STAGING_ALMACEN_CODIGO).first()
+    if not almacen:
+        return None, None
+    ubicacion = UbicacionAlmacen.objects.filter(almacen=almacen).filter(
+        Q(codigo__iexact=STAGING_UBICACION_CODIGO) | Q(descripcion__icontains='staging')
+    ).first()
+    if not ubicacion:
+        ubicacion = UbicacionAlmacen.objects.filter(almacen=almacen, codigo__iexact=STAGING_UBICACION_CODIGO).first()
+    return almacen, ubicacion
+
+
+def asignar_llegada_a_staging(llegada, usuario):
+    """
+    Asigna todos los ítems de la llegada a la ubicación 'staging' del almacén con código XXXX010101.
+    Crea o reutiliza lotes, LoteUbicacion y MovimientoInventario. Marca la llegada como APROBADA.
+    Returns (True, mensajes_lote_existente) on success, (False, error_message) on failure.
+    """
+    from .models import Lote, LoteUbicacion, UbicacionAlmacen, MovimientoInventario
+
+    almacen_staging, ubicacion_staging = get_staging_almacen_ubicacion()
+    if not almacen_staging or not ubicacion_staging:
+        return False, "No se encontró el almacén con código XXXX010101 o la ubicación 'staging'. Configurelos en el sistema."
+
+    institucion = almacen_staging.institucion
+    mensajes_lote_existente = []
+
+    with transaction.atomic():
+        for item in llegada.items.all():
+            producto_desc = (item.producto.descripcion if item.producto else "Item sin producto") or "Item sin producto"
+            cantidad_recibida = item.cantidad_recibida
+
+            lote_existente = Lote.objects.filter(
+                numero_lote=item.numero_lote,
+                producto=item.producto,
+                institucion=institucion
+            ).first()
+
+            if lote_existente:
+                lote = lote_existente
+                cantidad_anterior_lote = lote.cantidad_disponible
+                lote.cantidad_inicial += cantidad_recibida
+                lote.cantidad_disponible += cantidad_recibida
+                lote.valor_total += (item.precio_unitario_sin_iva or 0) * cantidad_recibida
+                lote.almacen = almacen_staging
+                lote.save()
+                lote_ubi, created = LoteUbicacion.objects.get_or_create(
+                    lote=lote,
+                    ubicacion=ubicacion_staging,
+                    defaults={'cantidad': cantidad_recibida, 'usuario_asignacion': usuario}
+                )
+                if not created:
+                    lote_ubi.cantidad += cantidad_recibida
+                    lote_ubi.save(update_fields=['cantidad'])
+                MovimientoInventario.objects.create(
+                    lote=lote,
+                    tipo_movimiento='ENTRADA',
+                    cantidad=cantidad_recibida,
+                    cantidad_anterior=cantidad_anterior_lote,
+                    cantidad_nueva=lote.cantidad_disponible,
+                    motivo=f'Entrada de proveedor - Folio: {llegada.folio} (asignación automática a staging)',
+                    documento_referencia=llegada.remision,
+                    contrato=getattr(llegada, 'numero_contrato', None) or '',
+                    remision=llegada.remision,
+                    folio=llegada.folio,
+                    usuario=usuario
+                )
+                desc = (producto_desc or '')[:40]
+                if len(producto_desc or '') > 40:
+                    desc += '…'
+                mensajes_lote_existente.append(f"Lote {lote.numero_lote} ({desc}): se sumaron {cantidad_recibida} unidades.")
+            elif item.lote_creado:
+                lote = item.lote_creado
+                lote.almacen = almacen_staging
+                lote.save()
+                lote.ubicaciones_detalle.all().delete()
+                LoteUbicacion.objects.create(
+                    lote=lote,
+                    ubicacion=ubicacion_staging,
+                    cantidad=cantidad_recibida,
+                    usuario_asignacion=usuario
+                )
+                MovimientoInventario.objects.create(
+                    lote=lote,
+                    tipo_movimiento='ENTRADA',
+                    cantidad=cantidad_recibida,
+                    cantidad_anterior=0,
+                    cantidad_nueva=cantidad_recibida,
+                    motivo=f'Entrada de proveedor - Folio: {llegada.folio} (asignación automática a staging)',
+                    documento_referencia=llegada.remision,
+                    contrato=getattr(llegada, 'numero_contrato', None) or '',
+                    remision=llegada.remision,
+                    folio=llegada.folio,
+                    usuario=usuario
+                )
+            else:
+                lote = Lote.objects.create(
+                    producto=item.producto,
+                    numero_lote=item.numero_lote,
+                    fecha_caducidad=item.fecha_caducidad,
+                    fecha_fabricacion=getattr(item, 'fecha_elaboracion', None),
+                    cantidad_inicial=cantidad_recibida,
+                    cantidad_disponible=cantidad_recibida,
+                    cantidad_reservada=0,
+                    almacen=almacen_staging,
+                    institucion=institucion,
+                    precio_unitario=item.precio_unitario_sin_iva or 0,
+                    valor_total=(item.precio_unitario_sin_iva or 0) * cantidad_recibida,
+                    fecha_recepcion=llegada.fecha_llegada_real.date() if llegada.fecha_llegada_real else timezone.now().date(),
+                    estado=1
+                )
+                item.lote_creado = lote
+                item.save()
+                LoteUbicacion.objects.create(
+                    lote=lote,
+                    ubicacion=ubicacion_staging,
+                    cantidad=cantidad_recibida,
+                    usuario_asignacion=usuario
+                )
+                MovimientoInventario.objects.create(
+                    lote=lote,
+                    tipo_movimiento='ENTRADA',
+                    cantidad=cantidad_recibida,
+                    cantidad_anterior=0,
+                    cantidad_nueva=cantidad_recibida,
+                    motivo=f'Entrada de proveedor - Folio: {llegada.folio} (asignación automática a staging)',
+                    documento_referencia=llegada.remision,
+                    contrato=getattr(llegada, 'numero_contrato', None) or '',
+                    remision=llegada.remision,
+                    folio=llegada.folio,
+                    usuario=usuario
+                )
+
+        llegada.estado = 'APROBADA'
+        llegada.usuario_ubicacion = usuario
+        llegada.fecha_ubicacion = timezone.now()
+        llegada.save()
+
+    return True, mensajes_lote_existente
+
+
 from .llegada_forms import (
     LlegadaProveedorForm,
     ItemLlegadaFormSet,
@@ -587,10 +736,18 @@ class AprobarEntradaView(LoginRequiredMixin, PermissionRequiredMixin, View):
             llegada.save()
             messages.success(request, f"Llegada {llegada.folio} aprobada. Pendiente de validación de calidad (inspección visual)")
         else:
-            # Si no solicita inspección visual, saltarse CONTROL_CALIDAD y pasar directamente a UBICACION
-            llegada.estado = 'UBICACION'
-            llegada.save()
-            messages.success(request, f"Llegada {llegada.folio} aprobada. Saltando control de calidad, lista para asignar ubicación")
+            # Sin inspección: asignar automáticamente a ubicación staging (almacén XXXX010101) y marcar APROBADA
+            ok, result = asignar_llegada_a_staging(llegada, request.user)
+            if ok:
+                messages.success(request, f"Llegada {llegada.folio} aprobada. Cantidades asignadas a la ubicación 'staging' del almacén XXXX010101.")
+                if result:
+                    messages.info(request, "Lotes existentes actualizados: " + " | ".join(result))
+            else:
+                messages.error(request, result)
+                # Si no está configurado staging, dejar en UBICACION para asignación manual
+                llegada.estado = 'UBICACION'
+                llegada.save()
+                messages.warning(request, "Asigne ubicaciones manualmente o configure el almacén XXXX010101 y la ubicación 'staging'.")
         
         return redirect('logistica:llegadas:detalle_llegada', pk=pk)
 
@@ -625,37 +782,41 @@ class ControlCalidadView(LoginRequiredMixin, PermissionRequiredMixin, View):
                 llegada.usuario_calidad = request.user
                 llegada.fecha_validacion_calidad = timezone.now()
                 
-                # Si se aprueba la inspeccion visual, cambiar estado a UBICACION y crear lotes
+                # Si se aprueba la inspección visual, asignar a staging y marcar APROBADA
                 if llegada.estado_calidad == 'APROBADO':
-                    llegada.estado = 'UBICACION'
-                    llegada.save()
-                    
-                    # Crear lotes para cada item si no existen
-                    for item in llegada.items.all():
-                        if not item.lote_creado:
-                            from .models import Institucion
-                            # Obtener la institucion (usar la primera disponible)
+                    ok, result = asignar_llegada_a_staging(llegada, request.user)
+                    if ok:
+                        messages.success(request, "Inspección visual aprobada. Cantidades asignadas a la ubicación 'staging' del almacén XXXX010101.")
+                        if result:
+                            messages.info(request, "Lotes existentes actualizados: " + " | ".join(result))
+                    else:
+                        # Fallback: crear lotes y dejar en UBICACION para asignación manual
+                        from .models import Institucion
+                        institucion = getattr(llegada.almacen, 'institucion', None) if llegada.almacen_id else None
+                        if not institucion:
                             institucion = Institucion.objects.first()
-                            
-                            lote = Lote.objects.create(
-                                producto=item.producto,
-                                numero_lote=item.numero_lote,
-                                fecha_caducidad=item.fecha_caducidad,
-                                fecha_fabricacion=item.fecha_elaboracion,
-                                cantidad_inicial=item.cantidad_recibida,
-                                cantidad_disponible=item.cantidad_recibida,
-                                cantidad_reservada=0,
-                                almacen=llegada.almacen,
-                                institucion=institucion,
-                                precio_unitario=item.precio_unitario_sin_iva or 0,
-                                valor_total=(item.precio_unitario_sin_iva or 0) * item.cantidad_recibida,
-                                fecha_recepcion=llegada.fecha_llegada_real.date(),
-                                estado=1
-                            )
-                            item.lote_creado = lote
-                            item.save()
-                    
-                    messages.success(request, "Inspeccion visual aprobada. Lotes creados. Pendiente de asignacion de ubicacion")
+                        llegada.estado = 'UBICACION'
+                        llegada.save()
+                        for item in llegada.items.all():
+                            if not item.lote_creado:
+                                lote = Lote.objects.create(
+                                    producto=item.producto,
+                                    numero_lote=item.numero_lote,
+                                    fecha_caducidad=item.fecha_caducidad,
+                                    fecha_fabricacion=item.fecha_elaboracion,
+                                    cantidad_inicial=item.cantidad_recibida,
+                                    cantidad_disponible=item.cantidad_recibida,
+                                    cantidad_reservada=0,
+                                    almacen=llegada.almacen,
+                                    institucion=institucion,
+                                    precio_unitario=item.precio_unitario_sin_iva or 0,
+                                    valor_total=(item.precio_unitario_sin_iva or 0) * item.cantidad_recibida,
+                                    fecha_recepcion=llegada.fecha_llegada_real.date(),
+                                    estado=1
+                                )
+                                item.lote_creado = lote
+                                item.save()
+                        messages.warning(request, result + " Lotes creados; asigne ubicaciones manualmente.")
                 else:
                     llegada.save()
                     messages.warning(request, "Inspeccion visual rechazada")
