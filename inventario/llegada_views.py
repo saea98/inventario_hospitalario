@@ -879,8 +879,8 @@ class UbicacionView(LoginRequiredMixin, PermissionRequiredMixin, View):
                             folio=llegada.folio,
                             usuario=request.user
                         )
-                        item.lote_creado = lote
-                        item.save()
+                        # No asignar item.lote_creado = lote: lote_creado es OneToOne, y este lote
+                        # ya puede estar vinculado a otro ItemLlegada; la suma y el movimiento ya quedan registrados.
                         desc = (producto_desc or '')[:40]
                         if len(producto_desc or '') > 40:
                             desc += '…'
