@@ -105,13 +105,18 @@ def reporte_inventario_detallado(request):
     except EmptyPage:
         lotes_paginados = paginator.page(paginator.num_pages)
     
-    # Preparar datos para el template
+    # Preparar datos para el template (f_cad = fecha caducidad, f_rec = fecha recepción; campos distintos del modelo)
     datos_reporte = []
     for lote in lotes_paginados:
         # Estado del insumo: leyenda (get_estado_display), no el dígito
         estado_texto = lote.get_estado_display() if lote.estado is not None else ''
         if not estado_texto and lote.estado is not None:
             estado_texto = str(lote.estado)
+
+        # Fechas: usar explícitamente el campo correcto para cada columna
+        fecha_caducidad_str = lote.fecha_caducidad.strftime('%d/%m/%Y') if getattr(lote, 'fecha_caducidad', None) else ''
+        fecha_fabricacion_str = lote.fecha_fabricacion.strftime('%d/%m/%Y') if getattr(lote, 'fecha_fabricacion', None) else ''
+        fecha_recepcion_str = lote.fecha_recepcion.strftime('%d/%m/%Y') if getattr(lote, 'fecha_recepcion', None) else ''
 
         datos_reporte.append({
             'entidad': 'CIUDAD DE MÉXICO',  # Leyenda fija (no almacén/institucion)
@@ -122,9 +127,9 @@ def reporte_inventario_detallado(request):
             'estado_insumo': estado_texto,
             'inventario_disponible': lote.cantidad_disponible,
             'lote': lote.numero_lote,
-            'f_cad': lote.fecha_caducidad.strftime('%d/%m/%Y') if lote.fecha_caducidad else '',
-            'f_fab': lote.fecha_fabricacion.strftime('%d/%m/%Y') if lote.fecha_fabricacion else '',
-            'f_rec': lote.fecha_recepcion.strftime('%d/%m/%Y') if lote.fecha_recepcion else '',
+            'f_cad': fecha_caducidad_str,
+            'f_fab': fecha_fabricacion_str,
+            'f_rec': fecha_recepcion_str,
         })
     
     # Query string base para enlaces de ordenación (conserva filtros, quita sort/order/page)
@@ -267,6 +272,11 @@ def exportar_inventario_detallado_excel(request):
         if lote.orden_suministro and lote.orden_suministro.proveedor:
             rfc_val = (lote.orden_suministro.proveedor.rfc or '').strip()
 
+        # Fechas: cada columna usa explícitamente su campo (F_CAD=caducidad, F_FAB=fabricación, F_REC=recepción)
+        fecha_caducidad_str = lote.fecha_caducidad.strftime('%d/%m/%Y') if getattr(lote, 'fecha_caducidad', None) else ''
+        fecha_fabricacion_str = lote.fecha_fabricacion.strftime('%d/%m/%Y') if getattr(lote, 'fecha_fabricacion', None) else ''
+        fecha_recepcion_str = lote.fecha_recepcion.strftime('%d/%m/%Y') if getattr(lote, 'fecha_recepcion', None) else ''
+
         row_data = [
             'CIUDAD DE MÉXICO',  # Entidad fija (leyenda), no almacén/institucion
             lote.institucion.clue if lote.institucion else '',
@@ -276,9 +286,9 @@ def exportar_inventario_detallado_excel(request):
             estado_texto,
             lote.cantidad_disponible,
             lote.numero_lote,
-            lote.fecha_caducidad.strftime('%d/%m/%Y') if lote.fecha_caducidad else '',
-            lote.fecha_fabricacion.strftime('%d/%m/%Y') if lote.fecha_fabricacion else '',
-            lote.fecha_recepcion.strftime('%d/%m/%Y') if lote.fecha_recepcion else '',
+            fecha_caducidad_str,   # F_CAD
+            fecha_fabricacion_str, # F_FAB
+            fecha_recepcion_str,   # F_REC
         ]
 
         for col_num, value in enumerate(row_data, 1):
