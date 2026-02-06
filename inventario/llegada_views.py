@@ -768,13 +768,17 @@ class UbicacionView(LoginRequiredMixin, PermissionRequiredMixin, View):
         })
     
     def post(self, request, pk):
-        from .models import Almacen, Lote, LoteUbicacion, UbicacionAlmacen, MovimientoInventario
+        from .models import Almacen, Lote, LoteUbicacion, UbicacionAlmacen, MovimientoInventario, Institucion
         
         llegada = get_object_or_404(LlegadaProveedor, pk=pk)
         items = list(llegada.items.all())
+        institucion = getattr(llegada.almacen, 'institucion', None) if llegada.almacen_id else None
+        if not institucion:
+            institucion = Institucion.objects.first()
         
         try:
             with transaction.atomic():
+                mensajes_lote_existente = []
                 for i, item in enumerate(items):
                     # Verificar que el item tenga producto
                     try:
@@ -830,17 +834,87 @@ class UbicacionView(LoginRequiredMixin, PermissionRequiredMixin, View):
                         )
                         return redirect("logistica:llegadas:ubicacion", pk=llegada.pk)
                     
-                    # Si el lote ya existe, actualizar; si no, crear
-                    if item.lote_creado:
+                    lote = None
+                    lote_ya_existia = False
+                    
+                    # Buscar lote existente por (numero_lote, producto, institucion) para no duplicar
+                    lote_existente = Lote.objects.filter(
+                        numero_lote=item.numero_lote,
+                        producto=item.producto,
+                        institucion=institucion
+                    ).first()
+                    
+                    if lote_existente:
+                        # Reutilizar lote existente: sumar cantidades y ubicaciones
+                        lote = lote_existente
+                        lote_ya_existia = True
+                        cantidad_anterior_lote = lote.cantidad_disponible
+                        lote.cantidad_inicial += item.cantidad_recibida
+                        lote.cantidad_disponible += item.cantidad_recibida
+                        lote.valor_total += (item.precio_unitario_sin_iva or 0) * item.cantidad_recibida
+                        lote.almacen = almacen
+                        lote.save()
+                        # Sumar a ubicaciones: si la ubicación ya existe, sumar cantidad; si no, crear
+                        for ubi_data in ubicacion_data:
+                            ubicacion = get_object_or_404(UbicacionAlmacen, pk=ubi_data['ubicacion_id'])
+                            lote_ubi, created = LoteUbicacion.objects.get_or_create(
+                                lote=lote,
+                                ubicacion=ubicacion,
+                                defaults={'cantidad': ubi_data['cantidad'], 'usuario_asignacion': request.user}
+                            )
+                            if not created:
+                                lote_ubi.cantidad += ubi_data['cantidad']
+                                lote_ubi.save(update_fields=['cantidad'])
+                        # Movimiento de entrada con cantidades reales (anterior/nueva)
+                        MovimientoInventario.objects.create(
+                            lote=lote,
+                            tipo_movimiento='ENTRADA',
+                            cantidad=item.cantidad_recibida,
+                            cantidad_anterior=cantidad_anterior_lote,
+                            cantidad_nueva=lote.cantidad_disponible,
+                            motivo=f'Entrada de proveedor - Folio: {llegada.folio} (suma a lote existente)',
+                            documento_referencia=llegada.remision,
+                            contrato=llegada.numero_contrato,
+                            remision=llegada.remision,
+                            folio=llegada.folio,
+                            usuario=request.user
+                        )
+                        item.lote_creado = lote
+                        item.save()
+                        desc = (producto_desc or '')[:40]
+                        if len(producto_desc or '') > 40:
+                            desc += '…'
+                        mensajes_lote_existente.append(
+                            f"Lote {lote.numero_lote} ({desc}): se sumaron {item.cantidad_recibida} unidades al lote existente."
+                        )
+                    elif item.lote_creado:
                         lote = item.lote_creado
                         lote.almacen = almacen
                         lote.save()
-                        # Eliminar ubicaciones anteriores
                         lote.ubicaciones_detalle.all().delete()
+                        for ubi_data in ubicacion_data:
+                            ubicacion = get_object_or_404(UbicacionAlmacen, pk=ubi_data['ubicacion_id'])
+                            LoteUbicacion.objects.create(
+                                lote=lote,
+                                ubicacion=ubicacion,
+                                cantidad=ubi_data['cantidad'],
+                                usuario_asignacion=request.user
+                            )
+                        MovimientoInventario.objects.create(
+                            lote=lote,
+                            tipo_movimiento='ENTRADA',
+                            cantidad=item.cantidad_recibida,
+                            cantidad_anterior=0,
+                            cantidad_nueva=item.cantidad_recibida,
+                            motivo=f'Entrada de proveedor - Folio: {llegada.folio}',
+                            documento_referencia=llegada.remision,
+                            contrato=llegada.numero_contrato,
+                            remision=llegada.remision,
+                            folio=llegada.folio,
+                            usuario=request.user
+                        )
                     else:
                         # Crear nuevo lote (fallback si no se creó en Control de Calidad)
-                        from .models import Institucion
-                        institucion = Institucion.objects.first()
                         lote = Lote.objects.create(
                             producto=item.producto,
                             numero_lote=item.numero_lote,
@@ -858,31 +932,27 @@ class UbicacionView(LoginRequiredMixin, PermissionRequiredMixin, View):
                         )
                         item.lote_creado = lote
                         item.save()
-                    
-                    # Crear registros de LoteUbicacion para cada ubicación
-                    for ubi_data in ubicacion_data:
-                        ubicacion = get_object_or_404(UbicacionAlmacen, pk=ubi_data['ubicacion_id'])
-                        LoteUbicacion.objects.create(
+                        for ubi_data in ubicacion_data:
+                            ubicacion = get_object_or_404(UbicacionAlmacen, pk=ubi_data['ubicacion_id'])
+                            LoteUbicacion.objects.create(
+                                lote=lote,
+                                ubicacion=ubicacion,
+                                cantidad=ubi_data['cantidad'],
+                                usuario_asignacion=request.user
+                            )
+                        MovimientoInventario.objects.create(
                             lote=lote,
-                            ubicacion=ubicacion,
-                            cantidad=ubi_data['cantidad'],
-                            usuario_asignacion=request.user
+                            tipo_movimiento='ENTRADA',
+                            cantidad=item.cantidad_recibida,
+                            cantidad_anterior=0,
+                            cantidad_nueva=item.cantidad_recibida,
+                            motivo=f'Entrada de proveedor - Folio: {llegada.folio}',
+                            documento_referencia=llegada.remision,
+                            contrato=llegada.numero_contrato,
+                            remision=llegada.remision,
+                            folio=llegada.folio,
+                            usuario=request.user
                         )
-                    
-                    # Crear movimiento de entrada en inventario
-                    MovimientoInventario.objects.create(
-                        lote=lote,
-                        tipo_movimiento='ENTRADA',
-                        cantidad=item.cantidad_recibida,
-                        cantidad_anterior=0,
-                        cantidad_nueva=item.cantidad_recibida,
-                        motivo=f'Entrada de proveedor - Folio: {llegada.folio}',
-                        documento_referencia=llegada.remision,
-                        contrato=llegada.numero_contrato,
-                        remision=llegada.remision,
-                        folio=llegada.folio,
-                        usuario=request.user
-                    )
                 
                 # Marcar llegada como completada
                 llegada.estado = 'APROBADA'
@@ -890,7 +960,9 @@ class UbicacionView(LoginRequiredMixin, PermissionRequiredMixin, View):
                 llegada.fecha_ubicacion = timezone.now()
                 llegada.save()
                 
-                messages.success(request, "Ubicaciones asignadas correctamente")
+                messages.success(request, "Ubicaciones asignadas correctamente.")
+                if mensajes_lote_existente:
+                    messages.info(request, "Lotes existentes actualizados: " + " | ".join(mensajes_lote_existente))
                 return redirect('logistica:llegadas:detalle_llegada', pk=llegada.pk)
         
         except Exception as e:

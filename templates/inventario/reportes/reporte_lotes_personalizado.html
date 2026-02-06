@@ -105,6 +105,14 @@
                     </select>
                 </div>
 
+                <div class="col-md-3 d-flex align-items-end">
+                    <div class="form-check">
+                        <input type="checkbox" name="excluir_sin_rfc" value="1" class="form-check-input" id="excluir_sin_rfc"
+                               {% if filtro_excluir_sin_rfc %}checked{% endif %}>
+                        <label class="form-check-label" for="excluir_sin_rfc">Excluir sin RFC de proveedor</label>
+                    </div>
+                </div>
+
                 <div class="col-md-3 d-flex align-items-end gap-2">
                     <button type="submit" class="btn btn-primary flex-grow-1">
                         <i class="bi bi-search"></i> Filtrar
@@ -160,6 +168,7 @@
           <input type="hidden" name="busqueda_cnis" value="{{ busqueda_cnis }}">
           <input type="hidden" name="busqueda_producto" value="{{ busqueda_producto }}">
           <input type="hidden" name="filtro_partida" value="{{ filtro_partida }}">
+          <input type="hidden" name="excluir_sin_rfc_proveedor" id="hidden_excluir_sin_rfc" value="{{ filtro_excluir_sin_rfc }}">
         </form>
       </div>
       <div class="modal-footer">
@@ -254,6 +263,9 @@ document.addEventListener("DOMContentLoaded", function() {
 
   btnGenerar.addEventListener("click", function() {
     actualizarOrden();
+    var excluirCb = document.getElementById("excluir_sin_rfc");
+    var hiddenExcluir = document.getElementById("hidden_excluir_sin_rfc");
+    if (excluirCb && hiddenExcluir) hiddenExcluir.value = excluirCb.checked ? "1" : "";
 
     const formData = new FormData(form);
 

@@ -207,6 +207,8 @@ def lista_lotes(request):
         {'value': 'observaciones', 'label': 'Observaciones'},
         {'value': 'rfc_proveedor', 'label': 'RFC Proveedor'},
         {'value': 'proveedor', 'label': 'Proveedor'},
+        {'value': 'orden_suministro__proveedor__rfc', 'label': 'RFC Proveedor (Orden suministro)'},
+        {'value': 'orden_suministro__proveedor__razon_social', 'label': 'Proveedor (Orden suministro)'},
         {'value': 'partida', 'label': 'Partida'},
         {'value': 'clave_saica', 'label': 'Clave SAICA'},
         {'value': 'descripcion_saica', 'label': 'Descripción SAICA'},
@@ -271,6 +273,7 @@ def reporte_lotes_personalizado(request):
     busqueda_cnis = request.GET.get('busqueda_cnis', '')
     busqueda_producto = request.GET.get("busqueda_producto", "")
     filtro_partida = request.GET.get("partida", "")
+    filtro_excluir_sin_rfc = request.GET.get("excluir_sin_rfc", "")
 
     # Opciones para filtros (idénticas a lista_lotes)
     instituciones = Institucion.objects.filter(activo=True).order_by('clue')
@@ -295,6 +298,8 @@ def reporte_lotes_personalizado(request):
         {'value': 'observaciones', 'label': 'Observaciones'},
         {'value': 'rfc_proveedor', 'label': 'RFC Proveedor'},
         {'value': 'proveedor', 'label': 'Proveedor'},
+        {'value': 'orden_suministro__proveedor__rfc', 'label': 'RFC Proveedor (Orden suministro)'},
+        {'value': 'orden_suministro__proveedor__razon_social', 'label': 'Proveedor (Orden suministro)'},
         {'value': 'partida', 'label': 'Partida'},
         {'value': 'clave_saica', 'label': 'Clave SAICA'},
         {'value': 'descripcion_saica', 'label': 'Descripción SAICA'},
@@ -332,6 +337,7 @@ def reporte_lotes_personalizado(request):
         'busqueda_cnis': busqueda_cnis,
         "busqueda_producto": busqueda_producto,
         "filtro_partida": filtro_partida,
+        "filtro_excluir_sin_rfc": filtro_excluir_sin_rfc,
         'columnas_disponibles': columnas_disponibles,
         'institucion_usuario': institucion,
     }
@@ -663,11 +669,11 @@ def exportar_lotes_personalizado(request):
             # 3️⃣ Filtro base
             if institucion:
                 lotes = Lote.objects.filter(institucion=institucion).select_related(
-                    'producto', 'almacen', 'ubicacion', 'institucion'
+                    'producto', 'almacen', 'ubicacion', 'institucion', 'orden_suministro', 'orden_suministro__proveedor'
                 ).prefetch_related('ubicaciones_detalle__ubicacion')
             else:
                 lotes = Lote.objects.all().select_related(
-                    'producto', 'almacen', 'ubicacion', 'institucion'
+                    'producto', 'almacen', 'ubicacion', 'institucion', 'orden_suministro', 'orden_suministro__proveedor'
                 ).prefetch_related('ubicaciones_detalle__ubicacion')
             
             # 4✍⃣ Aplicar filtros (si vienen en la petición)
@@ -716,6 +722,15 @@ def exportar_lotes_personalizado(request):
 
             if filtro_partida:
                 lotes = lotes.filter(partida__icontains=filtro_partida)
+
+            # Excluir lotes sin RFC del proveedor (orden de suministro)
+            excluir_sin_rfc = request.POST.get('excluir_sin_rfc_proveedor', '')
+            if excluir_sin_rfc:
+                lotes = lotes.filter(
+                    orden_suministro__isnull=False,
+                    orden_suministro__proveedor__isnull=False,
+                    orden_suministro__proveedor__rfc__isnull=False,
+                ).exclude(orden_suministro__proveedor__rfc='')
             
             # 5️⃣ Procesar datos manualmente para manejar ubicaciones correctamente
             datos_lista = []
