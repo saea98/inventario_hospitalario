@@ -18,6 +18,10 @@
                 <p class="print-org mb-0">COORDINACIÓN ESTATAL DE CONTROL DE ABASTO</p>
                 <p class="print-org mb-0">OFICINA DE INSUMOS</p>
             </div>
+            <div class="print-fecha-folio">
+                <p class="mb-0"><strong>Fecha:</strong> {{ cita.fecha_cita|date:"d/m/Y" }}</p>
+                <p class="mb-0"><strong>Folio:</strong> {{ lista_revision.folio }}</p>
+            </div>
         </div>
     </div>
     <h1 class="print-title">LISTA DE REVISIÓN<br><span style="font-size: 11px; font-weight: normal;">(Área Técnica)</span></h1>
@@ -28,19 +32,18 @@
     <!-- Primera fila de datos -->
     <table class="print-datos-table">
         <tr>
-            <td style="width: 20%;"><strong>FECHA:</strong> {{ cita.fecha_cita|date:"d/m/Y" }}</td>
-            <td style="width: 20%;"><strong>NO. DOCUMENTO:</strong></td>
-            <td style="width: 25%;"><strong>FOLIO:</strong> {{ lista_revision.folio }}</td>
-            <td style="width: 35%;"><strong>PROVEEDOR:</strong> {{ lista_revision.proveedor }}</td>
+            <td style="width: 25%;"><strong>FECHA:</strong> {{ cita.fecha_cita|date:"d/m/Y" }}</td>
+            <td style="width: 25%;"><strong>REMISIÓN:</strong> {{ cita.numero_orden_remision|default:"" }}</td>
+            <td style="width: 50%;"><strong>PROVEEDOR:</strong> {{ lista_revision.proveedor }}</td>
         </tr>
     </table>
     
     <!-- Segunda fila de datos -->
     <table class="print-datos-table" style="margin-top: 5px;">
         <tr>
-            <td style="width: 20%;"><strong>NO. CONTRATO:</strong> {{ cita.numero_contrato|default:"" }}</td>
-            <td style="width: 30%;"><strong>PEDIDO:</strong> {{ cita.numero_orden_suministro|default:"" }}</td>
-            <td style="width: 50%;"><strong>ORIGEN:</strong> □ IMSS BIENESTAR □ TRANSFERENCIA □ OTRO:</td>
+            <td style="width: 32%;"><strong>NO. CONTRATO:</strong> {{ cita.numero_contrato|default:"" }}</td>
+            <td style="width: 33%;"><strong>ORDEN DE SUMINISTRO:</strong> {{ cita.numero_orden_suministro|default:"" }}</td>
+            <td style="width: 35%;"><strong>ORIGEN:</strong> □ IMSS BIENESTAR □ TRANSFERENCIA □ OTRO:</td>
         </tr>
     </table>
     
@@ -49,9 +52,9 @@
         <tr>
             <td colspan="2" style="font-weight: bold;">ÁREA DE ENTRADAS:</td>
         </tr>
-        <tr>
+        <tr class="print-fila-firma-entrada">
             <td style="width: 50%;"><strong>NOMBRE:</strong> _________________________________________</td>
-            <td style="width: 50%;"><strong>FIRMA:</strong> _________________________________________</td>
+            <td style="width: 50%; min-height: 70px; height: 70px; vertical-align: bottom;"><strong>FIRMA:</strong> _________________________________________</td>
         </tr>
     </table>
     
@@ -372,8 +375,23 @@
     }
     .print-format-only .print-header-content {
         display: flex;
-        align-items: center;
+        align-items: flex-start;
         gap: 15px;
+    }
+    .print-format-only .print-fecha-folio {
+        margin-left: auto;
+        text-align: right;
+        font-size: 10px;
+        white-space: nowrap;
+    }
+    .print-format-only .print-fecha-folio p {
+        margin: 2px 0;
+    }
+    .print-format-only .print-fila-firma-entrada td {
+        min-height: 70px;
+    }
+    .print-format-only .print-fila-firma-entrada {
+        height: 70px;
     }
     .print-format-only .print-logo-container {
         flex-shrink: 0;
