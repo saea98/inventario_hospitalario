@@ -513,11 +513,14 @@ def carga_masiva_inventario_detallado(request):
                 if estado_int is not None and (not no_sobrescribir or _valor_actual_vacio(lote, 'estado')):
                     lote.estado = estado_int
 
-            # Orden, RFC y fechas: siempre actualizar desde Excel cuando el archivo trae valor (datos de complemento)
+            # Orden, RFC y fechas: actualizar desde Excel cuando el archivo trae valor
+            # RFC: no sobrescribir si el lote ya tiene dato
             if idx_rfc is not None and len(row) > idx_rfc and row[idx_rfc] is not None:
                 rfc_val = str(row[idx_rfc]).strip()
                 if rfc_val:
-                    lote.rfc_proveedor = rfc_val[:50]
+                    actual = (getattr(lote, 'rfc_proveedor', None) or '').strip()
+                    if not actual:
+                        lote.rfc_proveedor = rfc_val[:50]
             if idx_f_cad is not None and len(row) > idx_f_cad:
                 f = _parse_fecha_celda(row[idx_f_cad])
                 if f is not None:
