@@ -531,21 +531,24 @@ def carga_masiva_inventario_detallado(request):
                 if f is not None:
                     lote.fecha_recepcion = f
 
-            # Orden de suministro: siempre intentar vincular cuando el Excel trae valor; búsqueda flexible
+            # Orden de suministro: vincular existente o crear desde archivo (RFC + orden) si no existe
             if idx_orden is not None and len(row) > idx_orden and row[idx_orden]:
                 orden_num = str(row[idx_orden]).strip()
                 if orden_num:
                     orden = None
+                    numero_orden_trunc = orden_num[:200]
                     # 1) Coincidencia exacta
-                    orden = OrdenSuministro.objects.filter(numero_orden=orden_num).first()
+                    orden = OrdenSuministro.objects.filter(numero_orden=numero_orden_trunc).first()
+                    if not orden and len(orden_num) != len(numero_orden_trunc):
+                        orden = OrdenSuministro.objects.filter(numero_orden=orden_num).first()
                     if not orden and lote.rfc_proveedor:
-                        proveedor = Proveedor.objects.filter(rfc=lote.rfc_proveedor).first()
+                        proveedor = Proveedor.objects.filter(rfc=lote.rfc_proveedor.strip()[:20]).first()
                         if proveedor:
                             orden = OrdenSuministro.objects.filter(
-                                numero_orden=orden_num,
+                                numero_orden=numero_orden_trunc,
                                 proveedor=proveedor,
                             ).first()
-                    # 2) Excel trae texto largo; buscar por primer token (ej. "3159804") o por inicio del texto
+                    # 2) Búsqueda flexible por primer token o inicio del texto
                     if not orden:
                         primer_token = (orden_num.split()[0] if orden_num.split() else orden_num)[:50]
                         if primer_token:
@@ -556,6 +559,24 @@ def carga_masiva_inventario_detallado(request):
                                 orden = OrdenSuministro.objects.filter(numero_orden=orden_num[:n]).first()
                                 if orden:
                                     break
+                    # 3) No existe la orden: crearla con RFC y orden del archivo (partida 000, etc.)
+                    if not orden and not dry_run:
+                        proveedor = None
+                        rfc_clean = (getattr(lote, 'rfc_proveedor', None) or '').strip()[:20]
+                        if rfc_clean:
+                            proveedor, _ = Proveedor.objects.get_or_create(
+                                rfc=rfc_clean,
+                                defaults={'razon_social': f'Proveedor carga masiva ({rfc_clean})'}
+                            )
+                        fecha_orden = lote.fecha_recepcion if getattr(lote, 'fecha_recepcion', None) else date.today()
+                        orden, _ = OrdenSuministro.objects.get_or_create(
+                            numero_orden=numero_orden_trunc,
+                            defaults={
+                                'proveedor': proveedor,
+                                'partida_presupuestal': '000',
+                                'fecha_orden': fecha_orden,
+                            }
+                        )
                     if orden:
                         lote.orden_suministro = orden
 
