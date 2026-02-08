@@ -4,15 +4,16 @@ ENTIDAD, CLUES, ORDEN DE SUMINISTRO, RFC, CLAVE, ESTADO DEL INSUMO,
 INVENTARIO DISPONIBLE, LOTE, F_CAD, F_FAB, F_REC
 """
 
-from django.shortcuts import render
+from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
 from django.db.models import Q
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
+from django.contrib import messages
 from datetime import date, datetime
 
 from .models import Lote, Producto, Institucion, OrdenSuministro, Proveedor
-from openpyxl import Workbook
+from openpyxl import Workbook, load_workbook
 from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
@@ -330,3 +331,231 @@ def exportar_inventario_detallado_excel(request):
     
     wb.save(response)
     return response
+
+
+# --- Carga masiva desde Excel (mismo layout que el reporte) ---
+
+ESTADO_INSUMO_MAP = {
+    'disponible': 1,
+    'suspendido': 4,
+    'deteriorado': 5,
+    'caducado': 6,
+}
+
+HEADERS_INVENTARIO_DETALLADO = [
+    'ENTIDAD', 'CLUES', 'ORDEN DE SUMINISTRO', 'RFC', 'CLAVE', 'ESTADO DEL INSUMO',
+    'INVENTARIO DISPONIBLE', 'LOTE', 'F_CAD', 'F_FAB', 'F_REC',
+]
+
+
+def _parse_fecha_celda(val):
+    """Convierte celda Excel a date. Acepta str 'dd/mm/yyyy' o 'dd/mm/yyyy HH:MM' o objeto date/datetime."""
+    if val is None or (isinstance(val, str) and not val.strip()):
+        return None
+    if isinstance(val, date) and not isinstance(val, datetime):
+        return val
+    if isinstance(val, datetime):
+        return val.date()
+    s = str(val).strip()
+    for fmt in ('%d/%m/%Y %H:%M', '%d/%m/%Y', '%Y-%m-%d %H:%M', '%Y-%m-%d'):
+        try:
+            return datetime.strptime(s, fmt).date()
+        except ValueError:
+            continue
+    return None
+
+
+def _estado_to_int(estado_texto):
+    if not estado_texto:
+        return None
+    key = str(estado_texto).strip().lower()
+    return ESTADO_INSUMO_MAP.get(key)
+
+
+@login_required
+def carga_masiva_inventario_detallado(request):
+    """
+    Carga masiva: sube un Excel con el layout del reporte inventario detallado
+    (ENTIDAD, CLUES, ORDEN DE SUMINISTRO, RFC, CLAVE, ESTADO DEL INSUMO,
+     INVENTARIO DISPONIBLE, LOTE, F_CAD, F_FAB, F_REC) y actualiza los lotes
+     existentes (identificados por CLUES + CLAVE + LOTE).
+    """
+    if request.method == 'GET':
+        return render(request, 'inventario/reportes/carga_masiva_inventario_detallado.html', {})
+
+    archivo = request.FILES.get('archivo_excel')
+    if not archivo:
+        messages.error(request, 'Debe seleccionar un archivo Excel.')
+        return redirect('reportes:carga_masiva_inventario_detallado')
+
+    if not archivo.name.lower().endswith(('.xlsx', '.xls')):
+        messages.error(request, 'El archivo debe ser Excel (.xlsx).')
+        return redirect('reportes:carga_masiva_inventario_detallado')
+
+    dry_run = request.POST.get('dry_run') == '1'
+    no_sobrescribir = request.POST.get('no_sobrescribir') == '1'
+
+    try:
+        wb = load_workbook(archivo, read_only=True, data_only=True)
+        ws = wb.active
+    except Exception as e:
+        messages.error(request, f'No se pudo leer el Excel: {str(e)}')
+        return redirect('reportes:carga_masiva_inventario_detallado')
+
+    # Primera fila = encabezados
+    header_row = next(ws.iter_rows(min_row=1, max_row=1, values_only=True), None)
+    if not header_row:
+        messages.error(request, 'El archivo no tiene encabezados.')
+        wb.close()
+        return redirect('reportes:carga_masiva_inventario_detallado')
+
+    header_row = [str(c).strip() if c is not None else '' for c in header_row]
+    col_index = {h: i for i, h in enumerate(header_row) if h}
+
+    # Índices esperados (nombres exactos o muy parecidos)
+    def col(name, alternatives=None):
+        for n in [name] + (alternatives or []):
+            if n in col_index:
+                return col_index[n]
+            for k in col_index:
+                if n.lower() in k.lower() or k.lower() in n.lower():
+                    return col_index[k]
+        return None
+
+    idx_entidad = col('ENTIDAD')
+    idx_clues = col('CLUES')
+    idx_orden = col('ORDEN DE SUMINISTRO')
+    idx_rfc = col('RFC')
+    idx_clave = col('CLAVE')
+    idx_estado = col('ESTADO DEL INSUMO')
+    idx_inventario = col('INVENTARIO DISPONIBLE')
+    idx_lote = col('LOTE')
+    idx_f_cad = col('F_CAD')
+    idx_f_fab = col('F_FAB')
+    idx_f_rec = col('F_REC')
+
+    if idx_clues is None or idx_clave is None or idx_lote is None:
+        messages.error(request, 'Faltan columnas obligatorias: CLUES, CLAVE, LOTE.')
+        wb.close()
+        return redirect('reportes:carga_masiva_inventario_detallado')
+
+    actualizados = 0
+    no_encontrados = []
+    errores = []
+
+    for row_num, row in enumerate(ws.iter_rows(min_row=2, values_only=True), start=2):
+        row = list(row) if row else []
+        max_idx = max((i for i in [idx_clues, idx_clave, idx_lote] if i is not None), default=0)
+        if len(row) <= max_idx:
+            continue
+        clues = str(row[idx_clues]).strip() if idx_clues is not None and len(row) > idx_clues and row[idx_clues] else ''
+        clave = str(row[idx_clave]).strip() if idx_clave is not None and len(row) > idx_clave and row[idx_clave] else ''
+        numero_lote = str(row[idx_lote]).strip() if idx_lote is not None and len(row) > idx_lote and row[idx_lote] else ''
+        if not clues or not clave or not numero_lote:
+            continue
+
+        try:
+            institucion = Institucion.objects.filter(clue=clues).first()
+            producto = Producto.objects.filter(clave_cnis=clave).first()
+            if not institucion:
+                no_encontrados.append(f"Fila {row_num}: CLUES '{clues}' no encontrado")
+                continue
+            if not producto:
+                no_encontrados.append(f"Fila {row_num}: CLAVE '{clave}' no encontrado")
+                continue
+
+            lote = Lote.objects.filter(
+                institucion=institucion,
+                producto=producto,
+                numero_lote=numero_lote,
+            ).first()
+            if not lote:
+                no_encontrados.append(f"Fila {row_num}: Lote '{numero_lote}' / CLAVE {clave} / CLUES {clues} no existe")
+                continue
+
+            # Helper: solo asignar si no_sobrescribir está desactivado, o si el campo actual está "vacío"
+            def _valor_actual_vacio(model_obj, attr, consider_cero_vacio=True):
+                val = getattr(model_obj, attr, None)
+                if val is None:
+                    return True
+                if isinstance(val, str) and not val.strip():
+                    return True
+                if consider_cero_vacio and isinstance(val, (int, float)) and val == 0:
+                    return True
+                return False
+
+            # Actualizar campos (respeta no_sobrescribir: solo asigna si el campo actual está vacío)
+            if idx_inventario is not None and len(row) > idx_inventario and row[idx_inventario] is not None:
+                if not no_sobrescribir or _valor_actual_vacio(lote, 'cantidad_disponible'):
+                    try:
+                        val = int(float(row[idx_inventario]))
+                        if val >= 0:
+                            lote.cantidad_disponible = val
+                    except (ValueError, TypeError):
+                        pass
+            if idx_estado is not None and len(row) > idx_estado:
+                estado_int = _estado_to_int(row[idx_estado])
+                if estado_int is not None and (not no_sobrescribir or _valor_actual_vacio(lote, 'estado')):
+                    lote.estado = estado_int
+            if idx_f_cad is not None and len(row) > idx_f_cad:
+                f = _parse_fecha_celda(row[idx_f_cad])
+                if f is not None and (not no_sobrescribir or _valor_actual_vacio(lote, 'fecha_caducidad', consider_cero_vacio=False)):
+                    lote.fecha_caducidad = f
+            if idx_f_fab is not None and len(row) > idx_f_fab:
+                f = _parse_fecha_celda(row[idx_f_fab])
+                if f is not None and (not no_sobrescribir or _valor_actual_vacio(lote, 'fecha_fabricacion', consider_cero_vacio=False)):
+                    lote.fecha_fabricacion = f
+            if idx_f_rec is not None and len(row) > idx_f_rec:
+                f = _parse_fecha_celda(row[idx_f_rec])
+                if f is not None and (not no_sobrescribir or _valor_actual_vacio(lote, 'fecha_recepcion', consider_cero_vacio=False)):
+                    lote.fecha_recepcion = f
+            if idx_rfc is not None and len(row) > idx_rfc and row[idx_rfc] is not None:
+                rfc_val = str(row[idx_rfc]).strip()
+                if rfc_val and (not no_sobrescribir or _valor_actual_vacio(lote, 'rfc_proveedor', consider_cero_vacio=False)):
+                    lote.rfc_proveedor = rfc_val[:50]
+
+            # Opcional: vincular OrdenSuministro si existe (solo si no_sobrescribir y actual vacío, o si no no_sobrescribir)
+            if idx_orden is not None and len(row) > idx_orden and row[idx_orden]:
+                orden_num = str(row[idx_orden]).strip()
+                if orden_num and (not no_sobrescribir or not lote.orden_suministro_id):
+                    if lote.rfc_proveedor:
+                        proveedor = Proveedor.objects.filter(rfc=lote.rfc_proveedor).first()
+                        if proveedor:
+                            orden = OrdenSuministro.objects.filter(
+                                numero_orden=orden_num,
+                                proveedor=proveedor,
+                            ).first()
+                            if orden:
+                                lote.orden_suministro = orden
+                    if not lote.orden_suministro_id:
+                        orden = OrdenSuministro.objects.filter(numero_orden=orden_num).first()
+                        if orden:
+                            lote.orden_suministro = orden
+
+            if not dry_run:
+                lote.save()
+            actualizados += 1
+        except Exception as e:
+            errores.append(f"Fila {row_num}: {str(e)}")
+
+    wb.close()
+
+    if dry_run and actualizados:
+        messages.info(request, f'[Dry-run] Se habrían actualizado {actualizados} lote(s). No se guardó nada.')
+    elif actualizados:
+        messages.success(request, f'Se actualizaron {actualizados} lote(s).')
+    if no_encontrados:
+        messages.warning(request, f'{len(no_encontrados)} registro(s) no encontrados (CLUES/CLAVE/Lote no existen). Ver detalle abajo.')
+    if errores:
+        messages.error(request, f'{len(errores)} error(es) al procesar filas.')
+
+    context = {
+        'actualizados': actualizados,
+        'no_encontrados': no_encontrados[:100],
+        'errores': errores[:100],
+        'total_no_encontrados': len(no_encontrados),
+        'total_errores': len(errores),
+        'dry_run': dry_run,
+        'no_sobrescribir': no_sobrescribir,
+    }
+    return render(request, 'inventario/reportes/carga_masiva_inventario_detallado.html', context)

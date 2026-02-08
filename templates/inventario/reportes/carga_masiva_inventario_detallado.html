@@ -1,0 +1,108 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Carga masiva - Inventario detallado{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2><i class="fas fa-file-upload text-primary"></i> Carga masiva desde Excel</h2>
+            <p class="text-muted">
+                Sube un archivo Excel con el mismo formato del reporte de inventario detallado para actualizar
+                lotes existentes (cantidad, fechas, estado, RFC y orden de suministro).
+            </p>
+        </div>
+        <div class="col-md-4 text-end d-flex align-items-end justify-content-end">
+            <a href="{% url 'reportes:reporte_inventario_detallado' %}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Volver al reporte
+            </a>
+        </div>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-header bg-light">
+            <h6 class="mb-0"><i class="fas fa-info-circle"></i> Formato del archivo</h6>
+        </div>
+        <div class="card-body small">
+            <p class="mb-1">La primera fila debe ser encabezados con estas columnas (el orden puede variar):</p>
+            <code>ENTIDAD, CLUES, ORDEN DE SUMINISTRO, RFC, CLAVE, ESTADO DEL INSUMO, INVENTARIO DISPONIBLE, LOTE, F_CAD, F_FAB, F_REC</code>
+            <p class="mt-2 mb-1">Cada fila identifica un lote por <strong>CLUES</strong> (institución) + <strong>CLAVE</strong> (producto CNIS) + <strong>LOTE</strong>. Solo se actualizan lotes que ya existan en el sistema.</p>
+            <p class="mb-0">Fechas en formato dd/mm/yyyy o dd/mm/yyyy 00:00. Estado: Disponible, Suspendido, Deteriorado, Caducado.</p>
+        </div>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-header bg-primary text-white">
+            <h6 class="mb-0"><i class="fas fa-upload"></i> Seleccionar archivo</h6>
+        </div>
+        <div class="card-body">
+            <form method="post" enctype="multipart/form-data" action="{% url 'reportes:carga_masiva_inventario_detallado' %}">
+                {% csrf_token %}
+                <div class="mb-3">
+                    <label for="archivo_excel" class="form-label">Archivo Excel (.xlsx)</label>
+                    <input type="file" name="archivo_excel" id="archivo_excel" class="form-control" accept=".xlsx,.xls" required>
+                </div>
+                <div class="mb-3">
+                    <div class="form-check">
+                        <input type="checkbox" name="dry_run" value="1" id="dry_run" class="form-check-input" {% if dry_run %} checked{% endif %}>
+                        <label class="form-check-label" for="dry_run">
+                            <strong>Dry-run</strong>: solo simular, no guardar en base de datos (ver qué se actualizaría).
+                        </label>
+                    </div>
+                </div>
+                <div class="mb-3">
+                    <div class="form-check">
+                        <input type="checkbox" name="no_sobrescribir" value="1" id="no_sobrescribir" class="form-check-input" {% if no_sobrescribir %} checked{% endif %}>
+                        <label class="form-check-label" for="no_sobrescribir">
+                            <strong>No sobrescribir</strong>: solo completar campos vacíos (no reemplazar datos ya existentes).
+                        </label>
+                    </div>
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-upload"></i> Procesar archivo
+                </button>
+            </form>
+        </div>
+    </div>
+
+    {% if actualizados is not None %}
+    <div class="card shadow mb-4">
+        <div class="card-header bg-light">
+            <h6 class="mb-0"><i class="fas fa-list-alt"></i> Resultado de la carga</h6>
+        </div>
+        <div class="card-body">
+            {% if dry_run %}
+            <p class="mb-2 alert alert-info py-2"><strong>Modo dry-run:</strong> no se guardó nada en la base de datos.</p>
+            {% endif %}
+            {% if no_sobrescribir %}
+            <p class="mb-2 text-muted small"><strong>Opción usada:</strong> No sobrescribir (solo se completaron campos vacíos).</p>
+            {% endif %}
+            <p class="mb-2"><strong>Lotes actualizados{% if dry_run %} (simulados){% endif %}:</strong> {{ actualizados }}</p>
+            {% if total_no_encontrados %}
+            <p class="mb-1 text-warning"><strong>Registros no encontrados ({{ total_no_encontrados }}):</strong> CLUES, CLAVE o Lote no existen en el sistema.</p>
+            <ul class="small text-muted mb-2" style="max-height: 200px; overflow-y: auto;">
+                {% for item in no_encontrados %}
+                <li>{{ item }}</li>
+                {% endfor %}
+                {% if total_no_encontrados > 100 %}
+                <li>… y {{ total_no_encontrados|add:"-100" }} más.</li>
+                {% endif %}
+            </ul>
+            {% endif %}
+            {% if total_errores %}
+            <p class="mb-1 text-danger"><strong>Errores ({{ total_errores }}):</strong></p>
+            <ul class="small text-muted mb-0" style="max-height: 200px; overflow-y: auto;">
+                {% for item in errores %}
+                <li>{{ item }}</li>
+                {% endfor %}
+                {% if total_errores > 100 %}
+                <li>… y {{ total_errores|add:"-100" }} más.</li>
+                {% endif %}
+            </ul>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
