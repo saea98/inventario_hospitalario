@@ -56,8 +56,11 @@ def reporte_inventario_detallado(request):
         lotes = lotes.filter(orden_suministro__numero_orden__icontains=filtro_orden)
     
     if filtro_rfc:
-        lotes = lotes.filter(orden_suministro__proveedor__rfc__icontains=filtro_rfc)
-    
+        lotes = lotes.filter(
+            Q(orden_suministro__proveedor__rfc__icontains=filtro_rfc) |
+            Q(rfc_proveedor__icontains=filtro_rfc)
+        )
+
     if filtro_clave:
         lotes = lotes.filter(producto__clave_cnis__icontains=filtro_clave)
     
@@ -119,11 +122,18 @@ def reporte_inventario_detallado(request):
         fecha_fabricacion_str = lote.fecha_fabricacion.strftime('%d/%m/%Y') if getattr(lote, 'fecha_fabricacion', None) else ''
         fecha_recepcion_str = lote.fecha_recepcion.strftime('%d/%m/%Y') if getattr(lote, 'fecha_recepcion', None) else ''
 
+        # RFC: prioridad orden/proveedor; si no hay, usar el guardado en el lote (carga masiva)
+        rfc_display = ''
+        if lote.orden_suministro and lote.orden_suministro.proveedor:
+            rfc_display = (lote.orden_suministro.proveedor.rfc or '').strip()
+        if not rfc_display:
+            rfc_display = (getattr(lote, 'rfc_proveedor', None) or '').strip()
+
         datos_reporte.append({
             'entidad': 'CIUDAD DE MÉXICO',  # Leyenda fija (no almacén/institucion)
             'clues': lote.institucion.clue if lote.institucion else '',
             'orden_suministro': lote.orden_suministro.numero_orden if lote.orden_suministro else '',
-            'rfc': lote.orden_suministro.proveedor.rfc if lote.orden_suministro and lote.orden_suministro.proveedor else '',
+            'rfc': rfc_display,
             'clave': lote.producto.clave_cnis if lote.producto else '',
             'estado_insumo': estado_texto,
             'inventario_disponible': lote.cantidad_disponible,
@@ -205,8 +215,11 @@ def exportar_inventario_detallado_excel(request):
         lotes = lotes.filter(orden_suministro__numero_orden__icontains=filtro_orden)
     
     if filtro_rfc:
-        lotes = lotes.filter(orden_suministro__proveedor__rfc__icontains=filtro_rfc)
-    
+        lotes = lotes.filter(
+            Q(orden_suministro__proveedor__rfc__icontains=filtro_rfc) |
+            Q(rfc_proveedor__icontains=filtro_rfc)
+        )
+
     if filtro_clave:
         lotes = lotes.filter(producto__clave_cnis__icontains=filtro_clave)
     
@@ -268,10 +281,12 @@ def exportar_inventario_detallado_excel(request):
         if not estado_texto and lote.estado is not None:
             estado_texto = str(lote.estado)
 
-        # RFC como string para que Excel no lo interprete como número/fecha (evita truncar o modificar)
+        # RFC: orden/proveedor primero; si no hay, usar lote.rfc_proveedor (carga masiva)
         rfc_val = ''
         if lote.orden_suministro and lote.orden_suministro.proveedor:
             rfc_val = (lote.orden_suministro.proveedor.rfc or '').strip()
+        if not rfc_val:
+            rfc_val = (getattr(lote, 'rfc_proveedor', None) or '').strip()
 
         # Fechas: cada columna usa explícitamente su campo (F_CAD=caducidad, F_FAB=fabricación, F_REC=recepción)
         fecha_caducidad_str = lote.fecha_caducidad.strftime('%d/%m/%Y') if getattr(lote, 'fecha_caducidad', None) else ''
@@ -484,7 +499,7 @@ def carga_masiva_inventario_detallado(request):
                     return True
                 return False
 
-            # Actualizar campos (respeta no_sobrescribir: solo asigna si el campo actual está vacío)
+            # Cantidad y estado: respetan no_sobrescribir (solo completar vacíos)
             if idx_inventario is not None and len(row) > idx_inventario and row[idx_inventario] is not None:
                 if not no_sobrescribir or _valor_actual_vacio(lote, 'cantidad_disponible'):
                     try:
@@ -497,40 +512,52 @@ def carga_masiva_inventario_detallado(request):
                 estado_int = _estado_to_int(row[idx_estado])
                 if estado_int is not None and (not no_sobrescribir or _valor_actual_vacio(lote, 'estado')):
                     lote.estado = estado_int
+
+            # Orden, RFC y fechas: siempre actualizar desde Excel cuando el archivo trae valor (datos de complemento)
+            if idx_rfc is not None and len(row) > idx_rfc and row[idx_rfc] is not None:
+                rfc_val = str(row[idx_rfc]).strip()
+                if rfc_val:
+                    lote.rfc_proveedor = rfc_val[:50]
             if idx_f_cad is not None and len(row) > idx_f_cad:
                 f = _parse_fecha_celda(row[idx_f_cad])
-                if f is not None and (not no_sobrescribir or _valor_actual_vacio(lote, 'fecha_caducidad', consider_cero_vacio=False)):
+                if f is not None:
                     lote.fecha_caducidad = f
             if idx_f_fab is not None and len(row) > idx_f_fab:
                 f = _parse_fecha_celda(row[idx_f_fab])
-                if f is not None and (not no_sobrescribir or _valor_actual_vacio(lote, 'fecha_fabricacion', consider_cero_vacio=False)):
+                if f is not None:
                     lote.fecha_fabricacion = f
             if idx_f_rec is not None and len(row) > idx_f_rec:
                 f = _parse_fecha_celda(row[idx_f_rec])
-                if f is not None and (not no_sobrescribir or _valor_actual_vacio(lote, 'fecha_recepcion', consider_cero_vacio=False)):
+                if f is not None:
                     lote.fecha_recepcion = f
-            if idx_rfc is not None and len(row) > idx_rfc and row[idx_rfc] is not None:
-                rfc_val = str(row[idx_rfc]).strip()
-                if rfc_val and (not no_sobrescribir or _valor_actual_vacio(lote, 'rfc_proveedor', consider_cero_vacio=False)):
-                    lote.rfc_proveedor = rfc_val[:50]
 
-            # Opcional: vincular OrdenSuministro si existe (solo si no_sobrescribir y actual vacío, o si no no_sobrescribir)
+            # Orden de suministro: siempre intentar vincular cuando el Excel trae valor; búsqueda flexible
             if idx_orden is not None and len(row) > idx_orden and row[idx_orden]:
                 orden_num = str(row[idx_orden]).strip()
-                if orden_num and (not no_sobrescribir or not lote.orden_suministro_id):
-                    if lote.rfc_proveedor:
+                if orden_num:
+                    orden = None
+                    # 1) Coincidencia exacta
+                    orden = OrdenSuministro.objects.filter(numero_orden=orden_num).first()
+                    if not orden and lote.rfc_proveedor:
                         proveedor = Proveedor.objects.filter(rfc=lote.rfc_proveedor).first()
                         if proveedor:
                             orden = OrdenSuministro.objects.filter(
                                 numero_orden=orden_num,
                                 proveedor=proveedor,
                             ).first()
-                            if orden:
-                                lote.orden_suministro = orden
-                    if not lote.orden_suministro_id:
-                        orden = OrdenSuministro.objects.filter(numero_orden=orden_num).first()
-                        if orden:
-                            lote.orden_suministro = orden
+                    # 2) Excel trae texto largo; buscar por primer token (ej. "3159804") o por inicio del texto
+                    if not orden:
+                        primer_token = (orden_num.split()[0] if orden_num.split() else orden_num)[:50]
+                        if primer_token:
+                            orden = OrdenSuministro.objects.filter(numero_orden__icontains=primer_token).first()
+                    if not orden and len(orden_num) > 10:
+                        for n in (30, 50, 80, 120):
+                            if n <= len(orden_num):
+                                orden = OrdenSuministro.objects.filter(numero_orden=orden_num[:n]).first()
+                                if orden:
+                                    break
+                    if orden:
+                        lote.orden_suministro = orden
 
             if not dry_run:
                 lote.save()
