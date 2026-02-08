@@ -97,38 +97,48 @@
             </div>
         </div>
 
-        <!-- Agregar Nueva Ubicación -->
+        <!-- Agregar Nueva Ubicación (varias filas) -->
         {% if ubicaciones_disponibles %}
-            <div class="card shadow mb-4">
-                <div class="card-header py-3">
+            <div class="card shadow mb-4" id="card-nuevas-ubicaciones">
+                <div class="card-header py-3 d-flex justify-content-between align-items-center">
                     <h6 class="m-0 font-weight-bold text-primary">Agregar Nueva Ubicación</h6>
+                    <span class="badge bg-secondary">Cantidad total del lote: <strong id="total-lote">{{ lote.cantidad_disponible }}</strong> unidades</span>
                 </div>
                 <div class="card-body">
-                    <div class="row">
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="nueva_ubicacion"><strong>Ubicación</strong></label>
-                                <select name="nueva_ubicacion" id="nueva_ubicacion" class="form-control">
-                                    <option value="">-- Selecciona una ubicación --</option>
-                                    {% for ubicacion in ubicaciones_disponibles %}
-                                        <option value="{{ ubicacion.id }}">
-                                            {{ ubicacion.codigo }} - {{ ubicacion.descripcion }}
-                                        </option>
-                                    {% endfor %}
-                                </select>
+                    <p class="text-muted small mb-3">La suma de las cantidades en todas las ubicaciones (asignadas + nuevas) no debe superar la cantidad total del lote.</p>
+                    <div id="filas-nuevas-ubicaciones">
+                        <div class="row align-items-end mb-2 fila-nueva-ubicacion" data-indice="0">
+                            <div class="col-md-5">
+                                <div class="form-group mb-0">
+                                    <label class="form-label"><strong>Ubicación</strong></label>
+                                    <select name="nueva_ubicacion_0" class="form-control form-control-sm select-nueva-ubicacion">
+                                        <option value="">-- Selecciona una ubicación --</option>
+                                        {% for ubicacion in ubicaciones_disponibles %}
+                                            <option value="{{ ubicacion.id }}">{{ ubicacion.codigo }} - {{ ubicacion.descripcion }}</option>
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <div class="col-md-4">
+                                <div class="form-group mb-0">
+                                    <label class="form-label"><strong>Cantidad</strong></label>
+                                    <input type="number" name="nueva_cantidad_0" class="form-control form-control-sm input-nueva-cantidad" min="0" placeholder="0" value="">
+                                </div>
+                            </div>
+                            <div class="col-md-3">
+                                <button type="button" class="btn btn-outline-danger btn-sm btn-quitar-fila d-none" title="Quitar esta fila">
+                                    <i class="fas fa-minus"></i> Quitar
+                                </button>
                             </div>
                         </div>
-                        <div class="col-md-6">
-                            <div class="form-group">
-                                <label for="nueva_cantidad"><strong>Cantidad</strong></label>
-                                <input type="number" 
-                                       name="nueva_cantidad" 
-                                       id="nueva_cantidad" 
-                                       class="form-control" 
-                                       min="1" 
-                                       placeholder="Cantidad a asignar">
-                            </div>
-                        </div>
+                    </div>
+                    <div class="mt-2">
+                        <button type="button" id="btn-agregar-otra-ubicacion" class="btn btn-outline-primary btn-sm">
+                            <i class="fas fa-plus"></i> Agregar otra ubicación
+                        </button>
+                    </div>
+                    <div id="alerta-suma" class="alert alert-warning mt-3 d-none" role="alert">
+                        <i class="fas fa-exclamation-triangle"></i> La suma de las cantidades no puede superar <strong id="max-permitido">{{ lote.cantidad_disponible }}</strong> unidades.
                     </div>
                 </div>
             </div>
@@ -136,7 +146,7 @@
 
         <!-- Botones de Acción -->
         <div class="mb-4">
-            <button type="submit" class="btn btn-primary btn-lg">
+            <button type="submit" class="btn btn-primary btn-lg" id="btn-guardar">
                 <i class="fas fa-save"></i> Guardar Cambios
             </button>
             <a href="{% url 'detalle_lote' lote.pk %}" class="btn btn-secondary btn-lg">
@@ -145,4 +155,111 @@
         </div>
     </form>
 </div>
+
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    var totalLote = {{ lote.cantidad_disponible|default:0 }};
+    var container = document.getElementById('filas-nuevas-ubicaciones');
+    var btnAgregar = document.getElementById('btn-agregar-otra-ubicacion');
+    var alertaSuma = document.getElementById('alerta-suma');
+    var form = document.querySelector('form');
+
+    if (!container) return;
+
+    function getSiguienteIndice() {
+        var filas = container.querySelectorAll('.fila-nueva-ubicacion');
+        var max = -1;
+        filas.forEach(function(f) {
+            var idx = parseInt(f.getAttribute('data-indice'), 10);
+            if (!isNaN(idx) && idx > max) max = idx;
+        });
+        return max + 1;
+    }
+
+    function actualizarBotonesQuitar() {
+        var filas = container.querySelectorAll('.fila-nueva-ubicacion');
+        filas.forEach(function(f) {
+            var btn = f.querySelector('.btn-quitar-fila');
+            if (btn) btn.classList.toggle('d-none', filas.length <= 1);
+        });
+    }
+
+    function armarOpcionesSelect() {
+        var primeraFila = container.querySelector('.fila-nueva-ubicacion');
+        if (!primeraFila) return '';
+        var sel = primeraFila.querySelector('select');
+        if (!sel) return '';
+        var opts = [];
+        for (var i = 0; i < sel.options.length; i++) {
+            var o = sel.options[i];
+            opts.push('<option value="' + (o.value || '') + '">' + o.text + '</option>');
+        }
+        return opts.join('');
+    }
+
+    if (btnAgregar) {
+        btnAgregar.addEventListener('click', function() {
+            var indice = getSiguienteIndice();
+            var opcionesHtml = armarOpcionesSelect();
+            var fila = document.createElement('div');
+            fila.className = 'row align-items-end mb-2 fila-nueva-ubicacion';
+            fila.setAttribute('data-indice', indice);
+            fila.innerHTML =
+                '<div class="col-md-5"><div class="form-group mb-0"><label class="form-label"><strong>Ubicación</strong></label>' +
+                '<select name="nueva_ubicacion_' + indice + '" class="form-control form-control-sm select-nueva-ubicacion">' + opcionesHtml + '</select></div></div>' +
+                '<div class="col-md-4"><div class="form-group mb-0"><label class="form-label"><strong>Cantidad</strong></label>' +
+                '<input type="number" name="nueva_cantidad_' + indice + '" class="form-control form-control-sm input-nueva-cantidad" min="0" placeholder="0" value=""></div></div>' +
+                '<div class="col-md-3"><button type="button" class="btn btn-outline-danger btn-sm btn-quitar-fila" title="Quitar esta fila"><i class="fas fa-minus"></i> Quitar</button></div>';
+            container.appendChild(fila);
+            actualizarBotonesQuitar();
+            fila.querySelector('.btn-quitar-fila').addEventListener('click', function() {
+                fila.remove();
+                actualizarBotonesQuitar();
+            });
+        });
+    }
+
+    container.addEventListener('click', function(e) {
+        if (e.target.closest('.btn-quitar-fila')) {
+            var fila = e.target.closest('.fila-nueva-ubicacion');
+            if (fila && container.querySelectorAll('.fila-nueva-ubicacion').length > 1) {
+                fila.remove();
+                actualizarBotonesQuitar();
+            }
+        }
+    });
+
+    function sumarCantidades() {
+        var total = 0;
+        document.querySelectorAll('input[name^="ubicacion_"][name$="_cantidad"]').forEach(function(inp) {
+            var v = parseInt(inp.value, 10);
+            if (!isNaN(v) && v > 0) total += v;
+        });
+        document.querySelectorAll('.input-nueva-cantidad').forEach(function(inp) {
+            var v = parseInt(inp.value, 10);
+            if (!isNaN(v) && v > 0) total += v;
+        });
+        return total;
+    }
+
+    if (form) {
+        form.addEventListener('submit', function(e) {
+            var suma = sumarCantidades();
+            if (suma > totalLote) {
+                e.preventDefault();
+                if (alertaSuma) {
+                    alertaSuma.classList.remove('d-none');
+                    var maxEl = document.getElementById('max-permitido');
+                    if (maxEl) maxEl.textContent = totalLote;
+                }
+                alert('La suma de las cantidades (' + suma + ') no puede superar la cantidad total del lote (' + totalLote + ').');
+                return false;
+            }
+            if (alertaSuma) alertaSuma.classList.add('d-none');
+        });
+    }
+
+    actualizarBotonesQuitar();
+});
+</script>
 {% endblock %}

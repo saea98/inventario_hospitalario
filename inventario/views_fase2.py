@@ -109,6 +109,7 @@ def lista_citas(request):
         'programada': CitaProveedor.objects.filter(estado='programada').count(),
         'autorizada': CitaProveedor.objects.filter(estado='autorizada').count(),
         'completada': CitaProveedor.objects.filter(estado='completada').count(),
+        'rechazada': CitaProveedor.objects.filter(estado='rechazada').count(),
         'cancelada': CitaProveedor.objects.filter(estado='cancelada').count(),
     }
     
@@ -445,7 +446,7 @@ def validar_entrada(request, pk):
                     request.user,
                     form.cleaned_data['justificacion']
                 )
-                messages.warning(request, '✗ Entrada rechazada. La cita ha sido cancelada.')
+                messages.warning(request, '✗ Entrada rechazada. La cita ha quedado en estado Rechazada (insumo no cumplió criterios).')
                 return redirect('logistica:lista_citas')
     
     # Preparar contexto con valor inicial de tipo_red si existe
@@ -479,9 +480,12 @@ def cancelar_cita(request, pk):
     cita = get_object_or_404(CitaProveedor, pk=pk)
     
     if cita.estado == 'cancelada':
-        messages.warning(request, 'Esta cita ya está cancelada')
+        messages.warning(request, 'Esta cita ya está cancelada.')
         return redirect('logistica:lista_citas')
-    
+    if cita.estado == 'rechazada':
+        messages.warning(request, 'Esta cita está rechazada (insumo no cumplió criterios). Para cancelar por otro motivo use una cita en estado Programada o Autorizada.')
+        return redirect('logistica:detalle_cita', pk=pk)
+
     if request.method == 'POST':
         cita.estado = 'cancelada'
         cita.save()

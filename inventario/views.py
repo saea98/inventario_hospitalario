@@ -1882,6 +1882,54 @@ def editar_ubicaciones_lote(request, pk):
                             ubicaciones_data[ubicacion_id] = {}
                         ubicaciones_data[ubicacion_id][field_name] = value
             
+            # Ubicaciones marcadas para eliminar no cuentan en el total
+            eliminar_ids = set(request.POST.getlist('eliminar_ubicacion'))
+
+            # Calcular total que quedaría: ubicaciones existentes (editadas, no eliminadas) + nuevas
+            total_editado = 0
+            for ubicacion_id, data in ubicaciones_data.items():
+                if ubicacion_id in eliminar_ids:
+                    continue
+                if 'cantidad' in data and data['cantidad']:
+                    try:
+                        cantidad_nueva = int(data['cantidad'])
+                        if cantidad_nueva >= 0:
+                            total_editado += cantidad_nueva
+                    except ValueError:
+                        pass
+
+            # Recolectar nuevas ubicaciones (nueva_ubicacion_0, nueva_cantidad_0, ...)
+            nuevas_ubicaciones = []
+            for i in range(0, 100):
+                ubi_id = request.POST.get(f'nueva_ubicacion_{i}', '').strip()
+                cant_str = request.POST.get(f'nueva_cantidad_{i}')
+                if ubi_id and cant_str is not None:
+                    try:
+                        cant = int(cant_str or 0)
+                        if cant > 0:
+                            nuevas_ubicaciones.append((ubi_id, cant))
+                            total_editado += cant
+                    except ValueError:
+                        pass
+
+            # Candado: la suma no puede superar la cantidad total del lote
+            if total_editado > lote.cantidad_disponible:
+                messages.error(
+                    request,
+                    f"La suma de las cantidades ({total_editado}) no puede superar la cantidad total del lote ({lote.cantidad_disponible} unidades)."
+                )
+                ubicaciones_actuales = LoteUbicacion.objects.filter(lote=lote).order_by('ubicacion__codigo')
+                ubicaciones_disponibles = UbicacionAlmacen.objects.filter(activo=True).exclude(
+                    id__in=ubicaciones_actuales.values_list('ubicacion_id', flat=True)
+                ).order_by('codigo')
+                context = {
+                    'lote': lote,
+                    'ubicaciones_actuales': ubicaciones_actuales,
+                    'ubicaciones_disponibles': ubicaciones_disponibles,
+                    'total_cantidad': sum(u.cantidad for u in ubicaciones_actuales),
+                }
+                return render(request, 'inventario/lotes/editar_ubicaciones_lote.html', context)
+
             # Actualizar ubicaciones existentes
             for ubicacion_id, data in ubicaciones_data.items():
                 try:
@@ -1910,45 +1958,34 @@ def editar_ubicaciones_lote(request, pk):
                 except (ValueError, LoteUbicacion.DoesNotExist):
                     pass
             
-            # Agregar nueva ubicación si se proporciona
-            nueva_ubicacion_id = request.POST.get('nueva_ubicacion')
-            nueva_cantidad = request.POST.get('nueva_cantidad')
-            
-            if nueva_ubicacion_id and nueva_cantidad:
+            # Agregar nuevas ubicaciones (varias filas)
+            for ubi_id, nueva_cantidad in nuevas_ubicaciones:
                 try:
-                    nueva_cantidad = int(nueva_cantidad)
-                    if nueva_cantidad > 0:
-                        ubicacion_almacen = UbicacionAlmacen.objects.get(id=nueva_ubicacion_id)
-                        
-                        # Verificar que no exista ya
-                        if not LoteUbicacion.objects.filter(lote=lote, ubicacion=ubicacion_almacen).exists():
-                            lote_ubicacion = LoteUbicacion.objects.create(
-                                lote=lote,
-                                ubicacion=ubicacion_almacen,
-                                cantidad=nueva_cantidad,
-                                usuario_asignacion=request.user
-                            )
-                            
-                            # Registrar movimiento de entrada
-                            MovimientoInventario.objects.create(
-                                lote=lote,
-                                tipo_movimiento='AJUSTE_POSITIVO',
-                                cantidad=nueva_cantidad,
-                                cantidad_anterior=0,
-                                cantidad_nueva=nueva_cantidad,
-                                motivo=f'Nueva ubicación {ubicacion_almacen.codigo} agregada (Edición de ubicaciones)',
-                                usuario=request.user
-                            )
-                            
-                            messages.success(request, f"✅ Ubicación {ubicacion_almacen.codigo} agregada correctamente.")
-                        else:
-                            messages.warning(request, f"⚠️ La ubicación {ubicacion_almacen.codigo} ya está asignada a este lote.")
+                    ubicacion_almacen = UbicacionAlmacen.objects.get(id=ubi_id)
+                    if not LoteUbicacion.objects.filter(lote=lote, ubicacion=ubicacion_almacen).exists():
+                        LoteUbicacion.objects.create(
+                            lote=lote,
+                            ubicacion=ubicacion_almacen,
+                            cantidad=nueva_cantidad,
+                            usuario_asignacion=request.user
+                        )
+                        MovimientoInventario.objects.create(
+                            lote=lote,
+                            tipo_movimiento='AJUSTE_POSITIVO',
+                            cantidad=nueva_cantidad,
+                            cantidad_anterior=0,
+                            cantidad_nueva=nueva_cantidad,
+                            motivo=f'Nueva ubicación {ubicacion_almacen.codigo} agregada (Edición de ubicaciones)',
+                            usuario=request.user
+                        )
+                        messages.success(request, f"✅ Ubicación {ubicacion_almacen.codigo} agregada correctamente.")
+                    else:
+                        messages.warning(request, f"⚠️ La ubicación {ubicacion_almacen.codigo} ya está asignada a este lote.")
                 except (ValueError, UbicacionAlmacen.DoesNotExist):
-                    messages.error(request, "❌ Error al agregar la ubicación.")
+                    messages.error(request, "❌ Error al agregar una ubicación.")
             
             # Eliminar ubicaciones marcadas
             from .pedidos_models import LoteAsignado
-            eliminar_ids = request.POST.getlist('eliminar_ubicacion')
             for ubicacion_id in eliminar_ids:
                 try:
                     ubicacion = LoteUbicacion.objects.get(id=ubicacion_id, lote=lote)

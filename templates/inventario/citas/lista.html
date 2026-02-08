@@ -24,7 +24,7 @@
 
     <!-- Estadísticas -->
     <div class="row mb-4">
-        <div class="col-md-3">
+        <div class="col">
             <div class="card stat-card">
                 <div class="card-body">
                     <h6 class="card-title">Programadas</h6>
@@ -32,7 +32,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col">
             <div class="card stat-card-success">
                 <div class="card-body">
                     <h6 class="card-title">Autorizadas</h6>
@@ -40,7 +40,7 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col">
             <div class="card stat-card-info">
                 <div class="card-body">
                     <h6 class="card-title">Completadas</h6>
@@ -48,7 +48,15 @@
                 </div>
             </div>
         </div>
-        <div class="col-md-3">
+        <div class="col">
+            <div class="card border-danger">
+                <div class="card-body">
+                    <h6 class="card-title text-danger">Rechazadas</h6>
+                    <h3>{{ estados_count.rechazada }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col">
             <div class="card stat-card-warning">
                 <div class="card-body">
                     <h6 class="card-title">Canceladas</h6>
@@ -259,6 +267,8 @@
                                         <span class="badge bg-success">Autorizada</span>
                                     {% elif cita.estado == 'completada' %}
                                         <span class="badge bg-info">Completada</span>
+                                    {% elif cita.estado == 'rechazada' %}
+                                        <span class="badge bg-danger">Rechazada</span>
                                     {% elif cita.estado == 'cancelada' %}
                                         <span class="badge bg-secondary">Cancelada</span>
                                     {% endif %}

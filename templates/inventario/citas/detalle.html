@@ -20,6 +20,8 @@
                         <span class="badge bg-success" style="font-size: 1rem;">Autorizada</span>
                     {% elif cita.estado == 'completada' %}
                         <span class="badge bg-info" style="font-size: 1rem;">Completada</span>
+                    {% elif cita.estado == 'rechazada' %}
+                        <span class="badge bg-danger" style="font-size: 1rem;">Rechazada</span>
                     {% elif cita.estado == 'cancelada' %}
                         <span class="badge bg-secondary" style="font-size: 1rem;">Cancelada</span>
                     {% endif %}
@@ -243,13 +245,13 @@
                     </a>
                 {% endif %}
 
-                {% if cita.estado != 'cancelada' and cita.estado != 'completada' %}
+                {% if cita.estado != 'cancelada' and cita.estado != 'rechazada' and cita.estado != 'completada' %}
                     <a href="{% url 'logistica:cancelar_cita' cita.pk %}" class="btn btn-danger btn-lg">
                         <i class="fas fa-times"></i> Cancelar
                     </a>
                 {% endif %}
 
-                {% if cita.estado == 'cancelada' %}
+                {% if cita.estado == 'rechazada' or cita.estado == 'cancelada' %}
                     <a href="{% url 'logistica:cedula_rechazo' cita.pk %}" class="btn btn-info btn-lg">
                         <i class="fas fa-file-pdf"></i> Cédula de Rechazo
                     </a>

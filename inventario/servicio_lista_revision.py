@@ -100,10 +100,10 @@ class ServicioListaRevision:
         lista_revision.justificacion_rechazo = justificacion
         lista_revision.save()
         
-        # Actualizar estado de la cita a cancelada
+        # Actualizar estado de la cita a rechazada (insumo no cumplió criterios; distinto de cancelada)
         cita = lista_revision.cita
-        cita.estado = 'cancelada'
-        cita.usuario_cancelacion = usuario
+        cita.estado = 'rechazada'
+        cita.usuario_cancelacion = usuario  # usuario que rechazó
         cita.fecha_cancelacion = timezone.now()
         cita.save()
         

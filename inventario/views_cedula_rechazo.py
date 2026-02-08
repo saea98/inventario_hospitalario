@@ -14,13 +14,13 @@ from .models import CitaProveedor, ListaRevision
 def generar_cedula_rechazo(request, pk):
     """
     Generar cédula de rechazo en HTML imprimible.
-    Solo disponible para citas canceladas.
+    Disponible para citas rechazadas (insumo no cumplió criterios) o canceladas.
     """
     cita = get_object_or_404(CitaProveedor, pk=pk)
     
-    # Verificar que la cita esté cancelada
-    if cita.estado != 'cancelada':
-        messages.warning(request, 'Solo se pueden generar cédulas para citas canceladas.')
+    # Verificar que la cita esté rechazada o cancelada
+    if cita.estado not in ('rechazada', 'cancelada'):
+        messages.warning(request, 'Solo se pueden generar cédulas para citas rechazadas o canceladas.')
         return redirect('logistica:detalle_cita', pk=pk)
     
     # Obtener lista de revisión
@@ -51,9 +51,9 @@ def imprimir_cedula_rechazo(request, pk):
     """
     cita = get_object_or_404(CitaProveedor, pk=pk)
     
-    # Verificar que la cita esté cancelada
-    if cita.estado != 'cancelada':
-        return HttpResponse('Solo se pueden imprimir cédulas para citas canceladas.', status=400)
+    # Verificar que la cita esté rechazada o cancelada
+    if cita.estado not in ('rechazada', 'cancelada'):
+        return HttpResponse('Solo se pueden imprimir cédulas para citas rechazadas o canceladas.', status=400)
     
     # Obtener lista de revisión
     try:

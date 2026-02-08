@@ -785,7 +785,8 @@ class CitaProveedor(models.Model):
         ('programada', 'Programada'),
         ('autorizada', 'Autorizada'),
         ('completada', 'Completada'),
-        ('cancelada', 'Cancelada'),
+        ('rechazada', 'Rechazada'),   # Insumo no cumplió criterios; se recibió al proveedor pero se rechazó
+        ('cancelada', 'Cancelada'),   # Cita cancelada por otro motivo (sin recepción o por logística)
     ]
 
     proveedor = models.ForeignKey(Proveedor, on_delete=models.CASCADE, related_name='citas')
