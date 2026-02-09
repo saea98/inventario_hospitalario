@@ -88,6 +88,18 @@
                 </div>
 
                 <div class="col-md-3">
+                    <label class="form-label">Ubicación</label>
+                    <select name="ubicacion" id="filtro_ubicacion" class="form-select">
+                        <option value="">Todas las ubicaciones</option>
+                        {% for ub in ubicaciones %}
+                        <option value="{{ ub.id }}" {% if filtro_ubicacion|stringformat:"s" == ub.id|stringformat:"s" %}selected{% endif %}>
+                            {{ ub.codigo }}{% if ub.almacen %} ({{ ub.almacen.nombre }}){% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+
+                <div class="col-md-3">
                     <label class="form-label">Producto</label>
                     <select name="producto" class="form-select">
                         <option value="">Todos los productos</option>
@@ -129,7 +141,7 @@
     </div>
 
     <!-- Información de Búsqueda Activa -->
-    {% if busqueda_lote or busqueda_cnis or busqueda_producto or filtro_institucion or filtro_estado or filtro_almacen or filtro_producto or filtro_caducidad %}
+    {% if busqueda_lote or busqueda_cnis or busqueda_producto or filtro_institucion or filtro_estado or filtro_almacen or filtro_ubicacion or filtro_producto or filtro_caducidad %}
     <div class="alert alert-info mb-4">
         <strong>Filtros Activos:</strong>
         {% if busqueda_lote %}<span class="badge bg-info">Lote: {{ busqueda_lote }}</span>{% endif %}
@@ -138,6 +150,7 @@
         {% if filtro_institucion %}<span class="badge bg-info">Institución: {{ filtro_institucion }}</span>{% endif %}
         {% if filtro_estado %}<span class="badge bg-info">Estado: {{ filtro_estado }}</span>{% endif %}
         {% if filtro_almacen %}<span class="badge bg-info">Almacén: {{ filtro_almacen }}</span>{% endif %}
+        {% if filtro_ubicacion %}<span class="badge bg-info">Ubicación: {{ filtro_ubicacion }}</span>{% endif %}
         {% if filtro_producto %}<span class="badge bg-info">Producto ID: {{ filtro_producto }}</span>{% endif %}
         {% if filtro_caducidad == "caducados" %}<span class="badge bg-danger">Caducados</span>{% endif %}
         {% if filtro_caducidad == "menos_30" %}<span class="badge bg-warning">Menos de 30 días</span>{% endif %}
@@ -269,10 +282,10 @@
             <ul class="pagination justify-content-center">
                 {% if page_obj.has_previous %}
                     <li class="page-item">
-                        <a class="page-link" href="?page=1{% if busqueda_lote %}&busqueda_lote={{ busqueda_lote }}{% endif %}{% if busqueda_cnis %}&busqueda_cnis={{ busqueda_cnis }}{% endif %}{% if busqueda_producto %}&busqueda_producto={{ busqueda_producto }}{% endif %}{% if filtro_institucion %}&institucion={{ filtro_institucion }}{% endif %}{% if filtro_estado %}&estado={{ filtro_estado }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_producto %}&producto={{ filtro_producto }}{% endif %}">Primera</a>
+                        <a class="page-link" href="?page=1{% if busqueda_lote %}&busqueda_lote={{ busqueda_lote }}{% endif %}{% if busqueda_cnis %}&busqueda_cnis={{ busqueda_cnis }}{% endif %}{% if busqueda_producto %}&busqueda_producto={{ busqueda_producto }}{% endif %}{% if filtro_institucion %}&institucion={{ filtro_institucion }}{% endif %}{% if filtro_estado %}&estado={{ filtro_estado }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_ubicacion %}&ubicacion={{ filtro_ubicacion }}{% endif %}{% if filtro_producto %}&producto={{ filtro_producto }}{% endif %}">Primera</a>
                     </li>
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if busqueda_lote %}&busqueda_lote={{ busqueda_lote }}{% endif %}{% if busqueda_cnis %}&busqueda_cnis={{ busqueda_cnis }}{% endif %}{% if busqueda_producto %}&busqueda_producto={{ busqueda_producto }}{% endif %}{% if filtro_institucion %}&institucion={{ filtro_institucion }}{% endif %}{% if filtro_estado %}&estado={{ filtro_estado }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_producto %}&producto={{ filtro_producto }}{% endif %}">Anterior</a>
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if busqueda_lote %}&busqueda_lote={{ busqueda_lote }}{% endif %}{% if busqueda_cnis %}&busqueda_cnis={{ busqueda_cnis }}{% endif %}{% if busqueda_producto %}&busqueda_producto={{ busqueda_producto }}{% endif %}{% if filtro_institucion %}&institucion={{ filtro_institucion }}{% endif %}{% if filtro_estado %}&estado={{ filtro_estado }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_ubicacion %}&ubicacion={{ filtro_ubicacion }}{% endif %}{% if filtro_producto %}&producto={{ filtro_producto }}{% endif %}">Anterior</a>
                     </li>
                 {% endif %}
                 
@@ -282,10 +295,10 @@
                 
                 {% if page_obj.has_next %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if busqueda_lote %}&busqueda_lote={{ busqueda_lote }}{% endif %}{% if busqueda_cnis %}&busqueda_cnis={{ busqueda_cnis }}{% endif %}{% if busqueda_producto %}&busqueda_producto={{ busqueda_producto }}{% endif %}{% if filtro_institucion %}&institucion={{ filtro_institucion }}{% endif %}{% if filtro_estado %}&estado={{ filtro_estado }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_producto %}&producto={{ filtro_producto }}{% endif %}">Siguiente</a>
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if busqueda_lote %}&busqueda_lote={{ busqueda_lote }}{% endif %}{% if busqueda_cnis %}&busqueda_cnis={{ busqueda_cnis }}{% endif %}{% if busqueda_producto %}&busqueda_producto={{ busqueda_producto }}{% endif %}{% if filtro_institucion %}&institucion={{ filtro_institucion }}{% endif %}{% if filtro_estado %}&estado={{ filtro_estado }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_ubicacion %}&ubicacion={{ filtro_ubicacion }}{% endif %}{% if filtro_producto %}&producto={{ filtro_producto }}{% endif %}">Siguiente</a>
                     </li>
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if busqueda_lote %}&busqueda_lote={{ busqueda_lote }}{% endif %}{% if busqueda_cnis %}&busqueda_cnis={{ busqueda_cnis }}{% endif %}{% if busqueda_producto %}&busqueda_producto={{ busqueda_producto }}{% endif %}{% if filtro_institucion %}&institucion={{ filtro_institucion }}{% endif %}{% if filtro_estado %}&estado={{ filtro_estado }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_producto %}&producto={{ filtro_producto }}{% endif %}">Última</a>
+                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if busqueda_lote %}&busqueda_lote={{ busqueda_lote }}{% endif %}{% if busqueda_cnis %}&busqueda_cnis={{ busqueda_cnis }}{% endif %}{% if busqueda_producto %}&busqueda_producto={{ busqueda_producto }}{% endif %}{% if filtro_institucion %}&institucion={{ filtro_institucion }}{% endif %}{% if filtro_estado %}&estado={{ filtro_estado }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_ubicacion %}&ubicacion={{ filtro_ubicacion }}{% endif %}{% if filtro_producto %}&producto={{ filtro_producto }}{% endif %}">Última</a>
                     </li>
                 {% endif %}
             </ul>
@@ -342,6 +355,7 @@
           <input type="hidden" name="filtro_institucion" value="{{ filtro_institucion }}">
           <input type="hidden" name="filtro_estado" value="{{ filtro_estado }}">
           <input type="hidden" name="filtro_almacen" value="{{ filtro_almacen }}">
+          <input type="hidden" name="filtro_ubicacion" value="{{ filtro_ubicacion }}">
           <input type="hidden" name="filtro_producto" value="{{ filtro_producto }}">
           <input type="hidden" name="filtro_caducidad" value="{{ filtro_caducidad }}">
           <input type="hidden" name="busqueda_lote" value="{{ busqueda_lote }}">

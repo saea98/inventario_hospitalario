@@ -15,7 +15,7 @@ from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
-from .models import MovimientoInventario, Institucion, Almacen, Proveedor
+from .models import MovimientoInventario, Institucion, Almacen, Proveedor, UbicacionAlmacen
 
 
 @login_required
@@ -33,6 +33,7 @@ def reporte_entradas(request):
         'lote__producto',
         'lote__institucion',
         'lote__almacen',
+        'lote__ubicacion',
         'usuario'
     ).order_by('-fecha_movimiento')
     
@@ -43,6 +44,7 @@ def reporte_entradas(request):
     filtro_lote = request.GET.get('lote', '').strip()
     filtro_institucion = request.GET.get('institucion', '')
     filtro_almacen = request.GET.get('almacen', '')
+    filtro_ubicacion = request.GET.get('ubicacion', '')
     filtro_proveedor = request.GET.get('proveedor', '')
     
     # Aplicar filtro de fecha desde
@@ -78,6 +80,10 @@ def reporte_entradas(request):
     # Aplicar filtro de almacén
     if filtro_almacen:
         entradas = entradas.filter(lote__almacen__nombre=filtro_almacen)
+    
+    # Aplicar filtro de ubicación
+    if filtro_ubicacion:
+        entradas = entradas.filter(lote__ubicacion_id=filtro_ubicacion)
     
     # Aplicar filtro de proveedor (buscar en documento_referencia o motivo)
     if filtro_proveedor:
@@ -123,6 +129,7 @@ def reporte_entradas(request):
     # Obtener opciones de filtro
     instituciones = Institucion.objects.all().order_by('denominacion')
     almacenes = Almacen.objects.all().order_by('nombre')
+    ubicaciones = UbicacionAlmacen.objects.filter(activo=True).select_related('almacen').order_by('almacen__nombre', 'codigo')
     
     context = {
         'page_obj': page_obj,
@@ -131,12 +138,14 @@ def reporte_entradas(request):
         'total_valor': total_valor,
         'instituciones': instituciones,
         'almacenes': almacenes,
+        'ubicaciones': ubicaciones,
         'filtro_fecha_desde': filtro_fecha_desde,
         'filtro_fecha_hasta': filtro_fecha_hasta,
         'filtro_clave': filtro_clave,
         'filtro_lote': filtro_lote,
         'filtro_institucion': filtro_institucion,
         'filtro_almacen': filtro_almacen,
+        'filtro_ubicacion': filtro_ubicacion,
         'filtro_proveedor': filtro_proveedor,
     }
     
@@ -157,6 +166,7 @@ def exportar_entradas_excel(request):
         'lote__producto',
         'lote__institucion',
         'lote__almacen',
+        'lote__ubicacion',
         'usuario'
     ).order_by('-fecha_movimiento')
     
@@ -167,6 +177,7 @@ def exportar_entradas_excel(request):
     filtro_lote = request.GET.get('lote', '').strip()
     filtro_institucion = request.GET.get('institucion', '')
     filtro_almacen = request.GET.get('almacen', '')
+    filtro_ubicacion = request.GET.get('ubicacion', '')
     filtro_proveedor = request.GET.get('proveedor', '')
     
     # Aplicar filtros
@@ -196,6 +207,9 @@ def exportar_entradas_excel(request):
     
     if filtro_almacen:
         entradas = entradas.filter(lote__almacen__nombre=filtro_almacen)
+    
+    if filtro_ubicacion:
+        entradas = entradas.filter(lote__ubicacion_id=filtro_ubicacion)
     
     if filtro_proveedor:
         entradas = entradas.filter(

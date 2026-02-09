@@ -103,6 +103,18 @@
                     </select>
                 </div>
                 
+                <div class="col-md-2">
+                    <label for="ubicacion" class="form-label">Ubicación</label>
+                    <select name="ubicacion" class="form-select" id="ubicacion">
+                        <option value="">Todas</option>
+                        {% for ub in ubicaciones %}
+                        <option value="{{ ub.id }}" {% if filtro_ubicacion == ub.id|stringformat:"s" %}selected{% endif %}>
+                            {{ ub.codigo }}{% if ub.almacen %} ({{ ub.almacen.nombre }}){% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                
                 <div class="col-md-3">
                     <label for="proveedor" class="form-label">Proveedor / Remisión</label>
                     <input type="text" class="form-control" id="proveedor" name="proveedor" 
@@ -205,12 +217,12 @@
                 <ul class="pagination justify-content-center mb-0">
                     {% if page_obj.has_previous %}
                         <li class="page-item">
-                            <a class="page-link" href="?page=1{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}{% if filtro_clave %}&clave={{ filtro_clave }}{% endif %}{% if filtro_lote %}&lote={{ filtro_lote }}{% endif %}{% if filtro_institucion %}&institucion={{ filtro_institucion }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_proveedor %}&proveedor={{ filtro_proveedor }}{% endif %}">
+                            <a class="page-link" href="?page=1{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}{% if filtro_clave %}&clave={{ filtro_clave }}{% endif %}{% if filtro_lote %}&lote={{ filtro_lote }}{% endif %}{% if filtro_institucion %}&institucion={{ filtro_institucion }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_ubicacion %}&ubicacion={{ filtro_ubicacion }}{% endif %}{% if filtro_proveedor %}&proveedor={{ filtro_proveedor }}{% endif %}">
                                 <i class="fas fa-angle-double-left"></i>
                             </a>
                         </li>
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}{% if filtro_clave %}&clave={{ filtro_clave }}{% endif %}{% if filtro_lote %}&lote={{ filtro_lote }}{% endif %}{% if filtro_institucion %}&institucion={{ filtro_institucion }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_proveedor %}&proveedor={{ filtro_proveedor }}{% endif %}">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}{% if filtro_clave %}&clave={{ filtro_clave }}{% endif %}{% if filtro_lote %}&lote={{ filtro_lote }}{% endif %}{% if filtro_institucion %}&institucion={{ filtro_institucion }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_ubicacion %}&ubicacion={{ filtro_ubicacion }}{% endif %}{% if filtro_proveedor %}&proveedor={{ filtro_proveedor }}{% endif %}">
                                 <i class="fas fa-angle-left"></i>
                             </a>
                         </li>
@@ -220,12 +232,12 @@
                     </li>
                     {% if page_obj.has_next %}
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}{% if filtro_clave %}&clave={{ filtro_clave }}{% endif %}{% if filtro_lote %}&lote={{ filtro_lote }}{% endif %}{% if filtro_institucion %}&institucion={{ filtro_institucion }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_proveedor %}&proveedor={{ filtro_proveedor }}{% endif %}">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}{% if filtro_clave %}&clave={{ filtro_clave }}{% endif %}{% if filtro_lote %}&lote={{ filtro_lote }}{% endif %}{% if filtro_institucion %}&institucion={{ filtro_institucion }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_ubicacion %}&ubicacion={{ filtro_ubicacion }}{% endif %}{% if filtro_proveedor %}&proveedor={{ filtro_proveedor }}{% endif %}">
                                 <i class="fas fa-angle-right"></i>
                             </a>
                         </li>
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}{% if filtro_clave %}&clave={{ filtro_clave }}{% endif %}{% if filtro_lote %}&lote={{ filtro_lote }}{% endif %}{% if filtro_institucion %}&institucion={{ filtro_institucion }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_proveedor %}&proveedor={{ filtro_proveedor }}{% endif %}">
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}{% if filtro_clave %}&clave={{ filtro_clave }}{% endif %}{% if filtro_lote %}&lote={{ filtro_lote }}{% endif %}{% if filtro_institucion %}&institucion={{ filtro_institucion }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_ubicacion %}&ubicacion={{ filtro_ubicacion }}{% endif %}{% if filtro_proveedor %}&proveedor={{ filtro_proveedor }}{% endif %}">
                                 <i class="fas fa-angle-double-right"></i>
                             </a>
                         </li>

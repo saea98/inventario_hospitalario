@@ -130,6 +130,7 @@ def lista_lotes(request):
     filtro_institucion = request.GET.get('institucion', '')
     filtro_estado = request.GET.get('estado', '')
     filtro_almacen = request.GET.get('almacen', '')
+    filtro_ubicacion = request.GET.get('ubicacion', '')
     filtro_producto = request.GET.get('producto', '')
     filtro_caducidad = request.GET.get('caducidad', '')
     busqueda_lote = request.GET.get('busqueda_lote', '')
@@ -146,6 +147,9 @@ def lista_lotes(request):
     
     if filtro_almacen:
         lotes = lotes.filter(almacen_id=int(filtro_almacen))
+    
+    if filtro_ubicacion:
+        lotes = lotes.filter(ubicacion_id=int(filtro_ubicacion))
     
     if filtro_producto:
         lotes = lotes.filter(producto_id=int(filtro_producto))
@@ -187,6 +191,7 @@ def lista_lotes(request):
     # Opciones para filtros
     instituciones = Institucion.objects.filter(activo=True).order_by('clue')
     almacenes = Almacen.objects.filter(activo=True).select_related('institucion')
+    ubicaciones = UbicacionAlmacen.objects.filter(activo=True).select_related('almacen').order_by('almacen__nombre', 'codigo')
     productos = Producto.objects.filter(activo=True)
     estados = Lote.ESTADOS_CHOICES
     
@@ -236,11 +241,13 @@ def lista_lotes(request):
         'page_obj': page_obj,
         'instituciones': instituciones,
         'almacenes': almacenes,
+        'ubicaciones': ubicaciones,
         'productos': productos,
         'estados': estados,
         'filtro_institucion': filtro_institucion,
         'filtro_estado': filtro_estado,
         'filtro_almacen': filtro_almacen,
+        'filtro_ubicacion': filtro_ubicacion,
         'filtro_producto': filtro_producto,
         'filtro_caducidad': filtro_caducidad,
         'busqueda_lote': busqueda_lote,
@@ -680,6 +687,7 @@ def exportar_lotes_personalizado(request):
             filtro_institucion = request.POST.get('filtro_institucion', '')
             filtro_estado = request.POST.get('filtro_estado', '')
             filtro_almacen = request.POST.get('filtro_almacen', '')
+            filtro_ubicacion = request.POST.get('filtro_ubicacion', '')
             filtro_producto = request.POST.get('filtro_producto', '')
             filtro_caducidad = request.POST.get('filtro_caducidad', '')
             busqueda_lote = request.POST.get('busqueda_lote', '')
@@ -695,6 +703,9 @@ def exportar_lotes_personalizado(request):
             
             if filtro_almacen:
                 lotes = lotes.filter(almacen_id=int(filtro_almacen))
+            
+            if filtro_ubicacion:
+                lotes = lotes.filter(ubicacion_id=int(filtro_ubicacion))
             
             if filtro_producto:
                 lotes = lotes.filter(producto_id=int(filtro_producto))
