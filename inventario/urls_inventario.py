@@ -17,6 +17,7 @@ urlpatterns = [
     # Consulta de lotes
     path('lotes/', views_inventario.lista_lotes, name='lista_lotes'),
     path('lotes/<int:lote_id>/', views_inventario.detalle_lote, name='detalle_lote'),
+    path('lotes/<int:lote_id>/ajustar-cantidad/', views_inventario.ajustar_cantidad_lote, name='ajustar_cantidad_lote'),
     
     # Movimientos
     path('movimientos/', views_inventario.lista_movimientos, name='lista_movimientos'),

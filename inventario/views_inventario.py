@@ -373,6 +373,14 @@ def detalle_lote(request, lote_id):
     esta_proximo_caducar = lote.esta_proximo_a_caducar
     esta_caducado = lote.esta_caducado
     
+    # Usuario con perfil gestión de almacén puede editar cantidad (ajuste por almacén)
+    user_groups = set(request.user.groups.values_list('name', flat=True))
+    puede_editar_cantidad_almacen = (
+        request.user.is_superuser
+        or request.user.has_perm('inventario.change_lote')
+        or any('almacen' in g.lower() or 'almacén' in g.lower() for g in user_groups)
+    )
+    
     context = {
         'lote': lote,
         'ubicaciones': ubicaciones,
@@ -380,9 +388,78 @@ def detalle_lote(request, lote_id):
         'dias_para_caducidad': dias_para_caducidad,
         'esta_proximo_caducar': esta_proximo_caducar,
         'esta_caducado': esta_caducado,
+        'puede_editar_cantidad_almacen': puede_editar_cantidad_almacen,
     }
     
     return render(request, 'inventario/detalle_lote.html', context)
+
+
+@login_required
+def ajustar_cantidad_lote(request, lote_id):
+    """
+    Ajuste de cantidad disponible desde el detalle del lote.
+    Solo usuarios con perfil de gestión de almacén (o permiso change_lote).
+    Registra el movimiento como ajuste de inventario por almacén.
+    """
+    lote = get_object_or_404(
+        Lote.objects.select_related('producto', 'institucion'),
+        id=lote_id
+    )
+    user_groups = set(request.user.groups.values_list('name', flat=True))
+    puede_editar = (
+        request.user.is_superuser
+        or request.user.has_perm('inventario.change_lote')
+        or any('almacen' in g.lower() or 'almacén' in g.lower() for g in user_groups)
+    )
+    if not puede_editar:
+        messages.error(request, 'No tienes permiso para ajustar la cantidad de este lote.')
+        return redirect('detalle_lote', lote_id=lote_id)
+    
+    if request.method != 'POST':
+        return redirect('detalle_lote', lote_id=lote_id)
+    
+    try:
+        nueva_cantidad = int(request.POST.get('nueva_cantidad', ''))
+    except (ValueError, TypeError):
+        messages.error(request, 'La cantidad debe ser un número entero.')
+        return redirect('detalle_lote', lote_id=lote_id)
+    
+    if nueva_cantidad < 0:
+        messages.error(request, 'La cantidad no puede ser negativa.')
+        return redirect('detalle_lote', lote_id=lote_id)
+    
+    motivo_usuario = (request.POST.get('motivo', '') or '').strip()
+    motivo_movimiento = 'Ajuste de inventario por almacén.'
+    if motivo_usuario:
+        motivo_movimiento += f' {motivo_usuario}'
+    
+    cantidad_anterior = lote.cantidad_disponible
+    if cantidad_anterior == nueva_cantidad:
+        messages.info(request, 'La cantidad no ha cambiado.')
+        return redirect('detalle_lote', lote_id=lote_id)
+    
+    if nueva_cantidad > cantidad_anterior:
+        tipo_movimiento = 'AJUSTE_POSITIVO'
+        cantidad_delta = nueva_cantidad - cantidad_anterior
+    else:
+        tipo_movimiento = 'AJUSTE_NEGATIVO'
+        cantidad_delta = cantidad_anterior - nueva_cantidad
+    
+    MovimientoInventario.objects.create(
+        lote=lote,
+        tipo_movimiento=tipo_movimiento,
+        cantidad=cantidad_delta,
+        cantidad_anterior=cantidad_anterior,
+        cantidad_nueva=nueva_cantidad,
+        motivo=motivo_movimiento,
+        usuario=request.user,
+        institucion_destino=lote.institucion,
+    )
+    lote.cantidad_disponible = nueva_cantidad
+    lote.save()
+    
+    messages.success(request, f'Cantidad actualizada de {cantidad_anterior} a {nueva_cantidad}. Movimiento registrado como ajuste de inventario por almacén.')
+    return redirect('detalle_lote', lote_id=lote_id)
 
 
 # ============================================================
@@ -418,7 +495,7 @@ def registrar_salida(request):
                     motivo=form.cleaned_data['motivo_salida'],
                     observaciones=form.cleaned_data.get('observaciones', ''),
                     usuario=request.user,
-                    institucion=lote.institucion,
+                    institucion_destino=lote.institucion,
                 )
                 
                 # Actualizar lote
@@ -633,7 +710,7 @@ def cambiar_estado_lote(request, lote_id):
                 cantidad_nueva=lote.cantidad_disponible,
                 motivo=motivo,
                 usuario=request.user,
-                institucion=lote.institucion,
+                institucion_destino=lote.institucion,
             )
         
         estado_nombre = dict(Lote.ESTADOS_CHOICES)[nuevo_estado]

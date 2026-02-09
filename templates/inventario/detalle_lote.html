@@ -65,8 +65,13 @@
         <!-- Panel de Cantidad -->
         <div class="col-md-4">
             <div class="card">
-                <div class="card-header bg-light">
+                <div class="card-header bg-light d-flex justify-content-between align-items-center">
                     <h5 class="mb-0">Cantidad</h5>
+                    {% if puede_editar_cantidad_almacen %}
+                    <button type="button" class="btn btn-sm btn-outline-primary" data-bs-toggle="modal" data-bs-target="#modalAjustarCantidad" title="Ajuste de inventario por almacén">
+                        <i class="bi bi-pencil"></i> Editar cantidad
+                    </button>
+                    {% endif %}
                 </div>
                 <div class="card-body">
                     <div class="mb-3">
@@ -286,6 +291,38 @@
     </div>
 
 </div>
+
+<!-- Modal Ajustar cantidad (gestión de almacén) -->
+{% if puede_editar_cantidad_almacen %}
+<div class="modal fade" id="modalAjustarCantidad" tabindex="-1" aria-labelledby="modalAjustarCantidadLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalAjustarCantidadLabel">Editar cantidad disponible</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <form method="post" action="{% url 'ajustar_cantidad_lote' lote.id %}">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <p class="text-muted small">El cambio se registrará en movimientos como <strong>ajuste de inventario por almacén</strong>.</p>
+                    <div class="mb-3">
+                        <label for="id_nueva_cantidad" class="form-label">Nueva cantidad disponible <span class="text-danger">*</span></label>
+                        <input type="number" name="nueva_cantidad" id="id_nueva_cantidad" class="form-control" min="0" value="{{ lote.cantidad_disponible }}" required>
+                    </div>
+                    <div class="mb-3">
+                        <label for="id_motivo_ajuste" class="form-label">Motivo (opcional)</label>
+                        <textarea name="motivo" id="id_motivo_ajuste" class="form-control" rows="2" placeholder="Ej: Conteo físico, corrección por diferencia..."></textarea>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary">Guardar y registrar ajuste</button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
 
 <!-- Modal para cambiar estado -->
 <div class="modal fade" id="cambiarEstadoModal" tabindex="-1">
