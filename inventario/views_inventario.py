@@ -148,8 +148,9 @@ def lista_lotes(request):
     if filtro_almacen:
         lotes = lotes.filter(almacen_id=int(filtro_almacen))
     
+    # Filtro por ubicación: considerar asignaciones en LoteUbicacion (ubicaciones_detalle)
     if filtro_ubicacion:
-        lotes = lotes.filter(ubicacion_id=int(filtro_ubicacion))
+        lotes = lotes.filter(ubicaciones_detalle__ubicacion_id=int(filtro_ubicacion)).distinct()
     
     if filtro_producto:
         lotes = lotes.filter(producto_id=int(filtro_producto))
@@ -704,8 +705,9 @@ def exportar_lotes_personalizado(request):
             if filtro_almacen:
                 lotes = lotes.filter(almacen_id=int(filtro_almacen))
             
+            # Filtro por ubicación también respetando asignaciones en LoteUbicacion
             if filtro_ubicacion:
-                lotes = lotes.filter(ubicacion_id=int(filtro_ubicacion))
+                lotes = lotes.filter(ubicaciones_detalle__ubicacion_id=int(filtro_ubicacion)).distinct()
             
             if filtro_producto:
                 lotes = lotes.filter(producto_id=int(filtro_producto))
