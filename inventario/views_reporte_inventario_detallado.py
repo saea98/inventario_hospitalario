@@ -82,6 +82,7 @@ def reporte_inventario_detallado(request):
         'orden': 'orden_suministro__numero_orden',
         'rfc': 'orden_suministro__proveedor__rfc',
         'clave': 'producto__clave_cnis',
+        'descripcion': 'producto__descripcion',
         'estado': 'estado',
         'inventario': 'cantidad_disponible',
         'lote': 'numero_lote',
@@ -129,12 +130,19 @@ def reporte_inventario_detallado(request):
         if not rfc_display:
             rfc_display = (getattr(lote, 'rfc_proveedor', None) or '').strip()
 
+        # Descripción: lote.descripcion_saica o producto.descripcion
+        descripcion_val = (getattr(lote, 'descripcion_saica', None) or '').strip()
+        if not descripcion_val and lote.producto:
+            descripcion_val = (getattr(lote.producto, 'descripcion', None) or '').strip()
+        descripcion_val = descripcion_val or ''
+
         datos_reporte.append({
             'entidad': 'CIUDAD DE MÉXICO',  # Leyenda fija (no almacén/institucion)
             'clues': lote.institucion.clue if lote.institucion else '',
             'orden_suministro': lote.orden_suministro.numero_orden if lote.orden_suministro else '',
             'rfc': rfc_display,
             'clave': lote.producto.clave_cnis if lote.producto else '',
+            'descripcion': descripcion_val,
             'estado_insumo': estado_texto,
             'inventario_disponible': lote.cantidad_disponible,
             'lote': lote.numero_lote,
@@ -153,6 +161,22 @@ def reporte_inventario_detallado(request):
     # Obtener listas para filtros
     instituciones = Institucion.objects.filter(activo=True).order_by('denominacion')[:100]
 
+    # Columnas disponibles para exportar a Excel (selector en modal)
+    columnas_disponibles = [
+        {'value': 'entidad', 'label': 'ENTIDAD'},
+        {'value': 'clues', 'label': 'CLUES'},
+        {'value': 'orden_suministro', 'label': 'ORDEN DE SUMINISTRO'},
+        {'value': 'rfc', 'label': 'RFC'},
+        {'value': 'clave', 'label': 'CLAVE'},
+        {'value': 'descripcion', 'label': 'DESCRIPCIÓN'},
+        {'value': 'estado_insumo', 'label': 'ESTADO DEL INSUMO'},
+        {'value': 'inventario_disponible', 'label': 'INVENTARIO DISPONIBLE'},
+        {'value': 'lote', 'label': 'LOTE'},
+        {'value': 'f_cad', 'label': 'F_CAD'},
+        {'value': 'f_fab', 'label': 'F_FAB'},
+        {'value': 'f_rec', 'label': 'F_REC'},
+    ]
+
     context = {
         'datos_reporte': datos_reporte,
         'lotes_paginados': lotes_paginados,
@@ -167,6 +191,7 @@ def reporte_inventario_detallado(request):
         'sort_column': sort_column,
         'sort_order': sort_order,
         'sort_base_query': sort_base_query,
+        'columnas_disponibles': columnas_disponibles,
         'estados_lote': [
             (1, 'Disponible'),
             (4, 'Suspendido'),
@@ -178,23 +203,35 @@ def reporte_inventario_detallado(request):
     return render(request, 'inventario/reportes/reporte_inventario_detallado.html', context)
 
 
-@login_required
-def exportar_inventario_detallado_excel(request):
-    """
-    Exporta el reporte de inventario detallado a Excel.
-    """
-    
-    # Obtener los mismos filtros que en la vista
-    filtro_entidad = request.GET.get('entidad', '').strip()
-    filtro_clues = request.GET.get('clues', '').strip()
-    filtro_orden = request.GET.get('orden', '').strip()
-    filtro_rfc = request.GET.get('rfc', '').strip()
-    filtro_clave = request.GET.get('clave', '').strip()
-    filtro_estado = request.GET.get('estado', '').strip()
-    filtro_lote = request.GET.get('lote', '').strip()
-    excluir_sin_orden = request.GET.get('excluir_sin_orden', '') == 'si'
+# Mapeo columna id -> etiqueta para Excel
+COLUMNAS_EXCEL_LABELS = {
+    'entidad': 'ENTIDAD',
+    'clues': 'CLUES',
+    'orden_suministro': 'ORDEN DE SUMINISTRO',
+    'rfc': 'RFC',
+    'clave': 'CLAVE',
+    'descripcion': 'DESCRIPCIÓN',
+    'estado_insumo': 'ESTADO DEL INSUMO',
+    'inventario_disponible': 'INVENTARIO DISPONIBLE',
+    'lote': 'LOTE',
+    'f_cad': 'F_CAD',
+    'f_fab': 'F_FAB',
+    'f_rec': 'F_REC',
+}
 
-    # Query base con todas las relaciones necesarias
+
+def _obtener_lotes_filtrados(request, from_post=False):
+    """Aplica filtros desde GET o POST y devuelve el queryset de lotes."""
+    get_param = request.POST.get if from_post else request.GET.get
+    filtro_entidad = (get_param('entidad') or '').strip()
+    filtro_clues = (get_param('clues') or '').strip()
+    filtro_orden = (get_param('orden') or '').strip()
+    filtro_rfc = (get_param('rfc') or '').strip()
+    filtro_clave = (get_param('clave') or '').strip()
+    filtro_estado = (get_param('estado') or '').strip()
+    filtro_lote = (get_param('lote') or '').strip()
+    excluir_sin_orden = (get_param('excluir_sin_orden') or '') == 'si'
+
     lotes = Lote.objects.select_related(
         'producto',
         'institucion',
@@ -203,68 +240,93 @@ def exportar_inventario_detallado_excel(request):
 
     if excluir_sin_orden:
         lotes = lotes.exclude(orden_suministro__isnull=True)
-
-    # Aplicar filtros (mismos que en la vista)
     if filtro_entidad:
         lotes = lotes.filter(institucion__denominacion__icontains=filtro_entidad)
-    
     if filtro_clues:
         lotes = lotes.filter(institucion__clue__icontains=filtro_clues)
-    
     if filtro_orden:
         lotes = lotes.filter(orden_suministro__numero_orden__icontains=filtro_orden)
-    
     if filtro_rfc:
         lotes = lotes.filter(
             Q(orden_suministro__proveedor__rfc__icontains=filtro_rfc) |
             Q(rfc_proveedor__icontains=filtro_rfc)
         )
-
     if filtro_clave:
         lotes = lotes.filter(producto__clave_cnis__icontains=filtro_clave)
-    
     if filtro_estado:
         lotes = lotes.filter(estado=filtro_estado)
-    
     if filtro_lote:
         lotes = lotes.filter(numero_lote__icontains=filtro_lote)
-    
-    # Ordenar por institución y fecha de recepción
-    lotes = lotes.order_by('institucion__denominacion', '-fecha_recepcion', 'producto__clave_cnis')
-    
-    # Crear workbook Excel
+
+    return lotes.order_by('institucion__denominacion', '-fecha_recepcion', 'producto__clave_cnis')
+
+
+def _fila_lote_a_dict(lote):
+    """Convierte un lote a diccionario con todas las columnas del reporte."""
+    estado_texto = lote.get_estado_display() if lote.estado is not None else ''
+    if not estado_texto and lote.estado is not None:
+        estado_texto = str(lote.estado)
+    rfc_val = ''
+    if lote.orden_suministro and lote.orden_suministro.proveedor:
+        rfc_val = (lote.orden_suministro.proveedor.rfc or '').strip()
+    if not rfc_val:
+        rfc_val = (getattr(lote, 'rfc_proveedor', None) or '').strip()
+    descripcion_val = (getattr(lote, 'descripcion_saica', None) or '').strip() or (lote.producto.descripcion if lote.producto else '') or ''
+    return {
+        'entidad': 'CIUDAD DE MÉXICO',
+        'clues': lote.institucion.clue if lote.institucion else '',
+        'orden_suministro': lote.orden_suministro.numero_orden if lote.orden_suministro else '',
+        'rfc': rfc_val,
+        'clave': lote.producto.clave_cnis if lote.producto else '',
+        'descripcion': descripcion_val,
+        'estado_insumo': estado_texto,
+        'inventario_disponible': lote.cantidad_disponible,
+        'lote': lote.numero_lote,
+        'f_cad': lote.fecha_caducidad.strftime('%d/%m/%Y') if getattr(lote, 'fecha_caducidad', None) else '',
+        'f_fab': lote.fecha_fabricacion.strftime('%d/%m/%Y') if getattr(lote, 'fecha_fabricacion', None) else '',
+        'f_rec': lote.fecha_recepcion.strftime('%d/%m/%Y') if getattr(lote, 'fecha_recepcion', None) else '',
+    }
+
+
+@login_required
+def exportar_inventario_detallado_excel(request):
+    """
+    Exporta el reporte de inventario detallado a Excel.
+    GET: exporta con todas las columnas (incluye DESCRIPCIÓN).
+    POST: exporta solo las columnas seleccionadas (columnas, orden_columnas y filtros en POST).
+    """
+    from_post = request.method == 'POST'
+    lotes = _obtener_lotes_filtrados(request, from_post=from_post)
+
+    # Columnas a exportar: desde POST (selector) o por defecto todas
+    if from_post:
+        columnas = request.POST.getlist('columnas')
+        orden_columnas = (request.POST.get('orden_columnas') or '').strip()
+        if orden_columnas:
+            orden = [c for c in orden_columnas.split(',') if c in columnas]
+            if orden:
+                columnas = orden
+        if not columnas:
+            columnas = list(COLUMNAS_EXCEL_LABELS.keys())
+    else:
+        columnas = list(COLUMNAS_EXCEL_LABELS.keys())
+
+    headers = [COLUMNAS_EXCEL_LABELS.get(c, c.upper()) for c in columnas]
+
     wb = Workbook()
     ws = wb.active
     ws.title = "Inventario Detallado"
-    
-    # Estilos
+
     header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
     header_font = Font(bold=True, color="FFFFFF", size=11)
     header_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-    
     border = Border(
         left=Side(style='thin'),
         right=Side(style='thin'),
         top=Side(style='thin'),
         bottom=Side(style='thin')
     )
-    
-    # Encabezados
-    headers = [
-        'ENTIDAD',
-        'CLUES',
-        'ORDEN DE SUMINISTRO',
-        'RFC',
-        'CLAVE',
-        'ESTADO DEL INSUMO',
-        'INVENTARIO DISPONIBLE',
-        'LOTE',
-        'F_CAD',
-        'F_FAB',
-        'F_REC'
-    ]
-    
-    # Escribir encabezados
+
     for col_num, header in enumerate(headers, 1):
         col_letter = get_column_letter(col_num)
         cell = ws[f"{col_letter}1"]
@@ -273,77 +335,31 @@ def exportar_inventario_detallado_excel(request):
         cell.font = header_font
         cell.alignment = header_alignment
         cell.border = border
-    
-    # Escribir datos
+
     for row_num, lote in enumerate(lotes, 2):
-        # Estado del insumo: leyenda (get_estado_display), no el dígito
-        estado_texto = lote.get_estado_display() if lote.estado is not None else ''
-        if not estado_texto and lote.estado is not None:
-            estado_texto = str(lote.estado)
-
-        # RFC: orden/proveedor primero; si no hay, usar lote.rfc_proveedor (carga masiva)
-        rfc_val = ''
-        if lote.orden_suministro and lote.orden_suministro.proveedor:
-            rfc_val = (lote.orden_suministro.proveedor.rfc or '').strip()
-        if not rfc_val:
-            rfc_val = (getattr(lote, 'rfc_proveedor', None) or '').strip()
-
-        # Fechas: cada columna usa explícitamente su campo (F_CAD=caducidad, F_FAB=fabricación, F_REC=recepción)
-        fecha_caducidad_str = lote.fecha_caducidad.strftime('%d/%m/%Y') if getattr(lote, 'fecha_caducidad', None) else ''
-        fecha_fabricacion_str = lote.fecha_fabricacion.strftime('%d/%m/%Y') if getattr(lote, 'fecha_fabricacion', None) else ''
-        fecha_recepcion_str = lote.fecha_recepcion.strftime('%d/%m/%Y') if getattr(lote, 'fecha_recepcion', None) else ''
-
-        row_data = [
-            'CIUDAD DE MÉXICO',  # Entidad fija (leyenda), no almacén/institucion
-            lote.institucion.clue if lote.institucion else '',
-            lote.orden_suministro.numero_orden if lote.orden_suministro else '',
-            rfc_val,
-            lote.producto.clave_cnis if lote.producto else '',
-            estado_texto,
-            lote.cantidad_disponible,
-            lote.numero_lote,
-            fecha_caducidad_str,   # F_CAD
-            fecha_fabricacion_str, # F_FAB
-            fecha_recepcion_str,   # F_REC
-        ]
+        fila = _fila_lote_a_dict(lote)
+        row_data = [fila.get(c, '') for c in columnas]
 
         for col_num, value in enumerate(row_data, 1):
             col_letter = get_column_letter(col_num)
             cell = ws[f"{col_letter}{row_num}"]
             cell.value = value
             cell.border = border
-            # Columna RFC (D): formato texto para que no se corte ni se interprete como número/fecha
-            if col_num == 4:
+            if columnas[col_num - 1] == 'rfc':
                 cell.number_format = '@'
-            if col_num == 7:  # INVENTARIO DISPONIBLE - alinear a la derecha
+            if columnas[col_num - 1] == 'inventario_disponible':
                 cell.alignment = Alignment(horizontal="right", vertical="center")
             else:
                 cell.alignment = Alignment(horizontal="left", vertical="center")
-    
-    # Ajustar ancho de columnas (RFC más ancho por posibles guiones y 13+ caracteres)
-    column_widths = {
-        'A': 22,  # ENTIDAD (CIUDAD DE MEXICO)
-        'B': 15,  # CLUES
-        'C': 25,  # ORDEN DE SUMINISTRO
-        'D': 20,  # RFC (formato texto; ancho para RFC con guiones)
-        'E': 20,  # CLAVE
-        'F': 20,  # ESTADO DEL INSUMO
-        'G': 20,  # INVENTARIO DISPONIBLE
-        'H': 20,  # LOTE
-        'I': 12,  # F_CAD
-        'J': 12,  # F_FAB
-        'K': 12,  # F_REC
-    }
-    
-    for col_letter, width in column_widths.items():
-        ws.column_dimensions[col_letter].width = width
-    
-    # Crear respuesta HTTP
+
+    for col_num in range(1, len(columnas) + 1):
+        col_letter = get_column_letter(col_num)
+        ws.column_dimensions[col_letter].width = 18 if columnas[col_num - 1] != 'descripcion' else 40
+
     response = HttpResponse(
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
     response['Content-Disposition'] = f'attachment; filename="reporte_inventario_detallado_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx"'
-    
     wb.save(response)
     return response
 

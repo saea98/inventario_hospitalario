@@ -22,10 +22,9 @@
                 <i class="fas fa-file-upload"></i> Carga masiva
             </a>
             {% if datos_reporte %}
-            <a href="{% url 'reportes:exportar_inventario_detallado_excel' %}?{{ request.GET.urlencode }}" 
-               class="btn btn-success">
+            <button type="button" class="btn btn-success" data-bs-toggle="modal" data-bs-target="#modalExportarExcel">
                 <i class="fas fa-file-excel"></i> Exportar a Excel
-            </a>
+            </button>
             {% endif %}
         </div>
     </div>
@@ -138,6 +137,11 @@
                                 </a>
                             </th>
                             <th>
+                                <a href="?{{ sort_base_query }}{% if sort_base_query %}&{% endif %}sort=descripcion&order={% if sort_column == 'descripcion' and sort_order == 'asc' %}desc{% else %}asc{% endif %}" class="text-white text-decoration-none sortable-header">
+                                    DESCRIPCIÓN {% if sort_column == 'descripcion' %}<i class="fas fa-caret-{% if sort_order == 'asc' %}up{% else %}down{% endif %} ms-1"></i>{% endif %}
+                                </a>
+                            </th>
+                            <th>
                                 <a href="?{{ sort_base_query }}{% if sort_base_query %}&{% endif %}sort=estado&order={% if sort_column == 'estado' and sort_order == 'asc' %}desc{% else %}asc{% endif %}" class="text-white text-decoration-none sortable-header">
                                     ESTADO DEL INSUMO {% if sort_column == 'estado' %}<i class="fas fa-caret-{% if sort_order == 'asc' %}up{% else %}down{% endif %} ms-1"></i>{% endif %}
                                 </a>
@@ -177,6 +181,7 @@
                             <td>{{ dato.orden_suministro }}</td>
                             <td>{{ dato.rfc }}</td>
                             <td>{{ dato.clave }}</td>
+                            <td><small>{{ dato.descripcion|truncatewords:15 }}</small></td>
                             <td>
                                 {% if dato.estado_insumo == 'Disponible' %}
                                     <span class="badge bg-success">{{ dato.estado_insumo }}</span>
@@ -256,4 +261,83 @@
     </div>
     {% endif %}
 </div>
+
+<!-- Modal: Seleccionar columnas para exportar a Excel -->
+{% if datos_reporte and columnas_disponibles %}
+<div class="modal fade" id="modalExportarExcel" tabindex="-1" aria-labelledby="modalExportarExcelLabel" aria-hidden="true">
+    <div class="modal-dialog modal-lg modal-dialog-centered">
+        <div class="modal-content">
+            <div class="modal-header bg-light">
+                <h5 class="modal-title" id="modalExportarExcelLabel">Exportar a Excel – elegir columnas</h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <form method="post" action="{% url 'reportes:exportar_inventario_detallado_excel' %}" id="formExportarExcel">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <p class="text-muted small">Selecciona las columnas a exportar y arrastra para cambiar el orden.</p>
+                    <ul id="lista-columnas-export" class="list-group">
+                        {% for col in columnas_disponibles %}
+                        <li class="list-group-item d-flex justify-content-between align-items-center draggable-item">
+                            <div>
+                                <input type="checkbox" name="columnas" value="{{ col.value }}" id="col_export_{{ col.value }}" class="form-check-input me-2">
+                                <label for="col_export_{{ col.value }}" class="mb-0">{{ col.label }}</label>
+                            </div>
+                            <span class="handle text-secondary" style="cursor: grab;">☰</span>
+                        </li>
+                        {% endfor %}
+                    </ul>
+                    <input type="hidden" name="orden_columnas" id="orden_columnas_export">
+                    <input type="hidden" name="entidad" value="{{ filtro_entidad }}">
+                    <input type="hidden" name="clues" value="{{ filtro_clues }}">
+                    <input type="hidden" name="orden" value="{{ filtro_orden }}">
+                    <input type="hidden" name="rfc" value="{{ filtro_rfc }}">
+                    <input type="hidden" name="clave" value="{{ filtro_clave }}">
+                    <input type="hidden" name="estado" value="{{ filtro_estado }}">
+                    <input type="hidden" name="lote" value="{{ filtro_lote }}">
+                    <input type="hidden" name="excluir_sin_orden" value="{% if excluir_sin_orden %}si{% endif %}">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-success" id="btnExportarExcel">
+                        <i class="fas fa-file-excel"></i> Generar Excel
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+</div>
+{% endif %}
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.0/Sortable.min.js"></script>
+<script>
+(function() {
+    var list = document.getElementById('lista-columnas-export');
+    if (!list) return;
+    var checkboxes = list.querySelectorAll('input[name="columnas"]');
+    checkboxes.forEach(function(cb) { cb.checked = true; });
+
+    var sortable = new Sortable(list, {
+        handle: '.handle',
+        animation: 150,
+        onEnd: function() {
+            var order = [];
+            list.querySelectorAll('input[name="columnas"]').forEach(function(cb) {
+                if (cb.checked) order.push(cb.value);
+            });
+            document.getElementById('orden_columnas_export').value = order.join(',');
+        }
+    });
+
+    document.getElementById('formExportarExcel').addEventListener('submit', function() {
+        var order = [];
+        list.querySelectorAll('li').forEach(function(li) {
+            var cb = li.querySelector('input[name="columnas"]');
+            if (cb && cb.checked) order.push(cb.value);
+        });
+        document.getElementById('orden_columnas_export').value = order.join(',');
+    });
+})();
+</script>
 {% endblock %}
