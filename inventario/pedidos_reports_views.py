@@ -1195,7 +1195,7 @@ def dashboard_surtimiento_institucion(request):
         items = ItemPropuesta.objects.select_related(
             'propuesta__solicitud__institucion_solicitante',
             'producto',
-        ).filter(
+        ).prefetch_related('lotes_asignados').filter(
             propuesta__solicitud__institucion_solicitante__activo=True,
         ).exclude(propuesta__solicitud__estado='CANCELADA')
 
@@ -1218,7 +1218,8 @@ def dashboard_surtimiento_institucion(request):
 
         for item in items:
             sol = item.cantidad_solicitada or 0
-            sur = item.cantidad_surtida or 0
+            # Cantidad realmente suministrada: suma de LoteAsignado donde surtido=True (como en reporte de pedidos)
+            sur = sum(la.cantidad_asignada for la in item.lotes_asignados.all() if la.surtido)
             if sur == 0:
                 no_surtido.append({
                     'item': item,
