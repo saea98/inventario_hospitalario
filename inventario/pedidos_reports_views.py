@@ -1163,3 +1163,115 @@ def reporte_claves_no_existen(request):
     }
     
     return render(request, 'inventario/pedidos/reporte_claves_no_existen.html', context)
+
+
+# ============================================================================
+# DASHBOARD SURTIMIENTO POR INSTITUCIÓN
+# ============================================================================
+
+@login_required
+def dashboard_surtimiento_institucion(request):
+    """
+    Dashboard por institución: productos surtidos completamente, no surtidos y surtidos parcialmente.
+    Permite ver gráficas o tablas según selección del usuario.
+    """
+    from datetime import datetime
+
+    institucion_id = request.GET.get('institucion', '').strip()
+    folio_pedido = request.GET.get('folio_pedido', '').strip()
+    fecha_desde = request.GET.get('fecha_desde', '').strip()
+    fecha_hasta = request.GET.get('fecha_hasta', '').strip()
+    vista = request.GET.get('vista', 'graficas')  # 'graficas' | 'tablas'
+
+    instituciones = Institucion.objects.filter(activo=True).order_by('denominacion')
+
+    # Exigir institución O folio de pedido para no procesar todos los pedidos (mejor performance)
+    tiene_filtro = bool(institucion_id or folio_pedido)
+    surtido_completo = []
+    no_surtido = []
+    surtido_parcial = []
+
+    if tiene_filtro:
+        items = ItemPropuesta.objects.select_related(
+            'propuesta__solicitud__institucion_solicitante',
+            'producto',
+        ).filter(
+            propuesta__solicitud__institucion_solicitante__activo=True,
+        ).exclude(propuesta__solicitud__estado='CANCELADA')
+
+        if institucion_id:
+            items = items.filter(propuesta__solicitud__institucion_solicitante_id=institucion_id)
+        if folio_pedido:
+            items = items.filter(propuesta__solicitud__observaciones_solicitud__icontains=folio_pedido)
+        if fecha_desde:
+            try:
+                fd = datetime.strptime(fecha_desde, '%Y-%m-%d').date()
+                items = items.filter(propuesta__solicitud__fecha_solicitud__date__gte=fd)
+            except ValueError:
+                pass
+        if fecha_hasta:
+            try:
+                fh = datetime.strptime(fecha_hasta, '%Y-%m-%d').date()
+                items = items.filter(propuesta__solicitud__fecha_solicitud__date__lte=fh)
+            except ValueError:
+                pass
+
+        for item in items:
+            sol = item.cantidad_solicitada or 0
+            sur = item.cantidad_surtida or 0
+            if sur == 0:
+                no_surtido.append({
+                    'item': item,
+                    'cantidad_solicitada': sol,
+                    'cantidad_surtida': sur,
+                    'diferencia': sol,
+                    'folio': item.propuesta.solicitud.folio if item.propuesta and item.propuesta.solicitud else '-',
+                })
+            elif sur >= sol:
+                surtido_completo.append({
+                    'item': item,
+                    'cantidad_solicitada': sol,
+                    'cantidad_surtida': sur,
+                    'diferencia': 0,
+                    'folio': item.propuesta.solicitud.folio if item.propuesta and item.propuesta.solicitud else '-',
+                })
+            else:
+                surtido_parcial.append({
+                    'item': item,
+                    'cantidad_solicitada': sol,
+                    'cantidad_surtida': sur,
+                    'diferencia': sol - sur,
+                    'folio': item.propuesta.solicitud.folio if item.propuesta and item.propuesta.solicitud else '-',
+                })
+
+    institucion_seleccionada = None
+    if institucion_id:
+        institucion_seleccionada = Institucion.objects.filter(id=institucion_id).first()
+
+    from urllib.parse import urlencode
+    q = request.GET.copy()
+    q['vista'] = 'graficas'
+    url_graficas = '?' + q.urlencode()
+    q['vista'] = 'tablas'
+    url_tablas = '?' + q.urlencode()
+
+    context = {
+        'instituciones': instituciones,
+        'institucion_seleccionada': institucion_seleccionada,
+        'filtro_institucion': institucion_id,
+        'filtro_folio_pedido': folio_pedido,
+        'filtro_fecha_desde': fecha_desde,
+        'filtro_fecha_hasta': fecha_hasta,
+        'vista': vista,
+        'tiene_filtro': tiene_filtro,
+        'url_graficas': url_graficas,
+        'url_tablas': url_tablas,
+        'surtido_completo': surtido_completo,
+        'no_surtido': no_surtido,
+        'surtido_parcial': surtido_parcial,
+        'total_completo': len(surtido_completo),
+        'total_no_surtido': len(no_surtido),
+        'total_parcial': len(surtido_parcial),
+        'page_title': 'Dashboard de Surtimiento por Institución',
+    }
+    return render(request, 'inventario/pedidos/dashboard_surtimiento_institucion.html', context)

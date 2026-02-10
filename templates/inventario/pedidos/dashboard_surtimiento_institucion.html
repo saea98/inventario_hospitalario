@@ -1,0 +1,317 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Dashboard de Surtimiento por Institución{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h1 class="mb-3">📊 Dashboard de Surtimiento por Institución</h1>
+            <p class="text-muted">Productos surtidos completamente, no surtidos y surtidos parcialmente. Elige ver gráficas o tablas.</p>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">🔍 Filtros</h5>
+        </div>
+        <div class="card-body">
+            <form method="get" id="form-filtros">
+                <input type="hidden" name="vista" value="{{ vista }}">
+                <div class="row g-3">
+                    <div class="col-md-3">
+                        <label for="institucion" class="form-label">Institución</label>
+                        <select class="form-select" id="institucion" name="institucion">
+                            <option value="">Seleccione institución</option>
+                            {% for inst in instituciones %}
+                            <option value="{{ inst.id }}" {% if filtro_institucion == inst.id|stringformat:"s" %}selected{% endif %}>{{ inst.denominacion|truncatechars:50 }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="col-md-2">
+                        <label for="folio_pedido" class="form-label">Folio de pedido</label>
+                        <input type="text" class="form-control" id="folio_pedido" name="folio_pedido" placeholder="Buscar por folio..." value="{{ filtro_folio_pedido }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label for="fecha_desde" class="form-label">Fecha desde</label>
+                        <input type="date" class="form-control" id="fecha_desde" name="fecha_desde" value="{{ filtro_fecha_desde }}">
+                    </div>
+                    <div class="col-md-2">
+                        <label for="fecha_hasta" class="form-label">Fecha hasta</label>
+                        <input type="date" class="form-control" id="fecha_hasta" name="fecha_hasta" value="{{ filtro_fecha_hasta }}">
+                    </div>
+                    <div class="col-md-3 d-flex align-items-end gap-2">
+                        <button type="submit" class="btn btn-primary">
+                            <i class="fas fa-search"></i> Filtrar
+                        </button>
+                        <a href="{% url 'pedidos:dashboard_surtimiento_institucion' %}" class="btn btn-secondary">
+                            <i class="fas fa-redo"></i> Limpiar
+                        </a>
+                    </div>
+                </div>
+            </form>
+            <p class="small text-muted mb-0 mt-2">Seleccione al menos una <strong>institución</strong> o ingrese un <strong>folio de pedido</strong> para ver el dashboard.</p>
+        </div>
+    </div>
+
+    {% if not tiene_filtro %}
+    <div class="alert alert-info d-flex align-items-center" role="alert">
+        <i class="fas fa-info-circle me-2 fa-lg"></i>
+        <div>
+            <strong>Seleccione un filtro para continuar.</strong> Elija una institución en el desplegable o escriba un folio de pedido (observaciones) y pulse «Filtrar» para cargar los datos y mejorar el rendimiento.
+        </div>
+    </div>
+    {% else %}
+    <!-- Selector de vista: Gráficas / Tablas -->
+    <div class="mb-3 d-flex gap-2 flex-wrap">
+        <a href="{{ url_graficas }}" class="btn {% if vista == 'graficas' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+            <i class="fas fa-chart-pie"></i> Ver gráficas
+        </a>
+        <a href="{{ url_tablas }}" class="btn {% if vista == 'tablas' %}btn-primary{% else %}btn-outline-primary{% endif %}">
+            <i class="fas fa-table"></i> Ver tablas
+        </a>
+    </div>
+
+    <!-- Tarjetas de resumen -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card border-success h-100">
+                <div class="card-body text-center">
+                    <h6 class="card-title text-muted">Surtido completo</h6>
+                    <h2 class="text-success">{{ total_completo }}</h2>
+                    <p class="small text-muted mb-0">Cant. solicitada = Cant. suministrada</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-danger h-100">
+                <div class="card-body text-center">
+                    <h6 class="card-title text-muted">No surtidos</h6>
+                    <h2 class="text-danger">{{ total_no_surtido }}</h2>
+                    <p class="small text-muted mb-0">Cant. suministrada = 0</p>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-warning h-100">
+                <div class="card-body text-center">
+                    <h6 class="card-title text-muted">Surtido parcial</h6>
+                    <h2 class="text-warning">{{ total_parcial }}</h2>
+                    <p class="small text-muted mb-0">0 &lt; suministrada &lt; solicitada</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if institucion_seleccionada %}
+    <p class="text-muted mb-2"><strong>Institución:</strong> {{ institucion_seleccionada.denominacion }}</p>
+    {% endif %}
+
+    <!-- Vista: Gráficas -->
+    {% if vista == 'graficas' %}
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">📈 Resumen por tipo de surtimiento</h5>
+        </div>
+        <div class="card-body">
+            <div class="row">
+                <div class="col-md-6">
+                    <canvas id="chartSurtimiento" height="280"></canvas>
+                </div>
+                <div class="col-md-6">
+                    <canvas id="chartBarras" height="280"></canvas>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    <!-- Vista: Tablas -->
+    {% if vista == 'tablas' %}
+    <div class="card mb-4">
+        <div class="card-header bg-success text-white">
+            <h5 class="mb-0">✅ Surtido completo ({{ total_completo }})</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Folio</th>
+                        <th>Clave</th>
+                        <th>Descripción</th>
+                        <th class="text-end">Cant. solicitada</th>
+                        <th class="text-end">Cant. surtida</th>
+                        <th class="text-end">Diferencia</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in surtido_completo %}
+                    <tr>
+                        <td><small>{{ r.folio }}</small></td>
+                        <td>{{ r.item.producto.clave_cnis|default:"-" }}</td>
+                        <td>{{ r.item.producto.descripcion|truncatechars:60|default:"-" }}</td>
+                        <td class="text-end">{{ r.cantidad_solicitada }}</td>
+                        <td class="text-end">{{ r.cantidad_surtida }}</td>
+                        <td class="text-end">{{ r.diferencia }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6" class="text-center text-muted">No hay registros</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header bg-danger text-white">
+            <h5 class="mb-0">❌ No surtidos ({{ total_no_surtido }})</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Folio</th>
+                        <th>Clave</th>
+                        <th>Descripción</th>
+                        <th class="text-end">Cant. solicitada</th>
+                        <th class="text-end">Cant. surtida</th>
+                        <th class="text-end">Diferencia</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in no_surtido %}
+                    <tr>
+                        <td><small>{{ r.folio }}</small></td>
+                        <td>{{ r.item.producto.clave_cnis|default:"-" }}</td>
+                        <td>{{ r.item.producto.descripcion|truncatechars:60|default:"-" }}</td>
+                        <td class="text-end">{{ r.cantidad_solicitada }}</td>
+                        <td class="text-end">{{ r.cantidad_surtida }}</td>
+                        <td class="text-end">{{ r.diferencia }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6" class="text-center text-muted">No hay registros</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header bg-warning text-dark">
+            <h5 class="mb-0">⚠️ Surtido parcial ({{ total_parcial }})</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Folio</th>
+                        <th>Clave</th>
+                        <th>Descripción</th>
+                        <th class="text-end">Cant. solicitada</th>
+                        <th class="text-end">Cant. surtida</th>
+                        <th class="text-end">Diferencia</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for r in surtido_parcial %}
+                    <tr>
+                        <td><small>{{ r.folio }}</small></td>
+                        <td>{{ r.item.producto.clave_cnis|default:"-" }}</td>
+                        <td>{{ r.item.producto.descripcion|truncatechars:60|default:"-" }}</td>
+                        <td class="text-end">{{ r.cantidad_solicitada }}</td>
+                        <td class="text-end">{{ r.cantidad_surtida }}</td>
+                        <td class="text-end">{{ r.diferencia }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6" class="text-center text-muted">No hay registros</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+
+{% if vista == 'graficas' %}
+<script>
+(function() {
+    const totalCompleto = {{ total_completo }};
+    const totalNoSurtido = {{ total_no_surtido }};
+    const totalParcial = {{ total_parcial }};
+    const total = totalCompleto + totalNoSurtido + totalParcial;
+
+    if (total === 0) {
+        document.getElementById('chartSurtimiento').parentNode.innerHTML = '<p class="text-muted text-center">No hay datos para mostrar</p>';
+        document.getElementById('chartBarras').parentNode.innerHTML = '';
+        return;
+    }
+
+    const colores = {
+        completo: 'rgba(40, 167, 69, 0.8)',
+        noSurtido: 'rgba(220, 53, 69, 0.8)',
+        parcial: 'rgba(255, 193, 7, 0.8)'
+    };
+
+    // Gráfico de pastel
+    new Chart(document.getElementById('chartSurtimiento'), {
+        type: 'pie',
+        data: {
+            labels: ['Surtido completo', 'No surtidos', 'Surtido parcial'],
+            datasets: [{
+                data: [totalCompleto, totalNoSurtido, totalParcial],
+                backgroundColor: [colores.completo, colores.noSurtido, colores.parcial],
+                borderWidth: 2,
+                borderColor: '#fff'
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            plugins: {
+                legend: { position: 'bottom' },
+                tooltip: {
+                    callbacks: {
+                        label: function(ctx) {
+                            const v = ctx.raw;
+                            const p = total ? ((v / total) * 100).toFixed(1) : 0;
+                            return ctx.label + ': ' + v + ' (' + p + '%)';
+                        }
+                    }
+                }
+            }
+        }
+    });
+
+    // Gráfico de barras
+    new Chart(document.getElementById('chartBarras'), {
+        type: 'bar',
+        data: {
+            labels: ['Surtido completo', 'No surtidos', 'Surtido parcial'],
+            datasets: [{
+                label: 'Cantidad de ítems',
+                data: [totalCompleto, totalNoSurtido, totalParcial],
+                backgroundColor: [colores.completo, colores.noSurtido, colores.parcial],
+                borderColor: ['#28a745', '#dc3545', '#ffc107'],
+                borderWidth: 1
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            indexAxis: 'y',
+            plugins: {
+                legend: { display: false },
+                tooltip: { }
+            },
+            scales: {
+                x: { beginAtZero: true, ticks: { stepSize: 1 } }
+            }
+        }
+    });
+})();
+</script>
+{% endif %}
+    {% endif %}
+{% endblock %}
