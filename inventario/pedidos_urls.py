@@ -28,4 +28,5 @@ urlpatterns = [
     path('reportes/pedidos-sin-existencia/', pedidos_reports_views.reporte_pedidos_sin_existencia, name='reporte_pedidos_sin_existencia'),
     path('reportes/claves-no-existen/', pedidos_reports_views.reporte_claves_no_existen, name='reporte_claves_no_existen'),
     path('reportes/dashboard-surtimiento/', pedidos_reports_views.dashboard_surtimiento_institucion, name='dashboard_surtimiento_institucion'),
+    path('reportes/dashboard-surtimiento/exportar/', pedidos_reports_views.exportar_dashboard_surtimiento_excel, name='exportar_dashboard_surtimiento_excel'),
 ]

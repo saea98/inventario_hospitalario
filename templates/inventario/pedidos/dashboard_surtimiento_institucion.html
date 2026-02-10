@@ -64,13 +64,16 @@
         </div>
     </div>
     {% else %}
-    <!-- Selector de vista: Gráficas / Tablas -->
-    <div class="mb-3 d-flex gap-2 flex-wrap">
+    <!-- Selector de vista: Gráficas / Tablas + Exportar Excel -->
+    <div class="mb-3 d-flex gap-2 flex-wrap align-items-center">
         <a href="{{ url_graficas }}" class="btn {% if vista == 'graficas' %}btn-primary{% else %}btn-outline-primary{% endif %}">
             <i class="fas fa-chart-pie"></i> Ver gráficas
         </a>
         <a href="{{ url_tablas }}" class="btn {% if vista == 'tablas' %}btn-primary{% else %}btn-outline-primary{% endif %}">
             <i class="fas fa-table"></i> Ver tablas
+        </a>
+        <a href="{% url 'pedidos:exportar_dashboard_surtimiento_excel' %}?{{ request.GET.urlencode }}" class="btn btn-success">
+            <i class="fas fa-file-excel"></i> Exportar a Excel
         </a>
     </div>
 

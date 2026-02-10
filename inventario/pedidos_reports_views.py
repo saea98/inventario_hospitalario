@@ -1276,3 +1276,137 @@ def dashboard_surtimiento_institucion(request):
         'page_title': 'Dashboard de Surtimiento por Institución',
     }
     return render(request, 'inventario/pedidos/dashboard_surtimiento_institucion.html', context)
+
+
+def _obtener_datos_dashboard_surtimiento(request):
+    """
+    Obtiene las listas surtido_completo, no_surtido, surtido_parcial con los mismos
+    filtros que el dashboard (para reutilizar en vista y exportación Excel).
+    Retorna (surtido_completo, no_surtido, surtido_parcial) o None si no hay filtro.
+    """
+    from datetime import datetime
+
+    institucion_id = request.GET.get('institucion', '').strip()
+    folio_pedido = request.GET.get('folio_pedido', '').strip()
+    fecha_desde = request.GET.get('fecha_desde', '').strip()
+    fecha_hasta = request.GET.get('fecha_hasta', '').strip()
+
+    if not (institucion_id or folio_pedido):
+        return None
+
+    items = ItemPropuesta.objects.select_related(
+        'propuesta__solicitud__institucion_solicitante',
+        'producto',
+    ).prefetch_related('lotes_asignados').filter(
+        propuesta__solicitud__institucion_solicitante__activo=True,
+    ).exclude(propuesta__solicitud__estado='CANCELADA')
+
+    if institucion_id:
+        items = items.filter(propuesta__solicitud__institucion_solicitante_id=institucion_id)
+    if folio_pedido:
+        items = items.filter(propuesta__solicitud__observaciones_solicitud__icontains=folio_pedido)
+    if fecha_desde:
+        try:
+            fd = datetime.strptime(fecha_desde, '%Y-%m-%d').date()
+            items = items.filter(propuesta__solicitud__fecha_solicitud__date__gte=fd)
+        except ValueError:
+            pass
+    if fecha_hasta:
+        try:
+            fh = datetime.strptime(fecha_hasta, '%Y-%m-%d').date()
+            items = items.filter(propuesta__solicitud__fecha_solicitud__date__lte=fh)
+        except ValueError:
+            pass
+
+    surtido_completo = []
+    no_surtido = []
+    surtido_parcial = []
+
+    for item in items:
+        sol = item.cantidad_solicitada or 0
+        sur = sum(la.cantidad_asignada for la in item.lotes_asignados.all() if la.surtido)
+        folio = item.propuesta.solicitud.folio if item.propuesta and item.propuesta.solicitud else '-'
+        clave = (item.producto.clave_cnis or '-') if item.producto else '-'
+        desc = ((item.producto.descripcion or '-')[:200]) if item.producto else '-'
+        row = {
+            'folio': folio,
+            'clave_cnis': clave,
+            'descripcion': desc,
+            'cantidad_solicitada': sol,
+            'cantidad_surtida': sur,
+            'diferencia': sol - sur if sur < sol else 0,
+        }
+        if sur == 0:
+            row['diferencia'] = sol
+            no_surtido.append(row)
+        elif sur >= sol:
+            surtido_completo.append(row)
+        else:
+            row['diferencia'] = sol - sur
+            surtido_parcial.append(row)
+
+    return (surtido_completo, no_surtido, surtido_parcial)
+
+
+@login_required
+def exportar_dashboard_surtimiento_excel(request):
+    """Exporta el dashboard de surtimiento a Excel con los mismos filtros (institución o folio obligatorio)."""
+    from datetime import date
+
+    datos = _obtener_datos_dashboard_surtimiento(request)
+    if datos is None:
+        from django.shortcuts import redirect
+        from django.contrib import messages
+        messages.warning(request, 'Seleccione una institución o un folio de pedido para exportar.')
+        return redirect('pedidos:dashboard_surtimiento_institucion')
+
+    surtido_completo, no_surtido, surtido_parcial = datos
+
+    wb = openpyxl.Workbook()
+    header_fill = PatternFill(start_color='1F4E78', end_color='1F4E78', fill_type='solid')
+    header_font = Font(bold=True, color='FFFFFF', size=11)
+    border = Border(
+        left=Side(style='thin'), right=Side(style='thin'),
+        top=Side(style='thin'), bottom=Side(style='thin'),
+    )
+
+    def escribir_hoja(ws, titulo, filas, color_header='1F4E78'):
+        headers = ['Folio', 'Clave CNIS', 'Descripción', 'Cant. solicitada', 'Cant. surtida', 'Diferencia']
+        for col, h in enumerate(headers, 1):
+            c = ws.cell(row=1, column=col)
+            c.value = h
+            c.fill = PatternFill(start_color=color_header, end_color=color_header, fill_type='solid')
+            c.font = header_font
+            c.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+            c.border = border
+        for row_idx, r in enumerate(filas, 2):
+            ws.cell(row=row_idx, column=1).value = r.get('folio', '')
+            ws.cell(row=row_idx, column=2).value = r.get('clave_cnis', '')
+            ws.cell(row=row_idx, column=3).value = r.get('descripcion', '')
+            ws.cell(row=row_idx, column=4).value = r.get('cantidad_solicitada', 0)
+            ws.cell(row=row_idx, column=5).value = r.get('cantidad_surtida', 0)
+            ws.cell(row=row_idx, column=6).value = r.get('diferencia', 0)
+            for col in range(1, 7):
+                ws.cell(row=row_idx, column=col).border = border
+        ws.column_dimensions['A'].width = 18
+        ws.column_dimensions['B'].width = 14
+        ws.column_dimensions['C'].width = 50
+        ws.column_dimensions['D'].width = 14
+        ws.column_dimensions['E'].width = 14
+        ws.column_dimensions['F'].width = 12
+
+    ws1 = wb.active
+    ws1.title = 'Surtido completo'
+    escribir_hoja(ws1, 'Surtido completo', surtido_completo, '28a745')
+    ws2 = wb.create_sheet('No surtido')
+    escribir_hoja(ws2, 'No surtido', no_surtido, 'dc3545')
+    ws3 = wb.create_sheet('Surtido parcial')
+    escribir_hoja(ws3, 'Surtido parcial', surtido_parcial, 'ffc107')
+
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    fecha_str = date.today().strftime('%Y%m%d')
+    response['Content-Disposition'] = f'attachment; filename="dashboard_surtimiento_{fecha_str}.xlsx"'
+    wb.save(response)
+    return response
