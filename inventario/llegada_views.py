@@ -821,49 +821,14 @@ class ControlCalidadView(LoginRequiredMixin, PermissionRequiredMixin, View):
                 llegada.usuario_calidad = request.user
                 llegada.fecha_validacion_calidad = timezone.now()
                 
-                # Si se aprueba la inspección visual, asignar a staging y marcar APROBADA
+                # Si se aprueba la inspección visual, regresar estado a En Recepción
                 if llegada.estado_calidad == 'APROBADO':
-                    ok, result = asignar_llegada_a_staging(llegada, request.user)
-                    if ok:
-                        messages.success(request, "Inspección visual aprobada. Cantidades asignadas a la ubicación 'staging' del almacén XXXX010101.")
-                        if result:
-                            messages.info(request, "Lotes existentes actualizados: " + " | ".join(result))
-                    else:
-                        # Fallback: crear lotes y dejar en UBICACION para asignación manual
-                        from .models import Institucion
-                        institucion = getattr(llegada.almacen, 'institucion', None) if llegada.almacen_id else None
-                        if not institucion:
-                            institucion = Institucion.objects.first()
-                        llegada.estado = 'UBICACION'
-                        llegada.save()
-                        for item in llegada.items.all():
-                            if not item.lote_creado:
-                                lote = Lote.objects.create(
-                                    producto=item.producto,
-                                    numero_lote=item.numero_lote,
-                                    fecha_caducidad=item.fecha_caducidad,
-                                    fecha_fabricacion=item.fecha_elaboracion,
-                                    cantidad_inicial=item.cantidad_recibida,
-                                    cantidad_disponible=item.cantidad_recibida,
-                                    cantidad_reservada=0,
-                                    almacen=llegada.almacen,
-                                    institucion=institucion,
-                                    precio_unitario=item.precio_unitario_sin_iva or 0,
-                                    valor_total=(item.precio_unitario_sin_iva or 0) * item.cantidad_recibida,
-                                    fecha_recepcion=llegada.fecha_llegada_real.date(),
-                                    estado=1
-                                )
-                                item.lote_creado = lote
-                                item.save()
-                                try:
-                                    from .lote_utils import completar_datos_lote_desde_llegada
-                                    completar_datos_lote_desde_llegada(lote, item)
-                                except Exception:
-                                    pass
-                        messages.warning(request, result + " Lotes creados; asigne ubicaciones manualmente.")
+                    llegada.estado = 'EN_RECEPCION'
+                    llegada.save()
+                    messages.success(request, "Inspección visual aprobada. Estado actualizado a En Recepción.")
                 else:
                     llegada.save()
-                    messages.warning(request, "Inspeccion visual rechazada")
+                    messages.warning(request, "Inspección visual rechazada.")
             
             return redirect('logistica:llegadas:detalle_llegada', pk=llegada.pk)
         
