@@ -313,7 +313,7 @@
                             <a href="{% url 'detalle_lote' lote.id %}" class="btn btn-sm btn-info" title="Ver detalle">
                                 <i class="bi bi-eye"></i>
                             </a>
-                            <a href="{% url 'editar_ubicaciones_lote' lote.id %}" class="btn btn-sm btn-warning" title="Editar ubicaciones">
+                            <a href="{% url 'editar_ubicaciones_lote' lote.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-sm btn-warning" title="Editar ubicaciones">
                                 <i class="fas fa-map-marker-alt"></i>
                             </a>
                             {% if lote.estado == 1 %}

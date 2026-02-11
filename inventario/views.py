@@ -2014,10 +2014,22 @@ def editar_ubicaciones_lote(request, pk):
             lote.sincronizar_cantidad_disponible()
             
             messages.success(request, "✅ Ubicaciones actualizadas correctamente.")
-            return redirect('editar_ubicaciones_lote', pk=lote.pk)
+            from django.urls import reverse
+            next_url = request.GET.get('next')
+            if next_url and next_url.startswith('/') and not next_url.startswith('//'):
+                return redirect(next_url)
+            return redirect('lista_lotes')
         
         except Exception as e:
             messages.error(request, f"❌ Error al guardar: {str(e)}")
+    
+    # URL de vuelta: lista de lotes (con filtros si vinieron por ?next=)
+    from django.urls import reverse
+    next_url = request.GET.get('next')
+    if next_url and next_url.startswith('/') and not next_url.startswith('//'):
+        return_url = next_url
+    else:
+        return_url = reverse('lista_lotes')
     
     # Obtener ubicaciones disponibles del almacén
     ubicaciones_disponibles = UbicacionAlmacen.objects.filter(
@@ -2031,6 +2043,7 @@ def editar_ubicaciones_lote(request, pk):
         'ubicaciones_actuales': ubicaciones_actuales,
         'ubicaciones_disponibles': ubicaciones_disponibles,
         'total_cantidad': sum(u.cantidad for u in ubicaciones_actuales),
+        'return_url': return_url,
     }
     
     return render(request, 'inventario/lotes/editar_ubicaciones_lote.html', context)
