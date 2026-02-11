@@ -310,6 +310,7 @@ def reporte_lotes_personalizado(request):
     filtro_almacen = request.GET.get('almacen', '')
     filtro_producto = request.GET.get('producto', '')
     filtro_caducidad = request.GET.get('caducidad', '')
+    filtro_fecha_recepcion = request.GET.get('fecha_recepcion', '')
     busqueda_lote = request.GET.get('busqueda_lote', '')
     busqueda_cnis = request.GET.get('busqueda_cnis', '')
     busqueda_producto = request.GET.get("busqueda_producto", "")
@@ -378,6 +379,7 @@ def reporte_lotes_personalizado(request):
         'busqueda_cnis': busqueda_cnis,
         "busqueda_producto": busqueda_producto,
         "filtro_partida": filtro_partida,
+        "filtro_fecha_recepcion": filtro_fecha_recepcion,
         "filtro_excluir_sin_rfc": filtro_excluir_sin_rfc,
         'columnas_disponibles': columnas_disponibles,
         'institucion_usuario': institucion,
@@ -805,6 +807,7 @@ def exportar_lotes_personalizado(request):
             busqueda_cnis = request.POST.get('busqueda_cnis', '')
             busqueda_producto = request.POST.get('busqueda_producto', '')
             filtro_partida = request.POST.get('filtro_partida', '')
+            filtro_fecha_recepcion = request.POST.get('filtro_fecha_recepcion', '')
             
             if filtro_institucion:
                 lotes = lotes.filter(institucion_id=int(filtro_institucion))
@@ -845,6 +848,17 @@ def exportar_lotes_personalizado(request):
 
             if filtro_partida:
                 lotes = lotes.filter(partida__icontains=filtro_partida)
+
+            # Filtro por coherencia de fecha de recepción (igual que lista_lotes)
+            if filtro_fecha_recepcion == 'coherentes':
+                lotes = lotes.filter(
+                    fecha_recepcion__gte=FECHA_RECEPCION_MIN,
+                    fecha_recepcion__lte=hoy,
+                )
+            elif filtro_fecha_recepcion == 'incoherentes':
+                lotes = lotes.filter(
+                    Q(fecha_recepcion__gt=hoy) | Q(fecha_recepcion__lt=FECHA_RECEPCION_MIN)
+                )
 
             # Excluir lotes sin RFC del proveedor (orden de suministro)
             excluir_sin_rfc = request.POST.get('excluir_sin_rfc_proveedor', '')

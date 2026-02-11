@@ -105,6 +105,15 @@
                     </select>
                 </div>
 
+                <div class="col-md-3">
+                    <label class="form-label">Fecha de recepción</label>
+                    <select name="fecha_recepcion" class="form-select" title="Coherencia: no futura y no anterior al arranque del sistema">
+                        <option value="">Todas</option>
+                        <option value="coherentes" {% if filtro_fecha_recepcion == "coherentes" %}selected{% endif %}>Solo coherentes</option>
+                        <option value="incoherentes" {% if filtro_fecha_recepcion == "incoherentes" %}selected{% endif %}>Solo incoherentes (revisar)</option>
+                    </select>
+                </div>
+
                 <div class="col-md-3 d-flex align-items-end">
                     <div class="form-check">
                         <input type="checkbox" name="excluir_sin_rfc" value="1" class="form-check-input" id="excluir_sin_rfc"
@@ -168,6 +177,7 @@
           <input type="hidden" name="busqueda_cnis" value="{{ busqueda_cnis }}">
           <input type="hidden" name="busqueda_producto" value="{{ busqueda_producto }}">
           <input type="hidden" name="filtro_partida" value="{{ filtro_partida }}">
+          <input type="hidden" name="filtro_fecha_recepcion" value="{{ filtro_fecha_recepcion }}">
           <input type="hidden" name="excluir_sin_rfc_proveedor" id="hidden_excluir_sin_rfc" value="{{ filtro_excluir_sin_rfc }}">
         </form>
       </div>
