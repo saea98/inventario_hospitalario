@@ -770,9 +770,13 @@ class DetalleLlegadaView(LoginRequiredMixin, View):
                 tiene_lote_sin_ubicacion = True
                 break
 
+        # Regla combinada: regla normal + caso especial
+        puede_ubicar_o_lote_sin_ubicacion = llegada.puede_ubicar() or tiene_lote_sin_ubicacion
+
         context = {
             "llegada": llegada,
             "tiene_lote_sin_ubicacion": tiene_lote_sin_ubicacion,
+            "puede_ubicar_o_lote_sin_ubicacion": puede_ubicar_o_lote_sin_ubicacion,
         }
         return render(request, "inventario/llegadas/detalle_llegada.html", context)
 

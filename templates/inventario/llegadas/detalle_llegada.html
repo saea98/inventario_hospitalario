@@ -156,7 +156,7 @@
         {% if user|has_role:'Control Calidad' and llegada.puede_validar_calidad %}
             <a href="{% url 'logistica:llegadas:control_calidad' pk=llegada.pk %}" class="btn btn-warning mr-2">Aprobar Inspección Visual</a>
         {% endif %}
-        {% if user|has_role:'Almacen' and (llegada.puede_ubicar or tiene_lote_sin_ubicacion) %}
+        {% if user|has_role:'Almacen' and puede_ubicar_o_lote_sin_ubicacion %}
             <a href="{% url 'logistica:llegadas:ubicacion' pk=llegada.pk %}" class="btn btn-primary mr-2">Asignar Ubicación</a>
         {% endif %}
         {% if llegada.estado == 'APROBADA' or llegada.estado == 'UBICACION' %}
