@@ -135,6 +135,36 @@
                         <option value="incoherentes" {% if filtro_fecha_recepcion == "incoherentes" %}selected{% endif %}>Solo incoherentes (revisar)</option>
                     </select>
                 </div>
+                <div class="col-md-2">
+                    <label class="form-label">Recepción desde</label>
+                    <input type="date" name="fecha_recepcion_desde" class="form-control" value="{{ filtro_fecha_recepcion_desde }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Recepción hasta</label>
+                    <input type="date" name="fecha_recepcion_hasta" class="form-control" value="{{ filtro_fecha_recepcion_hasta }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Remisión</label>
+                    <select name="con_remision" class="form-select">
+                        <option value="">Todas</option>
+                        <option value="1" {% if filtro_con_remision == "1" %}selected{% endif %}>Solo con remisión</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Orden suministro</label>
+                    <select name="con_orden_suministro" class="form-select">
+                        <option value="">Todas</option>
+                        <option value="1" {% if filtro_con_orden_suministro == "1" %}selected{% endif %}>Solo con orden</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Cita desde</label>
+                    <input type="date" name="fecha_cita_desde" class="form-control" value="{{ filtro_fecha_cita_desde }}" title="Fecha de cita (lotes desde llegada de proveedor)">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Cita hasta</label>
+                    <input type="date" name="fecha_cita_hasta" class="form-control" value="{{ filtro_fecha_cita_hasta }}" title="Fecha de cita (lotes desde llegada de proveedor)">
+                </div>
 
                 <!-- Botónes de Acción -->
                 <div class="col-md-2 d-flex align-items-end gap-2">
@@ -150,7 +180,7 @@
     </div>
 
     <!-- Información de Búsqueda Activa -->
-    {% if busqueda_lote or busqueda_cnis or busqueda_producto or filtro_institucion or filtro_estado or filtro_almacen or filtro_ubicacion or filtro_producto or filtro_caducidad or filtro_fecha_recepcion or filtro_partida %}
+    {% if busqueda_lote or busqueda_cnis or busqueda_producto or filtro_institucion or filtro_estado or filtro_almacen or filtro_ubicacion or filtro_producto or filtro_caducidad or filtro_fecha_recepcion or filtro_fecha_recepcion_desde or filtro_fecha_recepcion_hasta or filtro_con_remision or filtro_con_orden_suministro or filtro_fecha_cita_desde or filtro_fecha_cita_hasta or filtro_partida %}
     <div class="alert alert-info mb-4">
         <strong>Filtros Activos:</strong>
         {% if busqueda_lote %}<span class="badge bg-info">Lote: {{ busqueda_lote }}</span>{% endif %}
@@ -167,6 +197,12 @@
         {% if filtro_caducidad == "menos_90" %}<span class="badge bg-secondary">Menos de 90 días</span>{% endif %}
         {% if filtro_fecha_recepcion == "coherentes" %}<span class="badge bg-success">Fecha recepción: coherentes</span>{% endif %}
         {% if filtro_fecha_recepcion == "incoherentes" %}<span class="badge bg-warning text-dark">Fecha recepción: incoherentes</span>{% endif %}
+        {% if filtro_fecha_recepcion_desde %}<span class="badge bg-info">Recepción desde: {{ filtro_fecha_recepcion_desde }}</span>{% endif %}
+        {% if filtro_fecha_recepcion_hasta %}<span class="badge bg-info">Recepción hasta: {{ filtro_fecha_recepcion_hasta }}</span>{% endif %}
+        {% if filtro_con_remision == "1" %}<span class="badge bg-primary">Solo con remisión</span>{% endif %}
+        {% if filtro_con_orden_suministro == "1" %}<span class="badge bg-primary">Solo con orden suministro</span>{% endif %}
+        {% if filtro_fecha_cita_desde %}<span class="badge bg-info">Cita desde: {{ filtro_fecha_cita_desde }}</span>{% endif %}
+        {% if filtro_fecha_cita_hasta %}<span class="badge bg-info">Cita hasta: {{ filtro_fecha_cita_hasta }}</span>{% endif %}
         {% if filtro_partida %}<span class="badge bg-info">Partida: {{ filtro_partida }}</span>{% endif %}
     </div>
     {% endif %}
@@ -380,6 +416,14 @@
           <input type="hidden" name="filtro_ubicacion" value="{{ filtro_ubicacion }}">
           <input type="hidden" name="filtro_producto" value="{{ filtro_producto }}">
           <input type="hidden" name="filtro_caducidad" value="{{ filtro_caducidad }}">
+          <input type="hidden" name="filtro_fecha_recepcion" value="{{ filtro_fecha_recepcion }}">
+          <input type="hidden" name="filtro_fecha_recepcion_desde" value="{{ filtro_fecha_recepcion_desde }}">
+          <input type="hidden" name="filtro_fecha_recepcion_hasta" value="{{ filtro_fecha_recepcion_hasta }}">
+          <input type="hidden" name="filtro_con_remision" value="{{ filtro_con_remision }}">
+          <input type="hidden" name="filtro_con_orden_suministro" value="{{ filtro_con_orden_suministro }}">
+          <input type="hidden" name="filtro_fecha_cita_desde" value="{{ filtro_fecha_cita_desde }}">
+          <input type="hidden" name="filtro_fecha_cita_hasta" value="{{ filtro_fecha_cita_hasta }}">
+          <input type="hidden" name="filtro_partida" value="{{ filtro_partida }}">
           <input type="hidden" name="busqueda_lote" value="{{ busqueda_lote }}">
           <input type="hidden" name="busqueda_cnis" value="{{ busqueda_cnis }}">
           <input type="hidden" name="busqueda_producto" value="{{ busqueda_producto }}">

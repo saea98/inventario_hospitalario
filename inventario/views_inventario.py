@@ -146,6 +146,12 @@ def lista_lotes(request):
     filtro_producto = request.GET.get('producto', '')
     filtro_caducidad = request.GET.get('caducidad', '')
     filtro_fecha_recepcion = request.GET.get('fecha_recepcion', '')  # '', 'coherentes', 'incoherentes'
+    filtro_fecha_recepcion_desde = request.GET.get('fecha_recepcion_desde', '').strip()
+    filtro_fecha_recepcion_hasta = request.GET.get('fecha_recepcion_hasta', '').strip()
+    filtro_con_remision = request.GET.get('con_remision', '')  # '' o '1'
+    filtro_con_orden_suministro = request.GET.get('con_orden_suministro', '')  # '' o '1'
+    filtro_fecha_cita_desde = request.GET.get('fecha_cita_desde', '').strip()
+    filtro_fecha_cita_hasta = request.GET.get('fecha_cita_hasta', '').strip()
     busqueda_lote = request.GET.get('busqueda_lote', '')
     busqueda_cnis = request.GET.get('busqueda_cnis', '')
     busqueda_producto = request.GET.get("busqueda_producto", "")
@@ -204,6 +210,42 @@ def lista_lotes(request):
         lotes = lotes.filter(
             Q(fecha_recepcion__gt=hoy) | Q(fecha_recepcion__lt=FECHA_RECEPCION_MIN)
         )
+
+    # Rango de fecha de recepción (desde / hasta)
+    if filtro_fecha_recepcion_desde:
+        try:
+            fd = datetime.strptime(filtro_fecha_recepcion_desde, '%Y-%m-%d').date()
+            lotes = lotes.filter(fecha_recepcion__gte=fd)
+        except ValueError:
+            pass
+    if filtro_fecha_recepcion_hasta:
+        try:
+            fh = datetime.strptime(filtro_fecha_recepcion_hasta, '%Y-%m-%d').date()
+            lotes = lotes.filter(fecha_recepcion__lte=fh)
+        except ValueError:
+            pass
+
+    # Solo con remisión (campo remision no vacío)
+    if filtro_con_remision == '1':
+        lotes = lotes.filter(remision__isnull=False).exclude(remision='')
+
+    # Solo con orden de suministro
+    if filtro_con_orden_suministro == '1':
+        lotes = lotes.filter(orden_suministro__isnull=False)
+
+    # Rango de fecha de cita (lotes que vienen de llegada con cita en ese rango)
+    if filtro_fecha_cita_desde:
+        try:
+            fd = datetime.strptime(filtro_fecha_cita_desde, '%Y-%m-%d').date()
+            lotes = lotes.filter(item_llegada__llegada__cita__fecha_cita__date__gte=fd)
+        except ValueError:
+            pass
+    if filtro_fecha_cita_hasta:
+        try:
+            fh = datetime.strptime(filtro_fecha_cita_hasta, '%Y-%m-%d').date()
+            lotes = lotes.filter(item_llegada__llegada__cita__fecha_cita__date__lte=fh)
+        except ValueError:
+            pass
     
     # Ordenar
     lotes = lotes.order_by('-fecha_recepcion')
@@ -287,6 +329,12 @@ def lista_lotes(request):
         "busqueda_producto": busqueda_producto,
         "filtro_partida": filtro_partida,
         'filtro_fecha_recepcion': filtro_fecha_recepcion,
+        'filtro_fecha_recepcion_desde': filtro_fecha_recepcion_desde,
+        'filtro_fecha_recepcion_hasta': filtro_fecha_recepcion_hasta,
+        'filtro_con_remision': filtro_con_remision,
+        'filtro_con_orden_suministro': filtro_con_orden_suministro,
+        'filtro_fecha_cita_desde': filtro_fecha_cita_desde,
+        'filtro_fecha_cita_hasta': filtro_fecha_cita_hasta,
         'lotes_fecha_incoherente': lotes_fecha_incoherente,
         'columnas_disponibles': columnas_disponibles,
     }
@@ -311,6 +359,12 @@ def reporte_lotes_personalizado(request):
     filtro_producto = request.GET.get('producto', '')
     filtro_caducidad = request.GET.get('caducidad', '')
     filtro_fecha_recepcion = request.GET.get('fecha_recepcion', '')
+    filtro_fecha_recepcion_desde = request.GET.get('fecha_recepcion_desde', '').strip()
+    filtro_fecha_recepcion_hasta = request.GET.get('fecha_recepcion_hasta', '').strip()
+    filtro_con_remision = request.GET.get('con_remision', '')
+    filtro_con_orden_suministro = request.GET.get('con_orden_suministro', '')
+    filtro_fecha_cita_desde = request.GET.get('fecha_cita_desde', '').strip()
+    filtro_fecha_cita_hasta = request.GET.get('fecha_cita_hasta', '').strip()
     busqueda_lote = request.GET.get('busqueda_lote', '')
     busqueda_cnis = request.GET.get('busqueda_cnis', '')
     busqueda_producto = request.GET.get("busqueda_producto", "")
@@ -380,6 +434,12 @@ def reporte_lotes_personalizado(request):
         "busqueda_producto": busqueda_producto,
         "filtro_partida": filtro_partida,
         "filtro_fecha_recepcion": filtro_fecha_recepcion,
+        "filtro_fecha_recepcion_desde": filtro_fecha_recepcion_desde,
+        "filtro_fecha_recepcion_hasta": filtro_fecha_recepcion_hasta,
+        "filtro_con_remision": filtro_con_remision,
+        "filtro_con_orden_suministro": filtro_con_orden_suministro,
+        "filtro_fecha_cita_desde": filtro_fecha_cita_desde,
+        "filtro_fecha_cita_hasta": filtro_fecha_cita_hasta,
         "filtro_excluir_sin_rfc": filtro_excluir_sin_rfc,
         'columnas_disponibles': columnas_disponibles,
         'institucion_usuario': institucion,
@@ -808,6 +868,12 @@ def exportar_lotes_personalizado(request):
             busqueda_producto = request.POST.get('busqueda_producto', '')
             filtro_partida = request.POST.get('filtro_partida', '')
             filtro_fecha_recepcion = request.POST.get('filtro_fecha_recepcion', '')
+            filtro_fecha_recepcion_desde = request.POST.get('filtro_fecha_recepcion_desde', '').strip()
+            filtro_fecha_recepcion_hasta = request.POST.get('filtro_fecha_recepcion_hasta', '').strip()
+            filtro_con_remision = request.POST.get('filtro_con_remision', '')
+            filtro_con_orden_suministro = request.POST.get('filtro_con_orden_suministro', '')
+            filtro_fecha_cita_desde = request.POST.get('filtro_fecha_cita_desde', '').strip()
+            filtro_fecha_cita_hasta = request.POST.get('filtro_fecha_cita_hasta', '').strip()
             
             if filtro_institucion:
                 lotes = lotes.filter(institucion_id=int(filtro_institucion))
@@ -859,6 +925,36 @@ def exportar_lotes_personalizado(request):
                 lotes = lotes.filter(
                     Q(fecha_recepcion__gt=hoy) | Q(fecha_recepcion__lt=FECHA_RECEPCION_MIN)
                 )
+
+            if filtro_fecha_recepcion_desde:
+                try:
+                    fd = datetime.strptime(filtro_fecha_recepcion_desde, '%Y-%m-%d').date()
+                    lotes = lotes.filter(fecha_recepcion__gte=fd)
+                except ValueError:
+                    pass
+            if filtro_fecha_recepcion_hasta:
+                try:
+                    fh = datetime.strptime(filtro_fecha_recepcion_hasta, '%Y-%m-%d').date()
+                    lotes = lotes.filter(fecha_recepcion__lte=fh)
+                except ValueError:
+                    pass
+
+            if filtro_con_remision == '1':
+                lotes = lotes.filter(remision__isnull=False).exclude(remision='')
+            if filtro_con_orden_suministro == '1':
+                lotes = lotes.filter(orden_suministro__isnull=False)
+            if filtro_fecha_cita_desde:
+                try:
+                    fd = datetime.strptime(filtro_fecha_cita_desde, '%Y-%m-%d').date()
+                    lotes = lotes.filter(item_llegada__llegada__cita__fecha_cita__date__gte=fd)
+                except ValueError:
+                    pass
+            if filtro_fecha_cita_hasta:
+                try:
+                    fh = datetime.strptime(filtro_fecha_cita_hasta, '%Y-%m-%d').date()
+                    lotes = lotes.filter(item_llegada__llegada__cita__fecha_cita__date__lte=fh)
+                except ValueError:
+                    pass
 
             # Excluir lotes sin RFC del proveedor (orden de suministro)
             excluir_sin_rfc = request.POST.get('excluir_sin_rfc_proveedor', '')
