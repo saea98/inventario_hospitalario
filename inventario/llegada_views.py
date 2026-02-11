@@ -762,7 +762,19 @@ class DetalleLlegadaView(LoginRequiredMixin, View):
     
     def get(self, request, pk):
         llegada = get_object_or_404(LlegadaProveedor, pk=pk)
-        return render(request, "inventario/llegadas/detalle_llegada.html", {"llegada": llegada})
+        # Detectar si existe algún lote creado sin ubicaciones asignadas
+        tiene_lote_sin_ubicacion = False
+        for item in llegada.items.all():
+            lote = getattr(item, 'lote_creado', None)
+            if lote and not lote.ubicaciones_detalle.exists():
+                tiene_lote_sin_ubicacion = True
+                break
+
+        context = {
+            "llegada": llegada,
+            "tiene_lote_sin_ubicacion": tiene_lote_sin_ubicacion,
+        }
+        return render(request, "inventario/llegadas/detalle_llegada.html", context)
 
 
 class ControlCalidadView(LoginRequiredMixin, PermissionRequiredMixin, View):
