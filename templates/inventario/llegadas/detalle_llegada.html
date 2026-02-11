@@ -82,7 +82,8 @@
                         </tr>
                     </thead>
                     <tbody>
-                        {% for item in llegada.items.all %}
+                        {% for row in items_with_lotes %}
+                        {% with item=row.item lote=row.lote %}
                         <tr>
                             <td>
                                 {% if item.clave and item.clave != "DEFAULT" and item.clave|upper != "DEFAULT" %}
@@ -98,16 +99,16 @@
                             <td>{{ item.fecha_caducidad|date:"d/m/Y" }}</td>
                             <td>{{ item.cantidad_recibida }}</td>
                             <td>
-                                {% if item.lote_creado %}
-                                    {{ item.lote_creado.almacen.nombre }}
+                                {% if lote %}
+                                    {{ lote.almacen.nombre }}
                                 {% else %}
                                     <span class="text-muted">No asignado</span>
                                 {% endif %}
                             </td>
                             <td>
-                                {% if item.lote_creado and item.lote_creado.ubicaciones_detalle.all %}
+                                {% if lote and lote.ubicaciones_detalle.all %}
                                     <ul class="list-unstyled mb-0">
-                                        {% for ubi in item.lote_creado.ubicaciones_detalle.all %}
+                                        {% for ubi in lote.ubicaciones_detalle.all %}
                                         <li>
                                             <strong>{{ ubi.ubicacion.codigo }}</strong> - {{ ubi.ubicacion.descripcion }}
                                             <br><small class="text-muted">Cantidad: {{ ubi.cantidad }} unidades</small>
@@ -115,13 +116,13 @@
                                         {% endfor %}
                                     </ul>
                                     <div class="mt-1">
-                                        <a href="{% url 'editar_ubicaciones_lote' pk=item.lote_creado.pk %}" class="btn btn-link btn-sm p-0">
+                                        <a href="{% url 'editar_ubicaciones_lote' pk=lote.pk %}" class="btn btn-link btn-sm p-0">
                                             Editar ubicaciones del lote
                                         </a>
                                     </div>
-                                {% elif item.lote_creado %}
+                                {% elif lote %}
                                     <span class="text-muted d-block">Sin ubicaciones asignadas</span>
-                                    <a href="{% url 'editar_ubicaciones_lote' pk=item.lote_creado.pk %}" class="btn btn-link btn-sm p-0">
+                                    <a href="{% url 'editar_ubicaciones_lote' pk=lote.pk %}" class="btn btn-link btn-sm p-0">
                                         Asignar ubicaciones al lote
                                     </a>
                                 {% else %}
@@ -129,6 +130,7 @@
                                 {% endif %}
                             </td>
                         </tr>
+                        {% endwith %}
                         {% endfor %}
                     </tbody>
                 </table>

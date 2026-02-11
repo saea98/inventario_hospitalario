@@ -761,20 +761,38 @@ class DetalleLlegadaView(LoginRequiredMixin, View):
     """Muestra el detalle de una llegada"""
     
     def get(self, request, pk):
+        from .models import Lote
+
         llegada = get_object_or_404(LlegadaProveedor, pk=pk)
-        # Detectar si existe algún lote creado sin ubicaciones asignadas
+
+        items_with_lotes = []
         tiene_lote_sin_ubicacion = False
+
         for item in llegada.items.all():
+            # Preferir el lote_creado si existe
             lote = getattr(item, 'lote_creado', None)
+
+            # Si no hay lote_creado, intentar localizar un lote existente por número de lote y producto
+            if not lote and item.numero_lote and item.producto_id:
+                lote = Lote.objects.filter(
+                    numero_lote=item.numero_lote,
+                    producto=item.producto,
+                ).order_by('-fecha_recepcion').first()
+
             if lote and not lote.ubicaciones_detalle.exists():
                 tiene_lote_sin_ubicacion = True
-                break
+
+            items_with_lotes.append({
+                "item": item,
+                "lote": lote,
+            })
 
         # Regla combinada: regla normal + caso especial
         puede_ubicar_o_lote_sin_ubicacion = llegada.puede_ubicar() or tiene_lote_sin_ubicacion
 
         context = {
             "llegada": llegada,
+            "items_with_lotes": items_with_lotes,
             "tiene_lote_sin_ubicacion": tiene_lote_sin_ubicacion,
             "puede_ubicar_o_lote_sin_ubicacion": puede_ubicar_o_lote_sin_ubicacion,
         }
