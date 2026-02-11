@@ -143,6 +143,11 @@ def asignar_llegada_a_staging(llegada, usuario):
                 )
                 item.lote_creado = lote
                 item.save()
+                try:
+                    from .lote_utils import completar_datos_lote_desde_llegada
+                    completar_datos_lote_desde_llegada(lote, item)
+                except Exception:
+                    pass
                 LoteUbicacion.objects.create(
                     lote=lote,
                     ubicacion=ubicacion_staging,
@@ -816,6 +821,11 @@ class ControlCalidadView(LoginRequiredMixin, PermissionRequiredMixin, View):
                                 )
                                 item.lote_creado = lote
                                 item.save()
+                                try:
+                                    from .lote_utils import completar_datos_lote_desde_llegada
+                                    completar_datos_lote_desde_llegada(lote, item)
+                                except Exception:
+                                    pass
                         messages.warning(request, result + " Lotes creados; asigne ubicaciones manualmente.")
                 else:
                     llegada.save()
@@ -1093,6 +1103,11 @@ class UbicacionView(LoginRequiredMixin, PermissionRequiredMixin, View):
                         )
                         item.lote_creado = lote
                         item.save()
+                        try:
+                            from .lote_utils import completar_datos_lote_desde_llegada
+                            completar_datos_lote_desde_llegada(lote, item)
+                        except Exception:
+                            pass
                         for ubi_data in ubicacion_data:
                             ubicacion = get_object_or_404(UbicacionAlmacen, pk=ubi_data['ubicacion_id'])
                             LoteUbicacion.objects.create(

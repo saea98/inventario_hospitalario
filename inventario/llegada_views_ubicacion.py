@@ -117,6 +117,11 @@ class UbicacionView(LoginRequiredMixin, View):
                         )
                         item.lote_creado = lote
                         item.save()
+                        try:
+                            from .lote_utils import completar_datos_lote_desde_llegada
+                            completar_datos_lote_desde_llegada(lote, item)
+                        except Exception:
+                            pass
                     
                     # Crear registros de LoteUbicacion para cada ubicación
                     for ubi_data in ubicacion_data:

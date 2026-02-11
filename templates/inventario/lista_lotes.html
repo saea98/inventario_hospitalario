@@ -127,6 +127,15 @@
                     </select>
                 </div>
 
+                <div class="col-md-3">
+                    <label class="form-label">Fecha de recepción</label>
+                    <select name="fecha_recepcion" class="form-select" title="Filtrar por coherencia: no futura y no anterior al arranque del sistema">
+                        <option value="">Todas</option>
+                        <option value="coherentes" {% if filtro_fecha_recepcion == "coherentes" %}selected{% endif %}>Solo coherentes</option>
+                        <option value="incoherentes" {% if filtro_fecha_recepcion == "incoherentes" %}selected{% endif %}>Solo incoherentes (revisar)</option>
+                    </select>
+                </div>
+
                 <!-- Botónes de Acción -->
                 <div class="col-md-2 d-flex align-items-end gap-2">
                     <button type="submit" class="btn btn-primary flex-grow-1">
@@ -141,7 +150,7 @@
     </div>
 
     <!-- Información de Búsqueda Activa -->
-    {% if busqueda_lote or busqueda_cnis or busqueda_producto or filtro_institucion or filtro_estado or filtro_almacen or filtro_ubicacion or filtro_producto or filtro_caducidad %}
+    {% if busqueda_lote or busqueda_cnis or busqueda_producto or filtro_institucion or filtro_estado or filtro_almacen or filtro_ubicacion or filtro_producto or filtro_caducidad or filtro_fecha_recepcion or filtro_partida %}
     <div class="alert alert-info mb-4">
         <strong>Filtros Activos:</strong>
         {% if busqueda_lote %}<span class="badge bg-info">Lote: {{ busqueda_lote }}</span>{% endif %}
@@ -156,6 +165,8 @@
         {% if filtro_caducidad == "menos_30" %}<span class="badge bg-warning">Menos de 30 días</span>{% endif %}
         {% if filtro_caducidad == "menos_60" %}<span class="badge bg-info">Menos de 60 días</span>{% endif %}
         {% if filtro_caducidad == "menos_90" %}<span class="badge bg-secondary">Menos de 90 días</span>{% endif %}
+        {% if filtro_fecha_recepcion == "coherentes" %}<span class="badge bg-success">Fecha recepción: coherentes</span>{% endif %}
+        {% if filtro_fecha_recepcion == "incoherentes" %}<span class="badge bg-warning text-dark">Fecha recepción: incoherentes</span>{% endif %}
         {% if filtro_partida %}<span class="badge bg-info">Partida: {{ filtro_partida }}</span>{% endif %}
     </div>
     {% endif %}
@@ -176,6 +187,7 @@
                         <th>Ubicación</th>
                         <th>Cantidad</th>
                         <th>Cant. Reservada</th>
+                        <th>Fecha recepción</th>
                         <th>Fecha Caducidad</th>
                         <th>Caducidad</th>
                         <th>Estado</th>
@@ -216,6 +228,16 @@
                                 <span class="badge bg-info" title="Cantidad reservada en propuestas">
                                     {{ lote.cantidad_reservada|default:0 }}
                                 </span>
+                            {% else %}
+                                <span class="text-muted">-</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if lote.fecha_recepcion %}
+                                {{ lote.fecha_recepcion|date:"d/m/Y" }}
+                                {% if lote.id in lotes_fecha_incoherente %}
+                                    <span class="badge bg-warning text-dark ms-1" title="Fecha futura o anterior al arranque del sistema. Revisar.">Revisar</span>
+                                {% endif %}
                             {% else %}
                                 <span class="text-muted">-</span>
                             {% endif %}
@@ -267,7 +289,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="11" class="text-center text-muted py-4">
+                        <td colspan="12" class="text-center text-muted py-4">
                             <i class="bi bi-inbox"></i> No se encontraron lotes con los criterios de búsqueda
                         </td>
                     </tr>

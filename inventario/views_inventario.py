@@ -109,6 +109,18 @@ def dashboard_inventario(request):
 # CONSULTA DE LOTES
 # ============================================================
 
+# Fecha mínima considerada coherente para fecha_recepcion (evitar fechas antes del arranque del sistema)
+FECHA_RECEPCION_MIN = date(2010, 1, 1)
+
+
+def _fecha_recepcion_es_coherente(fecha_recepcion, hoy=None):
+    """True si la fecha de recepción es coherente: no futura y no anterior a FECHA_RECEPCION_MIN."""
+    if fecha_recepcion is None:
+        return True
+    hoy = hoy or timezone.now().date()
+    return FECHA_RECEPCION_MIN <= fecha_recepcion <= hoy
+
+
 @login_required
 def lista_lotes(request):
     """Lista de lotes con filtros y búsqueda"""
@@ -133,6 +145,7 @@ def lista_lotes(request):
     filtro_ubicacion = request.GET.get('ubicacion', '')
     filtro_producto = request.GET.get('producto', '')
     filtro_caducidad = request.GET.get('caducidad', '')
+    filtro_fecha_recepcion = request.GET.get('fecha_recepcion', '')  # '', 'coherentes', 'incoherentes'
     busqueda_lote = request.GET.get('busqueda_lote', '')
     busqueda_cnis = request.GET.get('busqueda_cnis', '')
     busqueda_producto = request.GET.get("busqueda_producto", "")
@@ -179,6 +192,18 @@ def lista_lotes(request):
 
     if filtro_partida:
         lotes = lotes.filter(partida__icontains=filtro_partida)
+
+    # Filtro por coherencia de fecha de recepción (no futura, no anterior al arranque del sistema)
+    hoy = timezone.now().date()
+    if filtro_fecha_recepcion == 'coherentes':
+        lotes = lotes.filter(
+            fecha_recepcion__gte=FECHA_RECEPCION_MIN,
+            fecha_recepcion__lte=hoy,
+        )
+    elif filtro_fecha_recepcion == 'incoherentes':
+        lotes = lotes.filter(
+            Q(fecha_recepcion__gt=hoy) | Q(fecha_recepcion__lt=FECHA_RECEPCION_MIN)
+        )
     
     # Ordenar
     lotes = lotes.order_by('-fecha_recepcion')
@@ -188,6 +213,12 @@ def lista_lotes(request):
     paginator = Paginator(lotes, 10)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
+
+    # IDs de lotes en esta página con fecha de recepción incoherente (para marcar en la tabla)
+    lotes_fecha_incoherente = set()
+    for lote in page_obj:
+        if not _fecha_recepcion_es_coherente(lote.fecha_recepcion, hoy):
+            lotes_fecha_incoherente.add(lote.id)
     
     # Opciones para filtros
     instituciones = Institucion.objects.filter(activo=True).order_by('clue')
@@ -255,6 +286,8 @@ def lista_lotes(request):
         'busqueda_cnis': busqueda_cnis,
         "busqueda_producto": busqueda_producto,
         "filtro_partida": filtro_partida,
+        'filtro_fecha_recepcion': filtro_fecha_recepcion,
+        'lotes_fecha_incoherente': lotes_fecha_incoherente,
         'columnas_disponibles': columnas_disponibles,
     }
     
@@ -825,72 +858,75 @@ def exportar_lotes_personalizado(request):
             # 5️⃣ Procesar datos manualmente para manejar ubicaciones correctamente
             datos_lista = []
             estado_map = dict(Lote.ESTADOS_CHOICES)
-            
+            # Mapeo de columnas a datos complementarios (citas, llegadas, pedidos)
+            from .lote_utils import get_datos_complementarios_lote
+            complementarios_map = {
+                'rfc_proveedor': 'rfc_proveedor',
+                'orden_suministro__proveedor__rfc': 'rfc_proveedor',
+                'proveedor': 'proveedor',
+                'orden_suministro__proveedor__razon_social': 'proveedor',
+                'partida': 'partida',
+                'contrato': 'contrato',
+                'folio': 'folio',
+                'subtotal': 'subtotal',
+                'iva': 'iva',
+                'importe_total': 'importe_total',
+                'licitacion': 'licitacion',
+                'pedido': 'pedido',
+                'remision': 'remision',
+                'responsable': 'responsable',
+                'reviso': 'reviso',
+                'tipo_entrega': 'tipo_entrega',
+                'tipo_red': 'tipo_red',
+                'orden_suministro': 'orden_suministro_numero',
+            }
+
+            def _valor_para_campo(lote, campo, comp):
+                if campo == 'ubicacion__codigo':
+                    return None  # se asigna en el bloque por ubi
+                if campo == 'almacen__nombre':
+                    return lote.almacen.nombre if lote.almacen else ""
+                if campo == 'producto__clave_cnis':
+                    return lote.producto.clave_cnis if lote.producto else ""
+                if campo == 'institucion__denominacion':
+                    return lote.institucion.denominacion if lote.institucion else ""
+                if campo == 'producto__descripcion':
+                    return lote.producto.descripcion if lote.producto else ""
+                if campo == 'estado':
+                    return estado_map.get(lote.estado, str(lote.estado))
+                valor = getattr(lote, campo.replace('__', '_'), None)
+                if valor is None and '__' in campo:
+                    partes = campo.split('__')
+                    obj = lote
+                    for parte in partes:
+                        obj = getattr(obj, parte, None)
+                        if obj is None:
+                            break
+                    valor = obj
+                if (valor is None or (isinstance(valor, str) and not str(valor).strip())) and campo in complementarios_map:
+                    valor = comp.get(complementarios_map[campo], valor)
+                return valor
+
             for lote in lotes.order_by('-fecha_recepcion'):
-                # Obtener ubicaciones del lote
+                comp = get_datos_complementarios_lote(lote)
                 ubicaciones = lote.ubicaciones_detalle.all()
-                
+
                 if ubicaciones.exists():
-                    # Si hay ubicaciones, crear un registro por cada ubicación
                     for ubi in ubicaciones:
                         registro = {}
                         for campo in campos:
                             if campo == 'ubicacion__codigo':
-                                # Obtener el código de la ubicación desde LoteUbicacion
                                 registro[campo] = ubi.ubicacion.codigo if ubi.ubicacion else ""
-                            elif campo == 'almacen__nombre':
-                                registro[campo] = lote.almacen.nombre if lote.almacen else ""
-                            elif campo == 'producto__clave_cnis':
-                                registro[campo] = lote.producto.clave_cnis if lote.producto else ""
-                            elif campo == 'institucion__denominacion':
-                                registro[campo] = lote.institucion.denominacion if lote.institucion else ""
-                            elif campo == 'producto__descripcion':
-                                registro[campo] = lote.producto.descripcion if lote.producto else ""
-                            elif campo == 'estado':
-                                registro[campo] = estado_map.get(lote.estado, str(lote.estado))
                             else:
-                                # Obtener el valor del campo del lote
-                                valor = getattr(lote, campo.replace('__', '_'), None)
-                                if valor is None and '__' in campo:
-                                    # Intentar acceso por relación
-                                    partes = campo.split('__')
-                                    obj = lote
-                                    for parte in partes:
-                                        obj = getattr(obj, parte, None)
-                                        if obj is None:
-                                            break
-                                    valor = obj
-                                registro[campo] = valor
+                                registro[campo] = _valor_para_campo(lote, campo, comp)
                         datos_lista.append(registro)
                 else:
-                    # Si no hay ubicaciones, crear un registro sin ubicación
                     registro = {}
                     for campo in campos:
                         if campo == 'ubicacion__codigo':
                             registro[campo] = ""
-                        elif campo == 'almacen__nombre':
-                            registro[campo] = lote.almacen.nombre if lote.almacen else ""
-                        elif campo == 'producto__clave_cnis':
-                            registro[campo] = lote.producto.clave_cnis if lote.producto else ""
-                        elif campo == 'institucion__denominacion':
-                            registro[campo] = lote.institucion.denominacion if lote.institucion else ""
-                        elif campo == 'producto__descripcion':
-                            registro[campo] = lote.producto.descripcion if lote.producto else ""
-                        elif campo == 'estado':
-                            registro[campo] = estado_map.get(lote.estado, str(lote.estado))
                         else:
-                            # Obtener el valor del campo del lote
-                            valor = getattr(lote, campo.replace('__', '_'), None)
-                            if valor is None and '__' in campo:
-                                # Intentar acceso por relación
-                                partes = campo.split('__')
-                                obj = lote
-                                for parte in partes:
-                                    obj = getattr(obj, parte, None)
-                                    if obj is None:
-                                        break
-                                valor = obj
-                            registro[campo] = valor
+                            registro[campo] = _valor_para_campo(lote, campo, comp)
                     datos_lista.append(registro)
             
             if not datos_lista:
