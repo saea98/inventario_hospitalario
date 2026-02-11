@@ -231,14 +231,30 @@ document.addEventListener('DOMContentLoaded', function() {
 
     function sumarCantidades() {
         var total = 0;
+
+        // Sumar ubicaciones existentes, excluyendo las marcadas para eliminar
         document.querySelectorAll('input[name^="ubicacion_"][name$="_cantidad"]').forEach(function(inp) {
+            var name = inp.getAttribute('name');  // ej. "ubicacion_12_cantidad"
+            var parts = name.split('_');
+            if (parts.length >= 3) {
+                var ubicacionId = parts[1];
+                // Buscar si la casilla de eliminar para esta ubicación está marcada
+                var checkbox = document.querySelector('input[name="eliminar_ubicacion"][value="' + ubicacionId + '"]');
+                if (checkbox && checkbox.checked) {
+                    // Si está marcada para eliminar, no suma su cantidad
+                    return;
+                }
+            }
             var v = parseInt(inp.value, 10);
             if (!isNaN(v) && v > 0) total += v;
         });
+
+        // Sumar nuevas ubicaciones
         document.querySelectorAll('.input-nueva-cantidad').forEach(function(inp) {
             var v = parseInt(inp.value, 10);
             if (!isNaN(v) && v > 0) total += v;
         });
+
         return total;
     }
 
