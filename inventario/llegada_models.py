@@ -34,6 +34,7 @@ class LlegadaProveedor(models.Model):
         ('UBICACION', 'Asignando Ubicación'),
         ('APROBADA', 'Aprobada'),
         ('RECHAZADA', 'Rechazada'),
+        ('CANCELADA', 'Cancelada'),
     ]
     
     # Identificadores

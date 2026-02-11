@@ -7,6 +7,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.views.decorators.http import require_http_methods
+from django.db import transaction
 from django.db.models import Q
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.utils import timezone
@@ -476,9 +477,10 @@ def validar_entrada(request, pk):
 
 @login_required
 def cancelar_cita(request, pk):
-    """Cancelar una cita"""
+    """Cancelar una cita y, si existe, la llegada de proveedor asociada (con rollback atómico)."""
+    from .llegada_models import LlegadaProveedor
+
     cita = get_object_or_404(CitaProveedor, pk=pk)
-    
     if cita.estado == 'cancelada':
         messages.warning(request, 'Esta cita ya está cancelada.')
         return redirect('logistica:lista_citas')
@@ -487,16 +489,34 @@ def cancelar_cita(request, pk):
         return redirect('logistica:detalle_cita', pk=pk)
 
     if request.method == 'POST':
-        cita.estado = 'cancelada'
-        cita.save()
-        
-        # Enviar notificación
-        notificaciones.notificar_cita_cancelada(cita)
-        
-        messages.success(request, f'✓ Cita cancelada')
+        try:
+            with transaction.atomic():
+                # Cancelar llegada de proveedor asociada (rollback lógico)
+                try:
+                    llegada = cita.llegada_proveedor
+                    if llegada.estado != 'CANCELADA':
+                        llegada.estado = 'CANCELADA'
+                        llegada.save(update_fields=['estado'])
+                except LlegadaProveedor.DoesNotExist:
+                    pass
+                # Cancelar la cita
+                cita.estado = 'cancelada'
+                cita.save(update_fields=['estado'])
+            # Notificación fuera del atomic para no hacer rollback por fallo de envío
+            notificaciones.notificar_cita_cancelada(cita)
+            messages.success(request, '✓ Cita y llegada de proveedor (si existía) canceladas correctamente.')
+        except Exception:
+            messages.error(request, 'No se pudo cancelar. Intente de nuevo.')
+            return redirect('logistica:detalle_cita', pk=pk)
         return redirect('logistica:lista_citas')
     
-    return render(request, 'inventario/citas/cancelar.html', {'cita': cita})
+    tiene_llegada = False
+    try:
+        cita.llegada_proveedor
+        tiene_llegada = True
+    except LlegadaProveedor.DoesNotExist:
+        pass
+    return render(request, 'inventario/citas/cancelar.html', {'cita': cita, 'tiene_llegada': tiene_llegada})
 
 
 # ============================================================================

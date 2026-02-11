@@ -44,7 +44,10 @@
                 <h6><i class="fas fa-exclamation-triangle"></i> Advertencia</h6>
                 <p class="mb-0">Al cancelar esta cita:</p>
                 <ul class="mb-0 mt-2">
-                    <li>El estado cambiará a "Cancelada"</li>
+                    <li>El estado de la cita cambiará a "Cancelada"</li>
+                    {% if tiene_llegada %}
+                    <li>La llegada de proveedor asociada también se cancelará (rollback)</li>
+                    {% endif %}
                     <li>No se podrá recuperar esta acción</li>
                     <li>Se registrará la cancelación en el sistema</li>
                 </ul>
