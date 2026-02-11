@@ -61,6 +61,14 @@ def lista_citas(request):
     
     # Filtros
     estado = request.GET.get('estado')
+    folio_raw = request.GET.get('folio', '').strip()
+    # Normalizar: quitar espacios y unificar guiones (formato en BD: IB-2026-000038)
+    folio = ''
+    if folio_raw:
+        folio = folio_raw.replace(' ', '')
+        # Unificar distintos caracteres de guión a hyphen estándar
+        for c in ('‐', '‑', '‒', '–', '—', '−', '－'):
+            folio = folio.replace(c, '-')
     proveedor = request.GET.get('proveedor')
     fecha_desde = request.GET.get('fecha_desde')
     fecha_hasta = request.GET.get('fecha_hasta')
@@ -72,6 +80,11 @@ def lista_citas(request):
     # Aplicar filtros
     if estado:
         citas = citas.filter(estado=estado)
+    if folio:
+        # Buscar en folio de la cita o en folio de la llegada asociada (por si solo está en llegada)
+        citas = citas.filter(
+            Q(folio__icontains=folio) | Q(llegada_proveedor__folio__icontains=folio)
+        )
     
     if proveedor:
         citas = citas.filter(proveedor__razon_social__icontains=proveedor)
@@ -132,6 +145,7 @@ def lista_citas(request):
         'estados': CitaProveedor.ESTADOS_CITA,
         'estados_count': estados_count,
         'estado_seleccionado': estado,
+        'folio_seleccionado': folio_raw,
         'proveedor_seleccionado': proveedor,
         'fecha_desde_seleccionada': fecha_desde,
         'fecha_hasta_seleccionada': fecha_hasta,

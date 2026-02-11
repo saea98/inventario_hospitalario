@@ -13,7 +13,7 @@
             <p class="text-muted">Gestión de citas programadas con proveedores (Total: {{ total_citas }})</p>
         </div>
         <div class="col-md-4 text-end">
-            <a href="{% url 'logistica:exportar_citas_excel' %}?estado={{ estado_seleccionado }}&proveedor={{ proveedor_seleccionado }}&fecha_desde={{ fecha_desde_seleccionada }}&fecha_hasta={{ fecha_hasta_seleccionada }}&numero_orden={{ numero_orden_seleccionado }}&numero_remision={{ numero_remision_seleccionado }}&numero_contrato={{ numero_contrato_seleccionado }}&clave_medicamento={{ clave_medicamento_seleccionada }}&ordenar={{ ordenar_actual }}&dir={{ dir_actual }}" class="btn btn-success btn-lg me-2">
+            <a href="{% url 'logistica:exportar_citas_excel' %}?estado={{ estado_seleccionado }}&folio={{ folio_seleccionado }}&proveedor={{ proveedor_seleccionado }}&fecha_desde={{ fecha_desde_seleccionada }}&fecha_hasta={{ fecha_hasta_seleccionada }}&numero_orden={{ numero_orden_seleccionado }}&numero_remision={{ numero_remision_seleccionado }}&numero_contrato={{ numero_contrato_seleccionado }}&clave_medicamento={{ clave_medicamento_seleccionada }}&ordenar={{ ordenar_actual }}&dir={{ dir_actual }}" class="btn btn-success btn-lg me-2">
                 <i class="fas fa-file-excel"></i> Exportar Excel
             </a>
             <a href="{% url 'logistica:crear_cita' %}" class="btn btn-primary btn-lg">
@@ -75,7 +75,7 @@
                 <form method="GET" class="row g-3">
                     <input type="hidden" name="ordenar" value="{{ ordenar_actual }}">
                     <input type="hidden" name="dir" value="{{ dir_actual }}">
-                <div class="col-md-3">
+                <div class="col-md-2">
                     <label class="form-label">Estado</label>
                     <select name="estado" class="form-select">
                         <option value="">Todos los estados</option>
@@ -84,11 +84,15 @@
                         {% endfor %}
                     </select>
                 </div>
-                <div class="col-md-4">
-                    <label class="form-label">Proveedor</label>
-                    <input type="text" name="proveedor" class="form-control" placeholder="Buscar por proveedor..." value="{{ proveedor_seleccionado }}">
+                <div class="col-md-3">
+                    <label class="form-label">Folio Cita</label>
+                    <input type="text" name="folio" class="form-control" placeholder="IB - 2026 - xxxx" value="{{ folio_seleccionado|default:'' }}">
                 </div>
-                <div class="col-md-5 d-flex align-items-end">
+                <div class="col-md-3">
+                    <label class="form-label">Proveedor</label>
+                    <input type="text" name="proveedor" class="form-control" placeholder="Buscar por proveedor..." value="{{ proveedor_seleccionado|default:'' }}">
+                </div>
+                <div class="col-md-4 d-flex align-items-end">
                     <button type="submit" class="btn btn-primary w-100">
                         <i class="fas fa-search"></i> Filtrar
                     </button>
@@ -110,6 +114,7 @@
                 <form method="GET" class="row g-3">
                     <!-- Mantener filtros básicos -->
                     <input type="hidden" name="estado" value="{{ estado_seleccionado|default:'' }}">
+                    <input type="hidden" name="folio" value="{{ folio_seleccionado|default:'' }}">
                     <input type="hidden" name="proveedor" value="{{ proveedor_seleccionado|default:'' }}">
                     <input type="hidden" name="ordenar" value="{{ ordenar_actual }}">
                     <input type="hidden" name="dir" value="{{ dir_actual }}">
@@ -305,7 +310,7 @@
             <!-- Primera página -->
             {% if page_obj.has_previous %}
                 <li class="page-item">
-                    <a class="page-link" href="?page=1{% if estado_seleccionado %}&estado={{ estado_seleccionado }}{% endif %}{% if proveedor_seleccionado %}&proveedor={{ proveedor_seleccionado }}{% endif %}{% if fecha_desde_seleccionada %}&fecha_desde={{ fecha_desde_seleccionada }}{% endif %}{% if fecha_hasta_seleccionada %}&fecha_hasta={{ fecha_hasta_seleccionada }}{% endif %}{% if numero_orden_seleccionado %}&numero_orden={{ numero_orden_seleccionado }}{% endif %}{% if numero_remision_seleccionado %}&numero_remision={{ numero_remision_seleccionado }}{% endif %}{% if numero_contrato_seleccionado %}&numero_contrato={{ numero_contrato_seleccionado }}{% endif %}{% if clave_medicamento_seleccionada %}&clave_medicamento={{ clave_medicamento_seleccionada }}{% endif %}&ordenar={{ ordenar_actual }}&dir={{ dir_actual }}" aria-label="Primera">
+                    <a class="page-link" href="?page=1{% if estado_seleccionado %}&estado={{ estado_seleccionado }}{% endif %}{% if folio_seleccionado %}&folio={{ folio_seleccionado }}{% endif %}{% if proveedor_seleccionado %}&proveedor={{ proveedor_seleccionado }}{% endif %}{% if fecha_desde_seleccionada %}&fecha_desde={{ fecha_desde_seleccionada }}{% endif %}{% if fecha_hasta_seleccionada %}&fecha_hasta={{ fecha_hasta_seleccionada }}{% endif %}{% if numero_orden_seleccionado %}&numero_orden={{ numero_orden_seleccionado }}{% endif %}{% if numero_remision_seleccionado %}&numero_remision={{ numero_remision_seleccionado }}{% endif %}{% if numero_contrato_seleccionado %}&numero_contrato={{ numero_contrato_seleccionado }}{% endif %}{% if clave_medicamento_seleccionada %}&clave_medicamento={{ clave_medicamento_seleccionada }}{% endif %}&ordenar={{ ordenar_actual }}&dir={{ dir_actual }}" aria-label="Primera">
                         <span aria-hidden="true"><i class="fas fa-chevron-left"></i> Primera</span>
                     </a>
                 </li>
@@ -318,7 +323,7 @@
             <!-- Página anterior -->
             {% if page_obj.has_previous %}
                 <li class="page-item">
-                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if estado_seleccionado %}&estado={{ estado_seleccionado }}{% endif %}{% if proveedor_seleccionado %}&proveedor={{ proveedor_seleccionado }}{% endif %}{% if fecha_desde_seleccionada %}&fecha_desde={{ fecha_desde_seleccionada }}{% endif %}{% if fecha_hasta_seleccionada %}&fecha_hasta={{ fecha_hasta_seleccionada }}{% endif %}{% if numero_orden_seleccionado %}&numero_orden={{ numero_orden_seleccionado }}{% endif %}{% if numero_remision_seleccionado %}&numero_remision={{ numero_remision_seleccionado }}{% endif %}{% if numero_contrato_seleccionado %}&numero_contrato={{ numero_contrato_seleccionado }}{% endif %}{% if clave_medicamento_seleccionada %}&clave_medicamento={{ clave_medicamento_seleccionada }}{% endif %}&ordenar={{ ordenar_actual }}&dir={{ dir_actual }}" aria-label="Anterior">
+                    <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if estado_seleccionado %}&estado={{ estado_seleccionado }}{% endif %}{% if folio_seleccionado %}&folio={{ folio_seleccionado }}{% endif %}{% if proveedor_seleccionado %}&proveedor={{ proveedor_seleccionado }}{% endif %}{% if fecha_desde_seleccionada %}&fecha_desde={{ fecha_desde_seleccionada }}{% endif %}{% if fecha_hasta_seleccionada %}&fecha_hasta={{ fecha_hasta_seleccionada }}{% endif %}{% if numero_orden_seleccionado %}&numero_orden={{ numero_orden_seleccionado }}{% endif %}{% if numero_remision_seleccionado %}&numero_remision={{ numero_remision_seleccionado }}{% endif %}{% if numero_contrato_seleccionado %}&numero_contrato={{ numero_contrato_seleccionado }}{% endif %}{% if clave_medicamento_seleccionada %}&clave_medicamento={{ clave_medicamento_seleccionada }}{% endif %}&ordenar={{ ordenar_actual }}&dir={{ dir_actual }}" aria-label="Anterior">
                         <span aria-hidden="true">&laquo;</span>
                     </a>
                 </li>
@@ -339,13 +344,13 @@
                     </li>
                 {% elif num > page_obj.number|add:'-3' and num < page_obj.number|add:'3' %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ num }}{% if estado_seleccionado %}&estado={{ estado_seleccionado }}{% endif %}{% if proveedor_seleccionado %}&proveedor={{ proveedor_seleccionado }}{% endif %}{% if fecha_desde_seleccionada %}&fecha_desde={{ fecha_desde_seleccionada }}{% endif %}{% if fecha_hasta_seleccionada %}&fecha_hasta={{ fecha_hasta_seleccionada }}{% endif %}{% if numero_orden_seleccionado %}&numero_orden={{ numero_orden_seleccionado }}{% endif %}{% if numero_remision_seleccionado %}&numero_remision={{ numero_remision_seleccionado }}{% endif %}{% if numero_contrato_seleccionado %}&numero_contrato={{ numero_contrato_seleccionado }}{% endif %}{% if clave_medicamento_seleccionada %}&clave_medicamento={{ clave_medicamento_seleccionada }}{% endif %}&ordenar={{ ordenar_actual }}&dir={{ dir_actual }}">
+                        <a class="page-link" href="?page={{ num }}{% if estado_seleccionado %}&estado={{ estado_seleccionado }}{% endif %}{% if folio_seleccionado %}&folio={{ folio_seleccionado }}{% endif %}{% if proveedor_seleccionado %}&proveedor={{ proveedor_seleccionado }}{% endif %}{% if fecha_desde_seleccionada %}&fecha_desde={{ fecha_desde_seleccionada }}{% endif %}{% if fecha_hasta_seleccionada %}&fecha_hasta={{ fecha_hasta_seleccionada }}{% endif %}{% if numero_orden_seleccionado %}&numero_orden={{ numero_orden_seleccionado }}{% endif %}{% if numero_remision_seleccionado %}&numero_remision={{ numero_remision_seleccionado }}{% endif %}{% if numero_contrato_seleccionado %}&numero_contrato={{ numero_contrato_seleccionado }}{% endif %}{% if clave_medicamento_seleccionada %}&clave_medicamento={{ clave_medicamento_seleccionada }}{% endif %}&ordenar={{ ordenar_actual }}&dir={{ dir_actual }}">
                             {{ num }}
                         </a>
                     </li>
                 {% elif num == 1 or num == paginator.num_pages %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ num }}{% if estado_seleccionado %}&estado={{ estado_seleccionado }}{% endif %}{% if proveedor_seleccionado %}&proveedor={{ proveedor_seleccionado }}{% endif %}{% if fecha_desde_seleccionada %}&fecha_desde={{ fecha_desde_seleccionada }}{% endif %}{% if fecha_hasta_seleccionada %}&fecha_hasta={{ fecha_hasta_seleccionada }}{% endif %}{% if numero_orden_seleccionado %}&numero_orden={{ numero_orden_seleccionado }}{% endif %}{% if numero_remision_seleccionado %}&numero_remision={{ numero_remision_seleccionado }}{% endif %}{% if numero_contrato_seleccionado %}&numero_contrato={{ numero_contrato_seleccionado }}{% endif %}{% if clave_medicamento_seleccionada %}&clave_medicamento={{ clave_medicamento_seleccionada }}{% endif %}&ordenar={{ ordenar_actual }}&dir={{ dir_actual }}">
+                        <a class="page-link" href="?page={{ num }}{% if estado_seleccionado %}&estado={{ estado_seleccionado }}{% endif %}{% if folio_seleccionado %}&folio={{ folio_seleccionado }}{% endif %}{% if proveedor_seleccionado %}&proveedor={{ proveedor_seleccionado }}{% endif %}{% if fecha_desde_seleccionada %}&fecha_desde={{ fecha_desde_seleccionada }}{% endif %}{% if fecha_hasta_seleccionada %}&fecha_hasta={{ fecha_hasta_seleccionada }}{% endif %}{% if numero_orden_seleccionado %}&numero_orden={{ numero_orden_seleccionado }}{% endif %}{% if numero_remision_seleccionado %}&numero_remision={{ numero_remision_seleccionado }}{% endif %}{% if numero_contrato_seleccionado %}&numero_contrato={{ numero_contrato_seleccionado }}{% endif %}{% if clave_medicamento_seleccionada %}&clave_medicamento={{ clave_medicamento_seleccionada }}{% endif %}&ordenar={{ ordenar_actual }}&dir={{ dir_actual }}">
                             {{ num }}
                         </a>
                     </li>
@@ -359,7 +364,7 @@
             <!-- Página siguiente -->
             {% if page_obj.has_next %}
                 <li class="page-item">
-                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if estado_seleccionado %}&estado={{ estado_seleccionado }}{% endif %}{% if proveedor_seleccionado %}&proveedor={{ proveedor_seleccionado }}{% endif %}{% if fecha_desde_seleccionada %}&fecha_desde={{ fecha_desde_seleccionada }}{% endif %}{% if fecha_hasta_seleccionada %}&fecha_hasta={{ fecha_hasta_seleccionada }}{% endif %}{% if numero_orden_seleccionado %}&numero_orden={{ numero_orden_seleccionado }}{% endif %}{% if numero_remision_seleccionado %}&numero_remision={{ numero_remision_seleccionado }}{% endif %}{% if numero_contrato_seleccionado %}&numero_contrato={{ numero_contrato_seleccionado }}{% endif %}{% if clave_medicamento_seleccionada %}&clave_medicamento={{ clave_medicamento_seleccionada }}{% endif %}&ordenar={{ ordenar_actual }}&dir={{ dir_actual }}" aria-label="Siguiente">
+                    <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if estado_seleccionado %}&estado={{ estado_seleccionado }}{% endif %}{% if folio_seleccionado %}&folio={{ folio_seleccionado }}{% endif %}{% if proveedor_seleccionado %}&proveedor={{ proveedor_seleccionado }}{% endif %}{% if fecha_desde_seleccionada %}&fecha_desde={{ fecha_desde_seleccionada }}{% endif %}{% if fecha_hasta_seleccionada %}&fecha_hasta={{ fecha_hasta_seleccionada }}{% endif %}{% if numero_orden_seleccionado %}&numero_orden={{ numero_orden_seleccionado }}{% endif %}{% if numero_remision_seleccionado %}&numero_remision={{ numero_remision_seleccionado }}{% endif %}{% if numero_contrato_seleccionado %}&numero_contrato={{ numero_contrato_seleccionado }}{% endif %}{% if clave_medicamento_seleccionada %}&clave_medicamento={{ clave_medicamento_seleccionada }}{% endif %}&ordenar={{ ordenar_actual }}&dir={{ dir_actual }}" aria-label="Siguiente">
                         <span aria-hidden="true">&raquo;</span>
                     </a>
                 </li>
@@ -372,7 +377,7 @@
             <!-- Última página -->
             {% if page_obj.has_next %}
                 <li class="page-item">
-                    <a class="page-link" href="?page={{ paginator.num_pages }}{% if estado_seleccionado %}&estado={{ estado_seleccionado }}{% endif %}{% if proveedor_seleccionado %}&proveedor={{ proveedor_seleccionado }}{% endif %}{% if fecha_desde_seleccionada %}&fecha_desde={{ fecha_desde_seleccionada }}{% endif %}{% if fecha_hasta_seleccionada %}&fecha_hasta={{ fecha_hasta_seleccionada }}{% endif %}{% if numero_orden_seleccionado %}&numero_orden={{ numero_orden_seleccionado }}{% endif %}{% if numero_remision_seleccionado %}&numero_remision={{ numero_remision_seleccionado }}{% endif %}{% if numero_contrato_seleccionado %}&numero_contrato={{ numero_contrato_seleccionado }}{% endif %}{% if clave_medicamento_seleccionada %}&clave_medicamento={{ clave_medicamento_seleccionada }}{% endif %}&ordenar={{ ordenar_actual }}&dir={{ dir_actual }}" aria-label="Última">
+                    <a class="page-link" href="?page={{ paginator.num_pages }}{% if estado_seleccionado %}&estado={{ estado_seleccionado }}{% endif %}{% if folio_seleccionado %}&folio={{ folio_seleccionado }}{% endif %}{% if proveedor_seleccionado %}&proveedor={{ proveedor_seleccionado }}{% endif %}{% if fecha_desde_seleccionada %}&fecha_desde={{ fecha_desde_seleccionada }}{% endif %}{% if fecha_hasta_seleccionada %}&fecha_hasta={{ fecha_hasta_seleccionada }}{% endif %}{% if numero_orden_seleccionado %}&numero_orden={{ numero_orden_seleccionado }}{% endif %}{% if numero_remision_seleccionado %}&numero_remision={{ numero_remision_seleccionado }}{% endif %}{% if numero_contrato_seleccionado %}&numero_contrato={{ numero_contrato_seleccionado }}{% endif %}{% if clave_medicamento_seleccionada %}&clave_medicamento={{ clave_medicamento_seleccionada }}{% endif %}&ordenar={{ ordenar_actual }}&dir={{ dir_actual }}" aria-label="Última">
                         <span aria-hidden="true">Última <i class="fas fa-chevron-right"></i></span>
                     </a>
                 </li>

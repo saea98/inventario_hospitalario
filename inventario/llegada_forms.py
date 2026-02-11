@@ -148,6 +148,10 @@ class LlegadaProveedorForm(forms.ModelForm):
                 self.fields['tipo_entrega'].initial = (cita.tipo_entrega if cita and getattr(cita, 'tipo_entrega', None) else None)
             except Exception:
                 pass
+        
+        # Piezas emitidas: si el valor es 0, mostrar campo vacío para que solo se vea la marca de agua "0"
+        if self.instance and getattr(self.instance, 'numero_piezas_emitidas', None) == 0:
+            self.initial['numero_piezas_emitidas'] = ''
     
     class Meta:
         model = LlegadaProveedor
@@ -167,7 +171,7 @@ class LlegadaProveedorForm(forms.ModelForm):
         widgets = {
             "proveedor": forms.HiddenInput(),
             "remision": forms.TextInput(attrs={"class": "form-control"}),
-            "numero_piezas_emitidas": forms.NumberInput(attrs={"class": "form-control"}),
+            "numero_piezas_emitidas": forms.NumberInput(attrs={"class": "form-control", "placeholder": "0"}),
             "numero_piezas_recibidas": forms.NumberInput(attrs={"class": "form-control"}),
             "almacen": forms.Select(attrs={"class": "form-control select2-single"}),
             "tipo_red": forms.Select(attrs={"class": "form-control"}),
