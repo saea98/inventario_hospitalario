@@ -690,21 +690,23 @@ def lista_movimientos(request):
     # Obtener institución del usuario
     institucion = request.user.institucion if hasattr(request.user, 'institucion') else None
     
-    # Filtro base
+    # Filtro base: movimientos de la institución (destino o lote perteneciente a la institución)
+    # Muchos movimientos tienen institucion_destino=null y solo tienen lote.institucion
     if institucion:
         movimientos = MovimientoInventario.objects.filter(
-            institucion_destino=institucion
-        ).select_related('lote', 'usuario')
+            Q(institucion_destino=institucion) | Q(lote__institucion=institucion)
+        ).select_related('lote', 'lote__producto', 'usuario')
     else:
-        movimientos = MovimientoInventario.objects.all().select_related('lote', 'usuario')
+        movimientos = MovimientoInventario.objects.all().select_related('lote', 'lote__producto', 'usuario')
     
     # Filtros
     filtro_tipo = request.GET.get('tipo', '')
     filtro_fecha_desde = request.GET.get('fecha_desde', '')
     filtro_fecha_hasta = request.GET.get('fecha_hasta', '')
-    busqueda_lote = request.GET.get('busqueda_lote', '')
-    busqueda_producto = request.GET.get('busqueda_producto', '')
-    busqueda_motivo = request.GET.get('busqueda_motivo', '')
+    busqueda_lote = request.GET.get('busqueda_lote', '').strip()
+    busqueda_clave = request.GET.get('busqueda_clave', '').strip()
+    busqueda_producto = request.GET.get('busqueda_producto', '').strip()
+    busqueda_motivo = request.GET.get('busqueda_motivo', '').strip()
     
     # Aplicar filtros
     if filtro_tipo:
@@ -727,6 +729,9 @@ def lista_movimientos(request):
     # Búsquedas separadas
     if busqueda_lote:
         movimientos = movimientos.filter(lote__numero_lote__icontains=busqueda_lote)
+    
+    if busqueda_clave:
+        movimientos = movimientos.filter(lote__producto__clave_cnis__icontains=busqueda_clave)
     
     if busqueda_producto:
         movimientos = movimientos.filter(lote__producto__descripcion__icontains=busqueda_producto)
@@ -753,6 +758,7 @@ def lista_movimientos(request):
         'filtro_fecha_desde': filtro_fecha_desde,
         'filtro_fecha_hasta': filtro_fecha_hasta,
         'busqueda_lote': busqueda_lote,
+        'busqueda_clave': busqueda_clave,
         'busqueda_producto': busqueda_producto,
         'busqueda_motivo': busqueda_motivo,
     }

@@ -34,6 +34,13 @@
                 </div>
                 
                 <div class="col-md-3">
+                    <label class="form-label">🔑 Clave de producto</label>
+                    <input type="text" name="busqueda_clave" class="form-control" 
+                           placeholder="Ej: CNIS o clave" value="{{ busqueda_clave }}"
+                           title="Busca por clave CNIS del producto">
+                </div>
+                
+                <div class="col-md-3">
                     <label class="form-label">📋 Buscar por Producto</label>
                     <input type="text" name="busqueda_producto" class="form-control" 
                            placeholder="Ej: Paracetamol" value="{{ busqueda_producto }}"
@@ -84,10 +91,11 @@
     </div>
 
     <!-- Información de Búsqueda Activa -->
-    {% if busqueda_lote or busqueda_producto or busqueda_motivo or filtro_tipo or filtro_fecha_desde or filtro_fecha_hasta %}
+    {% if busqueda_lote or busqueda_clave or busqueda_producto or busqueda_motivo or filtro_tipo or filtro_fecha_desde or filtro_fecha_hasta %}
     <div class="alert alert-info mb-4">
         <strong>Filtros Activos:</strong>
         {% if busqueda_lote %}<span class="badge bg-info">Lote: {{ busqueda_lote }}</span>{% endif %}
+        {% if busqueda_clave %}<span class="badge bg-info">Clave: {{ busqueda_clave }}</span>{% endif %}
         {% if busqueda_producto %}<span class="badge bg-info">Producto: {{ busqueda_producto }}</span>{% endif %}
         {% if busqueda_motivo %}<span class="badge bg-info">Motivo: {{ busqueda_motivo }}</span>{% endif %}
         {% if filtro_tipo %}<span class="badge bg-info">Tipo: {{ filtro_tipo }}</span>{% endif %}
@@ -203,10 +211,10 @@
                 <ul class="pagination justify-content-center mb-0">
                     {% if page_obj.has_previous %}
                         <li class="page-item">
-                            <a class="page-link" href="?page=1{% if busqueda_lote %}&busqueda_lote={{ busqueda_lote }}{% endif %}{% if busqueda_producto %}&busqueda_producto={{ busqueda_producto }}{% endif %}{% if busqueda_motivo %}&busqueda_motivo={{ busqueda_motivo }}{% endif %}{% if filtro_tipo %}&tipo={{ filtro_tipo }}{% endif %}{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}"><i class="fas fa-angle-double-left"></i></a>
+                            <a class="page-link" href="?page=1{% if busqueda_lote %}&busqueda_lote={{ busqueda_lote }}{% endif %}{% if busqueda_clave %}&busqueda_clave={{ busqueda_clave }}{% endif %}{% if busqueda_producto %}&busqueda_producto={{ busqueda_producto }}{% endif %}{% if busqueda_motivo %}&busqueda_motivo={{ busqueda_motivo }}{% endif %}{% if filtro_tipo %}&tipo={{ filtro_tipo }}{% endif %}{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}"><i class="fas fa-angle-double-left"></i></a>
                         </li>
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if busqueda_lote %}&busqueda_lote={{ busqueda_lote }}{% endif %}{% if busqueda_producto %}&busqueda_producto={{ busqueda_producto }}{% endif %}{% if busqueda_motivo %}&busqueda_motivo={{ busqueda_motivo }}{% endif %}{% if filtro_tipo %}&tipo={{ filtro_tipo }}{% endif %}{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}"><i class="fas fa-angle-left"></i></a>
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if busqueda_lote %}&busqueda_lote={{ busqueda_lote }}{% endif %}{% if busqueda_clave %}&busqueda_clave={{ busqueda_clave }}{% endif %}{% if busqueda_producto %}&busqueda_producto={{ busqueda_producto }}{% endif %}{% if busqueda_motivo %}&busqueda_motivo={{ busqueda_motivo }}{% endif %}{% if filtro_tipo %}&tipo={{ filtro_tipo }}{% endif %}{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}"><i class="fas fa-angle-left"></i></a>
                         </li>
                     {% endif %}
                     <li class="page-item active">
@@ -214,10 +222,10 @@
                     </li>
                     {% if page_obj.has_next %}
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if busqueda_lote %}&busqueda_lote={{ busqueda_lote }}{% endif %}{% if busqueda_producto %}&busqueda_producto={{ busqueda_producto }}{% endif %}{% if busqueda_motivo %}&busqueda_motivo={{ busqueda_motivo }}{% endif %}{% if filtro_tipo %}&tipo={{ filtro_tipo }}{% endif %}{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}"><i class="fas fa-angle-right"></i></a>
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if busqueda_lote %}&busqueda_lote={{ busqueda_lote }}{% endif %}{% if busqueda_clave %}&busqueda_clave={{ busqueda_clave }}{% endif %}{% if busqueda_producto %}&busqueda_producto={{ busqueda_producto }}{% endif %}{% if busqueda_motivo %}&busqueda_motivo={{ busqueda_motivo }}{% endif %}{% if filtro_tipo %}&tipo={{ filtro_tipo }}{% endif %}{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}"><i class="fas fa-angle-right"></i></a>
                         </li>
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if busqueda_lote %}&busqueda_lote={{ busqueda_lote }}{% endif %}{% if busqueda_producto %}&busqueda_producto={{ busqueda_producto }}{% endif %}{% if busqueda_motivo %}&busqueda_motivo={{ busqueda_motivo }}{% endif %}{% if filtro_tipo %}&tipo={{ filtro_tipo }}{% endif %}{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}"><i class="fas fa-angle-double-right"></i></a>
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if busqueda_lote %}&busqueda_lote={{ busqueda_lote }}{% endif %}{% if busqueda_clave %}&busqueda_clave={{ busqueda_clave }}{% endif %}{% if busqueda_producto %}&busqueda_producto={{ busqueda_producto }}{% endif %}{% if busqueda_motivo %}&busqueda_motivo={{ busqueda_motivo }}{% endif %}{% if filtro_tipo %}&tipo={{ filtro_tipo }}{% endif %}{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}"><i class="fas fa-angle-double-right"></i></a>
                         </li>
                     {% endif %}
                 </ul>
@@ -233,7 +241,8 @@
                 <strong>💡 Consejos de Búsqueda:</strong>
                 <ul class="mb-0 mt-2">
                     <li>Usa <strong>Buscar por Lote</strong> para encontrar todos los movimientos de un lote específico</li>
-                    <li>Usa <strong>Buscar por Producto</strong> para encontrar movimientos de un producto específico</li>
+                    <li>Usa <strong>Clave de producto</strong> para filtrar por clave CNIS del producto</li>
+                    <li>Usa <strong>Buscar por Producto</strong> para filtrar por descripción del producto</li>
                     <li>Usa <strong>Buscar por Motivo</strong> para encontrar movimientos por razón (Ej: Distribución, Consumo)</li>
                     <li>Usa <strong>Tipo de Movimiento</strong> para filtrar por tipo (Entrada, Salida, Ajuste, etc.)</li>
                     <li>Usa <strong>Fechas</strong> para filtrar por rango de fechas</li>
