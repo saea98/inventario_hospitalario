@@ -119,7 +119,8 @@ def picking_propuesta(request, propuesta_id):
         almacen_usuario_id = request.user.almacen.id
     
     for item in propuesta.items.all():
-        for lote_asignado in item.lotes_asignados.filter(surtido=False):
+        # defer('usuario_surtido') por si la columna no existe aún en la BD
+        for lote_asignado in item.lotes_asignados.filter(surtido=False).defer('usuario_surtido'):
             lote_ubicacion = lote_asignado.lote_ubicacion
             lote = lote_ubicacion.lote
             
@@ -185,12 +186,30 @@ def marcar_item_recogido(request, lote_asignado_id):
     """
     
     try:
-        lote_asignado = LoteAsignado.objects.get(id=lote_asignado_id)
+        # defer por si la columna usuario_surtido_id no existe aún en la BD
+        lote_asignado = LoteAsignado.objects.defer('usuario_surtido').get(id=lote_asignado_id)
         propuesta = lote_asignado.item_propuesta.propuesta
+        
+        # Evitar que otro usuario marque como recogido lo que ya recogió alguien
+        if lote_asignado.surtido:
+            return JsonResponse({
+                'exito': False,
+                'mensaje': 'Este ítem ya fue recogido por otro usuario. Actualice la página.',
+                'ya_recogido': True,
+            }, status=400)
         
         lote_asignado.surtido = True
         lote_asignado.fecha_surtimiento = timezone.now()
-        lote_asignado.save()
+        try:
+            lote_asignado.usuario_surtido = request.user
+            lote_asignado.save()
+        except Exception as e:
+            from django.db.utils import ProgrammingError, OperationalError
+            if (isinstance(e, (ProgrammingError, OperationalError)) and
+                    'usuario_surtido' in str(e)):
+                lote_asignado.save(update_fields=['surtido', 'fecha_surtimiento'])
+            else:
+                raise
         
         # Verificar si todos los items de la propuesta están recogidos
         total_lotes = LoteAsignado.objects.filter(

@@ -288,6 +288,14 @@ class LoteAsignado(models.Model):
     fecha_asignacion = models.DateTimeField(auto_now_add=True, verbose_name="Fecha de Asignación")
     fecha_surtimiento = models.DateTimeField(null=True, blank=True, verbose_name="Fecha de Surtimiento")
     surtido = models.BooleanField(default=False, verbose_name="¿Fue Surtido?")
+    usuario_surtido = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name='lotes_asignados_surtidos',
+        verbose_name="Usuario que recogió"
+    )
     
     class Meta:
         verbose_name = "Lote Asignado"

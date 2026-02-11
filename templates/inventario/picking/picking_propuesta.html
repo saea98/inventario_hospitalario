@@ -343,6 +343,10 @@
     }
     
     function marcarRecogido(loteAsignadoId, button) {
+        if (button.disabled) return;
+        button.disabled = true;
+        const textoOriginal = button.textContent;
+        button.textContent = '...';
         const csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || 
                          document.querySelector('meta[name="csrf-token"]')?.content;
         
@@ -353,20 +357,26 @@
                 'X-CSRFToken': csrfToken
             }
         })
-        .then(response => response.json())
-        .then(data => {
-            if (data.exito) {
-                const itemDiv = document.getElementById(`item-${loteAsignadoId}`);
-                itemDiv.classList.add('recogido');
-                button.disabled = true;
-                button.textContent = '✓ Recogido';
-                actualizarProgreso();
-            } else {
-                alert('Error: ' + data.mensaje);
-            }
+        .then(function(response) {
+            return response.json().then(function(data) {
+                if (response.ok && data.exito) {
+                    const itemDiv = document.getElementById(`item-${loteAsignadoId}`);
+                    itemDiv.classList.add('recogido');
+                    button.disabled = true;
+                    button.textContent = '✓ Recogido';
+                    actualizarProgreso();
+                } else {
+                    button.textContent = 'Ya recogido';
+                    button.title = data.mensaje || 'Otro usuario ya recogió este ítem';
+                    alert((data.mensaje || 'Este ítem ya fue recogido por otro usuario.') + ' La página se reiniciará al aceptar.');
+                    window.location.reload();
+                }
+            });
         })
-        .catch(error => {
+        .catch(function(error) {
             console.error('Error:', error);
+            button.disabled = false;
+            button.textContent = textoOriginal;
             alert('Error al marcar como recogido');
         });
     }
