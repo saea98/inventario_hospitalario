@@ -29,12 +29,11 @@
         <span class="print-check">{% if lista_revision.tipo_documento == 'remision' or not lista_revision.tipo_documento %}✓{% else %}□{% endif %}</span> REMISIÓN
     </div>
     
-    <!-- Primera fila de datos -->
+    <!-- Primera fila de datos (fecha ya en encabezado) -->
     <table class="print-datos-table">
         <tr>
-            <td style="width: 25%;"><strong>FECHA:</strong> {{ cita.fecha_cita|date:"d/m/Y" }}</td>
-            <td style="width: 25%;"><strong>REMISIÓN:</strong> {{ cita.numero_orden_remision|default:"" }}</td>
-            <td style="width: 50%;"><strong>PROVEEDOR:</strong> {{ lista_revision.proveedor }}</td>
+            <td style="width: 33%;"><strong>REMISIÓN:</strong> {{ cita.numero_orden_remision|default:"" }}</td>
+            <td style="width: 67%;"><strong>PROVEEDOR:</strong> {{ lista_revision.proveedor }}</td>
         </tr>
     </table>
     
