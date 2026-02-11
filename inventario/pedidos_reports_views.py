@@ -1191,10 +1191,28 @@ def dashboard_surtimiento_institucion(request):
     no_surtido = []
     surtido_parcial = []
 
+    def _datos_extra_fila(item):
+        solicitud = item.propuesta.solicitud if item.propuesta else None
+        inst = solicitud.institucion_solicitante if solicitud else None
+        prod = item.producto
+        cat = prod.categoria if prod else None
+        return {
+            'institucion': (inst.denominacion or '-') if inst else '-',
+            'entidad': (getattr(inst, 'estado', None) or '-') if inst else '-',
+            'categoria_nombre': (cat.nombre or '-') if cat else '-',
+            'categoria_descripcion': (getattr(cat, 'descripcion', None) or '-') if cat else '-',
+            'categoria_codigo': (getattr(cat, 'codigo', None) or '-') if cat else '-',
+            'categoria_tipo': (getattr(cat, 'tipo', None) or '-') if cat else '-',
+            'marca': (getattr(prod, 'marca', None) or '-') if prod else '-',
+            'fabricante': (getattr(prod, 'fabricante', None) or '-') if prod else '-',
+            'fecha_emision': solicitud.fecha_solicitud.strftime('%d/%m/%Y') if solicitud and getattr(solicitud, 'fecha_solicitud', None) else '-',
+        }
+
     if tiene_filtro:
         items = ItemPropuesta.objects.select_related(
             'propuesta__solicitud__institucion_solicitante',
             'producto',
+            'producto__categoria',
         ).prefetch_related('lotes_asignados').filter(
             propuesta__solicitud__institucion_solicitante__activo=True,
         ).exclude(propuesta__solicitud__estado='CANCELADA')
@@ -1218,15 +1236,17 @@ def dashboard_surtimiento_institucion(request):
 
         for item in items:
             sol = item.cantidad_solicitada or 0
-            # Cantidad realmente suministrada: suma de LoteAsignado donde surtido=True (como en reporte de pedidos)
             sur = sum(la.cantidad_asignada for la in item.lotes_asignados.all() if la.surtido)
+            extra = _datos_extra_fila(item)
+            folio = item.propuesta.solicitud.folio if item.propuesta and item.propuesta.solicitud else '-'
             if sur == 0:
                 no_surtido.append({
                     'item': item,
                     'cantidad_solicitada': sol,
                     'cantidad_surtida': sur,
                     'diferencia': sol,
-                    'folio': item.propuesta.solicitud.folio if item.propuesta and item.propuesta.solicitud else '-',
+                    'folio': folio,
+                    **extra,
                 })
             elif sur >= sol:
                 surtido_completo.append({
@@ -1234,7 +1254,8 @@ def dashboard_surtimiento_institucion(request):
                     'cantidad_solicitada': sol,
                     'cantidad_surtida': sur,
                     'diferencia': 0,
-                    'folio': item.propuesta.solicitud.folio if item.propuesta and item.propuesta.solicitud else '-',
+                    'folio': folio,
+                    **extra,
                 })
             else:
                 surtido_parcial.append({
@@ -1242,7 +1263,8 @@ def dashboard_surtimiento_institucion(request):
                     'cantidad_solicitada': sol,
                     'cantidad_surtida': sur,
                     'diferencia': sol - sur,
-                    'folio': item.propuesta.solicitud.folio if item.propuesta and item.propuesta.solicitud else '-',
+                    'folio': folio,
+                    **extra,
                 })
 
     institucion_seleccionada = None
@@ -1297,6 +1319,7 @@ def _obtener_datos_dashboard_surtimiento(request):
     items = ItemPropuesta.objects.select_related(
         'propuesta__solicitud__institucion_solicitante',
         'producto',
+        'producto__categoria',
     ).prefetch_related('lotes_asignados').filter(
         propuesta__solicitud__institucion_solicitante__activo=True,
     ).exclude(propuesta__solicitud__estado='CANCELADA')
@@ -1325,13 +1348,26 @@ def _obtener_datos_dashboard_surtimiento(request):
     for item in items:
         sol = item.cantidad_solicitada or 0
         sur = sum(la.cantidad_asignada for la in item.lotes_asignados.all() if la.surtido)
-        folio = item.propuesta.solicitud.folio if item.propuesta and item.propuesta.solicitud else '-'
-        clave = (item.producto.clave_cnis or '-') if item.producto else '-'
-        desc = ((item.producto.descripcion or '-')[:200]) if item.producto else '-'
+        solicitud = item.propuesta.solicitud if item.propuesta else None
+        inst = solicitud.institucion_solicitante if solicitud else None
+        prod = item.producto
+        cat = prod.categoria if prod else None
+        folio = solicitud.folio if solicitud else '-'
+        clave = (prod.clave_cnis or '-') if prod else '-'
+        desc = ((prod.descripcion or '-')[:200]) if prod else '-'
         row = {
             'folio': folio,
             'clave_cnis': clave,
             'descripcion': desc,
+            'institucion': (inst.denominacion or '-') if inst else '-',
+            'entidad': (getattr(inst, 'estado', None) or '-') if inst else '-',
+            'categoria_nombre': (cat.nombre or '-') if cat else '-',
+            'categoria_descripcion': (getattr(cat, 'descripcion', None) or '-') if cat else '-',
+            'categoria_codigo': (getattr(cat, 'codigo', None) or '-') if cat else '-',
+            'categoria_tipo': (getattr(cat, 'tipo', None) or '-') if cat else '-',
+            'marca': (getattr(prod, 'marca', None) or '-') if prod else '-',
+            'fabricante': (getattr(prod, 'fabricante', None) or '-') if prod else '-',
+            'fecha_emision': solicitud.fecha_solicitud.strftime('%d/%m/%Y') if solicitud and getattr(solicitud, 'fecha_solicitud', None) else '-',
             'cantidad_solicitada': sol,
             'cantidad_surtida': sur,
             'diferencia': sol - sur if sur < sol else 0,
@@ -1371,7 +1407,12 @@ def exportar_dashboard_surtimiento_excel(request):
     )
 
     def escribir_hoja(ws, titulo, filas, color_header='1F4E78'):
-        headers = ['Folio', 'Clave CNIS', 'Descripción', 'Cant. solicitada', 'Cant. surtida', 'Diferencia']
+        headers = [
+            'Folio', 'INSTITUCIÓN', 'ENTIDAD', 'Clave CNIS', 'Descripción',
+            'Cat. Nombre', 'Cat. Descripción', 'Cat. Código', 'Cat. Tipo',
+            'MARCA', 'FABRICANTE', 'FECHA DE EMISIÓN',
+            'PZAS. SOLICITADAS', 'PZAS. ENTREGADAS', 'Diferencia',
+        ]
         for col, h in enumerate(headers, 1):
             c = ws.cell(row=1, column=col)
             c.value = h
@@ -1381,19 +1422,26 @@ def exportar_dashboard_surtimiento_excel(request):
             c.border = border
         for row_idx, r in enumerate(filas, 2):
             ws.cell(row=row_idx, column=1).value = r.get('folio', '')
-            ws.cell(row=row_idx, column=2).value = r.get('clave_cnis', '')
-            ws.cell(row=row_idx, column=3).value = r.get('descripcion', '')
-            ws.cell(row=row_idx, column=4).value = r.get('cantidad_solicitada', 0)
-            ws.cell(row=row_idx, column=5).value = r.get('cantidad_surtida', 0)
-            ws.cell(row=row_idx, column=6).value = r.get('diferencia', 0)
-            for col in range(1, 7):
+            ws.cell(row=row_idx, column=2).value = r.get('institucion', '')
+            ws.cell(row=row_idx, column=3).value = r.get('entidad', '')
+            ws.cell(row=row_idx, column=4).value = r.get('clave_cnis', '')
+            ws.cell(row=row_idx, column=5).value = r.get('descripcion', '')
+            ws.cell(row=row_idx, column=6).value = r.get('categoria_nombre', '')
+            ws.cell(row=row_idx, column=7).value = r.get('categoria_descripcion', '')
+            ws.cell(row=row_idx, column=8).value = r.get('categoria_codigo', '')
+            ws.cell(row=row_idx, column=9).value = r.get('categoria_tipo', '')
+            ws.cell(row=row_idx, column=10).value = r.get('marca', '')
+            ws.cell(row=row_idx, column=11).value = r.get('fabricante', '')
+            ws.cell(row=row_idx, column=12).value = r.get('fecha_emision', '')
+            ws.cell(row=row_idx, column=13).value = r.get('cantidad_solicitada', 0)
+            ws.cell(row=row_idx, column=14).value = r.get('cantidad_surtida', 0)
+            ws.cell(row=row_idx, column=15).value = r.get('diferencia', 0)
+            for col in range(1, 16):
                 ws.cell(row=row_idx, column=col).border = border
-        ws.column_dimensions['A'].width = 18
-        ws.column_dimensions['B'].width = 14
-        ws.column_dimensions['C'].width = 50
-        ws.column_dimensions['D'].width = 14
-        ws.column_dimensions['E'].width = 14
-        ws.column_dimensions['F'].width = 12
+        for letra, w in [('A', 18), ('B', 28), ('C', 18), ('D', 14), ('E', 50),
+                         ('F', 18), ('G', 30), ('H', 12), ('I', 14), ('J', 14),
+                         ('K', 18), ('L', 14), ('M', 12), ('N', 12), ('O', 12)]:
+            ws.column_dimensions[letra].width = w
 
     ws1 = wb.active
     ws1.title = 'Surtido completo'

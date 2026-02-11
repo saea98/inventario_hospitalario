@@ -142,10 +142,19 @@
                 <thead class="table-light">
                     <tr>
                         <th>Folio</th>
+                        <th>Institución</th>
+                        <th>Entidad</th>
                         <th>Clave</th>
                         <th>Descripción</th>
-                        <th class="text-end">Cant. solicitada</th>
-                        <th class="text-end">Cant. surtida</th>
+                        <th>Cat. Nombre</th>
+                        <th>Cat. Descripción</th>
+                        <th>Cat. Código</th>
+                        <th>Cat. Tipo</th>
+                        <th>Marca</th>
+                        <th>Fabricante</th>
+                        <th>Fec. Emisión</th>
+                        <th class="text-end">Pzas. Solicitadas</th>
+                        <th class="text-end">Pzas. Entregadas</th>
                         <th class="text-end">Diferencia</th>
                     </tr>
                 </thead>
@@ -153,14 +162,23 @@
                     {% for r in surtido_completo %}
                     <tr>
                         <td><small>{{ r.folio }}</small></td>
+                        <td><small>{{ r.institucion|default:"-" }}</small></td>
+                        <td><small>{{ r.entidad|default:"-" }}</small></td>
                         <td>{{ r.item.producto.clave_cnis|default:"-" }}</td>
                         <td>{{ r.item.producto.descripcion|truncatechars:60|default:"-" }}</td>
+                        <td><small>{{ r.categoria_nombre|default:"-" }}</small></td>
+                        <td><small>{{ r.categoria_descripcion|truncatechars:40|default:"-" }}</small></td>
+                        <td><small>{{ r.categoria_codigo|default:"-" }}</small></td>
+                        <td><small>{{ r.categoria_tipo|default:"-" }}</small></td>
+                        <td><small>{{ r.marca|default:"-" }}</small></td>
+                        <td><small>{{ r.fabricante|default:"-" }}</small></td>
+                        <td><small>{{ r.fecha_emision|default:"-" }}</small></td>
                         <td class="text-end">{{ r.cantidad_solicitada }}</td>
                         <td class="text-end">{{ r.cantidad_surtida }}</td>
                         <td class="text-end">{{ r.diferencia }}</td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="6" class="text-center text-muted">No hay registros</td></tr>
+                    <tr><td colspan="15" class="text-center text-muted">No hay registros</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -176,10 +194,19 @@
                 <thead class="table-light">
                     <tr>
                         <th>Folio</th>
+                        <th>Institución</th>
+                        <th>Entidad</th>
                         <th>Clave</th>
                         <th>Descripción</th>
-                        <th class="text-end">Cant. solicitada</th>
-                        <th class="text-end">Cant. surtida</th>
+                        <th>Cat. Nombre</th>
+                        <th>Cat. Descripción</th>
+                        <th>Cat. Código</th>
+                        <th>Cat. Tipo</th>
+                        <th>Marca</th>
+                        <th>Fabricante</th>
+                        <th>Fec. Emisión</th>
+                        <th class="text-end">Pzas. Solicitadas</th>
+                        <th class="text-end">Pzas. Entregadas</th>
                         <th class="text-end">Diferencia</th>
                     </tr>
                 </thead>
@@ -187,14 +214,23 @@
                     {% for r in no_surtido %}
                     <tr>
                         <td><small>{{ r.folio }}</small></td>
+                        <td><small>{{ r.institucion|default:"-" }}</small></td>
+                        <td><small>{{ r.entidad|default:"-" }}</small></td>
                         <td>{{ r.item.producto.clave_cnis|default:"-" }}</td>
                         <td>{{ r.item.producto.descripcion|truncatechars:60|default:"-" }}</td>
+                        <td><small>{{ r.categoria_nombre|default:"-" }}</small></td>
+                        <td><small>{{ r.categoria_descripcion|truncatechars:40|default:"-" }}</small></td>
+                        <td><small>{{ r.categoria_codigo|default:"-" }}</small></td>
+                        <td><small>{{ r.categoria_tipo|default:"-" }}</small></td>
+                        <td><small>{{ r.marca|default:"-" }}</small></td>
+                        <td><small>{{ r.fabricante|default:"-" }}</small></td>
+                        <td><small>{{ r.fecha_emision|default:"-" }}</small></td>
                         <td class="text-end">{{ r.cantidad_solicitada }}</td>
                         <td class="text-end">{{ r.cantidad_surtida }}</td>
                         <td class="text-end">{{ r.diferencia }}</td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="6" class="text-center text-muted">No hay registros</td></tr>
+                    <tr><td colspan="15" class="text-center text-muted">No hay registros</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
@@ -210,10 +246,19 @@
                 <thead class="table-light">
                     <tr>
                         <th>Folio</th>
+                        <th>Institución</th>
+                        <th>Entidad</th>
                         <th>Clave</th>
                         <th>Descripción</th>
-                        <th class="text-end">Cant. solicitada</th>
-                        <th class="text-end">Cant. surtida</th>
+                        <th>Cat. Nombre</th>
+                        <th>Cat. Descripción</th>
+                        <th>Cat. Código</th>
+                        <th>Cat. Tipo</th>
+                        <th>Marca</th>
+                        <th>Fabricante</th>
+                        <th>Fec. Emisión</th>
+                        <th class="text-end">Pzas. Solicitadas</th>
+                        <th class="text-end">Pzas. Entregadas</th>
                         <th class="text-end">Diferencia</th>
                     </tr>
                 </thead>
@@ -221,14 +266,23 @@
                     {% for r in surtido_parcial %}
                     <tr>
                         <td><small>{{ r.folio }}</small></td>
+                        <td><small>{{ r.institucion|default:"-" }}</small></td>
+                        <td><small>{{ r.entidad|default:"-" }}</small></td>
                         <td>{{ r.item.producto.clave_cnis|default:"-" }}</td>
                         <td>{{ r.item.producto.descripcion|truncatechars:60|default:"-" }}</td>
+                        <td><small>{{ r.categoria_nombre|default:"-" }}</small></td>
+                        <td><small>{{ r.categoria_descripcion|truncatechars:40|default:"-" }}</small></td>
+                        <td><small>{{ r.categoria_codigo|default:"-" }}</small></td>
+                        <td><small>{{ r.categoria_tipo|default:"-" }}</small></td>
+                        <td><small>{{ r.marca|default:"-" }}</small></td>
+                        <td><small>{{ r.fabricante|default:"-" }}</small></td>
+                        <td><small>{{ r.fecha_emision|default:"-" }}</small></td>
                         <td class="text-end">{{ r.cantidad_solicitada }}</td>
                         <td class="text-end">{{ r.cantidad_surtida }}</td>
                         <td class="text-end">{{ r.diferencia }}</td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="6" class="text-center text-muted">No hay registros</td></tr>
+                    <tr><td colspan="15" class="text-center text-muted">No hay registros</td></tr>
                     {% endfor %}
                 </tbody>
             </table>
