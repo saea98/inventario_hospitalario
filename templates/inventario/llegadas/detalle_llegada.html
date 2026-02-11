@@ -114,6 +114,16 @@
                                         </li>
                                         {% endfor %}
                                     </ul>
+                                    <div class="mt-1">
+                                        <a href="{% url 'editar_ubicaciones_lote' pk=item.lote_creado.pk %}" class="btn btn-link btn-sm p-0">
+                                            Editar ubicaciones del lote
+                                        </a>
+                                    </div>
+                                {% elif item.lote_creado %}
+                                    <span class="text-muted d-block">Sin ubicaciones asignadas</span>
+                                    <a href="{% url 'editar_ubicaciones_lote' pk=item.lote_creado.pk %}" class="btn btn-link btn-sm p-0">
+                                        Asignar ubicaciones al lote
+                                    </a>
                                 {% else %}
                                     <span class="text-muted">No asignado</span>
                                 {% endif %}
