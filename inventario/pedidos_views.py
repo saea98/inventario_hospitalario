@@ -552,11 +552,16 @@ def lista_propuestas(request):
     """
     Muestra una lista de propuestas de pedido para que el almacén las revise y surta.
     Incluye indicador de porcentaje surtido y botón de impresión para propuestas surtidas.
+    Las fechas se muestran en zona horaria America/Mexico_City (UTC-6).
     """
+    import pytz
+    tz_mexico = pytz.timezone('America/Mexico_City')
+    timezone.activate(tz_mexico)
+
     from django.urls import reverse
     from django.db.models import Sum
     from .models import Institucion
-    
+
     propuestas = PropuestaPedido.objects.select_related(
         'solicitud__institucion_solicitante',
         'solicitud__almacen_destino',
