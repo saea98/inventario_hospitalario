@@ -108,18 +108,6 @@
                     </div>
                     <div class="col-md-2">
                         <div class="form-group">
-                            <label for="id_fecha_gen_desde">Fecha generación desde:</label>
-                            <input type="date" name="fecha_gen_desde" id="id_fecha_gen_desde" class="form-control" value="{{ filtro_fecha_gen_desde }}">
-                        </div>
-                    </div>
-                    <div class="col-md-2">
-                        <div class="form-group">
-                            <label for="id_fecha_gen_hasta">Fecha generación hasta:</label>
-                            <input type="date" name="fecha_gen_hasta" id="id_fecha_gen_hasta" class="form-control" value="{{ filtro_fecha_gen_hasta }}">
-                        </div>
-                    </div>
-                    <div class="col-md-2">
-                        <div class="form-group">
                             <label for="id_fecha_pedido_desde">Fecha pedido desde:</label>
                             <input type="date" name="fecha_pedido_desde" id="id_fecha_pedido_desde" class="form-control" value="{{ filtro_fecha_pedido_desde }}">
                         </div>
@@ -152,7 +140,6 @@
                             <th style="width: 15%;">Institución Solicitante</th>
                             <th>Folio de Pedido</th>
                             <th>Fecha de Pedido</th>
-                            <th>Fecha de Generación</th>
                             <th>Estado</th>
                             <th>Surtimiento</th>
                             <th>Acciones</th>
@@ -165,7 +152,6 @@
                                 <td>{{ item.propuesta.solicitud.institucion_solicitante.denominacion }}</td>
                                 <td><code>{{ item.propuesta.solicitud.observaciones_solicitud|default:"N/A" }}</code></td>
                                 <td>{{ item.propuesta.solicitud.fecha_solicitud|date:"d/m/Y H:i" }}</td>
-                                <td>{{ item.propuesta.fecha_generacion|date:"d/m/Y H:i" }}</td>
                                 <td>
                                     <span class="estado-{{ item.propuesta.estado|lower }}">{{ item.propuesta.get_estado_display }}</span>
                                 </td>
@@ -194,7 +180,7 @@
                             </tr>
                         {% empty %}
                             <tr>
-                                <td colspan="8" class="text-center">No hay propuestas de pedido.</td>
+                                <td colspan="7" class="text-center">No hay propuestas de pedido.</td>
                             </tr>
                         {% endfor %}
                     </tbody>

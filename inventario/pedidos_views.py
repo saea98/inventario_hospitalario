@@ -581,24 +581,6 @@ def lista_propuestas(request):
     if institucion_id:
         propuestas = propuestas.filter(solicitud__institucion_solicitante_id=institucion_id)
 
-    # Filtro por fecha de generación (rango en hora México)
-    fecha_gen_desde = request.GET.get('fecha_gen_desde', '').strip()
-    fecha_gen_hasta = request.GET.get('fecha_gen_hasta', '').strip()
-    if fecha_gen_desde:
-        try:
-            d = datetime.strptime(fecha_gen_desde, '%Y-%m-%d').date()
-            start_dt = tz_mexico.localize(datetime.combine(d, time.min))
-            propuestas = propuestas.filter(fecha_generacion__gte=start_dt.astimezone(pytz.UTC))
-        except ValueError:
-            pass
-    if fecha_gen_hasta:
-        try:
-            d = datetime.strptime(fecha_gen_hasta, '%Y-%m-%d').date()
-            end_dt = tz_mexico.localize(datetime.combine(d, time.max))
-            propuestas = propuestas.filter(fecha_generacion__lte=end_dt.astimezone(pytz.UTC))
-        except ValueError:
-            pass
-
     # Filtro por fecha de pedido (solicitud)
     fecha_pedido_desde = request.GET.get('fecha_pedido_desde', '').strip()
     fecha_pedido_hasta = request.GET.get('fecha_pedido_hasta', '').strip()
@@ -677,8 +659,6 @@ def lista_propuestas(request):
         'filtro_estado': estado or '',
         'filtro_folio_pedido': folio_pedido,
         'filtro_institucion': institucion_id or '',
-        'filtro_fecha_gen_desde': fecha_gen_desde,
-        'filtro_fecha_gen_hasta': fecha_gen_hasta,
         'filtro_fecha_pedido_desde': fecha_pedido_desde,
         'filtro_fecha_pedido_hasta': fecha_pedido_hasta,
         'page_title': 'Propuestas de Pedido para Surtimiento'
