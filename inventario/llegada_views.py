@@ -202,6 +202,7 @@ class ListaLlegadasView(LoginRequiredMixin, View):
         estado = request.GET.get('estado', '').strip()
         orden_suministro = request.GET.get('orden_suministro', '').strip()
         remision = request.GET.get('remision', '').strip()
+        clave_producto = request.GET.get('clave_producto', '').strip()
         
         # Aplicar filtros
         if folio:
@@ -247,6 +248,12 @@ class ListaLlegadasView(LoginRequiredMixin, View):
                 Q(cita__numero_orden_remision__icontains=remision)
             )
         
+        if clave_producto:
+            llegadas = llegadas.filter(
+                Q(items__clave__icontains=clave_producto) |
+                Q(items__producto__clave_cnis__icontains=clave_producto)
+            ).distinct()
+        
         # Ordenar por fecha de creación descendente
         llegadas = llegadas.order_by('-fecha_creacion')
         
@@ -268,6 +275,7 @@ class ListaLlegadasView(LoginRequiredMixin, View):
             'estado': estado,
             'orden_suministro': orden_suministro,
             'remision': remision,
+            'clave_producto': clave_producto,
             'estados_choices': estados_choices,
         }
         
@@ -291,6 +299,7 @@ def exportar_llegadas_excel(request):
     estado = request.GET.get('estado', '').strip()
     orden_suministro = request.GET.get('orden_suministro', '').strip()
     remision = request.GET.get('remision', '').strip()
+    clave_producto = request.GET.get('clave_producto', '').strip()
     
     if folio:
         llegadas = llegadas.filter(folio__icontains=folio)
@@ -334,6 +343,12 @@ def exportar_llegadas_excel(request):
             Q(remision__icontains=remision) |
             Q(cita__numero_orden_remision__icontains=remision)
         )
+    
+    if clave_producto:
+        llegadas = llegadas.filter(
+            Q(items__clave__icontains=clave_producto) |
+            Q(items__producto__clave_cnis__icontains=clave_producto)
+        ).distinct()
     
     # Ordenar por fecha de creación descendente
     llegadas = llegadas.order_by('-fecha_creacion')
