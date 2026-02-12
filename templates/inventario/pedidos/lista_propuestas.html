@@ -75,7 +75,7 @@
         <div class="card-body">
             <form method="get">
                 <div class="row">
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <div class="form-group">
                             <label for="id_estado">Estado:</label>
                             <select name="estado" id="id_estado" class="form-control">
@@ -86,16 +86,16 @@
                             </select>
                         </div>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <div class="form-group">
                             <label for="id_folio_pedido">Folio de Pedido:</label>
                             <input type="text" name="folio_pedido" id="id_folio_pedido" class="form-control" 
-                                   value="{{ filtro_folio_pedido }}" placeholder="Buscar por folio de pedido">
+                                   value="{{ filtro_folio_pedido }}" placeholder="Folio de pedido">
                         </div>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <div class="form-group">
-                            <label for="id_institucion">Institución Solicitante:</label>
+                            <label for="id_institucion">Institución:</label>
                             <select name="institucion" id="id_institucion" class="form-control">
                                 <option value="">Todas</option>
                                 {% for institucion in instituciones %}
@@ -106,14 +106,35 @@
                             </select>
                         </div>
                     </div>
-                    <div class="col-md-3">
+                    <div class="col-md-2">
                         <div class="form-group">
-                            <label>&nbsp;</label>
-                            <div>
-                                <button type="submit" class="btn btn-primary btn-block">Buscar</button>
-                                <a href="{% url 'logistica:lista_propuestas' %}" class="btn btn-secondary btn-block mt-2">Limpiar</a>
-                            </div>
+                            <label for="id_fecha_gen_desde">Fecha generación desde:</label>
+                            <input type="date" name="fecha_gen_desde" id="id_fecha_gen_desde" class="form-control" value="{{ filtro_fecha_gen_desde }}">
                         </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-group">
+                            <label for="id_fecha_gen_hasta">Fecha generación hasta:</label>
+                            <input type="date" name="fecha_gen_hasta" id="id_fecha_gen_hasta" class="form-control" value="{{ filtro_fecha_gen_hasta }}">
+                        </div>
+                    </div>
+                    <div class="col-md-2">
+                        <div class="form-group">
+                            <label for="id_fecha_pedido_desde">Fecha pedido desde:</label>
+                            <input type="date" name="fecha_pedido_desde" id="id_fecha_pedido_desde" class="form-control" value="{{ filtro_fecha_pedido_desde }}">
+                        </div>
+                    </div>
+                </div>
+                <div class="row">
+                    <div class="col-md-2">
+                        <div class="form-group">
+                            <label for="id_fecha_pedido_hasta">Fecha pedido hasta:</label>
+                            <input type="date" name="fecha_pedido_hasta" id="id_fecha_pedido_hasta" class="form-control" value="{{ filtro_fecha_pedido_hasta }}">
+                        </div>
+                    </div>
+                    <div class="col-md-4 d-flex align-items-end">
+                        <button type="submit" class="btn btn-primary mr-2">Buscar</button>
+                        <a href="{% url 'logistica:lista_propuestas' %}" class="btn btn-secondary">Limpiar</a>
                     </div>
                 </div>
             </form>
@@ -130,6 +151,7 @@
                             <th>Folio de Solicitud</th>
                             <th style="width: 15%;">Institución Solicitante</th>
                             <th>Folio de Pedido</th>
+                            <th>Fecha de Pedido</th>
                             <th>Fecha de Generación</th>
                             <th>Estado</th>
                             <th>Surtimiento</th>
@@ -142,6 +164,7 @@
                                 <td>{{ item.propuesta.solicitud.folio }}</td>
                                 <td>{{ item.propuesta.solicitud.institucion_solicitante.denominacion }}</td>
                                 <td><code>{{ item.propuesta.solicitud.observaciones_solicitud|default:"N/A" }}</code></td>
+                                <td>{{ item.propuesta.solicitud.fecha_solicitud|date:"d/m/Y H:i" }}</td>
                                 <td>{{ item.propuesta.fecha_generacion|date:"d/m/Y H:i" }}</td>
                                 <td>
                                     <span class="estado-{{ item.propuesta.estado|lower }}">{{ item.propuesta.get_estado_display }}</span>
@@ -171,13 +194,40 @@
                             </tr>
                         {% empty %}
                             <tr>
-                                <td colspan="7" class="text-center">No hay propuestas de pedido.</td>
+                                <td colspan="8" class="text-center">No hay propuestas de pedido.</td>
                             </tr>
                         {% endfor %}
                     </tbody>
                 </table>
             </div>
         </div>
+        {% if paginator.num_pages > 1 %}
+        <div class="card-footer">
+            <nav aria-label="Paginación">
+                <ul class="pagination justify-content-center mb-0">
+                    {% if page_obj.has_previous %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page=1{% if base_query %}&{{ base_query }}{% endif %}"><i class="fas fa-angle-double-left"></i></a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if base_query %}&{{ base_query }}{% endif %}"><i class="fas fa-angle-left"></i></a>
+                        </li>
+                    {% endif %}
+                    <li class="page-item active">
+                        <span class="page-link">Página {{ page_obj.number }} de {{ paginator.num_pages }}</span>
+                    </li>
+                    {% if page_obj.has_next %}
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if base_query %}&{{ base_query }}{% endif %}"><i class="fas fa-angle-right"></i></a>
+                        </li>
+                        <li class="page-item">
+                            <a class="page-link" href="?page={{ paginator.num_pages }}{% if base_query %}&{{ base_query }}{% endif %}"><i class="fas fa-angle-double-right"></i></a>
+                        </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
     </div>
 </div>
 {% endblock %}

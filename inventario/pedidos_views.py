@@ -9,7 +9,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.utils import timezone
-from datetime import date
+from datetime import date, datetime, time
 from django.forms import inlineformset_factory
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.http import HttpResponse, JsonResponse
@@ -566,43 +566,89 @@ def lista_propuestas(request):
         'solicitud__institucion_solicitante',
         'solicitud__almacen_destino',
         'solicitud__usuario_solicitante'
-    ).prefetch_related('items').all()
-    
-    # Aplicar filtros
+    ).prefetch_related('items').order_by('-fecha_generacion')
+
+    # Filtros
     estado = request.GET.get('estado')
     if estado:
         propuestas = propuestas.filter(estado=estado)
-    
+
     folio_pedido = request.GET.get('folio_pedido', '').strip()
     if folio_pedido:
         propuestas = propuestas.filter(solicitud__observaciones_solicitud__icontains=folio_pedido)
-    
+
     institucion_id = request.GET.get('institucion')
     if institucion_id:
         propuestas = propuestas.filter(solicitud__institucion_solicitante_id=institucion_id)
-    
+
+    # Filtro por fecha de generación (rango en hora México)
+    fecha_gen_desde = request.GET.get('fecha_gen_desde', '').strip()
+    fecha_gen_hasta = request.GET.get('fecha_gen_hasta', '').strip()
+    if fecha_gen_desde:
+        try:
+            d = datetime.strptime(fecha_gen_desde, '%Y-%m-%d').date()
+            start_dt = tz_mexico.localize(datetime.combine(d, time.min))
+            propuestas = propuestas.filter(fecha_generacion__gte=start_dt.astimezone(pytz.UTC))
+        except ValueError:
+            pass
+    if fecha_gen_hasta:
+        try:
+            d = datetime.strptime(fecha_gen_hasta, '%Y-%m-%d').date()
+            end_dt = tz_mexico.localize(datetime.combine(d, time.max))
+            propuestas = propuestas.filter(fecha_generacion__lte=end_dt.astimezone(pytz.UTC))
+        except ValueError:
+            pass
+
+    # Filtro por fecha de pedido (solicitud)
+    fecha_pedido_desde = request.GET.get('fecha_pedido_desde', '').strip()
+    fecha_pedido_hasta = request.GET.get('fecha_pedido_hasta', '').strip()
+    if fecha_pedido_desde:
+        try:
+            d = datetime.strptime(fecha_pedido_desde, '%Y-%m-%d').date()
+            start_dt = tz_mexico.localize(datetime.combine(d, time.min))
+            propuestas = propuestas.filter(solicitud__fecha_solicitud__gte=start_dt.astimezone(pytz.UTC))
+        except ValueError:
+            pass
+    if fecha_pedido_hasta:
+        try:
+            d = datetime.strptime(fecha_pedido_hasta, '%Y-%m-%d').date()
+            end_dt = tz_mexico.localize(datetime.combine(d, time.max))
+            propuestas = propuestas.filter(solicitud__fecha_solicitud__lte=end_dt.astimezone(pytz.UTC))
+        except ValueError:
+            pass
+
+    # Paginación (aplicar después de filtros, antes de construir la lista)
+    paginator = Paginator(propuestas, 25)
+    page_number = request.GET.get('page', 1)
+    try:
+        page_obj = paginator.page(page_number)
+    except PageNotAnInteger:
+        page_obj = paginator.page(1)
+    except EmptyPage:
+        page_obj = paginator.page(paginator.num_pages)
+
     propuestas_con_info = []
-    for propuesta in propuestas:
+    for propuesta in page_obj:
         if not propuesta.id:
             continue
-            
+
         total_solicitado = propuesta.items.aggregate(
             total=Sum('cantidad_solicitada')
         )['total'] or 0
-        
+
         total_surtido = propuesta.items.aggregate(
             total=Sum('cantidad_surtida')
         )['total'] or 0
-        
+
         porcentaje_surtido = 0
         if total_solicitado > 0:
             porcentaje_surtido = round((total_surtido / total_solicitado) * 100, 2)
-        
+
         url_detalle = f'/logistica/propuestas/{propuesta.id}/'
         url_pdf = f'/logistica/propuestas/{propuesta.id}/acuse-pdf/'
-        
+
         puede_imprimir = propuesta.estado == 'SURTIDA'
-        
+
         propuestas_con_info.append({
             'propuesta': propuesta,
             'porcentaje_surtido': porcentaje_surtido,
@@ -612,17 +658,29 @@ def lista_propuestas(request):
             'url_detalle': url_detalle,
             'url_pdf': url_pdf
         })
-    
+
+    # Query string para mantener filtros en la paginación
+    get_copy = request.GET.copy()
+    get_copy.pop('page', None)
+    base_query = get_copy.urlencode()
+
     # Obtener instituciones para el filtro
     instituciones = Institucion.objects.all().order_by('denominacion')
-    
+
     context = {
         'propuestas': propuestas_con_info,
+        'page_obj': page_obj,
+        'paginator': paginator,
+        'base_query': base_query,
         'estados': PropuestaPedido.ESTADO_CHOICES,
         'instituciones': instituciones,
         'filtro_estado': estado or '',
         'filtro_folio_pedido': folio_pedido,
         'filtro_institucion': institucion_id or '',
+        'filtro_fecha_gen_desde': fecha_gen_desde,
+        'filtro_fecha_gen_hasta': fecha_gen_hasta,
+        'filtro_fecha_pedido_desde': fecha_pedido_desde,
+        'filtro_fecha_pedido_hasta': fecha_pedido_hasta,
         'page_title': 'Propuestas de Pedido para Surtimiento'
     }
     return render(request, 'inventario/pedidos/lista_propuestas.html', context)
