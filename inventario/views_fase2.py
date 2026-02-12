@@ -451,7 +451,7 @@ def validar_entrada(request, pk):
                     form.cleaned_data.get('observaciones', '')
                 )
                 messages.success(request, '✓ Entrada validada exitosamente. La cita está autorizada.')
-                return redirect('logistica:lista_citas')
+                return redirect('logistica:validar_entrada', pk=pk)
         
         elif 'rechazar' in request.POST:
             form = RechazarEntradaForm(request.POST)

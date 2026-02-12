@@ -231,11 +231,21 @@ def _obtener_lotes_filtrados(request, from_post=False):
     filtro_estado = (get_param('estado') or '').strip()
     filtro_lote = (get_param('lote') or '').strip()
     excluir_sin_orden = (get_param('excluir_sin_orden') or '') == 'si'
+    filtro_almacen = (get_param('almacen') or '').strip()
+    filtro_proveedor = (get_param('proveedor') or '').strip()
+    filtro_marca = (get_param('marca') or '').strip()
+    filtro_fabricante = (get_param('fabricante') or '').strip()
+    fecha_rec_desde_str = (get_param('fecha_rec_desde') or '').strip()
+    fecha_rec_hasta_str = (get_param('fecha_rec_hasta') or '').strip()
+    cad_desde_str = (get_param('cad_desde') or '').strip()
+    cad_hasta_str = (get_param('cad_hasta') or '').strip()
 
     lotes = Lote.objects.select_related(
         'producto',
         'institucion',
-        'orden_suministro__proveedor'
+        'orden_suministro__proveedor',
+        'almacen',
+        'ubicacion',
     ).all()
 
     if excluir_sin_orden:
@@ -257,6 +267,43 @@ def _obtener_lotes_filtrados(request, from_post=False):
         lotes = lotes.filter(estado=filtro_estado)
     if filtro_lote:
         lotes = lotes.filter(numero_lote__icontains=filtro_lote)
+
+    if filtro_almacen:
+        lotes = lotes.filter(almacen__nombre__icontains=filtro_almacen)
+    if filtro_proveedor:
+        lotes = lotes.filter(
+            Q(orden_suministro__proveedor__razon_social__icontains=filtro_proveedor)
+            | Q(proveedor__icontains=filtro_proveedor)
+        )
+    if filtro_marca:
+        lotes = lotes.filter(producto__marca__icontains=filtro_marca)
+    if filtro_fabricante:
+        lotes = lotes.filter(producto__fabricante__icontains=filtro_fabricante)
+
+    # Filtros de rango de fechas (coherentes) para recepción y caducidad
+    def _parse_fecha(fecha_str):
+        if not fecha_str:
+            return None
+        for fmt in ('%Y-%m-%d', '%d/%m/%Y'):
+            try:
+                return datetime.strptime(fecha_str, fmt).date()
+            except ValueError:
+                continue
+        return None
+
+    fecha_rec_desde = _parse_fecha(fecha_rec_desde_str)
+    fecha_rec_hasta = _parse_fecha(fecha_rec_hasta_str)
+    cad_desde = _parse_fecha(cad_desde_str)
+    cad_hasta = _parse_fecha(cad_hasta_str)
+
+    if fecha_rec_desde:
+        lotes = lotes.filter(fecha_recepcion__gte=fecha_rec_desde)
+    if fecha_rec_hasta:
+        lotes = lotes.filter(fecha_recepcion__lte=fecha_rec_hasta)
+    if cad_desde:
+        lotes = lotes.filter(fecha_caducidad__gte=cad_desde)
+    if cad_hasta:
+        lotes = lotes.filter(fecha_caducidad__lte=cad_hasta)
 
     return lotes.order_by('institucion__denominacion', '-fecha_recepcion', 'producto__clave_cnis')
 
@@ -286,6 +333,185 @@ def _fila_lote_a_dict(lote):
         'f_fab': lote.fecha_fabricacion.strftime('%d/%m/%Y') if getattr(lote, 'fecha_fabricacion', None) else '',
         'f_rec': lote.fecha_recepcion.strftime('%d/%m/%Y') if getattr(lote, 'fecha_recepcion', None) else '',
     }
+
+
+# =========================
+# REPORTE DE EXISTENCIAS
+# =========================
+
+EXISTENCIAS_COLUMNAS_LABELS = {
+    'lote': 'Lote',
+    'clave_cnis': 'Clave CNIS',
+    'producto': 'Producto',
+    'unidad_medida': 'Unidad de medida',
+    'almacen': 'Almacén',
+    'ubicacion': 'Ubicación',
+    'existencia': 'Existencia',
+    'precio': 'Precio',
+    'importe': 'Importe',
+    'contrato': 'Contrato',
+    'orden_suministro': 'Orden de Suministro',
+    'remision': 'Remisión',
+    'proveedor': 'Proveedor',
+    'marca': 'Marca',
+    'fabricante': 'Fabricante',
+    'clues': 'CLUES',
+    'institucion': 'Institución',
+    'f_cad': 'Fecha Caducidad',
+    'f_fab': 'Fecha Fabricación',
+    'f_rec': 'Fecha Recepción',
+}
+
+
+def _fila_lote_existencias_a_dict(lote):
+    """Convierte un lote a diccionario con columnas para el reporte de existencias."""
+    producto = getattr(lote, 'producto', None)
+    institucion = getattr(lote, 'institucion', None)
+    orden = getattr(lote, 'orden_suministro', None)
+    proveedor_os = getattr(orden, 'proveedor', None) if orden else None
+
+    proveedor_nombre = ''
+    if proveedor_os and getattr(proveedor_os, 'razon_social', None):
+        proveedor_nombre = proveedor_os.razon_social
+    elif getattr(lote, 'proveedor', None):
+        proveedor_nombre = lote.proveedor
+
+    return {
+        'lote': lote.numero_lote,
+        'clave_cnis': producto.clave_cnis if producto else '',
+        'producto': producto.descripcion if producto else '',
+        'unidad_medida': productounidad if (productounidad := getattr(producto, 'unidad_medida', None)) else '',
+        'almacen': lote.almacen.nombre if getattr(lote, 'almacen', None) else '',
+        'ubicacion': lote.ubicacion.codigo if getattr(lote, 'ubicacion', None) else '',
+        'existencia': lote.cantidad_disponible,
+        'precio': lote.precio_unitario,
+        'importe': lote.valor_total,
+        'contrato': getattr(lote, 'contrato', '') or '',
+        'orden_suministro': orden.numero_orden if orden else '',
+        'remision': getattr(lote, 'remision', '') or '',
+        'proveedor': proveedor_nombre,
+        'marca': getattr(producto, 'marca', '') or '' if producto else '',
+        'fabricante': getattr(producto, 'fabricante', '') or '' if producto else '',
+        'clues': institucion.clue if institucion else '',
+        'institucion': institucion.denominacion if institucion else '',
+        'f_cad': lote.fecha_caducidad.strftime('%d/%m/%Y') if getattr(lote, 'fecha_caducidad', None) else '',
+        'f_fab': lote.fecha_fabricacion.strftime('%d/%m/%Y') if getattr(lote, 'fecha_fabricacion', None) else '',
+        'f_rec': lote.fecha_recepcion.strftime('%d/%m/%Y') if getattr(lote, 'fecha_recepcion', None) else '',
+    }
+
+
+@login_required
+def reporte_existencias(request):
+    """
+    Reporte de existencias (por lote) con filtros por CLUES, almacén, proveedor,
+    marca, fechas de recepción/caducidad, etc.
+    """
+    lotes = _obtener_lotes_filtrados(request, from_post=False)
+
+    paginator = Paginator(lotes, 50)
+    page = request.GET.get('page', 1)
+    try:
+        lotes_paginados = paginator.page(page)
+    except PageNotAnInteger:
+        lotes_paginados = paginator.page(1)
+    except EmptyPage:
+        lotes_paginados = paginator.page(paginator.num_pages)
+
+    datos_reporte = [_fila_lote_existencias_a_dict(l) for l in lotes_paginados]
+
+    # Para mantener filtros en paginación y orden, reutilizamos los parámetros de GET
+    get_copy = request.GET.copy()
+    get_copy.pop('page', None)
+    base_query = get_copy.urlencode()
+
+    context = {
+        'datos_reporte': datos_reporte,
+        'lotes_paginados': lotes_paginados,
+        'base_query': base_query,
+        # Filtros actuales (para rellenar el formulario)
+        'filtro_entidad': request.GET.get('entidad', '').strip(),
+        'filtro_clues': request.GET.get('clues', '').strip(),
+        'filtro_orden': request.GET.get('orden', '').strip(),
+        'filtro_rfc': request.GET.get('rfc', '').strip(),
+        'filtro_clave': request.GET.get('clave', '').strip(),
+        'filtro_estado': request.GET.get('estado', '').strip(),
+        'filtro_lote': request.GET.get('lote', '').strip(),
+        'excluir_sin_orden': (request.GET.get('excluir_sin_orden') or '') == 'si',
+        'filtro_almacen': request.GET.get('almacen', '').strip(),
+        'filtro_proveedor': request.GET.get('proveedor', '').strip(),
+        'filtro_marca': request.GET.get('marca', '').strip(),
+        'filtro_fabricante': request.GET.get('fabricante', '').strip(),
+        'fecha_rec_desde': request.GET.get('fecha_rec_desde', '').strip(),
+        'fecha_rec_hasta': request.GET.get('fecha_rec_hasta', '').strip(),
+        'cad_desde': request.GET.get('cad_desde', '').strip(),
+        'cad_hasta': request.GET.get('cad_hasta', '').strip(),
+        'estados_lote': [
+            (1, 'Disponible'),
+            (4, 'Suspendido'),
+            (5, 'Deteriorado'),
+            (6, 'Caducado'),
+        ],
+        'columnas_existencias': EXISTENCIAS_COLUMNAS_LABELS,
+    }
+
+    return render(request, 'inventario/reportes/reporte_existencias.html', context)
+
+
+@login_required
+def exportar_existencias_excel(request):
+    """Exporta el reporte de existencias a Excel con las columnas definidas."""
+    lotes = _obtener_lotes_filtrados(request, from_post=False)
+
+    columnas = list(EXISTENCIAS_COLUMNAS_LABELS.keys())
+    headers = [EXISTENCIAS_COLUMNAS_LABELS[c] for c in columnas]
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Existencias"
+
+    header_fill = PatternFill(start_color="1F4E78", end_color="1F4E78", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF", size=11)
+    header_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin')
+    )
+
+    for col_num, header in enumerate(headers, 1):
+        col_letter = get_column_letter(col_num)
+        cell = ws[f"{col_letter}1"]
+        cell.value = header
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = header_alignment
+        cell.border = border
+
+    for row_num, lote in enumerate(lotes, 2):
+        fila = _fila_lote_existencias_a_dict(lote)
+        row_data = [fila.get(c, '') for c in columnas]
+
+        for col_num, value in enumerate(row_data, 1):
+            col_letter = get_column_letter(col_num)
+            cell = ws[f"{col_letter}{row_num}"]
+            cell.value = value
+            cell.border = border
+            if columnas[col_num - 1] in ('existencia', 'precio', 'importe'):
+                cell.alignment = Alignment(horizontal="right", vertical="center")
+            else:
+                cell.alignment = Alignment(horizontal="left", vertical="center")
+
+    for col_num in range(1, len(columnas) + 1):
+        col_letter = get_column_letter(col_num)
+        ws.column_dimensions[col_letter].width = 18
+
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename="reporte_existencias_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx"'
+    wb.save(response)
+    return response
 
 
 @login_required

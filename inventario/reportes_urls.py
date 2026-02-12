@@ -8,6 +8,8 @@ from .views_reporte_inventario_detallado import (
     reporte_inventario_detallado,
     exportar_inventario_detallado_excel,
     carga_masiva_inventario_detallado,
+    reporte_existencias,
+    exportar_existencias_excel,
 )
 
 app_name = 'reportes'
@@ -24,4 +26,6 @@ urlpatterns = [
     path("inventario-detallado/", reporte_inventario_detallado, name="reporte_inventario_detallado"),
     path("inventario-detallado/exportar-excel/", exportar_inventario_detallado_excel, name="exportar_inventario_detallado_excel"),
     path("inventario-detallado/carga-masiva/", carga_masiva_inventario_detallado, name="carga_masiva_inventario_detallado"),
+    path("existencias/", reporte_existencias, name="reporte_existencias"),
+    path("existencias/exportar-excel/", exportar_existencias_excel, name="exportar_existencias_excel"),
 ]
