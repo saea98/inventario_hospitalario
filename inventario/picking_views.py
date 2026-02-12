@@ -13,7 +13,7 @@ from django.views.decorators.csrf import csrf_exempt
 from django.utils import timezone
 from django.template.loader import get_template
 from django.conf import settings
-from datetime import datetime
+from datetime import datetime, timedelta
 from xhtml2pdf import pisa
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -82,6 +82,82 @@ def dashboard_picking(request):
     }
     
     return render(request, 'inventario/picking/dashboard_picking.html', context)
+
+
+# ============================================================
+# MONITOR DE PICKING (electrónico vs manual)
+# ============================================================
+
+@login_required
+@requiere_rol('Almacenista', 'Administrador', 'Gestor de Inventario', 'Supervisor')
+def monitor_picking(request):
+    """
+    Monitor para ver qué usuarios están usando picking electrónico (tablet/web)
+    y cuáles surten de forma manual (Excel/PDF + botón Surtir propuesta).
+    - Electrónico: LoteAsignado con usuario_surtido no null (marcaron "Recoger" en la app).
+    - Manual: Propuestas surtidas donde ningún ítem tiene usuario_surtido (surtida vía Surtir propuesta).
+    """
+    ahora = timezone.now()
+    ultimas_24h = ahora - timedelta(hours=24)
+    ultimas_2h = ahora - timedelta(hours=2)
+
+    # --- Picking electrónico: usuarios que han marcado ítems como recogidos desde la app
+    recogidas_electronicas = (
+        LoteAsignado.objects
+        .filter(surtido=True, usuario_surtido__isnull=False, fecha_surtimiento__gte=ultimas_24h)
+        .select_related('usuario_surtido', 'item_propuesta__propuesta__solicitud')
+        .order_by('-fecha_surtimiento')
+    )
+
+    # Agrupar por usuario: total ítems, última actividad, propuestas tocadas
+    usuarios_electronicos = {}
+    for la in recogidas_electronicas:
+        u = la.usuario_surtido
+        if u not in usuarios_electronicos:
+            usuarios_electronicos[u] = {
+                'usuario': u,
+                'total_items': 0,
+                'ultima_actividad': la.fecha_surtimiento,
+                'propuestas': set(),
+            }
+        usuarios_electronicos[u]['total_items'] += 1
+        usuarios_electronicos[u]['ultima_actividad'] = max(
+            usuarios_electronicos[u]['ultima_actividad'] or la.fecha_surtimiento,
+            la.fecha_surtimiento
+        )
+        if la.item_propuesta and la.item_propuesta.propuesta and la.item_propuesta.propuesta.solicitud:
+            usuarios_electronicos[u]['propuestas'].add(la.item_propuesta.propuesta.solicitud.folio)
+
+    lista_electronicos = []
+    for u, datos in usuarios_electronicos.items():
+        datos['propuestas_list'] = sorted(datos['propuestas'])
+        datos['activo_reciente'] = (datos['ultima_actividad'] or ahora) >= ultimas_2h
+        lista_electronicos.append(datos)
+    lista_electronicos.sort(key=lambda x: (not x['activo_reciente'], -(x['ultima_actividad'] or ahora).timestamp()))
+
+    # --- Picking manual: propuestas SURTIDA donde ningún ítem fue recogido por usuario (surtida vía "Surtir propuesta")
+    # Propuestas que tienen al menos un LoteAsignado con usuario_surtido no null = tuvieron picking electrónico
+    ids_con_electronico = (
+        LoteAsignado.objects
+        .filter(usuario_surtido__isnull=False, item_propuesta__propuesta__estado='SURTIDA')
+        .values_list('item_propuesta__propuesta_id', flat=True)
+        .distinct()
+    )
+    propuestas_manuales = (
+        PropuestaPedido.objects
+        .filter(estado='SURTIDA', fecha_surtimiento__gte=ultimas_24h, fecha_surtimiento__isnull=False)
+        .exclude(id__in=ids_con_electronico)
+        .select_related('solicitud', 'usuario_surtimiento')
+        .order_by('-fecha_surtimiento')[:100]
+    )
+
+    context = {
+        'lista_electronicos': lista_electronicos,
+        'propuestas_manuales': propuestas_manuales,
+        'ultimas_24h': ultimas_24h,
+        'ultimas_2h': ultimas_2h,
+    }
+    return render(request, 'inventario/picking/monitor_picking.html', context)
 
 
 # ============================================================

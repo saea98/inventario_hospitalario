@@ -1,0 +1,130 @@
+{% extends 'base.html' %}
+
+{% block title %}Monitor de Picking{% endblock %}
+
+{% block content %}
+<div class="container-fluid p-3 p-md-4">
+    <div class="row mb-4">
+        <div class="col-12">
+            <h1 class="h3 mb-3">
+                <i class="fas fa-desktop me-2"></i>Monitor de Picking
+            </h1>
+            <p class="text-muted">Usuarios usando picking electrónico (tablet/web) y surtimientos manuales en las últimas 24 horas</p>
+        </div>
+    </div>
+
+    <!-- Picking electrónico -->
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white py-3">
+                    <h6 class="mb-0">
+                        <i class="fas fa-mobile-alt me-2"></i>Picking electrónico (tablet / web)
+                        <span class="badge bg-light text-dark ms-2">{{ lista_electronicos|length }} usuario(s)</span>
+                    </h6>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Usuario</th>
+                                    <th class="text-center">Ítems recogidos (24 h)</th>
+                                    <th>Última actividad</th>
+                                    <th>Propuestas</th>
+                                    <th class="text-center">Estado</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for item in lista_electronicos %}
+                                <tr>
+                                    <td>
+                                        <strong>{{ item.usuario.get_full_name|default:item.usuario.username }}</strong>
+                                        <br><small class="text-muted">{{ item.usuario.username }}</small>
+                                    </td>
+                                    <td class="text-center">{{ item.total_items }}</td>
+                                    <td>{{ item.ultima_actividad|date:"d/m/Y H:i" }}</td>
+                                    <td>
+                                        {% for folio in item.propuestas_list %}
+                                            <span class="badge bg-secondary me-1">{{ folio }}</span>
+                                        {% empty %}
+                                            —
+                                        {% endfor %}
+                                    </td>
+                                    <td class="text-center">
+                                        {% if item.activo_reciente %}
+                                            <span class="badge bg-success">Activo (últimas 2 h)</span>
+                                        {% else %}
+                                            <span class="badge bg-secondary">Hace &gt; 2 h</span>
+                                        {% endif %}
+                                    </td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="5" class="text-center text-muted py-4">Ningún usuario ha usado picking electrónico en las últimas 24 h</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Picking manual -->
+    <div class="row">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-secondary text-white py-3">
+                    <h6 class="mb-0">
+                        <i class="fas fa-file-excel me-2"></i>Picking manual (hoja Excel/PDF + Surtir propuesta)
+                        <span class="badge bg-light text-dark ms-2">{{ propuestas_manuales|length }} propuesta(s)</span>
+                    </h6>
+                </div>
+                <div class="card-body p-0">
+                    <div class="table-responsive">
+                        <table class="table table-hover mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Folio solicitud</th>
+                                    <th>Usuario que surtió</th>
+                                    <th>Fecha de surtimiento</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for prop in propuestas_manuales %}
+                                <tr>
+                                    <td><code>{{ prop.solicitud.folio }}</code></td>
+                                    <td>
+                                        {% if prop.usuario_surtimiento %}
+                                            <strong>{{ prop.usuario_surtimiento.get_full_name|default:prop.usuario_surtimiento.username }}</strong>
+                                            <br><small class="text-muted">{{ prop.usuario_surtimiento.username }}</small>
+                                        {% else %}
+                                            —
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ prop.fecha_surtimiento|date:"d/m/Y H:i" }}</td>
+                                </tr>
+                                {% empty %}
+                                <tr>
+                                    <td colspan="3" class="text-center text-muted py-4">No hay surtimientos manuales en las últimas 24 h</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="row mt-3">
+        <div class="col-12">
+            <a href="{% url 'picking:dashboard' %}" class="btn btn-outline-primary">
+                <i class="fas fa-arrow-left me-1"></i>Volver al dashboard de Picking
+            </a>
+        </div>
+    </div>
+</div>
+{% endblock %}
