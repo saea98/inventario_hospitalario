@@ -10,6 +10,12 @@ from .views_carga_masiva import (
     carga_masiva_ordenes_suministro, carga_masiva_ordenes_resultado
 )
 from .views_reporte_ubicaciones_vacias import reporte_ubicaciones_vacias, exportar_ubicaciones_vacias_excel, exportar_ubicaciones_vacias_pdf
+from .views_reporte_inventario_detallado import (
+    reporte_existencias,
+    exportar_existencias_excel,
+    reporte_existencias_por_claves,
+    exportar_existencias_por_claves_excel,
+)
 
 #from inventario.admin import inventario_admin
 from django.contrib import admin as django_admin
@@ -86,6 +92,10 @@ urlpatterns = [
     
     # Reportes
     path('reportes/', views.reportes_dashboard, name='reportes_dashboard'),
+    path('reportes/existencias/', reporte_existencias, name='reporte_existencias'),
+    path('reportes/existencias/exportar-excel/', exportar_existencias_excel, name='exportar_existencias_excel'),
+    path('reportes/existencias-por-claves/', reporte_existencias_por_claves, name='reporte_existencias_por_claves'),
+    path('reportes/existencias-por-claves/exportar-excel/', exportar_existencias_por_claves_excel, name='exportar_existencias_por_claves_excel'),
     path('reportes/inventario/excel/', views.descargar_reporte_inventario, name='reporte_inventario_excel'),
     path('reportes/movimientos/excel/', views.descargar_reporte_movimientos, name='reporte_movimientos_excel'),
     path('reportes/caducidades/excel/', views.descargar_reporte_caducidades, name='reporte_caducidades_excel'),

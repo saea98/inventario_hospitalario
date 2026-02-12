@@ -7,12 +7,12 @@ INVENTARIO DISPONIBLE, LOTE, F_CAD, F_FAB, F_REC
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
-from django.db.models import Q
+from django.db.models import Q, Sum, Avg, Max
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.contrib import messages
 from datetime import date, datetime
 
-from .models import Lote, Producto, Institucion, OrdenSuministro, Proveedor
+from .models import Lote, Producto, Institucion, OrdenSuministro, Proveedor, MovimientoInventario
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
@@ -510,6 +510,180 @@ def exportar_existencias_excel(request):
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
     response['Content-Disposition'] = f'attachment; filename="reporte_existencias_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx"'
+    wb.save(response)
+    return response
+
+
+# =========================
+# REPORTE EXISTENCIAS AGRUPADO POR CLAVES
+# Layout: Clave CNIS, Producto, Unidad de medida, Almacén, Existencia, Precio, Importe,
+# Cant. Reservada, ENTIDAD FEDERATIVA, CLUES, FUENTE DE FINANCIAMIENTO, PARTIDA PRESUPUESTAL,
+# LUGAR DE ENTREGA, ENTRADAS, SALIDAS
+# =========================
+
+EXISTENCIAS_CLAVES_HEADERS = [
+    'Clave CNIS', 'Producto', 'Unidad de medida', 'Almacén', 'Existencia', 'Precio', 'Importe',
+    'Cant. Reservada', 'ENTIDAD FEDERATIVA', 'CLUES', 'FUENTE DE FINANCIAMIENTO', 'PARTIDA PRESUPUESTAL',
+    'LUGAR DE ENTREGA', 'ENTRADAS', 'SALIDAS',
+]
+
+
+def _obtener_existencias_agrupadas_por_clave(request):
+    """
+    Obtiene existencias agrupadas por (producto, institucion, almacen).
+    Aplica los mismos filtros que _obtener_lotes_filtrados.
+    Retorna lista de diccionarios con las columnas del layout.
+    """
+    lotes_base = _obtener_lotes_filtrados(request, from_post=False)
+    # Agrupar por producto, institución y almacén (permite NULL almacen)
+    qs = lotes_base.values(
+        'producto_id', 'institucion_id', 'almacen_id',
+        'producto__clave_cnis', 'producto__descripcion', 'producto__unidad_medida',
+        'almacen__nombre', 'institucion__clue', 'institucion__denominacion',
+    ).annotate(
+        existencia=Sum('cantidad_disponible'),
+        importe=Sum('valor_total'),
+        cant_reservada=Sum('cantidad_reservada'),
+        precio_promedio=Avg('precio_unitario'),
+        partida_presup=Max('orden_suministro__partida_presupuestal'),
+    ).order_by('producto__clave_cnis', 'institucion__denominacion', 'almacen__nombre')
+
+    # Obtener entradas y salidas por (producto_id, almacen_id, institucion_id)
+    entradas_map = {}
+    for row in MovimientoInventario.objects.filter(
+        tipo_movimiento__in=['ENTRADA', 'TRANSFERENCIA_ENTRADA', 'AJUSTE_POSITIVO'],
+        anulado=False,
+    ).values('lote__producto_id', 'lote__almacen_id', 'lote__institucion_id').annotate(total=Sum('cantidad')):
+        key = (row['lote__producto_id'], row['lote__almacen_id'], row['lote__institucion_id'])
+        entradas_map[key] = row['total']
+
+    salidas_map = {}
+    for row in MovimientoInventario.objects.filter(
+        tipo_movimiento__in=['SALIDA', 'TRANSFERENCIA_SALIDA', 'AJUSTE_NEGATIVO', 'CADUCIDAD', 'DETERIORO'],
+        anulado=False,
+    ).values('lote__producto_id', 'lote__almacen_id', 'lote__institucion_id').annotate(total=Sum('cantidad')):
+        key = (row['lote__producto_id'], row['lote__almacen_id'], row['lote__institucion_id'])
+        salidas_map[key] = row['total']
+
+    # Fuente financiamiento por grupo: primer lote del grupo con orden_suministro
+    fuente_map = {}
+    for row in lotes_base.filter(orden_suministro__isnull=False).values('producto_id', 'institucion_id', 'almacen_id').distinct():
+        key = (row['producto_id'], row['institucion_id'], row['almacen_id'])
+        if key not in fuente_map:
+            lo = lotes_base.filter(producto_id=row['producto_id'], institucion_id=row['institucion_id'], almacen_id=row['almacen_id']).select_related('orden_suministro__fuente_financiamiento').first()
+            if lo and lo.orden_suministro and lo.orden_suministro.fuente_financiamiento:
+                fuente_map[key] = lo.orden_suministro.fuente_financiamiento.nombre
+            else:
+                fuente_map[key] = ''
+
+    rows = []
+    for g in qs:
+        key = (g['producto_id'], g['institucion_id'], g['almacen_id'])
+        entradas = entradas_map.get(key, 0)
+        salidas = salidas_map.get(key, 0)
+        fuente = fuente_map.get(key, '')
+        partida = g.get('partida_presup') or ''
+        # Partida puede estar en lote; si no en orden, tomar de un lote del grupo
+        if not partida:
+            lote_sample = lotes_base.filter(producto_id=g['producto_id'], institucion_id=g['institucion_id'], almacen_id=g['almacen_id']).first()
+            if lote_sample:
+                partida = getattr(lote_sample, 'partida', '') or ''
+
+        lugar_entrega = g.get('almacen__nombre') or g.get('institucion__denominacion') or ''
+        rows.append({
+            'clave_cnis': g.get('producto__clave_cnis') or '',
+            'producto': (g.get('producto__descripcion') or '')[:500],
+            'unidad_medida': g.get('producto__unidad_medida') or 'PIEZA',
+            'almacen': g.get('almacen__nombre') or '',
+            'existencia': g['existencia'] or 0,
+            'precio': g.get('precio_promedio') or 0,
+            'importe': g['importe'] or 0,
+            'cant_reservada': g['cant_reservada'] or 0,
+            'entidad_federativa': 'CIUDAD DE MÉXICO',
+            'clues': g.get('institucion__clue') or '',
+            'fuente_financiamiento': fuente,
+            'partida_presupuestal': partida,
+            'lugar_entrega': lugar_entrega,
+            'entradas': entradas,
+            'salidas': salidas,
+        })
+    return rows
+
+
+@login_required
+def reporte_existencias_por_claves(request):
+    """Reporte de existencias agrupado por clave (producto + institución + almacén)."""
+    datos = _obtener_existencias_agrupadas_por_clave(request)
+    paginator = Paginator(datos, 50)
+    page = request.GET.get('page', 1)
+    try:
+        page_obj = paginator.page(page)
+    except PageNotAnInteger:
+        page_obj = paginator.page(1)
+    except EmptyPage:
+        page_obj = paginator.page(paginator.num_pages)
+
+    get_copy = request.GET.copy()
+    get_copy.pop('page', None)
+    base_query = get_copy.urlencode()
+
+    context = {
+        'datos_reporte': page_obj,
+        'paginator': paginator,
+        'base_query': base_query,
+        'filtro_entidad': request.GET.get('entidad', '').strip(),
+        'filtro_clues': request.GET.get('clues', '').strip(),
+        'filtro_almacen': request.GET.get('almacen', '').strip(),
+        'filtro_orden': request.GET.get('orden', '').strip(),
+        'filtro_rfc': request.GET.get('rfc', '').strip(),
+        'filtro_clave': request.GET.get('clave', '').strip(),
+        'filtro_estado': request.GET.get('estado', '').strip(),
+        'filtro_lote': request.GET.get('lote', '').strip(),
+        'excluir_sin_orden': (request.GET.get('excluir_sin_orden') or '') == 'si',
+        'filtro_proveedor': request.GET.get('proveedor', '').strip(),
+        'filtro_marca': request.GET.get('marca', '').strip(),
+        'filtro_fabricante': request.GET.get('fabricante', '').strip(),
+        'fecha_rec_desde': request.GET.get('fecha_rec_desde', '').strip(),
+        'fecha_rec_hasta': request.GET.get('fecha_rec_hasta', '').strip(),
+        'cad_desde': request.GET.get('cad_desde', '').strip(),
+        'cad_hasta': request.GET.get('cad_hasta', '').strip(),
+        'estados_lote': [(1, 'Disponible'), (4, 'Suspendido'), (5, 'Deteriorado'), (6, 'Caducado')],
+    }
+    return render(request, 'inventario/reportes/reporte_existencias_por_claves.html', context)
+
+
+@login_required
+def exportar_existencias_por_claves_excel(request):
+    """Exporta el reporte de existencias por claves a Excel."""
+    datos = _obtener_existencias_agrupadas_por_clave(request)
+    wb = Workbook()
+    ws = wb.active
+    ws.title = "Existencias por Claves"
+    header_fill = PatternFill(start_color="1F4E78", end_color="1F4E78", fill_type="solid")
+    header_font = Font(bold=True, color="FFFFFF", size=11)
+    header_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
+    border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+    for col_num, header in enumerate(EXISTENCIAS_CLAVES_HEADERS, 1):
+        cell = ws.cell(row=1, column=col_num)
+        cell.value = header
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = header_alignment
+        cell.border = border
+    key_order = ['clave_cnis', 'producto', 'unidad_medida', 'almacen', 'existencia', 'precio', 'importe', 'cant_reservada', 'entidad_federativa', 'clues', 'fuente_financiamiento', 'partida_presupuestal', 'lugar_entrega', 'entradas', 'salidas']
+    for row_num, row in enumerate(datos, 2):
+        for col_num, key in enumerate(key_order, 1):
+            cell = ws.cell(row=row_num, column=col_num)
+            cell.value = row.get(key, '')
+            cell.border = border
+            if key in ('existencia', 'precio', 'importe', 'cant_reservada', 'entradas', 'salidas'):
+                cell.alignment = Alignment(horizontal="right", vertical="center")
+            else:
+                cell.alignment = Alignment(horizontal="left", vertical="center")
+    for col_num in range(1, len(EXISTENCIAS_CLAVES_HEADERS) + 1):
+        ws.column_dimensions[get_column_letter(col_num)].width = 18
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = f'attachment; filename="reporte_existencias_por_claves_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx"'
     wb.save(response)
     return response
 
