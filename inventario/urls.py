@@ -16,6 +16,7 @@ from .views_reporte_inventario_detallado import (
     reporte_existencias_por_claves,
     exportar_existencias_por_claves_excel,
 )
+from .views_reporte_usuarios import reporte_usuarios_actividades
 
 #from inventario.admin import inventario_admin
 from django.contrib import admin as django_admin
@@ -96,6 +97,7 @@ urlpatterns = [
     path('reportes/existencias/exportar-excel/', exportar_existencias_excel, name='exportar_existencias_excel'),
     path('reportes/existencias-por-claves/', reporte_existencias_por_claves, name='reporte_existencias_por_claves'),
     path('reportes/existencias-por-claves/exportar-excel/', exportar_existencias_por_claves_excel, name='exportar_existencias_por_claves_excel'),
+    path('reportes/usuarios-actividades/', reporte_usuarios_actividades, name='reporte_usuarios_actividades'),
     path('reportes/inventario/excel/', views.descargar_reporte_inventario, name='reporte_inventario_excel'),
     path('reportes/movimientos/excel/', views.descargar_reporte_movimientos, name='reporte_movimientos_excel'),
     path('reportes/caducidades/excel/', views.descargar_reporte_caducidades, name='reporte_caducidades_excel'),

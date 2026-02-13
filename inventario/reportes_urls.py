@@ -13,6 +13,7 @@ from .views_reporte_inventario_detallado import (
     reporte_existencias_por_claves,
     exportar_existencias_por_claves_excel,
 )
+from .views_reporte_usuarios import reporte_usuarios_actividades
 
 app_name = 'reportes'
 
@@ -32,4 +33,5 @@ urlpatterns = [
     path("existencias/exportar-excel/", exportar_existencias_excel, name="exportar_existencias_excel"),
     path("existencias-por-claves/", reporte_existencias_por_claves, name="reporte_existencias_por_claves"),
     path("existencias-por-claves/exportar-excel/", exportar_existencias_por_claves_excel, name="exportar_existencias_por_claves_excel"),
+    path("usuarios-actividades/", reporte_usuarios_actividades, name="reporte_usuarios_actividades"),
 ]
