@@ -13,55 +13,74 @@
         </div>
     </div>
 
-    <!-- Picking electrónico -->
+    <!-- Picking electrónico: resumen por usuario -->
+    <div class="row mb-2">
+        <div class="col-12">
+            <div class="card shadow">
+                <div class="card-header bg-primary text-white py-2">
+                    <h6 class="mb-0">
+                        <i class="fas fa-mobile-alt me-2"></i>Picking electrónico (tablet / web) — Resumen
+                        <span class="badge bg-light text-dark ms-2">{{ lista_electronicos|length }} usuario(s)</span>
+                    </h6>
+                </div>
+                <div class="card-body py-2">
+                    {% for item in lista_electronicos %}
+                    <span class="badge {% if item.activo_reciente %}bg-success{% else %}bg-secondary{% endif %} me-2 mb-1">
+                        {{ item.usuario.get_full_name|default:item.usuario.username }}: {{ item.total_items }} ítem(s)
+                        {% if item.activo_reciente %}(activo){% endif %}
+                    </span>
+                    {% empty %}
+                    <span class="text-muted">Ningún usuario en las últimas 24 h</span>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Picking electrónico: detalle por ítem (folio pedido, insumos, ubicaciones) -->
     <div class="row mb-4">
         <div class="col-12">
             <div class="card shadow">
                 <div class="card-header bg-primary text-white py-3">
                     <h6 class="mb-0">
-                        <i class="fas fa-mobile-alt me-2"></i>Picking electrónico (tablet / web)
-                        <span class="badge bg-light text-dark ms-2">{{ lista_electronicos|length }} usuario(s)</span>
+                        <i class="fas fa-list me-2"></i>Detalle: folio de pedido, insumos y ubicaciones
+                        <span class="badge bg-light text-dark ms-2">{{ detalle_electronicos|length }} registro(s)</span>
                     </h6>
                 </div>
                 <div class="card-body p-0">
                     <div class="table-responsive">
-                        <table class="table table-hover mb-0">
+                        <table class="table table-hover table-sm mb-0">
                             <thead class="table-light">
                                 <tr>
                                     <th>Usuario</th>
-                                    <th class="text-center">Ítems recogidos (24 h)</th>
-                                    <th>Última actividad</th>
-                                    <th>Propuestas</th>
-                                    <th class="text-center">Estado</th>
+                                    <th>Folio de pedido</th>
+                                    <th>Folio solicitud</th>
+                                    <th>Insumo</th>
+                                    <th>Clave CNIS</th>
+                                    <th>Ubicación</th>
+                                    <th>Almacén</th>
+                                    <th class="text-center">Cant.</th>
+                                    <th>Fecha/hora</th>
                                 </tr>
                             </thead>
                             <tbody>
-                                {% for item in lista_electronicos %}
+                                {% for d in detalle_electronicos %}
                                 <tr>
                                     <td>
-                                        <strong>{{ item.usuario.get_full_name|default:item.usuario.username }}</strong>
-                                        <br><small class="text-muted">{{ item.usuario.username }}</small>
+                                        <strong>{{ d.usuario.get_full_name|default:d.usuario.username }}</strong>
                                     </td>
-                                    <td class="text-center">{{ item.total_items }}</td>
-                                    <td>{{ item.ultima_actividad|date:"d/m/Y H:i" }}</td>
-                                    <td>
-                                        {% for folio in item.propuestas_list %}
-                                            <span class="badge bg-secondary me-1">{{ folio }}</span>
-                                        {% empty %}
-                                            —
-                                        {% endfor %}
-                                    </td>
-                                    <td class="text-center">
-                                        {% if item.activo_reciente %}
-                                            <span class="badge bg-success">Activo (últimas 2 h)</span>
-                                        {% else %}
-                                            <span class="badge bg-secondary">Hace &gt; 2 h</span>
-                                        {% endif %}
-                                    </td>
+                                    <td><code>{{ d.folio_pedido }}</code></td>
+                                    <td><small>{{ d.folio_solicitud }}</small></td>
+                                    <td><small>{{ d.insumo|truncatewords:12 }}</small></td>
+                                    <td><code>{{ d.clave_cnis }}</code></td>
+                                    <td>{{ d.ubicacion }}</td>
+                                    <td><small>{{ d.almacen }}</small></td>
+                                    <td class="text-center">{{ d.cantidad }}</td>
+                                    <td><small>{{ d.fecha_surtimiento|date:"d/m/Y H:i" }}</small></td>
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="5" class="text-center text-muted py-4">Ningún usuario ha usado picking electrónico en las últimas 24 h</td>
+                                    <td colspan="9" class="text-center text-muted py-4">No hay ítems recogidos por electrónico en las últimas 24 h</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>
@@ -87,6 +106,7 @@
                         <table class="table table-hover mb-0">
                             <thead class="table-light">
                                 <tr>
+                                    <th>Folio de pedido</th>
                                     <th>Folio solicitud</th>
                                     <th>Usuario que surtió</th>
                                     <th>Fecha de surtimiento</th>
@@ -95,6 +115,7 @@
                             <tbody>
                                 {% for prop in propuestas_manuales %}
                                 <tr>
+                                    <td><code>{{ prop.solicitud.observaciones_solicitud|default:"—" }}</code></td>
                                     <td><code>{{ prop.solicitud.folio }}</code></td>
                                     <td>
                                         {% if prop.usuario_surtimiento %}
@@ -108,7 +129,7 @@
                                 </tr>
                                 {% empty %}
                                 <tr>
-                                    <td colspan="3" class="text-center text-muted py-4">No hay surtimientos manuales en las últimas 24 h</td>
+                                    <td colspan="4" class="text-center text-muted py-4">No hay surtimientos manuales en las últimas 24 h</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>

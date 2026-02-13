@@ -101,38 +101,63 @@ def monitor_picking(request):
     ultimas_24h = ahora - timedelta(hours=24)
     ultimas_2h = ahora - timedelta(hours=2)
 
-    # --- Picking electrónico: usuarios que han marcado ítems como recogidos desde la app
+    # --- Picking electrónico: detalle de cada ítem recogido (folio pedido = observaciones, insumos, ubicaciones)
     recogidas_electronicas = (
         LoteAsignado.objects
         .filter(surtido=True, usuario_surtido__isnull=False, fecha_surtimiento__gte=ultimas_24h)
-        .select_related('usuario_surtido', 'item_propuesta__propuesta__solicitud')
+        .select_related(
+            'usuario_surtido',
+            'item_propuesta__propuesta__solicitud',
+            'lote_ubicacion__ubicacion__almacen',
+            'lote_ubicacion__lote__producto',
+        )
         .order_by('-fecha_surtimiento')
     )
 
-    # Agrupar por usuario: total ítems, última actividad, propuestas tocadas
+    # Lista detallada: folio pedido (observaciones), insumos con ubicaciones
+    detalle_electronicos = []
     usuarios_electronicos = {}
     for la in recogidas_electronicas:
+        solicitud = la.item_propuesta.propuesta.solicitud if la.item_propuesta and la.item_propuesta.propuesta else None
+        folio_pedido = (solicitud.observaciones_solicitud or '').strip() if solicitud else ''
+        folio_solicitud = solicitud.folio if solicitud else '—'
+        lu = la.lote_ubicacion
+        producto = lu.lote.producto if lu and lu.lote else None
+        insumo = producto.descripcion if producto else '—'
+        clave_cnis = producto.clave_cnis if producto else '—'
+        ubicacion = lu.ubicacion.codigo if lu and lu.ubicacion else '—'
+        almacen = lu.ubicacion.almacen.nombre if lu and lu.ubicacion and lu.ubicacion.almacen else '—'
+
+        detalle_electronicos.append({
+            'usuario': la.usuario_surtido,
+            'folio_pedido': folio_pedido or '—',
+            'folio_solicitud': folio_solicitud,
+            'insumo': insumo,
+            'clave_cnis': clave_cnis,
+            'ubicacion': ubicacion,
+            'almacen': almacen,
+            'cantidad': la.cantidad_asignada,
+            'fecha_surtimiento': la.fecha_surtimiento,
+        })
+
         u = la.usuario_surtido
         if u not in usuarios_electronicos:
-            usuarios_electronicos[u] = {
-                'usuario': u,
-                'total_items': 0,
-                'ultima_actividad': la.fecha_surtimiento,
-                'propuestas': set(),
-            }
+            usuarios_electronicos[u] = {'total_items': 0, 'ultima_actividad': la.fecha_surtimiento}
         usuarios_electronicos[u]['total_items'] += 1
         usuarios_electronicos[u]['ultima_actividad'] = max(
             usuarios_electronicos[u]['ultima_actividad'] or la.fecha_surtimiento,
             la.fecha_surtimiento
         )
-        if la.item_propuesta and la.item_propuesta.propuesta and la.item_propuesta.propuesta.solicitud:
-            usuarios_electronicos[u]['propuestas'].add(la.item_propuesta.propuesta.solicitud.folio)
 
-    lista_electronicos = []
-    for u, datos in usuarios_electronicos.items():
-        datos['propuestas_list'] = sorted(datos['propuestas'])
-        datos['activo_reciente'] = (datos['ultima_actividad'] or ahora) >= ultimas_2h
-        lista_electronicos.append(datos)
+    lista_electronicos = [
+        {
+            'usuario': u,
+            'total_items': datos['total_items'],
+            'ultima_actividad': datos['ultima_actividad'],
+            'activo_reciente': (datos['ultima_actividad'] or ahora) >= ultimas_2h,
+        }
+        for u, datos in usuarios_electronicos.items()
+    ]
     lista_electronicos.sort(key=lambda x: (not x['activo_reciente'], -(x['ultima_actividad'] or ahora).timestamp()))
 
     # --- Picking manual: propuestas SURTIDA donde ningún ítem fue recogido por usuario (surtida vía "Surtir propuesta")
@@ -153,6 +178,7 @@ def monitor_picking(request):
 
     context = {
         'lista_electronicos': lista_electronicos,
+        'detalle_electronicos': detalle_electronicos,
         'propuestas_manuales': propuestas_manuales,
         'ultimas_24h': ultimas_24h,
         'ultimas_2h': ultimas_2h,
