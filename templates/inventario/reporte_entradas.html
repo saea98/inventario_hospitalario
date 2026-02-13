@@ -146,62 +146,26 @@
         </div>
         
         <div class="table-responsive">
-            <table class="table table-hover mb-0 align-middle">
-                <thead class="table-light">
+            <table class="table table-hover mb-0 align-middle table-sm">
+                <thead class="table-success" style="--bs-table-bg: #2E7D32; --bs-table-color: #E8F5E9;">
                     <tr>
-                        <th>FECHA</th>
-                        <th>CLAVE CNIS</th>
-                        <th>DESCRIPCIÓN PRODUCTO</th>
-                        <th>LOTE</th>
-                        <th>INSTITUCIÓN</th>
-                        <th>ALMACÉN</th>
-                        <th class="text-end">CANTIDAD</th>
-                        <th class="text-end">PRECIO UNITARIO</th>
-                        <th class="text-end">VALOR TOTAL</th>
-                        <th>DOCUMENTO REF.</th>
-                        <th>USUARIO</th>
+                        {% for h in headers %}
+                        <th class="text-nowrap text-white"><small>{{ h }}</small></th>
+                        {% endfor %}
                     </tr>
                 </thead>
                 <tbody>
                     {% for entrada in page_obj %}
                     <tr>
-                        <td>
-                            <small>{{ entrada.fecha }}</small>
+                        {% for celda in entrada.row %}
+                        <td class="{% if forloop.counter == 7 or forloop.counter == 15 or forloop.counter == 16 or forloop.counter == 17 or forloop.counter == 18 %}text-end{% endif %}">
+                            <small>{% if celda != None and celda != '' %}{{ celda }}{% else %}—{% endif %}</small>
                         </td>
-                        <td>
-                            <strong>{{ entrada.clave_cnis }}</strong>
-                        </td>
-                        <td>
-                            <small>{{ entrada.descripcion_producto|truncatechars:50 }}</small>
-                        </td>
-                        <td>
-                            <code>{{ entrada.lote }}</code>
-                        </td>
-                        <td>
-                            <small>{{ entrada.institucion }}</small>
-                        </td>
-                        <td>
-                            <span class="badge bg-info">{{ entrada.almacen }}</span>
-                        </td>
-                        <td class="text-end">
-                            <strong>{{ entrada.cantidad|intcomma }}</strong>
-                        </td>
-                        <td class="text-end">
-                            <small>${{ entrada.precio_unitario|floatformat:2 }}</small>
-                        </td>
-                        <td class="text-end">
-                            <strong>${{ entrada.valor_total|floatformat:2 }}</strong>
-                        </td>
-                        <td>
-                            <small>{{ entrada.documento_referencia }}</small>
-                        </td>
-                        <td>
-                            <small>{{ entrada.usuario }}</small>
-                        </td>
+                        {% endfor %}
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="11" class="text-center text-muted py-4">
+                        <td colspan="{{ headers|length }}" class="text-center text-muted py-4">
                             <i class="fas fa-inbox me-2"></i>No hay registros que coincidan con los filtros
                         </td>
                     </tr>
