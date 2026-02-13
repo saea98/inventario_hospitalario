@@ -69,6 +69,28 @@ class InstitucionForm(forms.ModelForm):
         )
 
 
+class UbicacionAlmacenForm(forms.ModelForm):
+    """Formulario para crear/editar ubicaciones de almacén (sin requerir admin)."""
+    class Meta:
+        model = UbicacionAlmacen
+        fields = [
+            'almacen', 'codigo', 'descripcion',
+            'nivel', 'pasillo', 'rack', 'seccion',
+            'estado', 'activo',
+        ]
+        widgets = {
+            'codigo': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Ej: J6A.01.02'}),
+            'descripcion': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Descripción opcional'}),
+            'nivel': forms.TextInput(attrs={'class': 'form-control'}),
+            'pasillo': forms.TextInput(attrs={'class': 'form-control'}),
+            'rack': forms.TextInput(attrs={'class': 'form-control'}),
+            'seccion': forms.TextInput(attrs={'class': 'form-control'}),
+            'almacen': forms.Select(attrs={'class': 'form-select'}),
+            'estado': forms.Select(attrs={'class': 'form-select'}),
+            'activo': forms.CheckboxInput(attrs={'class': 'form-check-input'}),
+        }
+
+
 # forms.py
 class ProductoForm(forms.ModelForm):
     class Meta:

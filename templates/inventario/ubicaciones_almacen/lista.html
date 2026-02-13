@@ -1,0 +1,162 @@
+{% extends 'base.html' %}
+
+{% block title %}Ubicaciones de Almacén - Sistema de Inventario Hospitalario{% endblock %}
+
+{% block page_title %}Ubicaciones de Almacén{% endblock %}
+
+{% block page_actions %}
+<a href="{% url 'crear_ubicacion_almacen' %}" class="btn btn-primary">
+    <i class="fas fa-plus"></i> Nueva Ubicación
+</a>
+{% endblock %}
+
+{% block content %}
+<!-- Filtros -->
+<div class="card mb-4">
+    <div class="card-body">
+        <form method="get" class="row g-3">
+            <div class="col-md-3">
+                <label for="almacen" class="form-label">Almacén</label>
+                <select class="form-select" id="almacen" name="almacen">
+                    <option value="">Todos los almacenes</option>
+                    {% for almacen in almacenes %}
+                    <option value="{{ almacen.id }}" {% if almacen.id|stringformat:"s" == almacen_selected %}selected{% endif %}>
+                        {{ almacen.nombre }}
+                    </option>
+                    {% endfor %}
+                </select>
+            </div>
+            <div class="col-md-3">
+                <label for="search" class="form-label">Buscar</label>
+                <input type="text" class="form-control" id="search" name="search"
+                       value="{{ search|default:'' }}" placeholder="Código o descripción">
+            </div>
+            <div class="col-md-2">
+                <label for="activo" class="form-label">Estado</label>
+                <select class="form-select" id="activo" name="activo">
+                    <option value="">Todos</option>
+                    <option value="1" {% if activo_selected == '1' %}selected{% endif %}>Activas</option>
+                    <option value="0" {% if activo_selected == '0' %}selected{% endif %}>Inactivas</option>
+                </select>
+            </div>
+            <div class="col-md-2 d-flex align-items-end">
+                <button type="submit" class="btn btn-outline-primary">
+                    <i class="fas fa-search"></i> Filtrar
+                </button>
+            </div>
+        </form>
+    </div>
+</div>
+
+<!-- Resultados -->
+<div class="card">
+    <div class="card-header d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            <i class="fas fa-map-marker-alt"></i>
+            Ubicaciones ({{ page_obj.paginator.count }} total)
+        </h5>
+    </div>
+    <div class="card-body p-0">
+        {% if page_obj %}
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead class="table-light">
+                    <tr>
+                        <th>Código</th>
+                        <th>Almacén</th>
+                        <th>Descripción</th>
+                        <th>Nivel / Pasillo / Rack</th>
+                        <th>Estado ubicación</th>
+                        <th>Activa</th>
+                        <th>Acciones</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for u in page_obj %}
+                    <tr>
+                        <td><strong>{{ u.codigo }}</strong></td>
+                        <td>{{ u.almacen.nombre }}</td>
+                        <td>{{ u.descripcion|default:"—" }}</td>
+                        <td>
+                            {% if u.nivel or u.pasillo or u.rack %}
+                                {{ u.nivel|default:"" }}{% if u.pasillo %} / {{ u.pasillo }}{% endif %}{% if u.rack %} / {{ u.rack }}{% endif %}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
+                        <td>
+                            <span class="badge bg-secondary">{{ u.get_estado_display }}</span>
+                        </td>
+                        <td>
+                            {% if u.activo %}
+                                <span class="badge bg-success">Sí</span>
+                            {% else %}
+                                <span class="badge bg-danger">No</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            <a href="{% url 'editar_ubicacion_almacen' u.pk %}" class="btn btn-sm btn-outline-secondary" title="Editar">
+                                <i class="fas fa-edit"></i>
+                            </a>
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if page_obj.has_other_pages %}
+        <div class="card-footer">
+            <nav aria-label="Paginación">
+                <ul class="pagination justify-content-center mb-0">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1{% if almacen_selected %}&almacen={{ almacen_selected }}{% endif %}{% if search %}&search={{ search }}{% endif %}{% if activo_selected != None %}&activo={{ activo_selected }}{% endif %}">
+                            <i class="fas fa-angle-double-left"></i>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if almacen_selected %}&almacen={{ almacen_selected }}{% endif %}{% if search %}&search={{ search }}{% endif %}{% if activo_selected != None %}&activo={{ activo_selected }}{% endif %}">
+                            <i class="fas fa-angle-left"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                    <li class="page-item active">
+                        <span class="page-link">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+                    </li>
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if almacen_selected %}&almacen={{ almacen_selected }}{% endif %}{% if search %}&search={{ search }}{% endif %}{% if activo_selected != None %}&activo={{ activo_selected }}{% endif %}">
+                            <i class="fas fa-angle-right"></i>
+                        </a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if almacen_selected %}&almacen={{ almacen_selected }}{% endif %}{% if search %}&search={{ search }}{% endif %}{% if activo_selected != None %}&activo={{ activo_selected }}{% endif %}">
+                            <i class="fas fa-angle-double-right"></i>
+                        </a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+
+        {% else %}
+        <div class="text-center py-5">
+            <i class="fas fa-map-marker-alt fa-3x text-muted mb-3"></i>
+            <h5 class="text-muted">No se encontraron ubicaciones</h5>
+            <p class="text-muted">
+                {% if search or almacen_selected or activo_selected != None %}
+                    Ajusta los filtros o <a href="?">ver todas</a>.
+                {% else %}
+                    Agrega la primera ubicación de almacén.
+                {% endif %}
+            </p>
+            <a href="{% url 'crear_ubicacion_almacen' %}" class="btn btn-primary">
+                <i class="fas fa-plus"></i> Nueva Ubicación
+            </a>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

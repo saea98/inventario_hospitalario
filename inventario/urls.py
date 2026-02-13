@@ -10,6 +10,7 @@ from .views_carga_masiva import (
     carga_masiva_ordenes_suministro, carga_masiva_ordenes_resultado
 )
 from .views_reporte_ubicaciones_vacias import reporte_ubicaciones_vacias, exportar_ubicaciones_vacias_excel, exportar_ubicaciones_vacias_pdf
+from .views_ubicaciones_almacen import lista_ubicaciones_almacen, crear_ubicacion_almacen, editar_ubicacion_almacen
 from .views_reporte_inventario_detallado import (
     reporte_existencias,
     exportar_existencias_excel,
@@ -36,6 +37,11 @@ urlpatterns = [
     path('instituciones/crear/', views.crear_institucion, name='crear_institucion'),
     path('instituciones/<int:pk>/', views.detalle_institucion, name='detalle_institucion'),
     path('instituciones/<int:pk>/editar/', views.editar_institucion, name='editar_institucion'),
+
+    # Ubicaciones de almacén (gestión sin admin)
+    path('ubicaciones-almacen/', lista_ubicaciones_almacen, name='lista_ubicaciones_almacen'),
+    path('ubicaciones-almacen/crear/', crear_ubicacion_almacen, name='crear_ubicacion_almacen'),
+    path('ubicaciones-almacen/<int:pk>/editar/', editar_ubicacion_almacen, name='editar_ubicacion_almacen'),
 
     # Productos
     path('productos/', views.lista_productos, name='lista_productos'),

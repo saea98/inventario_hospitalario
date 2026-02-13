@@ -86,6 +86,15 @@ class Command(BaseCommand):
                 'orden': 14,
                 'es_submenu': False,
             },
+            {
+                'menu_item': 'ubicaciones_almacen',
+                'nombre_mostrado': 'Ubicaciones de Almacén',
+                'icono': 'fas fa-map-marker-alt',
+                'url_name': 'lista_ubicaciones_almacen',
+                'roles': ['Administrador', 'Gestor de Inventario', 'Almacenero', 'Supervisión'],
+                'orden': 15,
+                'es_submenu': False,
+            },
 
             # ===== SECCIÓN EXISTENCIAS =====
             {

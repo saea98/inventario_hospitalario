@@ -1,0 +1,75 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ titulo }} - Sistema de Inventario Hospitalario{% endblock %}
+
+{% block page_title %}{{ titulo }}{% endblock %}
+
+{% block page_actions %}
+<a href="{% url 'lista_ubicaciones_almacen' %}" class="btn btn-outline-secondary">
+    <i class="fas fa-arrow-left"></i> Volver al listado
+</a>
+{% endblock %}
+
+{% block content %}
+<div class="card">
+    <div class="card-body">
+        <form method="post">
+            {% csrf_token %}
+            {% if form.non_field_errors %}
+            <div class="alert alert-danger">{{ form.non_field_errors }}</div>
+            {% endif %}
+
+            <div class="row g-3">
+                <div class="col-md-6">
+                    <label for="id_almacen" class="form-label">Almacén <span class="text-danger">*</span></label>
+                    {{ form.almacen }}
+                    {% if form.almacen.errors %}<div class="invalid-feedback d-block">{{ form.almacen.errors.0 }}</div>{% endif %}
+                </div>
+                <div class="col-md-6">
+                    <label for="id_codigo" class="form-label">Código de ubicación <span class="text-danger">*</span></label>
+                    {{ form.codigo }}
+                    {% if form.codigo.errors %}<div class="invalid-feedback d-block">{{ form.codigo.errors.0 }}</div>{% endif %}
+                </div>
+                <div class="col-12">
+                    <label for="id_descripcion" class="form-label">Descripción</label>
+                    {{ form.descripcion }}
+                    {% if form.descripcion.errors %}<div class="invalid-feedback d-block">{{ form.descripcion.errors.0 }}</div>{% endif %}
+                </div>
+                <div class="col-md-4">
+                    <label for="id_nivel" class="form-label">Nivel</label>
+                    {{ form.nivel }}
+                </div>
+                <div class="col-md-4">
+                    <label for="id_pasillo" class="form-label">Pasillo</label>
+                    {{ form.pasillo }}
+                </div>
+                <div class="col-md-4">
+                    <label for="id_rack" class="form-label">Rack</label>
+                    {{ form.rack }}
+                </div>
+                <div class="col-md-6">
+                    <label for="id_seccion" class="form-label">Sección</label>
+                    {{ form.seccion }}
+                </div>
+                <div class="col-md-6">
+                    <label for="id_estado" class="form-label">Estado de la ubicación</label>
+                    {{ form.estado }}
+                </div>
+                <div class="col-12">
+                    <div class="form-check">
+                        {{ form.activo }}
+                        <label class="form-check-label" for="id_activo">Activa</label>
+                    </div>
+                    {% if form.activo.errors %}<div class="invalid-feedback d-block">{{ form.activo.errors.0 }}</div>{% endif %}
+                </div>
+            </div>
+
+            <hr class="my-4">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save"></i> Guardar
+            </button>
+            <a href="{% url 'lista_ubicaciones_almacen' %}" class="btn btn-secondary">Cancelar</a>
+        </form>
+    </div>
+</div>
+{% endblock %}
