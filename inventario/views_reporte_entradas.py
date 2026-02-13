@@ -8,7 +8,7 @@ con el layout oficial: RFC, PROVEEDOR, PARTIDA, Clave CNIS, Producto, etc. (32 c
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
-from django.db.models import Q
+from django.db.models import Q, Subquery, OuterRef
 from django.utils import timezone
 from datetime import datetime, timedelta
 from decimal import Decimal
@@ -17,8 +17,9 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
 from .models import MovimientoInventario, Institucion, Almacen, Proveedor, UbicacionAlmacen
+from .llegada_models import LlegadaProveedor
 
-# Layout del reporte de entradas (32 columnas)
+# Layout del reporte de entradas (34 columnas, incl. estado llegada y ubicación)
 ENTRADAS_LAYOUT_HEADERS = [
     'RFC',
     'PROVEEDOR',
@@ -35,6 +36,8 @@ ENTRADAS_LAYOUT_HEADERS = [
     'LOTE',
     'CADUCIDAD',
     'FOLIO',
+    'ESTADO LLEGADA',
+    'UBIC. ASIGNADA',
     'PRECIO UNIT. CON IVA / SIN IVA',
     'SUBTOTAL',
     'IVA',
@@ -53,6 +56,9 @@ ENTRADAS_LAYOUT_HEADERS = [
     'FECHA DE EMISIÓN',
     'FUENTE DE FMTO',
 ]
+
+# Etiquetas de estado de llegada para el reporte
+ESTADO_LLEGADA_LABELS = dict(LlegadaProveedor.ESTADO_CHOICES)
 
 
 def _valor(o, default=''):
@@ -83,8 +89,13 @@ def reporte_entradas(request):
     Reporte de entradas al inventario con layout oficial (32 columnas).
     Muestra todos los MovimientoInventario con tipo ENTRADA.
     """
+    subq_estado = LlegadaProveedor.objects.filter(folio=OuterRef('folio')).values('estado')[:1]
+    subq_ubicacion = LlegadaProveedor.objects.filter(folio=OuterRef('folio')).values('usuario_ubicacion')[:1]
     entradas = MovimientoInventario.objects.filter(
         tipo_movimiento='ENTRADA', anulado=False
+    ).annotate(
+        estado_llegada=Subquery(subq_estado),
+        llegada_tiene_ubicacion=Subquery(subq_ubicacion),
     ).select_related(
         'lote',
         'lote__producto',
@@ -105,6 +116,8 @@ def reporte_entradas(request):
     filtro_almacen = request.GET.get('almacen', '')
     filtro_ubicacion = request.GET.get('ubicacion', '')
     filtro_proveedor = request.GET.get('proveedor', '')
+    filtro_estado_llegada = request.GET.get('estado_llegada', '').strip()
+    filtro_con_ubicacion = request.GET.get('con_ubicacion', '') == '1'
     
     # Aplicar filtro de fecha desde
     if filtro_fecha_desde:
@@ -151,7 +164,13 @@ def reporte_entradas(request):
             Q(motivo__icontains=filtro_proveedor)
         )
     
-    # Construir lista con el layout de 32 columnas
+    # Filtros por estado de llegada (solo entradas vinculadas a LlegadaProveedor por folio)
+    if filtro_estado_llegada:
+        entradas = entradas.filter(estado_llegada=filtro_estado_llegada)
+    if filtro_con_ubicacion:
+        entradas = entradas.filter(llegada_tiene_ubicacion__isnull=False)
+    
+    # Construir lista con el layout de 34 columnas
     entradas_lista = []
     total_cantidad = 0
     total_valor = 0
@@ -176,6 +195,11 @@ def reporte_entradas(request):
             if lote.institucion and not lugar_entrega:
                 lugar_entrega = lote.institucion.denominacion or ''
 
+        estado_llegada_val = getattr(m, 'estado_llegada', None)
+        ubicacion_asignada = getattr(m, 'llegada_tiene_ubicacion', None)
+        estado_llegada_label = ESTADO_LLEGADA_LABELS.get(estado_llegada_val, '') if estado_llegada_val else ''
+        ubicacion_label = 'Sí' if ubicacion_asignada else ('—' if estado_llegada_val is None else 'No')
+
         row = [
             _valor(prov and prov.rfc or (lote and lote.rfc_proveedor)),
             _valor(prov and prov.razon_social or (lote and lote.proveedor)),
@@ -192,6 +216,8 @@ def reporte_entradas(request):
             _valor(lote and lote.numero_lote),
             _fecha(lote and lote.fecha_caducidad),
             _valor(m.folio or (lote and lote.folio)),
+            _valor(estado_llegada_label),
+            _valor(ubicacion_label),
             _decimal(precio),
             _decimal(m.subtotal or (lote and lote.subtotal)) if (m.subtotal or (lote and lote.subtotal)) is not None else _decimal(subtotal_val),
             _decimal(m.iva or (lote and lote.iva)) if (m.iva or (lote and lote.iva)) is not None else _decimal(iva_val),
@@ -240,12 +266,15 @@ def reporte_entradas(request):
         'filtro_almacen': filtro_almacen,
         'filtro_ubicacion': filtro_ubicacion,
         'filtro_proveedor': filtro_proveedor,
+        'filtro_estado_llegada': filtro_estado_llegada,
+        'filtro_con_ubicacion': filtro_con_ubicacion,
+        'estado_llegada_choices': LlegadaProveedor.ESTADO_CHOICES,
     }
     return render(request, 'inventario/reporte_entradas.html', context)
 
 
 def _construir_fila_entrada(m):
-    """Construye la fila de 33 valores para un MovimientoInventario ENTRADA (mismo orden que ENTRADAS_LAYOUT_HEADERS)."""
+    """Construye la fila de 34 valores para un MovimientoInventario ENTRADA (mismo orden que ENTRADAS_LAYOUT_HEADERS)."""
     lote = m.lote
     prod = lote.producto if lote else None
     os = lote.orden_suministro if lote else None
@@ -257,6 +286,10 @@ def _construir_fila_entrada(m):
     lugar_entrega = ''
     if lote:
         lugar_entrega = (lote.almacen and lote.almacen.nombre) or (lote.institucion and lote.institucion.denominacion) or ''
+    estado_llegada_val = getattr(m, 'estado_llegada', None)
+    ubicacion_asignada = getattr(m, 'llegada_tiene_ubicacion', None)
+    estado_llegada_label = ESTADO_LLEGADA_LABELS.get(estado_llegada_val, '') if estado_llegada_val else ''
+    ubicacion_label = 'Sí' if ubicacion_asignada else ('—' if estado_llegada_val is None else 'No')
     return [
         _valor(prov and prov.rfc or (lote and lote.rfc_proveedor)),
         _valor(prov and prov.razon_social or (lote and lote.proveedor)),
@@ -273,6 +306,8 @@ def _construir_fila_entrada(m):
         _valor(lote and lote.numero_lote),
         _fecha(lote and lote.fecha_caducidad),
         _valor(m.folio or (lote and lote.folio)),
+        _valor(estado_llegada_label),
+        _valor(ubicacion_label),
         _decimal(precio),
         _decimal(m.subtotal or (lote and lote.subtotal)) if (m.subtotal or (lote and lote.subtotal)) is not None else _decimal(subtotal_val),
         _decimal(m.iva or (lote and lote.iva)) if (m.iva or (lote and lote.iva)) is not None else _decimal(iva_val),
@@ -295,9 +330,14 @@ def _construir_fila_entrada(m):
 
 @login_required
 def exportar_entradas_excel(request):
-    """Exporta el reporte de entradas a Excel con el layout oficial (33 columnas)."""
+    """Exporta el reporte de entradas a Excel con el layout oficial (34 columnas)."""
+    subq_estado = LlegadaProveedor.objects.filter(folio=OuterRef('folio')).values('estado')[:1]
+    subq_ubicacion = LlegadaProveedor.objects.filter(folio=OuterRef('folio')).values('usuario_ubicacion')[:1]
     entradas = MovimientoInventario.objects.filter(
         tipo_movimiento='ENTRADA', anulado=False
+    ).annotate(
+        estado_llegada=Subquery(subq_estado),
+        llegada_tiene_ubicacion=Subquery(subq_ubicacion),
     ).select_related(
         'lote',
         'lote__producto',
@@ -316,6 +356,8 @@ def exportar_entradas_excel(request):
     filtro_almacen = request.GET.get('almacen', '')
     filtro_ubicacion = request.GET.get('ubicacion', '')
     filtro_proveedor = request.GET.get('proveedor', '')
+    filtro_estado_llegada = request.GET.get('estado_llegada', '').strip()
+    filtro_con_ubicacion = request.GET.get('con_ubicacion', '') == '1'
 
     if filtro_fecha_desde:
         try:
@@ -346,6 +388,10 @@ def exportar_entradas_excel(request):
             Q(lote__orden_suministro__proveedor__razon_social__icontains=filtro_proveedor) |
             Q(documento_referencia__icontains=filtro_proveedor) | Q(motivo__icontains=filtro_proveedor)
         )
+    if filtro_estado_llegada:
+        entradas = entradas.filter(estado_llegada=filtro_estado_llegada)
+    if filtro_con_ubicacion:
+        entradas = entradas.filter(llegada_tiene_ubicacion__isnull=False)
 
     wb = Workbook()
     ws = wb.active
@@ -371,14 +417,14 @@ def exportar_entradas_excel(request):
         fila = _construir_fila_entrada(m)
         listado.append(fila)
         total_cantidad += fila[6] or 0
-        total_importe += float(fila[18] or 0)  # IMPORTE TOTAL (índice 18)
+        total_importe += float(fila[20] or 0)  # IMPORTE TOTAL (índice 20 con nuevas columnas)
 
     for row_num, fila in enumerate(listado, 2):
         for col_num, val in enumerate(fila, 1):
             cell = ws.cell(row=row_num, column=col_num)
             cell.value = val
             cell.border = border
-            if col_num in (7, 15, 16, 17, 18, 19):
+            if col_num in (7, 17, 18, 19, 20, 21):
                 cell.alignment = Alignment(horizontal='right')
 
     total_row = len(listado) + 2
@@ -388,9 +434,9 @@ def exportar_entradas_excel(request):
     ws.cell(row=total_row, column=7).value = total_cantidad
     ws.cell(row=total_row, column=7).font = total_font
     ws.cell(row=total_row, column=7).fill = total_fill
-    ws.cell(row=total_row, column=19).value = total_importe
-    ws.cell(row=total_row, column=19).font = total_font
-    ws.cell(row=total_row, column=19).fill = total_fill
+    ws.cell(row=total_row, column=21).value = total_importe
+    ws.cell(row=total_row, column=21).font = total_font
+    ws.cell(row=total_row, column=21).fill = total_fill
     for col in range(1, len(ENTRADAS_LAYOUT_HEADERS) + 1):
         ws.cell(row=total_row, column=col).border = border
 

@@ -115,6 +115,21 @@
                     </select>
                 </div>
                 
+                <div class="col-md-2">
+                    <label for="estado_llegada" class="form-label">Estado de llegada</label>
+                    <select name="estado_llegada" class="form-select" id="estado_llegada">
+                        <option value="">Todos</option>
+                        {% for valor, etiqueta in estado_llegada_choices %}
+                        <option value="{{ valor }}" {% if filtro_estado_llegada == valor %}selected{% endif %}>{{ etiqueta }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2 d-flex align-items-end">
+                    <div class="form-check">
+                        <input type="checkbox" class="form-check-input" id="con_ubicacion" name="con_ubicacion" value="1" {% if filtro_con_ubicacion %}checked{% endif %}>
+                        <label class="form-check-label" for="con_ubicacion">Solo con ubicación asignada</label>
+                    </div>
+                </div>
                 <div class="col-md-3">
                     <label for="proveedor" class="form-label">Proveedor / Remisión</label>
                     <input type="text" class="form-control" id="proveedor" name="proveedor" 
@@ -158,7 +173,7 @@
                     {% for entrada in page_obj %}
                     <tr>
                         {% for celda in entrada.row %}
-                        <td class="{% if forloop.counter == 7 or forloop.counter == 15 or forloop.counter == 16 or forloop.counter == 17 or forloop.counter == 18 %}text-end{% endif %}">
+                        <td class="{% if forloop.counter == 7 or forloop.counter == 17 or forloop.counter == 18 or forloop.counter == 19 or forloop.counter == 20 %}text-end{% endif %}">
                             <small>{% if celda != None and celda != '' %}{{ celda }}{% else %}—{% endif %}</small>
                         </td>
                         {% endfor %}
@@ -181,12 +196,12 @@
                 <ul class="pagination justify-content-center mb-0">
                     {% if page_obj.has_previous %}
                         <li class="page-item">
-                            <a class="page-link" href="?page=1{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}{% if filtro_clave %}&clave={{ filtro_clave }}{% endif %}{% if filtro_lote %}&lote={{ filtro_lote }}{% endif %}{% if filtro_institucion %}&institucion={{ filtro_institucion }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_ubicacion %}&ubicacion={{ filtro_ubicacion }}{% endif %}{% if filtro_proveedor %}&proveedor={{ filtro_proveedor }}{% endif %}">
+                            <a class="page-link" href="?page=1{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}{% if filtro_clave %}&clave={{ filtro_clave }}{% endif %}{% if filtro_lote %}&lote={{ filtro_lote }}{% endif %}{% if filtro_institucion %}&institucion={{ filtro_institucion }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_ubicacion %}&ubicacion={{ filtro_ubicacion }}{% endif %}{% if filtro_estado_llegada %}&estado_llegada={{ filtro_estado_llegada }}{% endif %}{% if filtro_con_ubicacion %}&con_ubicacion=1{% endif %}{% if filtro_proveedor %}&proveedor={{ filtro_proveedor }}{% endif %}">
                                 <i class="fas fa-angle-double-left"></i>
                             </a>
                         </li>
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}{% if filtro_clave %}&clave={{ filtro_clave }}{% endif %}{% if filtro_lote %}&lote={{ filtro_lote }}{% endif %}{% if filtro_institucion %}&institucion={{ filtro_institucion }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_ubicacion %}&ubicacion={{ filtro_ubicacion }}{% endif %}{% if filtro_proveedor %}&proveedor={{ filtro_proveedor }}{% endif %}">
+                            <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}{% if filtro_clave %}&clave={{ filtro_clave }}{% endif %}{% if filtro_lote %}&lote={{ filtro_lote }}{% endif %}{% if filtro_institucion %}&institucion={{ filtro_institucion }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_ubicacion %}&ubicacion={{ filtro_ubicacion }}{% endif %}{% if filtro_estado_llegada %}&estado_llegada={{ filtro_estado_llegada }}{% endif %}{% if filtro_con_ubicacion %}&con_ubicacion=1{% endif %}{% if filtro_proveedor %}&proveedor={{ filtro_proveedor }}{% endif %}">
                                 <i class="fas fa-angle-left"></i>
                             </a>
                         </li>
@@ -196,12 +211,12 @@
                     </li>
                     {% if page_obj.has_next %}
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}{% if filtro_clave %}&clave={{ filtro_clave }}{% endif %}{% if filtro_lote %}&lote={{ filtro_lote }}{% endif %}{% if filtro_institucion %}&institucion={{ filtro_institucion }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_ubicacion %}&ubicacion={{ filtro_ubicacion }}{% endif %}{% if filtro_proveedor %}&proveedor={{ filtro_proveedor }}{% endif %}">
+                            <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}{% if filtro_clave %}&clave={{ filtro_clave }}{% endif %}{% if filtro_lote %}&lote={{ filtro_lote }}{% endif %}{% if filtro_institucion %}&institucion={{ filtro_institucion }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_ubicacion %}&ubicacion={{ filtro_ubicacion }}{% endif %}{% if filtro_estado_llegada %}&estado_llegada={{ filtro_estado_llegada }}{% endif %}{% if filtro_con_ubicacion %}&con_ubicacion=1{% endif %}{% if filtro_proveedor %}&proveedor={{ filtro_proveedor }}{% endif %}">
                                 <i class="fas fa-angle-right"></i>
                             </a>
                         </li>
                         <li class="page-item">
-                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}{% if filtro_clave %}&clave={{ filtro_clave }}{% endif %}{% if filtro_lote %}&lote={{ filtro_lote }}{% endif %}{% if filtro_institucion %}&institucion={{ filtro_institucion }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_ubicacion %}&ubicacion={{ filtro_ubicacion }}{% endif %}{% if filtro_proveedor %}&proveedor={{ filtro_proveedor }}{% endif %}">
+                            <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}{% if filtro_clave %}&clave={{ filtro_clave }}{% endif %}{% if filtro_lote %}&lote={{ filtro_lote }}{% endif %}{% if filtro_institucion %}&institucion={{ filtro_institucion }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_ubicacion %}&ubicacion={{ filtro_ubicacion }}{% endif %}{% if filtro_estado_llegada %}&estado_llegada={{ filtro_estado_llegada }}{% endif %}{% if filtro_con_ubicacion %}&con_ubicacion=1{% endif %}{% if filtro_proveedor %}&proveedor={{ filtro_proveedor }}{% endif %}">
                                 <i class="fas fa-angle-double-right"></i>
                             </a>
                         </li>
@@ -233,7 +248,13 @@
                         <strong>Proveedor/Remisión:</strong> Busca por número de remisión o proveedor.
                     </li>
                     <li>
-                        <strong>Exportar a Excel:</strong> Descarga el reporte completo con todos los datos.
+                        <strong>Estado de llegada:</strong> Filtra por estado de la llegada del proveedor (ej. Aprobada).
+                    </li>
+                    <li>
+                        <strong>Solo con ubicación asignada:</strong> Muestra únicamente entradas cuya llegada ya tiene ubicación asignada. Útil para revisar solo las aceptadas y ubicadas.
+                    </li>
+                    <li>
+                        <strong>Exportar a Excel:</strong> Descarga el reporte completo con todos los datos (incluye estado de llegada y ubicación asignada).
                     </li>
                 </ul>
             </div>
