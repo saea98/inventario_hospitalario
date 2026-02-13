@@ -54,10 +54,9 @@ def requiere_acceso_menuitem(view_func):
             logger.warning(f"No se pudo resolver URL para {request.path_info}")
             return view_func(request, *args, **kwargs)
         
-        # Buscar en MenuItemRol
-        try:
-            menu_item = MenuItemRol.objects.get(url_name=url_name, activo=True)
-            
+        # Buscar en MenuItemRol (first() evita MultipleObjectsReturned si hay duplicados)
+        menu_item = MenuItemRol.objects.filter(url_name=url_name, activo=True).first()
+        if menu_item:
             # Obtener roles del usuario
             user_groups = set(request.user.groups.values_list('name', flat=True))
             roles_permitidos = set(menu_item.roles_permitidos.values_list('name', flat=True))
@@ -80,8 +79,7 @@ def requiere_acceso_menuitem(view_func):
                 return redirect('dashboard')
             
             logger.info(f"Acceso permitido a {request.user.username} en {url_name}")
-            
-        except MenuItemRol.DoesNotExist:
+        else:
             # Si no hay configuración en MenuItemRol, permitir acceso
             logger.debug(f"No hay configuración de MenuItemRol para {url_name}, permitiendo acceso")
             pass
@@ -142,18 +140,16 @@ def requiere_rol_menuitem(*roles):
             
             # Verificar si hay configuración en MenuItemRol y si coincide
             if url_name:
-                try:
-                    menu_item = MenuItemRol.objects.get(url_name=url_name, activo=True)
+                menu_item = MenuItemRol.objects.filter(url_name=url_name, activo=True).first()
+                if menu_item:
                     roles_menuitem = set(menu_item.roles_permitidos.values_list('name', flat=True))
-                    
-                    # Advertencia si no coinciden
                     if roles_requeridos != roles_menuitem:
                         logger.warning(
                             f"DESAJUSTE en {url_name}: "
                             f"Decorador especifica {roles_requeridos}, "
                             f"MenuItemRol especifica {roles_menuitem}"
                         )
-                except MenuItemRol.DoesNotExist:
+                else:
                     logger.debug(f"No hay configuración de MenuItemRol para {url_name}")
             
             logger.info(f"Acceso permitido a {request.user.username}")
@@ -173,11 +169,10 @@ def obtener_roles_permitidos_url(url_name):
     """
     from inventario.models import MenuItemRol
     
-    try:
-        menu_item = MenuItemRol.objects.get(url_name=url_name, activo=True)
+    menu_item = MenuItemRol.objects.filter(url_name=url_name, activo=True).first()
+    if menu_item:
         return set(menu_item.roles_permitidos.values_list('name', flat=True))
-    except MenuItemRol.DoesNotExist:
-        return set()
+    return set()
 
 
 def usuario_puede_acceder_url(usuario, url_name):

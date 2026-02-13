@@ -130,12 +130,11 @@ def puede_acceder_url(usuario, url_name):
     if usuario.is_superuser:
         return True
     
-    try:
-        menu_item = MenuItemRol.objects.get(url_name=url_name, activo=True)
-        user_groups = usuario.groups.all()
-        return menu_item.roles_permitidos.filter(id__in=user_groups).exists()
-    except MenuItemRol.DoesNotExist:
+    menu_item = MenuItemRol.objects.filter(url_name=url_name, activo=True).first()
+    if not menu_item:
         return False
+    user_groups = usuario.groups.all()
+    return menu_item.roles_permitidos.filter(id__in=user_groups).exists()
 
 
 @register.simple_tag
@@ -143,8 +142,7 @@ def obtener_roles_url(url_name):
     """
     Template tag que retorna los roles permitidos para una URL.
     """
-    try:
-        menu_item = MenuItemRol.objects.get(url_name=url_name, activo=True)
+    menu_item = MenuItemRol.objects.filter(url_name=url_name, activo=True).first()
+    if menu_item:
         return menu_item.roles_permitidos.all()
-    except MenuItemRol.DoesNotExist:
-        return []
+    return []

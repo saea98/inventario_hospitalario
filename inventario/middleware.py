@@ -37,23 +37,16 @@ class ControlAccesoRolesMiddleware:
         
         # Si está autenticado y la URL no está excluida, verificar acceso
         if request.user.is_authenticated and url_name and url_name not in self.urls_excluidas:
-            # Verificar si existe una configuración de menú para esta URL
-            try:
-                menu_item = MenuItemRol.objects.get(url_name=url_name, activo=True)
-                
-                # Si el usuario no es superusuario, verificar roles
-                if not request.user.is_superuser:
-                    if not menu_item.puede_ver_usuario(request.user):
-                        # Usuario no tiene permiso
-                        mensaje = (
-                            f"No tienes permiso para acceder a '{menu_item.nombre_mostrado}'. "
-                            f"Contacta con el administrador si crees que es un error."
-                        )
-                        messages.error(request, mensaje)
-                        return redirect('dashboard')
-            except MenuItemRol.DoesNotExist:
-                # No hay configuración de menú para esta URL, permitir acceso
-                pass
+            # Verificar si existe una configuración de menú para esta URL (first() evita MultipleObjectsReturned si hay duplicados)
+            menu_item = MenuItemRol.objects.filter(url_name=url_name, activo=True).first()
+            if menu_item and not request.user.is_superuser:
+                if not menu_item.puede_ver_usuario(request.user):
+                    mensaje = (
+                        f"No tienes permiso para acceder a '{menu_item.nombre_mostrado}'. "
+                        f"Contacta con el administrador si crees que es un error."
+                    )
+                    messages.error(request, mensaje)
+                    return redirect('dashboard')
         
         response = self.get_response(request)
         return response

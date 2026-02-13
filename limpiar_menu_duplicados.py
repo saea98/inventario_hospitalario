@@ -4,6 +4,7 @@ Script para limpiar MenuItemRol duplicados
 Ejecutar con: python manage.py shell < limpiar_menu_duplicados.py
 """
 
+from django.db.models import Count
 from inventario.models import MenuItemRol
 
 # Buscar duplicados
