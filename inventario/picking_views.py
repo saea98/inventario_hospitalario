@@ -14,6 +14,7 @@ from django.utils import timezone
 from django.template.loader import get_template
 from django.conf import settings
 from datetime import datetime, timedelta
+import re
 from xhtml2pdf import pisa
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -25,6 +26,25 @@ from .models import Lote, UbicacionAlmacen, Almacen
 from .decorators_roles import requiere_rol
 from .fase5_utils import generar_movimientos_suministro
 from .excel_to_pdf_converter import convertir_excel_a_pdf
+
+
+def _natural_sort_key_codigo(codigo):
+    """
+    Genera una clave de ordenamiento natural para códigos de ubicación
+    (ej. J6A.01.02, J6A.01.03, J6A.01.10) para que ordenen correctamente.
+    """
+    if not codigo:
+        return (0, 0)
+    parts = re.split(r'(\d+)', str(codigo))
+    result = []
+    for part in parts:
+        if not part:
+            continue
+        if part.isdigit():
+            result.append((1, int(part)))
+        else:
+            result.append((0, part))
+    return tuple(result)
 
 
 # ============================================================
@@ -251,10 +271,14 @@ def picking_propuesta(request, propuesta_id):
         items_picking.sort(key=lambda x: x['producto'])
     elif orden_picking == 'cantidad':
         items_picking.sort(key=lambda x: x['cantidad'], reverse=True)
-    else:  # ubicacion (predeterminado)
-        items_picking.sort(key=lambda x: (x['almacen_id'], x['ubicacion_id']))
+    else:  # ubicacion (predeterminado): orden natural por código (J6A.01.02, .03, .10) y dentro por producto
+        items_picking.sort(key=lambda x: (
+            x['almacen_id'],
+            _natural_sort_key_codigo(x['ubicacion']),
+            (x['producto'] or '').lower(),
+        ))
     
-    # Agrupar por ubicación para vista
+    # Agrupar por ubicación para vista (el dict conserva orden de inserción; los ítems dentro ya están ordenados)
     ubicaciones_agrupadas = {}
     for item in items_picking:
         key = f"{item['almacen']} - {item['ubicacion']}"
