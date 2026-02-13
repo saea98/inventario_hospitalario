@@ -1,0 +1,187 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Reporte de Salidas al Inventario{% endblock %}
+
+{% block page_title %}
+<i class="fas fa-arrow-up me-2"></i>Reporte de Salidas al Inventario (Inventario de Salidas)
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <!-- Información del reporte -->
+    <div class="alert alert-info mb-4">
+        <h5 class="alert-heading">
+            <i class="fas fa-info-circle me-2"></i>Información del Reporte
+        </h5>
+        <p class="mb-2">
+            Este reporte muestra todas las <strong>salidas al inventario</strong> registradas en el sistema,
+            con el layout oficial de 20 columnas para <strong>auditorías</strong> y control. Incluye clave CNIS,
+            producto, lote, cantidad surtida, almacén origen, folio de salida, unidad hospitalaria destino,
+            CLUES destino, contrato, remisión, orden de suministro, precio e importe.
+        </p>
+    </div>
+
+    <!-- Tarjetas de estadísticas -->
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card bg-primary text-white">
+                <div class="card-body">
+                    <h6 class="card-title">Total de Salidas</h6>
+                    <h2 class="mb-0">{{ total_registros|intcomma }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-white" style="background-color: #1565C0;">
+                <div class="card-body">
+                    <h6 class="card-title">Cantidad Total Surtida</h6>
+                    <h2 class="mb-0">{{ total_cantidad|intcomma }}</h2>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card text-white" style="background-color: #0D47A1;">
+                <div class="card-body">
+                    <h6 class="card-title">Importe Total</h6>
+                    <h2 class="mb-0">${{ total_importe|intcomma }}</h2>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card mb-4 shadow-sm">
+        <div class="card-header bg-light">
+            <h5 class="mb-0"><i class="fas fa-filter me-2"></i>Filtros</h5>
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-2">
+                    <label for="fecha_desde" class="form-label">Fecha Desde</label>
+                    <input type="date" class="form-control" id="fecha_desde" name="fecha_desde" value="{{ filtro_fecha_desde }}">
+                </div>
+                <div class="col-md-2">
+                    <label for="fecha_hasta" class="form-label">Fecha Hasta</label>
+                    <input type="date" class="form-control" id="fecha_hasta" name="fecha_hasta" value="{{ filtro_fecha_hasta }}">
+                </div>
+                <div class="col-md-2">
+                    <label for="clave" class="form-label">Clave CNIS</label>
+                    <input type="text" class="form-control" id="clave" name="clave" value="{{ filtro_clave }}" placeholder="Ej: 010.000.0022">
+                </div>
+                <div class="col-md-2">
+                    <label for="lote" class="form-label">Lote</label>
+                    <input type="text" class="form-control" id="lote" name="lote" value="{{ filtro_lote }}" placeholder="Número de lote">
+                </div>
+                <div class="col-md-2">
+                    <label for="almacen" class="form-label">Almacén origen</label>
+                    <select name="almacen" class="form-select" id="almacen">
+                        <option value="">Todos</option>
+                        {% for alm in almacenes %}
+                        <option value="{{ alm.nombre }}" {% if filtro_almacen == alm.nombre %}selected{% endif %}>{{ alm.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="destino" class="form-label">Destino (unidad/CLUES)</label>
+                    <input type="text" class="form-control" id="destino" name="destino" value="{{ filtro_destino }}" placeholder="Unidad o CLUES">
+                </div>
+                <div class="col-md-2">
+                    <label for="folio" class="form-label">Folio de salida</label>
+                    <input type="text" class="form-control" id="folio" name="folio" value="{{ filtro_folio }}" placeholder="Folio">
+                </div>
+                <div class="col-md-12 d-flex align-items-end gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search me-2"></i>Filtrar
+                    </button>
+                    <a href="{% url 'reporte_salidas' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-redo me-2"></i>Limpiar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Tabla de resultados -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h5 class="mb-0">
+                <i class="fas fa-table me-2"></i>Salidas Registradas ({{ page_obj.paginator.count }} total)
+            </h5>
+            <a href="{% url 'exportar_salidas_excel' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" class="btn btn-success btn-sm">
+                <i class="fas fa-file-excel me-2"></i>Exportar a Excel
+            </a>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle table-sm">
+                <thead class="table-primary" style="--bs-table-bg: #1565C0; --bs-table-color: #E3F2FD;">
+                    <tr>
+                        {% for h in headers %}
+                        <th class="text-nowrap text-white"><small>{{ h }}</small></th>
+                        {% endfor %}
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for salida in page_obj %}
+                    <tr>
+                        {% for celda in salida.row %}
+                        <td class="{% if forloop.counter == 6 or forloop.counter == 9 or forloop.counter == 19 or forloop.counter == 20 %}text-end{% endif %}">
+                            <small>{% if celda != None and celda != '' %}{{ celda }}{% else %}—{% endif %}</small>
+                        </td>
+                        {% endfor %}
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="{{ headers|length }}" class="text-center text-muted py-4">
+                            <i class="fas fa-inbox me-2"></i>No hay registros que coincidan con los filtros
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if page_obj.has_other_pages %}
+        <div class="card-footer">
+            <nav aria-label="Paginación de salidas">
+                <ul class="pagination justify-content-center mb-0">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}{% if filtro_clave %}&clave={{ filtro_clave }}{% endif %}{% if filtro_lote %}&lote={{ filtro_lote }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_destino %}&destino={{ filtro_destino }}{% endif %}{% if filtro_folio %}&folio={{ filtro_folio }}{% endif %}"><i class="fas fa-angle-double-left"></i></a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}{% if filtro_clave %}&clave={{ filtro_clave }}{% endif %}{% if filtro_lote %}&lote={{ filtro_lote }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_destino %}&destino={{ filtro_destino }}{% endif %}{% if filtro_folio %}&folio={{ filtro_folio }}{% endif %}"><i class="fas fa-angle-left"></i></a>
+                    </li>
+                    {% endif %}
+                    <li class="page-item active">
+                        <span class="page-link">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+                    </li>
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}{% if filtro_clave %}&clave={{ filtro_clave }}{% endif %}{% if filtro_lote %}&lote={{ filtro_lote }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_destino %}&destino={{ filtro_destino }}{% endif %}{% if filtro_folio %}&folio={{ filtro_folio }}{% endif %}"><i class="fas fa-angle-right"></i></a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}{% if filtro_clave %}&clave={{ filtro_clave }}{% endif %}{% if filtro_lote %}&lote={{ filtro_lote }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_destino %}&destino={{ filtro_destino }}{% endif %}{% if filtro_folio %}&folio={{ filtro_folio }}{% endif %}"><i class="fas fa-angle-double-right"></i></a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="alert alert-secondary">
+                <h6 class="alert-heading"><i class="fas fa-check-circle me-2"></i>Uso para auditorías</h6>
+                <ul class="mb-0 mt-2">
+                    <li><strong>Clave CNIS / Producto / Lote:</strong> Identificación del insumo surtido.</li>
+                    <li><strong>CLUES DEL ALMACÉN / ALMACÉN:</strong> Origen de la salida.</li>
+                    <li><strong>FOLIO DE SALIDA / FECHA DE ENTREGA:</strong> Trazabilidad del movimiento.</li>
+                    <li><strong>UNIDAD HOSPITALARIA / CLUES DESTINO SSA-IMB:</strong> Destino de la mercancía.</li>
+                    <li><strong>Exportar a Excel:</strong> Descarga el reporte con los mismos filtros aplicados.</li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
