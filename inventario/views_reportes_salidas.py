@@ -258,11 +258,13 @@ def reporte_salidas_surtidas(request):
         'solicitud',
         'solicitud__institucion_solicitante',
         'solicitud__almacen_destino',
+        'solicitud__almacen_destino__institucion',
         'usuario_surtimiento'
     ).prefetch_related(
         'items__producto',
         'items__item_solicitud',
         'items__lotes_asignados__lote_ubicacion__lote',
+        'items__lotes_asignados__lote_ubicacion__lote__orden_suministro',
         'items__lotes_asignados__lote_ubicacion__ubicacion'
     )
     
@@ -318,57 +320,68 @@ def reporte_salidas_surtidas(request):
     # Construir datos del reporte
     datos_reporte = []
     partida_counter = 1
-    
+
     # Normalizar filtros para comparación (guardar valores originales antes de modificar)
     clave_cnis_filter_value = clave_cnis.strip().upper() if clave_cnis else None
     lote_filter_value = filtro_lote.strip().upper() if filtro_lote else None
-    
-    for propuesta in propuestas.order_by('-fecha_surtimiento', 'solicitud__folio'):
+
+    propuestas_ordered = propuestas.order_by('-fecha_surtimiento', 'solicitud__folio')
+    propuesta_ids = list(propuestas_ordered.values_list('id', flat=True))
+
+    # Una sola consulta de movimientos para todas las propuestas (evita N+1 en el bucle)
+    movimientos_por_clave = {}
+    movimientos_fallback = {}
+    if propuesta_ids:
+        folios_str = [str(pid) for pid in propuesta_ids]
+        movimientos = MovimientoInventario.objects.filter(
+            tipo_movimiento='SALIDA',
+            folio__in=folios_str
+        ).select_related('lote').only('id', 'lote_id', 'folio', 'cantidad', 'remision')
+        for m in movimientos:
+            clave = (m.lote_id, m.folio or '', m.cantidad)
+            movimientos_por_clave[clave] = m
+            fallback_key = (m.lote_id, m.folio or '')
+            if fallback_key not in movimientos_fallback:
+                movimientos_fallback[fallback_key] = m
+
+    for propuesta in propuestas_ordered:
         solicitud = propuesta.solicitud
-        
+        folio_propuesta = str(propuesta.id) if propuesta.id else ''
+
         for item_propuesta in propuesta.items.all():
             producto = item_propuesta.producto
-            
+
             # Aplicar filtro de clave_cnis a nivel de item
             if clave_cnis_filter_value:
                 if not producto.clave_cnis or clave_cnis_filter_value not in producto.clave_cnis.upper():
                     continue
-            
-            # Obtener lotes asignados surtidos
-            lotes_surtidos = item_propuesta.lotes_asignados.filter(surtido=True)
-            
-            if not lotes_surtidos.exists():
+
+            # Usar prefetch en memoria (evita query por item)
+            lotes_surtidos = [la for la in item_propuesta.lotes_asignados.all() if la.surtido]
+            if not lotes_surtidos:
                 continue
-            
+
             for lote_asignado in lotes_surtidos:
                 lote_ubicacion = lote_asignado.lote_ubicacion
                 lote = lote_ubicacion.lote
                 ubicacion = lote_ubicacion.ubicacion
-                
+
                 # Aplicar filtro de lote a nivel de lote individual
                 if lote_filter_value:
                     if not lote.numero_lote or lote_filter_value not in lote.numero_lote.upper():
                         continue
-                
-                # Obtener movimiento de inventario relacionado (si existe, para remision_ingreso)
-                movimiento = MovimientoInventario.objects.filter(
-                    lote=lote,
-                    tipo_movimiento='SALIDA',
-                    folio=str(propuesta.id) if propuesta.id else ''
-                ).filter(cantidad=lote_asignado.cantidad_asignada).first()
-                if not movimiento:
-                    movimiento = MovimientoInventario.objects.filter(
-                        lote=lote,
-                        tipo_movimiento='SALIDA',
-                        folio=str(propuesta.id) if propuesta.id else ''
-                    ).first()
-                
+
+                # Lookup en diccionario (sin consultas en el bucle)
+                movimiento = movimientos_por_clave.get(
+                    (lote.pk, folio_propuesta, lote_asignado.cantidad_asignada)
+                ) or movimientos_fallback.get((lote.pk, folio_propuesta))
+
                 # Cantidad previa = cantidad_disponible (inventario_lote) + cantidad surtida
                 cantidad_surtida = lote_asignado.cantidad_asignada
                 cantidad_disponible_lote = getattr(lote, 'cantidad_disponible', None) or 0
                 cantidad_previa = cantidad_disponible_lote + cantidad_surtida
-                
-                # Obtener orden de suministro del lote (si existe)
+
+                # orden_suministro ya viene por prefetch
                 orden_reposicion = lote.orden_suministro.numero_orden if lote.orden_suministro else ''
                 
                 # Calcular días para caducidad
@@ -663,8 +676,7 @@ def exportar_salidas_surtidas_excel(request):
     filtro_lote = request.GET.get('lote', '').strip()
     institucion_id = request.GET.get('institucion')
     
-    # Obtener propuestas surtidas (misma lógica que la vista)
-    # Solo propuestas que tienen fecha_surtimiento (realmente surtidas)
+    # Obtener propuestas surtidas (misma lógica que la vista, con prefetch optimizado)
     propuestas = PropuestaPedido.objects.filter(
         estado='SURTIDA',
         fecha_surtimiento__isnull=False
@@ -672,14 +684,16 @@ def exportar_salidas_surtidas_excel(request):
         'solicitud',
         'solicitud__institucion_solicitante',
         'solicitud__almacen_destino',
+        'solicitud__almacen_destino__institucion',
         'usuario_surtimiento'
     ).prefetch_related(
         'items__producto',
         'items__item_solicitud',
         'items__lotes_asignados__lote_ubicacion__lote',
+        'items__lotes_asignados__lote_ubicacion__lote__orden_suministro',
         'items__lotes_asignados__lote_ubicacion__ubicacion'
     )
-    
+
     # Aplicar filtros (misma lógica que la vista principal)
     if fecha_inicio:
         try:
@@ -728,58 +742,56 @@ def exportar_salidas_surtidas_excel(request):
         except (ValueError, TypeError):
             pass
     
-    # Construir datos del reporte
+    # Construir datos del reporte (misma optimización que la vista: movimientos en una sola consulta)
     datos_reporte = []
     partida_counter = 1
-    
-    # Normalizar filtros para comparación (guardar valores originales antes de modificar)
     clave_cnis_filter_value = clave_cnis.strip().upper() if clave_cnis else None
     lote_filter_value = filtro_lote.strip().upper() if filtro_lote else None
-    
-    for propuesta in propuestas.order_by('-fecha_surtimiento', 'solicitud__folio'):
+
+    propuestas_ordered_exp = propuestas.order_by('-fecha_surtimiento', 'solicitud__folio')
+    propuesta_ids_exp = list(propuestas_ordered_exp.values_list('id', flat=True))
+
+    movimientos_por_clave_exp = {}
+    movimientos_fallback_exp = {}
+    if propuesta_ids_exp:
+        folios_str_exp = [str(pid) for pid in propuesta_ids_exp]
+        for m in MovimientoInventario.objects.filter(
+            tipo_movimiento='SALIDA', folio__in=folios_str_exp
+        ).only('id', 'lote_id', 'folio', 'cantidad', 'remision'):
+            movimientos_por_clave_exp[(m.lote_id, m.folio or '', m.cantidad)] = m
+            k = (m.lote_id, m.folio or '')
+            if k not in movimientos_fallback_exp:
+                movimientos_fallback_exp[k] = m
+
+    for propuesta in propuestas_ordered_exp:
         solicitud = propuesta.solicitud
-        
+        folio_propuesta_exp = str(propuesta.id) if propuesta.id else ''
+
         for item_propuesta in propuesta.items.all():
             producto = item_propuesta.producto
-            
-            # Aplicar filtro de clave_cnis a nivel de item
             if clave_cnis_filter_value:
                 if not producto.clave_cnis or clave_cnis_filter_value not in producto.clave_cnis.upper():
                     continue
-            
-            # Obtener lotes asignados surtidos
-            lotes_surtidos = item_propuesta.lotes_asignados.filter(surtido=True)
-            
-            if not lotes_surtidos.exists():
+
+            lotes_surtidos_exp = [la for la in item_propuesta.lotes_asignados.all() if la.surtido]
+            if not lotes_surtidos_exp:
                 continue
-            
-            for lote_asignado in lotes_surtidos:
+
+            for lote_asignado in lotes_surtidos_exp:
                 lote_ubicacion = lote_asignado.lote_ubicacion
                 lote = lote_ubicacion.lote
                 ubicacion = lote_ubicacion.ubicacion
-                
-                # Aplicar filtro de lote a nivel de lote individual
                 if lote_filter_value:
                     if not lote.numero_lote or lote_filter_value not in lote.numero_lote.upper():
                         continue
-                
-                # Movimiento (para remision_ingreso)
-                movimiento = MovimientoInventario.objects.filter(
-                    lote=lote,
-                    tipo_movimiento='SALIDA',
-                    folio=str(propuesta.id) if propuesta.id else ''
-                ).filter(cantidad=lote_asignado.cantidad_asignada).first()
-                if not movimiento:
-                    movimiento = MovimientoInventario.objects.filter(
-                        lote=lote,
-                        tipo_movimiento='SALIDA',
-                        folio=str(propuesta.id) if propuesta.id else ''
-                    ).first()
-                # Cantidad previa = cantidad disponible actual + cantidad surtida
+
+                movimiento = movimientos_por_clave_exp.get(
+                    (lote.pk, folio_propuesta_exp, lote_asignado.cantidad_asignada)
+                ) or movimientos_fallback_exp.get((lote.pk, folio_propuesta_exp))
                 cantidad_previa = (lote.cantidad_disponible or 0) + lote_asignado.cantidad_asignada
                 tiene_movimiento = movimiento is not None
                 orden_reposicion = lote.orden_suministro.numero_orden if lote.orden_suministro else ''
-                
+
                 datos_reporte.append({
                     'partida': partida_counter,
                     'clave_cnis': producto.clave_cnis,
