@@ -10,7 +10,8 @@ CLUES DESTINO SSA/IMB, CONTRATO, REMISIÓN, ORDEN DE SUMINISTRO, LICITACIÓN, Pr
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
-from django.db.models import Q
+from django.db.models import Q, OuterRef, Subquery, UUIDField
+from django.db.models.functions import Cast
 from datetime import datetime, timedelta
 from decimal import Decimal
 from openpyxl import Workbook
@@ -18,6 +19,7 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
 from .models import MovimientoInventario, Institucion, Almacen, UbicacionAlmacen
+from .pedidos_models import PropuestaPedido
 
 # Layout del reporte de salidas para auditorías
 SALIDAS_LAYOUT_HEADERS = [
@@ -95,7 +97,7 @@ def _construir_fila_salida(m):
         _valor(almacen and almacen.nombre),
         _valor(partida_presupuestal),
         _valor(m.folio),
-        _valor(lote and lote.observaciones),
+        _valor(getattr(m, 'folio_pedido_solicitud', None) or (lote and lote.observaciones)),
         _fecha(m.fecha_movimiento, '%d/%m/%Y %H:%M') if m.fecha_movimiento else '',
         _valor(inst_destino and inst_destino.denominacion),
         _valor(inst_destino and inst_destino.clue),
@@ -116,8 +118,13 @@ def reporte_salidas(request):
     Reporte de salidas al inventario (Inventario de Salidas) para auditorías.
     Layout oficial de 20 columnas.
     """
+    subq_folio_pedido = PropuestaPedido.objects.filter(
+        id=Cast(OuterRef('folio'), UUIDField())
+    ).values('solicitud__observaciones_solicitud')[:1]
     salidas = MovimientoInventario.objects.filter(
         tipo_movimiento='SALIDA', anulado=False
+    ).annotate(
+        folio_pedido_solicitud=Subquery(subq_folio_pedido)
     ).select_related(
         'lote',
         'lote__producto',
@@ -204,8 +211,13 @@ def reporte_salidas(request):
 @login_required
 def exportar_salidas_excel(request):
     """Exporta el reporte de salidas a Excel con el layout oficial (20 columnas)."""
+    subq_folio_pedido_exp = PropuestaPedido.objects.filter(
+        id=Cast(OuterRef('folio'), UUIDField())
+    ).values('solicitud__observaciones_solicitud')[:1]
     salidas = MovimientoInventario.objects.filter(
         tipo_movimiento='SALIDA', anulado=False
+    ).annotate(
+        folio_pedido_solicitud=Subquery(subq_folio_pedido_exp)
     ).select_related(
         'lote',
         'lote__producto',
