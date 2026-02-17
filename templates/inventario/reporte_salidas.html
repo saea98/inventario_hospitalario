@@ -125,7 +125,7 @@
                     {% for salida in page_obj %}
                     <tr>
                         {% for celda in salida.row %}
-                        <td class="{% if forloop.counter == 6 or forloop.counter == 9 or forloop.counter == 19 or forloop.counter == 20 %}text-end{% endif %}">
+                        <td class="{% if forloop.counter == 6 or forloop.counter == 20 or forloop.counter == 21 %}text-end{% endif %}">
                             <small>{% if celda != None and celda != '' %}{{ celda }}{% else %}—{% endif %}</small>
                         </td>
                         {% endfor %}
