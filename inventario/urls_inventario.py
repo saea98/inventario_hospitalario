@@ -7,6 +7,7 @@ from . import views_inventario
 from . import views_reporte_no_afectados
 from . import views_reporte_sin_caducidad
 from . import views_reporte_entradas
+from . import views_reporte_caducados
 from . import views_reporte_sin_ubicacion
 from . import views_reporte_conteo_almacen
 from . import views_reporte_salidas
@@ -47,7 +48,11 @@ urlpatterns = [
     # Reporte de entradas al inventario
     path('reporte-entradas/', views_reporte_entradas.reporte_entradas, name='reporte_entradas'),
     path('reporte-entradas/exportar/', views_reporte_entradas.exportar_entradas_excel, name='exportar_entradas_excel'),
-    
+
+    # Reporte de caducados y próximos a caducar (≤ 90, 60, 30 días)
+    path('reporte-caducados/', views_reporte_caducados.reporte_caducados, name='reporte_caducados'),
+    path('reporte-caducados/exportar/', views_reporte_caducados.exportar_caducados_excel, name='exportar_caducados_excel'),
+
     # Reporte de salidas al inventario (Inventario de Salidas - auditorías)
     path('reporte-salidas/', views_reporte_salidas.reporte_salidas, name='reporte_salidas'),
     path('reporte-salidas/exportar/', views_reporte_salidas.exportar_salidas_excel, name='exportar_salidas_excel'),
