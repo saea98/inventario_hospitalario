@@ -55,6 +55,7 @@ ENTRADAS_LAYOUT_HEADERS = [
     'OBSERVACION',
     'FECHA DE EMISIÓN',
     'FUENTE DE FMTO',
+    'USUARIO MOVIMIENTO',
 ]
 
 # Etiquetas de estado de llegada para el reporte
@@ -235,6 +236,7 @@ def reporte_entradas(request):
             _valor(lote and lote.observaciones),
             _fecha(os and os.fecha_orden) or _fecha(lote and lote.fecha_recepcion),
             _valor((os and os.fuente_financiamiento and os.fuente_financiamiento.nombre) or (lote and lote.fuente_datos)),
+            _valor((m.usuario.get_full_name() or m.usuario.username) if getattr(m, 'usuario', None) else ''),
         ]
         entradas_lista.append({'row': row, 'id': m.id})
     
@@ -325,6 +327,7 @@ def _construir_fila_entrada(m):
         _valor(lote and lote.observaciones),
         _fecha(os and os.fecha_orden) or _fecha(lote and lote.fecha_recepcion),
         _valor((os and os.fuente_financiamiento and os.fuente_financiamiento.nombre) or (lote and lote.fuente_datos)),
+        _valor((m.usuario.get_full_name() or m.usuario.username) if getattr(m, 'usuario', None) else ''),
     ]
 
 

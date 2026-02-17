@@ -41,6 +41,7 @@ SALIDAS_LAYOUT_HEADERS = [
     'LICITACIÓN/PROCEDIMIENTO',
     'Precio',
     'Importe',
+    'USUARIO MOVIMIENTO',
 ]
 
 
@@ -101,6 +102,7 @@ def _construir_fila_salida(m):
         _valor(m.licitacion or (lote and lote.licitacion)),
         _decimal(precio),
         _decimal(importe_val),
+        _valor((m.usuario.get_full_name() or m.usuario.username) if getattr(m, 'usuario', None) else ''),
     ]
 
 
