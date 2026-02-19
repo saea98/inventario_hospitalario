@@ -2,8 +2,8 @@
 Reporte de Salidas al Inventario (Inventario de Salidas)
 
 Para auditorías: muestra todas las salidas (MovimientoInventario tipo SALIDA)
-con el layout oficial de 20 columnas: Clave CNIS, Producto, LOTE, CANTIDAD SURTIDA,
-CLUES DEL ALMACÉN, ALMACÉN, FOLIO DE SALIDA, FECHA DE ENTREGA, UNIDAD HOSPITALARIA,
+con el layout oficial: Clave CNIS, Producto, LOTE, CANTIDAD SURTIDA,
+CLUES DEL ALMACÉN, ALMACÉN, P.P., RFC, Proveedor, FOLIO DE SALIDA, FECHA DE ENTREGA, UNIDAD HOSPITALARIA,
 CLUES DESTINO SSA/IMB, CONTRATO, REMISIÓN, ORDEN DE SUMINISTRO, LICITACIÓN, Precio, Importe.
 """
 
@@ -32,6 +32,8 @@ SALIDAS_LAYOUT_HEADERS = [
     'CLUES DEL ALMACÉN',
     'ALMACÉN',
     'P.P.',
+    'RFC',
+    'Proveedor',
     'FOLIO DE SALIDA',
     'FOLIO DE PEDIDO',
     'FECHA DE ENTREGA',
@@ -75,6 +77,7 @@ def _construir_fila_salida(m):
     lote = m.lote
     prod = lote.producto if lote else None
     os = lote.orden_suministro if lote else None
+    prov = os.proveedor if os else None
     almacen = lote.almacen if lote else None
     inst_origen = almacen.institucion if almacen else None
     inst_destino = m.institucion_destino
@@ -85,6 +88,8 @@ def _construir_fila_salida(m):
         importe_val = m.cantidad * precio
 
     partida_presupuestal = (lote and lote.partida) or (os and os.partida_presupuestal)
+    rfc = _valor(prov and prov.rfc or (lote and getattr(lote, 'rfc_proveedor', None)))
+    proveedor_nombre = _valor(prov and prov.razon_social or (lote and getattr(lote, 'proveedor', None)))
 
     return [
         _valor(prod and prod.clave_cnis),
@@ -96,6 +101,8 @@ def _construir_fila_salida(m):
         _valor(inst_origen and inst_origen.clue),
         _valor(almacen and almacen.nombre),
         _valor(partida_presupuestal),
+        rfc,
+        proveedor_nombre,
         _valor(m.folio),
         _valor(getattr(m, 'folio_pedido_solicitud', None) or (lote and lote.observaciones)),
         _fecha(m.fecha_movimiento, '%d/%m/%Y %H:%M') if m.fecha_movimiento else '',
@@ -131,6 +138,7 @@ def reporte_salidas(request):
         'lote__institucion',
         'lote__almacen',
         'lote__orden_suministro',
+        'lote__orden_suministro__proveedor',
         'institucion_destino',
         'usuario'
     ).order_by('-fecha_movimiento')
@@ -178,7 +186,7 @@ def reporte_salidas(request):
         row = _construir_fila_salida(m)
         salidas_lista.append({'row': row, 'id': m.id})
         total_cantidad += row[5]  # CANTIDAD SURTIDA
-        total_importe += float(row[20] or 0)  # Importe
+        total_importe += float(row[22] or 0)  # Importe
 
     # Paginación
     from django.core.paginator import Paginator
@@ -210,7 +218,7 @@ def reporte_salidas(request):
 
 @login_required
 def exportar_salidas_excel(request):
-    """Exporta el reporte de salidas a Excel con el layout oficial (20 columnas)."""
+    """Exporta el reporte de salidas a Excel con el layout oficial (incluye RFC y Proveedor)."""
     subq_folio_pedido_exp = PropuestaPedido.objects.filter(
         id=Cast(OuterRef('folio'), UUIDField())
     ).values('solicitud__observaciones_solicitud')[:1]
@@ -224,6 +232,7 @@ def exportar_salidas_excel(request):
         'lote__institucion',
         'lote__almacen',
         'lote__orden_suministro',
+        'lote__orden_suministro__proveedor',
         'institucion_destino',
         'usuario'
     ).order_by('-fecha_movimiento')
@@ -286,14 +295,14 @@ def exportar_salidas_excel(request):
         fila = _construir_fila_salida(m)
         listado.append(fila)
         total_cantidad += fila[5] or 0
-        total_importe_val += float(fila[20] or 0)
+        total_importe_val += float(fila[22] or 0)
 
     for row_num, fila in enumerate(listado, 2):
         for col_num, val in enumerate(fila, 1):
             cell = ws.cell(row=row_num, column=col_num)
             cell.value = val
             cell.border = border
-            if col_num in (6, 20, 21):
+            if col_num in (6, 22, 23):
                 cell.alignment = Alignment(horizontal='right')
 
     total_row = len(listado) + 2
@@ -303,9 +312,9 @@ def exportar_salidas_excel(request):
     ws.cell(row=total_row, column=6).value = total_cantidad
     ws.cell(row=total_row, column=6).font = total_font
     ws.cell(row=total_row, column=6).fill = total_fill
-    ws.cell(row=total_row, column=21).value = total_importe_val
-    ws.cell(row=total_row, column=21).font = total_font
-    ws.cell(row=total_row, column=21).fill = total_fill
+    ws.cell(row=total_row, column=23).value = total_importe_val
+    ws.cell(row=total_row, column=23).font = total_font
+    ws.cell(row=total_row, column=23).fill = total_fill
     for col in range(1, len(SALIDAS_LAYOUT_HEADERS) + 1):
         ws.cell(row=total_row, column=col).border = border
 

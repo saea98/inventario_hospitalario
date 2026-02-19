@@ -16,8 +16,8 @@
         </h5>
         <p class="mb-2">
             Este reporte muestra todas las <strong>salidas al inventario</strong> registradas en el sistema,
-            con el layout oficial de 20 columnas para <strong>auditorías</strong> y control. Incluye clave CNIS,
-            producto, lote, cantidad surtida, almacén origen, folio de salida, unidad hospitalaria destino,
+            con el layout oficial para <strong>auditorías</strong> y control. Incluye clave CNIS,
+            producto, lote, cantidad surtida, almacén origen, RFC, proveedor, folio de salida, unidad hospitalaria destino,
             CLUES destino, contrato, remisión, orden de suministro, precio e importe.
         </p>
     </div>
@@ -125,7 +125,7 @@
                     {% for salida in page_obj %}
                     <tr>
                         {% for celda in salida.row %}
-                        <td class="{% if forloop.counter == 6 or forloop.counter == 20 or forloop.counter == 21 %}text-end{% endif %}">
+                        <td class="{% if forloop.counter == 6 or forloop.counter == 22 or forloop.counter == 23 %}text-end{% endif %}">
                             <small>{% if celda != None and celda != '' %}{{ celda }}{% else %}—{% endif %}</small>
                         </td>
                         {% endfor %}

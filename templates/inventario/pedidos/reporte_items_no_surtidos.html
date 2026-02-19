@@ -86,6 +86,8 @@
                     <tr>
                         <th>Folio de Pedido</th>
                         <th>Institución</th>
+                        <th>CLUES</th>
+                        <th>Fecha de Solicitud</th>
                         <th>Almacén</th>
                         <th>Clave CNIS</th>
                         <th>Descripción</th>
@@ -101,6 +103,8 @@
                     <tr>
                         <td><small><strong>{{ row.folio_pedido|default:"-" }}</strong></small></td>
                         <td><small>{{ row.institucion }}</small></td>
+                        <td><code>{{ row.clues|default:"-" }}</code></td>
+                        <td><small>{{ row.fecha_solicitud|default:"-" }}</small></td>
                         <td><small>{{ row.almacen }}</small></td>
                         <td><code>{{ row.producto.clave_cnis }}</code></td>
                         <td><small>{{ row.producto.descripcion|truncatechars:50 }}</small></td>
@@ -116,7 +120,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="10" class="text-center text-muted py-4">
+                        <td colspan="12" class="text-center text-muted py-4">
                             <i class="fas fa-check-circle fa-2x mb-2"></i>
                             <p class="mb-0">No hay items no surtidos con los filtros seleccionados</p>
                         </td>

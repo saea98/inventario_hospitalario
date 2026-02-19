@@ -217,6 +217,8 @@ def _obtener_items_no_surtidos(request):
         folio_pedido = (solicitud.observaciones_solicitud or '').strip() or (solicitud.folio or '')
         institucion_nombre = solicitud.institucion_solicitante.denominacion if solicitud.institucion_solicitante else '-'
         almacen_nombre = solicitud.almacen_destino.nombre if solicitud.almacen_destino else '-'
+        clues = solicitud.institucion_solicitante.clue if solicitud.institucion_solicitante else '-'
+        fecha_solicitud = solicitud.fecha_solicitud.strftime('%d/%m/%Y') if solicitud.fecha_solicitud else '-'
 
         for item in propuesta.items.all():
             if item.cantidad_propuesta <= 0:
@@ -235,6 +237,8 @@ def _obtener_items_no_surtidos(request):
                     'folio_pedido': folio_pedido,
                     'institucion': institucion_nombre,
                     'almacen': almacen_nombre,
+                    'clues': clues,
+                    'fecha_solicitud': fecha_solicitud,
                     'cantidad_propuesta': item.cantidad_propuesta,
                     'cantidad_surtida': cantidad_surtida_real,
                     'cantidad_faltante': cantidad_faltante,
@@ -309,6 +313,8 @@ def exportar_items_no_surtidos_excel(request):
     headers = [
         'Folio de Pedido',
         'Institución',
+        'CLUES',
+        'Fecha de Solicitud',
         'Almacén',
         'Clave CNIS',
         'Descripción',
@@ -329,26 +335,30 @@ def exportar_items_no_surtidos_excel(request):
         desc = (row['producto'].descripcion or '')[:100] if row['producto'] else ''
         ws.cell(row=row_idx, column=1).value = row['folio_pedido'] or ''
         ws.cell(row=row_idx, column=2).value = row['institucion'] or ''
-        ws.cell(row=row_idx, column=3).value = row['almacen'] or ''
-        ws.cell(row=row_idx, column=4).value = row['producto'].clave_cnis if row['producto'] else ''
-        ws.cell(row=row_idx, column=5).value = desc
-        ws.cell(row=row_idx, column=6).value = row['cantidad_propuesta'] or 0
-        ws.cell(row=row_idx, column=7).value = row['cantidad_surtida'] or 0
-        ws.cell(row=row_idx, column=8).value = row['cantidad_faltante'] or 0
-        ws.cell(row=row_idx, column=9).value = row['estado_propuesta'] or ''
-        for col in range(1, 10):
+        ws.cell(row=row_idx, column=3).value = row.get('clues', '') or ''
+        ws.cell(row=row_idx, column=4).value = row.get('fecha_solicitud', '') or ''
+        ws.cell(row=row_idx, column=5).value = row['almacen'] or ''
+        ws.cell(row=row_idx, column=6).value = row['producto'].clave_cnis if row['producto'] else ''
+        ws.cell(row=row_idx, column=7).value = desc
+        ws.cell(row=row_idx, column=8).value = row['cantidad_propuesta'] or 0
+        ws.cell(row=row_idx, column=9).value = row['cantidad_surtida'] or 0
+        ws.cell(row=row_idx, column=10).value = row['cantidad_faltante'] or 0
+        ws.cell(row=row_idx, column=11).value = row['estado_propuesta'] or ''
+        for col in range(1, 12):
             ws.cell(row=row_idx, column=col).border = border
             ws.cell(row=row_idx, column=col).alignment = Alignment(horizontal='left', vertical='center')
 
     ws.column_dimensions['A'].width = 22
     ws.column_dimensions['B'].width = 38
-    ws.column_dimensions['C'].width = 25
-    ws.column_dimensions['D'].width = 14
-    ws.column_dimensions['E'].width = 45
+    ws.column_dimensions['C'].width = 14
+    ws.column_dimensions['D'].width = 18
+    ws.column_dimensions['E'].width = 25
     ws.column_dimensions['F'].width = 14
-    ws.column_dimensions['G'].width = 14
+    ws.column_dimensions['G'].width = 45
     ws.column_dimensions['H'].width = 14
-    ws.column_dimensions['I'].width = 22
+    ws.column_dimensions['I'].width = 14
+    ws.column_dimensions['J'].width = 14
+    ws.column_dimensions['K'].width = 22
 
     response = HttpResponse(
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
