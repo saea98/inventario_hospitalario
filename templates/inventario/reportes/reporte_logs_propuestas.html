@@ -1,0 +1,184 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Reporte de Logs de Propuestas{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col-md-12">
+            <h2><i class="fas fa-history text-primary"></i> Reporte de Logs de Propuestas</h2>
+            <p class="text-muted">Acciones específicas de usuarios sobre propuestas de suministro (liberar, eliminar, etc.). Filtre por usuario, fechas o contenido.</p>
+        </div>
+    </div>
+
+    <!-- Filtros -->
+    <div class="card mb-4 shadow-sm">
+        <div class="card-header bg-light">
+            <h5 class="mb-0"><i class="fas fa-filter me-2"></i>Filtros</h5>
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-2">
+                    <label for="usuario" class="form-label">Usuario</label>
+                    <select class="form-select" id="usuario" name="usuario">
+                        <option value="">Todos</option>
+                        {% for u in usuarios_con_logs %}
+                        <option value="{{ u.id }}" {% if filtro_usuario == u.id|stringformat:"s" %}selected{% endif %}>
+                            {{ u.get_full_name|default:u.username }}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="fecha_desde" class="form-label">Fecha desde</label>
+                    <input type="date" class="form-control" id="fecha_desde" name="fecha_desde" value="{{ filtro_fecha_desde }}">
+                </div>
+                <div class="col-md-2">
+                    <label for="fecha_hasta" class="form-label">Fecha hasta</label>
+                    <input type="date" class="form-control" id="fecha_hasta" name="fecha_hasta" value="{{ filtro_fecha_hasta }}">
+                </div>
+                <div class="col-md-2">
+                    <label for="accion" class="form-label">Tipo de acción</label>
+                    <select class="form-select" id="accion" name="accion">
+                        <option value="">Todas</option>
+                        {% for a in acciones_distintas %}
+                        <option value="{{ a }}" {% if filtro_accion == a %}selected{% endif %}>{{ a|truncatechars:50 }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label for="texto" class="form-label">Buscar en contenido</label>
+                    <input type="text" class="form-control" id="texto" name="texto" placeholder="Texto en acción o detalles..." value="{{ filtro_texto }}">
+                </div>
+                <div class="col-md-2 d-flex align-items-end gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search me-1"></i> Filtrar
+                    </button>
+                    <a href="{% url 'reporte_logs_propuestas' %}" class="btn btn-outline-secondary">
+                        <i class="fas fa-redo me-1"></i> Limpiar
+                    </a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <!-- Resumen -->
+    <div class="row mb-3">
+        <div class="col-md-12">
+            <p class="mb-0 text-muted">
+                <strong>{{ total_registros }}</strong> registro{{ total_registros|pluralize }} encontrado{{ total_registros|pluralize }}
+            </p>
+        </div>
+    </div>
+
+    <!-- Tabla -->
+    <div class="card shadow-sm">
+        <div class="card-header bg-light">
+            <h5 class="mb-0"><i class="fas fa-list me-2"></i>Registros de log</h5>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0 align-middle table-sm">
+                <thead class="table-primary">
+                    <tr>
+                        <th>Fecha y hora</th>
+                        <th>Usuario</th>
+                        <th>Propuesta / Folio</th>
+                        <th>Acción</th>
+                        <th>Detalles</th>
+                        <th>Enlace</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for log in page_obj %}
+                    <tr>
+                        <td><small>{{ log.timestamp|date:"d/m/Y H:i" }}</small></td>
+                        <td>
+                            {% if log.usuario %}
+                            <strong>{{ log.usuario.get_full_name|default:log.usuario.username }}</strong>
+                            <br><small class="text-muted">{{ log.usuario.username }}</small>
+                            {% else %}
+                            <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if log.propuesta and log.propuesta.solicitud %}
+                            <code>{{ log.propuesta.solicitud.observaciones_solicitud|default:log.propuesta.solicitud.folio|truncatechars:20 }}</code>
+                            {% if log.propuesta.solicitud.institucion_solicitante %}
+                            <br><small class="text-muted">{{ log.propuesta.solicitud.institucion_solicitante.denominacion|truncatechars:30 }}</small>
+                            {% endif %}
+                            {% else %}
+                            <span class="text-muted">—</span>
+                            {% endif %}
+                        </td>
+                        <td><span class="badge bg-secondary">{{ log.accion|truncatechars:60 }}</span></td>
+                        <td>
+                            {% if log.detalles %}
+                            <small class="text-muted" style="max-width: 280px; display: inline-block;">{{ log.detalles|truncatewords:25 }}</small>
+                            {% else %}
+                            —
+                            {% endif %}
+                        </td>
+                        <td>
+                            {% if log.propuesta_id %}
+                            <a href="{% url 'logistica:detalle_propuesta' propuesta_id=log.propuesta_id %}" class="btn btn-sm btn-outline-primary" title="Ver propuesta">
+                                <i class="fas fa-external-link-alt"></i>
+                            </a>
+                            {% else %}
+                            —
+                            {% endif %}
+                        </td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-4">
+                            <i class="fas fa-inbox me-2"></i>No hay registros que coincidan con los filtros.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+        {% if page_obj.has_other_pages %}
+        <div class="card-footer">
+            <nav aria-label="Paginación">
+                <ul class="pagination justify-content-center mb-0">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page=1{% if filtro_usuario %}&usuario={{ filtro_usuario }}{% endif %}{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}{% if filtro_accion %}&accion={{ filtro_accion|urlencode }}{% endif %}{% if filtro_texto %}&texto={{ filtro_texto|urlencode }}{% endif %}"><i class="fas fa-angle-double-left"></i></a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if filtro_usuario %}&usuario={{ filtro_usuario }}{% endif %}{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}{% if filtro_accion %}&accion={{ filtro_accion|urlencode }}{% endif %}{% if filtro_texto %}&texto={{ filtro_texto|urlencode }}{% endif %}"><i class="fas fa-angle-left"></i></a>
+                    </li>
+                    {% endif %}
+                    <li class="page-item active">
+                        <span class="page-link">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+                    </li>
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if filtro_usuario %}&usuario={{ filtro_usuario }}{% endif %}{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}{% if filtro_accion %}&accion={{ filtro_accion|urlencode }}{% endif %}{% if filtro_texto %}&texto={{ filtro_texto|urlencode }}{% endif %}"><i class="fas fa-angle-right"></i></a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if filtro_usuario %}&usuario={{ filtro_usuario }}{% endif %}{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}{% if filtro_accion %}&accion={{ filtro_accion|urlencode }}{% endif %}{% if filtro_texto %}&texto={{ filtro_texto|urlencode }}{% endif %}"><i class="fas fa-angle-double-right"></i></a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+
+    <div class="row mt-4">
+        <div class="col-md-12">
+            <div class="alert alert-info">
+                <h6 class="alert-heading"><i class="fas fa-info-circle me-2"></i>Qué se registra</h6>
+                <p class="mb-0 small">
+                    Este reporte muestra entradas de <strong>LogPropuesta</strong>: liberación de propuestas (regreso a GENERADA)
+                    y eliminación de propuestas. Cada registro incluye usuario, fecha, tipo de acción y detalles. 
+                    Las propuestas eliminadas no aparecen aquí porque el log se elimina en cascada con la propuesta.
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
