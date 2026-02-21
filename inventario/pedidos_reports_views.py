@@ -1248,7 +1248,8 @@ def dashboard_surtimiento_institucion(request):
             sol = item.cantidad_solicitada or 0
             sur = sum(la.cantidad_asignada for la in item.lotes_asignados.all() if la.surtido)
             extra = _datos_extra_fila(item)
-            folio = item.propuesta.solicitud.folio if item.propuesta and item.propuesta.solicitud else '-'
+            solicitud = item.propuesta.solicitud if item.propuesta else None
+            folio = (solicitud.observaciones_solicitud or solicitud.folio or '').strip() or '-' if solicitud else '-'
             if sur == 0:
                 no_surtido.append({
                     'item': item,
@@ -1362,7 +1363,7 @@ def _obtener_datos_dashboard_surtimiento(request):
         inst = solicitud.institucion_solicitante if solicitud else None
         prod = item.producto
         cat = prod.categoria if prod else None
-        folio = solicitud.folio if solicitud else '-'
+        folio = (solicitud.observaciones_solicitud or solicitud.folio or '').strip() or '-' if solicitud else '-'
         clave = (prod.clave_cnis or '-') if prod else '-'
         desc = ((prod.descripcion or '-')[:200]) if prod else '-'
         row = {
