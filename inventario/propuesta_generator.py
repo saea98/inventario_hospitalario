@@ -127,6 +127,8 @@ class PropuestaGenerator:
         """
         Genera un item de la propuesta, buscando lotes disponibles con sus ubicaciones.
         Considera la cantidad reservada en otros lotes.
+        Regla de asignación por clave (producto): 1) caducidad (primero a vencer),
+        2) lote (numero_lote), 3) ubicación (código de ubicación).
         """
         from .propuesta_utils import reservar_cantidad_lote
         
@@ -147,12 +149,14 @@ class PropuestaGenerator:
         logger = logging.getLogger(__name__)
         
         fecha_minima = date.today() + timedelta(days=60)
+        # Regla de asignación: 1) caducidad, 2) lote, 3) ubicación por clave (por producto)
         lotes_disponibles = Lote.objects.filter(
             producto=producto,
             fecha_caducidad__gte=fecha_minima,
             estado=1  # Solo lotes disponibles
         ).select_related('producto').order_by(
-            'fecha_caducidad'  # Priorizar lotes que caducan antes
+            'fecha_caducidad',   # 1) Primero los que caducan antes
+            'numero_lote'        # 2) Luego por número de lote
         )
 
         # Calcular cantidad total disponible (considerando reservas)
@@ -196,10 +200,11 @@ class PropuestaGenerator:
             # Esto permite que el almacenista sepa exactamente de qué ubicación tomar
             # Siempre buscar en el almacén Central (id=1), sin importar el almacén destino
             almacen_central_id = 1  # Almacén Central
+            # 3) Dentro del lote: por ubicación (código de ubicación)
             ubicaciones_disponibles = lote.ubicaciones_detalle.filter(
                 cantidad__gt=0,
                 ubicacion__almacen_id=almacen_central_id  # Solo ubicaciones del almacén Central
-            ).order_by('-cantidad')  # Priorizar ubicaciones con más cantidad
+            ).select_related('ubicacion').order_by('ubicacion__codigo')
             
             # Calcular la cantidad total disponible en todas las ubicaciones del lote
             cantidad_total_disponible_ubicaciones = sum(
