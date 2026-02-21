@@ -859,7 +859,37 @@ def editar_propuesta(request, propuesta_id):
         
         propuesta.total_propuesto = sum(item.cantidad_propuesta for item in propuesta.items.all())
         propuesta.save()
-        
+
+        # Guardar borrador: quedarse en la página para seguir editando (y soporte AJAX para auto-guardado)
+        is_borrador = request.POST.get('guardar_borrador')
+        if is_borrador:
+            if request.headers.get('X-Requested-With') == 'XMLHttpRequest':
+                from django.utils.dateformat import DateFormat
+                from django.utils.timezone import now
+                return JsonResponse({
+                    'success': True,
+                    'message': 'Borrador guardado.',
+                    'timestamp': DateFormat(now()).format('H:i'),
+                })
+            messages.success(request, "Borrador guardado. Puede seguir editando.")
+            propuesta = get_object_or_404(
+                PropuestaPedido.objects.prefetch_related(
+                    'items__lotes_asignados__lote_ubicacion__lote',
+                    'items__lotes_asignados__lote_ubicacion__ubicacion',
+                    'items__producto',
+                ).select_related('solicitud'),
+                id=propuesta_id,
+                estado='GENERADA',
+            )
+            from .models import Producto
+            productos_disponibles = Producto.objects.filter(activo=True).order_by('clave_cnis')
+            context = {
+                'propuesta': propuesta,
+                'productos_disponibles': productos_disponibles,
+                'page_title': f"Editar Propuesta {propuesta.solicitud.folio}",
+            }
+            return render(request, 'inventario/pedidos/editar_propuesta.html', context)
+
         messages.success(request, "Propuesta actualizada correctamente.")
         return redirect('logistica:detalle_propuesta', propuesta_id=propuesta.id)
     

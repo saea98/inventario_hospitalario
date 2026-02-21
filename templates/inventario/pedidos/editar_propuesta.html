@@ -178,11 +178,23 @@
             </div>
         </div>
 
-        <div class="mb-4">
-            <button type="submit" class="btn btn-primary">Guardar Cambios</button>
+        <div class="mb-4 d-flex flex-wrap align-items-center gap-2">
+            <button type="submit" name="guardar_cambios" class="btn btn-primary">Guardar y terminar</button>
+            <button type="submit" name="guardar_borrador" value="1" class="btn btn-outline-primary">
+                <i class="fas fa-save me-1"></i> Guardar borrador
+            </button>
             <a href="{% url 'logistica:detalle_propuesta' propuesta.id %}" class="btn btn-secondary">Cancelar</a>
+            <span id="ultima-guardada" class="ms-3 text-muted small" style="display: none;">
+                <i class="fas fa-check-circle text-success"></i> Última guardada: <span id="ultima-guardada-hora"></span>
+            </span>
         </div>
     </form>
+</div>
+
+<div class="alert alert-warning alert-dismissible fade show mt-3" role="alert">
+    <i class="fas fa-info-circle me-2"></i>
+    <strong>Consejo:</strong> En propuestas grandes, use <strong>Guardar borrador</strong> con frecuencia o espere el guardado automático cada 2 minutos para no perder cambios si hay fallos de conexión.
+    <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
 </div>
 
 {% block extra_js %}
@@ -190,6 +202,103 @@
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        var form = document.querySelector('form[method="post"]');
+        var formDirty = false;
+        var autoSaveInterval = 2 * 60 * 1000; // 2 minutos
+        var autoSaveTimer = null;
+
+        // Marcar formulario con cambios
+        function markDirty() {
+            formDirty = true;
+            if (!autoSaveTimer) {
+                autoSaveTimer = setInterval(doAutoSave, autoSaveInterval);
+            }
+        }
+        form.querySelectorAll('input, select, textarea').forEach(function(el) {
+            el.addEventListener('change', markDirty);
+            el.addEventListener('input', markDirty);
+        });
+
+        // Aviso al salir con cambios sin guardar
+        window.addEventListener('beforeunload', function(e) {
+            if (formDirty) {
+                e.preventDefault();
+            }
+        });
+
+        function showUltimaGuardada(timeStr) {
+            var el = document.getElementById('ultima-guardada');
+            var hora = document.getElementById('ultima-guardada-hora');
+            if (el && hora) {
+                hora.textContent = timeStr || new Date().toLocaleTimeString('es', { hour: '2-digit', minute: '2-digit' });
+                el.style.display = 'inline';
+            }
+        }
+
+        function guardarBorradorAjax() {
+            var formData = new FormData(form);
+            formData.append('guardar_borrador', '1');
+            return fetch(form.action || window.location.href, {
+                method: 'POST',
+                body: formData,
+                headers: {
+                    'X-Requested-With': 'XMLHttpRequest',
+                    'Accept': 'application/json'
+                },
+                credentials: 'same-origin'
+            }).then(function(r) {
+                if (!r.ok) throw new Error('Error de red');
+                return r.json();
+            });
+        }
+
+        function doAutoSave() {
+            if (!formDirty) return;
+            guardarBorradorAjax()
+                .then(function(data) {
+                    formDirty = false;
+                    showUltimaGuardada(data.timestamp || null);
+                    if (autoSaveTimer) {
+                        clearInterval(autoSaveTimer);
+                        autoSaveTimer = null;
+                    }
+                })
+                .catch(function() {
+                    console.warn('Auto-guardado falló. Use "Guardar borrador" manualmente.');
+                });
+        }
+
+        // Interceptar clic en "Guardar borrador": guardar por AJAX para no recargar la página
+        form.addEventListener('submit', function(e) {
+            var btn = e.submitter;
+            if (btn && btn.name === 'guardar_borrador') {
+                e.preventDefault();
+                btn.disabled = true;
+                guardarBorradorAjax()
+                    .then(function(data) {
+                        formDirty = false;
+                        showUltimaGuardada(data.timestamp || null);
+                        if (autoSaveTimer) {
+                            clearInterval(autoSaveTimer);
+                            autoSaveTimer = null;
+                        }
+                    })
+                    .catch(function() {
+                        // Fallback: enviar el formulario normal (form.submit() no dispara el evento submit)
+                        var input = document.createElement('input');
+                        input.type = 'hidden';
+                        input.name = 'guardar_borrador';
+                        input.value = '1';
+                        form.appendChild(input);
+                        form.submit();
+                    })
+                    .finally(function() {
+                        btn.disabled = false;
+                    });
+                return false;
+            }
+        });
+
         // Inicializar Select2 para todos los selects
         $('.select2-single').select2({
             width: '100%',
@@ -204,7 +313,6 @@
             var $seccionUbicaciones = $('#nuevo-item-ubicaciones');
             
             if (productoId) {
-                // Hacer petición AJAX para obtener ubicaciones del producto
                 $.ajax({
                     url: '{% url "logistica:obtener_ubicaciones_producto" %}',
                     method: 'GET',
@@ -225,7 +333,6 @@
                                 );
                             });
                             $seccionUbicaciones.show();
-                            // Reinicializar Select2 para el nuevo select
                             $ubicacionesSelect.select2({
                                 width: '100%',
                                 language: 'es',
