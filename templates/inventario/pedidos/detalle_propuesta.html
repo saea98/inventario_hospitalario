@@ -140,6 +140,9 @@
                 <i class="fas fa-trash-alt"></i> Eliminar Propuesta
             </button>
         {% endif %}
+        <a href="{% url 'logistica:auditar_surtido_documento' %}?propuesta_id={{ propuesta.id }}" class="btn btn-outline-primary" title="Comparar cantidades del documento en papel con lo registrado en el sistema">
+            <i class="fas fa-clipboard-check"></i> Auditar con documento
+        </a>
         <a href="{% url 'logistica:lista_propuestas' %}" class="btn btn-secondary">
             <i class="fas fa-arrow-left"></i> Volver a la Lista
         </a>

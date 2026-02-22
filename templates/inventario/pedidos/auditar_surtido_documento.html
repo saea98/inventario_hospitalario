@@ -1,0 +1,176 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}{{ page_title }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <h1 class="h3 mb-4">
+        <i class="fas fa-clipboard-check text-primary"></i> {{ page_title }}
+    </h1>
+    <p class="text-muted">
+        Compare las cantidades anotadas en la lista de surtido en papel (o en una imagen escaneada) con lo registrado en el sistema.
+        Seleccione la propuesta, ingrese las cantidades que aparecen en el documento en la columna "Cant. según documento" y opcionalmente adjunte una foto/escaneo.
+    </p>
+
+    <!-- Paso 1: Seleccionar propuesta -->
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">1. Seleccionar propuesta de suministro</h5>
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-3 align-items-end">
+                <div class="col-md-8">
+                    <label for="propuesta_id" class="form-label">Propuesta (folio / institución)</label>
+                    <select name="propuesta_id" id="propuesta_id" class="form-select">
+                        <option value="">-- Elija una propuesta --</option>
+                        {% for p in propuestas_recientes %}
+                        <option value="{{ p.id }}" {% if propuesta and propuesta.id == p.id %}selected{% endif %}>
+                            {{ p.solicitud.observaciones_solicitud|default:p.solicitud.folio }} — {{ p.solicitud.institucion_solicitante.denominacion|truncatechars:40 }} ({{ p.fecha_generacion|date:"d/m/Y" }})
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-4">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-arrow-right me-1"></i> Cargar items
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% if propuesta and not mostrar_resultado %}
+    <!-- Paso 2: Formulario con cantidades del documento -->
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <h5 class="mb-0">2. Ingresar cantidades del documento (CANTIDAD SURTIDA del papel)</h5>
+        </div>
+        <div class="card-body">
+            <p class="small text-muted mb-3">
+                En la lista de surtido en papel suele haber una columna <strong>CANTIDAD SURTIDA</strong> (a veces anotada a mano).
+                Ingrese aquí ese número para cada producto. Si en el documento aparece 0 o no se surtió, ponga 0. Opcionalmente adjunte una foto o escaneo del documento.
+            </p>
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <input type="hidden" name="propuesta_id" value="{{ propuesta.id }}">
+                <div class="table-responsive">
+                    <table class="table table-bordered table-hover">
+                        <thead class="table-light">
+                            <tr>
+                                <th>Clave</th>
+                                <th>Descripción</th>
+                                <th class="text-end">Solicitada</th>
+                                <th class="text-end">En sistema</th>
+                                <th class="text-end">Cant. según documento</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {% for item in propuesta.items.all %}
+                            <tr>
+                                <td><code>{{ item.producto.clave_cnis }}</code></td>
+                                <td><small>{{ item.producto.descripcion|truncatewords:12 }}</small></td>
+                                <td class="text-end">{{ item.cantidad_solicitada }}</td>
+                                <td class="text-end"><strong>{{ item.cantidad_surtida }}</strong></td>
+                                <td class="text-end">
+                                    <input type="number" name="item_{{ item.id }}_doc" class="form-control form-control-sm text-end" style="max-width: 100px;" min="0" placeholder="0" title="Cantidad anotada en el documento">
+                                </td>
+                            </tr>
+                            {% empty %}
+                            <tr><td colspan="5" class="text-center text-muted">No hay items en esta propuesta.</td></tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+                <div class="mb-3">
+                    <label for="imagen_documento" class="form-label">Adjuntar imagen del documento (opcional)</label>
+                    <input type="file" name="imagen_documento" id="imagen_documento" class="form-control" accept="image/*,.pdf">
+                    <small class="text-muted">Puede subir una foto o escaneo de la lista de surtido para dejar constancia.</small>
+                </div>
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-balance-scale me-1"></i> Comparar con sistema
+                </button>
+                <a href="{% url 'logistica:detalle_propuesta' propuesta.id %}" class="btn btn-outline-secondary">Ver detalle de la propuesta</a>
+            </form>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if mostrar_resultado and items_con_doc %}
+    <!-- Resultado: comparación -->
+    <div class="card mb-4 border-primary">
+        <div class="card-header bg-primary text-white">
+            <h5 class="mb-0"><i class="fas fa-balance-scale me-1"></i> Resultado: Sistema vs documento</h5>
+        </div>
+        <div class="card-body">
+            <p class="mb-2">
+                <strong>Propuesta:</strong> {{ propuesta.solicitud.observaciones_solicitud|default:propuesta.solicitud.folio }}
+                — {{ propuesta.solicitud.institucion_solicitante.denominacion }}
+            </p>
+            {% if imagen_adjunta %}
+            <p class="small text-muted mb-3">Imagen adjunta: <em>{{ imagen_adjunta }}</em></p>
+            {% endif %}
+            <div class="table-responsive">
+                <table class="table table-bordered">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Clave</th>
+                            <th>Descripción</th>
+                            <th class="text-end">Solicitada</th>
+                            <th class="text-end">En sistema</th>
+                            <th class="text-end">Documento dice</th>
+                            <th class="text-center">¿Coincide?</th>
+                            <th class="text-end">Diferencia</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in items_con_doc %}
+                        <tr class="{% if not row.coincide %}table-warning{% endif %}">
+                            <td><code>{{ row.item.producto.clave_cnis }}</code></td>
+                            <td><small>{{ row.item.producto.descripcion|truncatewords:12 }}</small></td>
+                            <td class="text-end">{{ row.item.cantidad_solicitada }}</td>
+                            <td class="text-end">{{ row.cant_sistema }}</td>
+                            <td class="text-end">
+                                {% if row.cant_documento is not None %}{{ row.cant_documento }}{% else %}<span class="text-muted">—</span>{% endif %}
+                            </td>
+                            <td class="text-center">
+                                {% if row.cant_documento is None %}
+                                    <span class="text-muted">Sin dato</span>
+                                {% elif row.coincide %}
+                                    <span class="badge bg-success"><i class="fas fa-check"></i> Sí</span>
+                                {% else %}
+                                    <span class="badge bg-danger"><i class="fas fa-times"></i> No</span>
+                                {% endif %}
+                            </td>
+                            <td class="text-end">
+                                {% if row.diferencia is not None %}
+                                    {% if row.diferencia > 0 %}
+                                        <span class="text-success">+{{ row.diferencia }}</span> <small class="text-muted">(doc. &gt; sistema)</small>
+                                    {% elif row.diferencia < 0 %}
+                                        <span class="text-danger">{{ row.diferencia }}</span> <small class="text-muted">(doc. &lt; sistema)</small>
+                                    {% else %}
+                                        —
+                                    {% endif %}
+                                {% else %}
+                                    —
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <p class="mt-3 mb-0">
+                <a href="{% url 'logistica:auditar_surtido_documento' %}?propuesta_id={{ propuesta.id }}" class="btn btn-outline-primary">Volver a cargar cantidades</a>
+                <a href="{% url 'logistica:auditar_surtido_documento' %}" class="btn btn-outline-secondary">Elegir otra propuesta</a>
+                <a href="{% url 'logistica:detalle_propuesta' propuesta.id %}" class="btn btn-outline-secondary">Ir al detalle de la propuesta</a>
+            </p>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if propuesta and mostrar_resultado and not items_con_doc %}
+    <div class="alert alert-info">Esta propuesta no tiene items. Elija otra.</div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -86,6 +86,7 @@ urlpatterns = [
     path('propuestas/<uuid:propuesta_id>/editar/', pedidos_views.editar_propuesta, name='editar_propuesta'),
     path('propuestas/<uuid:propuesta_id>/revisar/', pedidos_views.revisar_propuesta, name='revisar_propuesta'),
     path('propuestas/<uuid:propuesta_id>/surtir/', pedidos_views.surtir_propuesta, name='surtir_propuesta'),
+    path('propuestas/auditar-surtido-documento/', pedidos_views.auditar_surtido_documento, name='auditar_surtido_documento'),
     path('api/obtener-ubicaciones-producto/', pedidos_views.obtener_ubicaciones_producto, name='obtener_ubicaciones_producto'),
     
     # ========================================================================

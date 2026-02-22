@@ -687,6 +687,68 @@ def detalle_propuesta(request, propuesta_id):
 
 
 @login_required
+def auditar_surtido_documento(request):
+    """
+    Herramienta para comparar lo anotado en un documento físico (lista de surtido)
+    con lo registrado en la propuesta en el sistema. El usuario selecciona una propuesta,
+    opcionalmente adjunta imagen del documento, e ingresa las cantidades que aparecen
+    en el papel (CANTIDAD SURTIDA); se muestra una comparación sistema vs documento.
+    """
+    propuesta = None
+    propuesta_id = request.GET.get('propuesta_id') or request.POST.get('propuesta_id')
+    if propuesta_id:
+        propuesta = PropuestaPedido.objects.filter(id=propuesta_id).select_related(
+            'solicitud__institucion_solicitante', 'solicitud__almacen_destino'
+        ).prefetch_related('items__producto').first()
+        if not propuesta:
+            messages.warning(request, 'Propuesta no encontrada.')
+            return redirect('logistica:auditar_surtido_documento')
+
+    # Lista de propuestas recientes para el selector (surtidas o en proceso)
+    propuestas_recientes = PropuestaPedido.objects.filter(
+        solicitud__isnull=False
+    ).select_related('solicitud__institucion_solicitante').order_by('-fecha_generacion')[:100]
+
+    if request.method == 'POST' and propuesta:
+        # Recoger cantidades "según documento" por item
+        items_con_doc = []
+        for item in propuesta.items.all():
+            key = f'item_{item.id}_doc'
+            raw = request.POST.get(key, '').strip()
+            try:
+                cant_doc = int(raw) if raw else None
+            except ValueError:
+                cant_doc = None
+            cant_sistema = item.cantidad_surtida
+            coincide = (cant_doc is not None and cant_doc == cant_sistema)
+            items_con_doc.append({
+                'item': item,
+                'cant_sistema': cant_sistema,
+                'cant_documento': cant_doc,
+                'coincide': coincide,
+                'diferencia': (cant_doc - cant_sistema) if cant_doc is not None and cant_sistema is not None else None,
+            })
+        imagen = request.FILES.get('imagen_documento')
+        context = {
+            'propuesta': propuesta,
+            'items_con_doc': items_con_doc,
+            'mostrar_resultado': True,
+            'imagen_adjunta': imagen.name if imagen else None,
+            'propuestas_recientes': propuestas_recientes,
+            'page_title': 'Auditoría: Surtido documento vs sistema',
+        }
+        return render(request, 'inventario/pedidos/auditar_surtido_documento.html', context)
+
+    context = {
+        'propuesta': propuesta,
+        'propuestas_recientes': propuestas_recientes,
+        'mostrar_resultado': False,
+        'page_title': 'Auditar surtido con documento',
+    }
+    return render(request, 'inventario/pedidos/auditar_surtido_documento.html', context)
+
+
+@login_required
 def revisar_propuesta(request, propuesta_id):
     """
     Permite al personal de almacén revisar una propuesta generada.
