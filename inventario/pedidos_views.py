@@ -699,7 +699,10 @@ def auditar_surtido_documento(request):
     if propuesta_id:
         propuesta = PropuestaPedido.objects.filter(id=propuesta_id).select_related(
             'solicitud__institucion_solicitante', 'solicitud__almacen_destino'
-        ).prefetch_related('items__producto').first()
+        ).prefetch_related(
+            'items__producto',
+            'items__lotes_asignados__lote_ubicacion__lote',
+        ).first()
         if not propuesta:
             messages.warning(request, 'Propuesta no encontrada.')
             return redirect('logistica:auditar_surtido_documento')
@@ -717,6 +720,26 @@ def auditar_surtido_documento(request):
     else:
         qs_propuestas = qs_propuestas[:100]
     propuestas_recientes = list(qs_propuestas)
+
+    def _orden_surtido(item):
+        """Orden: 0=completo, 1=parcial, 2=no surtido (para cuadrar con lo físico)."""
+        sol, sur = item.cantidad_solicitada, item.cantidad_surtida
+        if sur >= sol:
+            return 0
+        return 1 if sur > 0 else 2
+
+    def _tipo_surtido(item):
+        sol, sur = item.cantidad_solicitada, item.cantidad_surtida
+        if sur >= sol:
+            return 'completo'
+        return 'parcial' if sur > 0 else 'no_surtido'
+
+    def _lotes_display(item):
+        parts = []
+        for la in item.lotes_asignados.all():
+            if getattr(la, 'lote_ubicacion', None) and getattr(la.lote_ubicacion, 'lote', None):
+                parts.append(la.lote_ubicacion.lote.numero_lote)
+        return ', '.join(parts) if parts else '—'
 
     if request.method == 'POST' and propuesta:
         # Recoger cantidades "según documento" por item
@@ -736,7 +759,11 @@ def auditar_surtido_documento(request):
                 'cant_documento': cant_doc,
                 'coincide': coincide,
                 'diferencia': (cant_doc - cant_sistema) if cant_doc is not None and cant_sistema is not None else None,
+                'tipo_surtido': _tipo_surtido(item),
+                'orden_surtido': _orden_surtido(item),
+                'lotes_display': _lotes_display(item),
             })
+        items_con_doc.sort(key=lambda r: (r['orden_surtido'], (r['item'].producto.clave_cnis or '')))
         imagen = request.FILES.get('imagen_documento')
         context = {
             'propuesta': propuesta,
@@ -749,8 +776,16 @@ def auditar_surtido_documento(request):
         }
         return render(request, 'inventario/pedidos/auditar_surtido_documento.html', context)
 
+    # Items ordenados: surtido completo, luego parcial, luego no surtido (para cuadrar con lo físico)
+    items_ordenados = []
+    if propuesta:
+        items_ordenados = sorted(
+            propuesta.items.all(),
+            key=lambda i: (_orden_surtido(i), (i.producto.clave_cnis or ''))
+        )
     context = {
         'propuesta': propuesta,
+        'items_ordenados': items_ordenados,
         'propuestas_recientes': propuestas_recientes,
         'busqueda_folio': busqueda_folio,
         'mostrar_resultado': False,
