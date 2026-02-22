@@ -721,15 +721,21 @@ def auditar_surtido_documento(request):
         qs_propuestas = qs_propuestas[:100]
     propuestas_recientes = list(qs_propuestas)
 
+    def _cantidad_surtida_real(item):
+        """Cantidad realmente surtida: suma de LoteAsignado.cantidad_asignada donde surtido=True (igual que propuesta de surtimiento/dashboard)."""
+        return sum(la.cantidad_asignada for la in item.lotes_asignados.all() if la.surtido)
+
     def _orden_surtido(item):
         """Orden: 0=completo, 1=parcial, 2=no surtido (para cuadrar con lo físico)."""
-        sol, sur = item.cantidad_solicitada, item.cantidad_surtida
+        sur = _cantidad_surtida_real(item)
+        sol = item.cantidad_solicitada
         if sur >= sol:
             return 0
         return 1 if sur > 0 else 2
 
     def _tipo_surtido(item):
-        sol, sur = item.cantidad_solicitada, item.cantidad_surtida
+        sur = _cantidad_surtida_real(item)
+        sol = item.cantidad_solicitada
         if sur >= sol:
             return 'completo'
         return 'parcial' if sur > 0 else 'no_surtido'
@@ -751,7 +757,7 @@ def auditar_surtido_documento(request):
                 cant_doc = int(raw) if raw else None
             except ValueError:
                 cant_doc = None
-            cant_sistema = item.cantidad_surtida
+            cant_sistema = _cantidad_surtida_real(item)
             coincide = (cant_doc is not None and cant_doc == cant_sistema)
             items_con_doc.append({
                 'item': item,
@@ -777,12 +783,20 @@ def auditar_surtido_documento(request):
         return render(request, 'inventario/pedidos/auditar_surtido_documento.html', context)
 
     # Items ordenados: surtido completo, luego parcial, luego no surtido (para cuadrar con lo físico)
+    # Usar cantidad surtida real (desde LoteAsignado) para estado y columna "En sistema"
     items_ordenados = []
     if propuesta:
-        items_ordenados = sorted(
-            propuesta.items.all(),
-            key=lambda i: (_orden_surtido(i), (i.producto.clave_cnis or ''))
-        )
+        raw_items = list(propuesta.items.all())
+        items_ordenados = [
+            {
+                'item': i,
+                'cant_sistema': _cantidad_surtida_real(i),
+                'tipo_surtido': _tipo_surtido(i),
+                'lotes_display': _lotes_display(i),
+            }
+            for i in raw_items
+        ]
+        items_ordenados.sort(key=lambda r: (_orden_surtido(r['item']), (r['item'].producto.clave_cnis or '')))
     context = {
         'propuesta': propuesta,
         'items_ordenados': items_ordenados,

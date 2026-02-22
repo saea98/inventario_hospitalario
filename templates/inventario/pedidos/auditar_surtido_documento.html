@@ -86,24 +86,24 @@
                             </tr>
                         </thead>
                         <tbody>
-                            {% for item in items_ordenados %}
+                            {% for row in items_ordenados %}
                             <tr>
                                 <td>
-                                    {% if item.cantidad_surtida >= item.cantidad_solicitada %}
+                                    {% if row.tipo_surtido == 'completo' %}
                                     <span class="badge bg-success">Completo</span>
-                                    {% elif item.cantidad_surtida > 0 %}
+                                    {% elif row.tipo_surtido == 'parcial' %}
                                     <span class="badge bg-warning text-dark">Parcial</span>
                                     {% else %}
                                     <span class="badge bg-secondary">No surtido</span>
                                     {% endif %}
                                 </td>
-                                <td><code>{{ item.producto.clave_cnis }}</code></td>
-                                <td><small>{{ item.producto.descripcion|truncatewords:12 }}</small></td>
-                                <td><small>{% for la in item.lotes_asignados.all %}{{ la.lote_ubicacion.lote.numero_lote }}{% if not forloop.last %}, {% endif %}{% empty %}—{% endfor %}</small></td>
-                                <td class="text-end">{{ item.cantidad_solicitada }}</td>
-                                <td class="text-end"><strong>{{ item.cantidad_surtida }}</strong></td>
+                                <td><code>{{ row.item.producto.clave_cnis }}</code></td>
+                                <td><small>{{ row.item.producto.descripcion|truncatewords:12 }}</small></td>
+                                <td><small>{{ row.lotes_display }}</small></td>
+                                <td class="text-end">{{ row.item.cantidad_solicitada }}</td>
+                                <td class="text-end"><strong>{{ row.cant_sistema }}</strong></td>
                                 <td class="text-end">
-                                    <input type="number" name="item_{{ item.id }}_doc" class="form-control form-control-sm text-end" style="max-width: 100px;" min="0" placeholder="0" title="Cantidad anotada en el documento">
+                                    <input type="number" name="item_{{ row.item.id }}_doc" class="form-control form-control-sm text-end" style="max-width: 100px;" min="0" placeholder="0" title="Cantidad anotada en el documento">
                                 </td>
                             </tr>
                             {% empty %}
