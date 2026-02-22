@@ -704,10 +704,19 @@ def auditar_surtido_documento(request):
             messages.warning(request, 'Propuesta no encontrada.')
             return redirect('logistica:auditar_surtido_documento')
 
-    # Lista de propuestas recientes para el selector (surtidas o en proceso)
-    propuestas_recientes = PropuestaPedido.objects.filter(
+    # Lista de propuestas para el selector: por búsqueda (folio/pedido) o últimas 100
+    busqueda_folio = (request.GET.get('busqueda') or request.GET.get('q') or '').strip()
+    qs_propuestas = PropuestaPedido.objects.filter(
         solicitud__isnull=False
-    ).select_related('solicitud__institucion_solicitante').order_by('-fecha_generacion')[:100]
+    ).select_related('solicitud__institucion_solicitante').order_by('-fecha_generacion')
+    if busqueda_folio:
+        qs_propuestas = qs_propuestas.filter(
+            models.Q(solicitud__observaciones_solicitud__icontains=busqueda_folio)
+            | models.Q(solicitud__folio__icontains=busqueda_folio)
+        )[:200]
+    else:
+        qs_propuestas = qs_propuestas[:100]
+    propuestas_recientes = list(qs_propuestas)
 
     if request.method == 'POST' and propuesta:
         # Recoger cantidades "según documento" por item
@@ -735,6 +744,7 @@ def auditar_surtido_documento(request):
             'mostrar_resultado': True,
             'imagen_adjunta': imagen.name if imagen else None,
             'propuestas_recientes': propuestas_recientes,
+            'busqueda_folio': busqueda_folio,
             'page_title': 'Auditoría: Surtido documento vs sistema',
         }
         return render(request, 'inventario/pedidos/auditar_surtido_documento.html', context)
@@ -742,6 +752,7 @@ def auditar_surtido_documento(request):
     context = {
         'propuesta': propuesta,
         'propuestas_recientes': propuestas_recientes,
+        'busqueda_folio': busqueda_folio,
         'mostrar_resultado': False,
         'page_title': 'Auditar surtido con documento',
     }

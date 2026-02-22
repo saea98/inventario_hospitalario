@@ -19,9 +19,21 @@
             <h5 class="mb-0">1. Seleccionar propuesta de suministro</h5>
         </div>
         <div class="card-body">
+            <form method="get" class="mb-4">
+                <label for="busqueda" class="form-label">Buscar por folio de pedido (ej. 2541-O-00112-2026)</label>
+                <div class="input-group">
+                    <input type="text" name="busqueda" id="busqueda" class="form-control" placeholder="Escriba el folio o parte del folio..."
+                           value="{{ busqueda_folio }}">
+                    <button type="submit" class="btn btn-outline-primary">
+                        <i class="fas fa-search"></i> Buscar
+                    </button>
+                </div>
+                <small class="text-muted">Si no encuentra el pedido, búsquelo por folio arriba y luego elija en la lista.</small>
+            </form>
             <form method="get" class="row g-3 align-items-end">
+                <input type="hidden" name="busqueda" value="{{ busqueda_folio }}">
                 <div class="col-md-8">
-                    <label for="propuesta_id" class="form-label">Propuesta (folio / institución)</label>
+                    <label for="propuesta_id" class="form-label">Propuesta (folio — institución)</label>
                     <select name="propuesta_id" id="propuesta_id" class="form-select">
                         <option value="">-- Elija una propuesta --</option>
                         {% for p in propuestas_recientes %}
@@ -30,6 +42,11 @@
                         </option>
                         {% endfor %}
                     </select>
+                    {% if busqueda_folio and not propuestas_recientes %}
+                    <p class="text-warning small mt-1 mb-0">No se encontraron propuestas con ese folio. Pruebe con menos caracteres o verifique que el pedido tenga propuesta generada.</p>
+                    {% elif busqueda_folio and propuestas_recientes %}
+                    <p class="text-success small mt-1 mb-0">Se encontraron {{ propuestas_recientes|length }} propuesta(s) que coinciden con "{{ busqueda_folio }}".</p>
+                    {% endif %}
                 </div>
                 <div class="col-md-4">
                     <button type="submit" class="btn btn-primary">
