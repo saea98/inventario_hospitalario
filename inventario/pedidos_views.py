@@ -24,7 +24,8 @@ from .pedidos_forms import (
     ItemSolicitudForm,
     FiltroSolicitudesForm,
     ValidarSolicitudPedidoForm,
-    BulkUploadForm
+    BulkUploadForm,
+    verificar_folio_pedido_duplicado,
 )
 from .propuesta_generator import PropuestaGenerator
 from .propuesta_utils import cancelar_propuesta, eliminar_propuesta, validar_disponibilidad_para_propuesta, validar_disponibilidad_solicitud
@@ -210,6 +211,19 @@ def exportar_solicitudes_excel(solicitudes):
 
 
 @login_required
+def verificar_folio_pedido(request):
+    """
+    API para el frontend: verifica si ya existe un pedido con el folio dado.
+    GET: folio=... (folio del pedido, ej. observaciones_solicitud), solicitud_id=... (opcional, excluir al editar).
+    Retorna JSON: { existe_activo: bool, existe_cancelado: bool }
+    """
+    folio = (request.GET.get('folio') or '').strip()
+    solicitud_id = request.GET.get('solicitud_id', '').strip() or None
+    existe_activo, existe_cancelado = verificar_folio_pedido_duplicado(folio, excluir_solicitud_id=solicitud_id)
+    return JsonResponse({'existe_activo': existe_activo, 'existe_cancelado': existe_cancelado})
+
+
+@login_required
 @transaction.atomic
 def crear_solicitud(request):
     """
@@ -324,6 +338,11 @@ def crear_solicitud(request):
             
             if form.is_valid() and formset.is_valid():
                 try:
+                    if getattr(form, '_folio_existe_cancelado', False):
+                        messages.warning(
+                            request,
+                            'Ya existe un pedido cancelado con este folio. Se permitió continuar; verifique que sea correcto.'
+                        )
                     solicitud = form.save(commit=False)
                     solicitud.usuario_solicitante = request.user
                     solicitud.save()
@@ -1363,6 +1382,11 @@ def editar_solicitud(request, solicitud_id):
         
         # Validar ambos formularios
         if form_encabezado.is_valid() and formset.is_valid():
+            if getattr(form_encabezado, '_folio_existe_cancelado', False):
+                messages.warning(
+                    request,
+                    'Ya existe un pedido cancelado con este folio. Se permitió continuar; verifique que sea correcto.'
+                )
             # Si hay propuesta, cancelarla primero (libera reservas)
             if propuesta:
                 resultado_cancelacion = cancelar_propuesta(propuesta.id, usuario=request.user)

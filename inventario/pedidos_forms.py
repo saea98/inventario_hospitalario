@@ -8,8 +8,31 @@ from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Submit, Row, Column, HTML
 from datetime import date, timedelta
 
+from django.core.exceptions import ValidationError
+
 from .pedidos_models import SolicitudPedido, ItemSolicitud, PropuestaPedido, ItemPropuesta
 from .models import Producto, Lote, Institucion, Almacen
+
+
+def verificar_folio_pedido_duplicado(folio_valor, excluir_solicitud_id=None):
+    """
+    Verifica si ya existe otro pedido con el mismo folio (observaciones_solicitud).
+    folio_valor: valor a buscar (se normaliza con strip).
+    excluir_solicitud_id: UUID de la solicitud a excluir (al editar).
+    Retorna: (existe_activo, existe_cancelado)
+    - existe_activo: hay al menos uno con estado != CANCELADA
+    - existe_cancelado: hay al menos uno con estado CANCELADA
+    """
+    valor = (folio_valor or '').strip()
+    if not valor:
+        return (False, False)
+    qs = SolicitudPedido.objects.filter(observaciones_solicitud__iexact=valor)
+    if excluir_solicitud_id:
+        qs = qs.exclude(pk=excluir_solicitud_id)
+    otros = list(qs.values_list('estado', flat=True))
+    existe_activo = any(estado != 'CANCELADA' for estado in otros)
+    existe_cancelado = any(estado == 'CANCELADA' for estado in otros)
+    return (existe_activo, existe_cancelado)
 
 
 class SolicitudPedidoForm(forms.ModelForm):
@@ -118,6 +141,21 @@ class SolicitudPedidoForm(forms.ModelForm):
                     f"(7 días después de hoy)."
                 )
         return fecha_entrega
+
+    def clean_observaciones_solicitud(self):
+        """Evita folio de pedido duplicado: bloquea si hay uno activo; si solo hay cancelados, permite y marca aviso."""
+        valor = (self.cleaned_data.get('observaciones_solicitud') or '').strip()
+        if not valor:
+            return valor
+        existe_activo, existe_cancelado = verificar_folio_pedido_duplicado(valor, excluir_solicitud_id=None)
+        if existe_activo:
+            raise ValidationError(
+                'Ya existe un pedido activo con este folio. No puede duplicar. '
+                'Use otro folio o cancele el pedido existente si corresponde.'
+            )
+        if existe_cancelado:
+            self._folio_existe_cancelado = True
+        return valor
 
 
 class ItemSolicitudForm(forms.ModelForm):
@@ -496,7 +534,23 @@ class SolicitudPedidoEdicionForm(forms.ModelForm):
                     f"(7 días después de hoy)."
                 )
         return fecha_entrega
-    
+
+    def clean_observaciones_solicitud(self):
+        """Evita folio de pedido duplicado: bloquea si hay uno activo; si solo hay cancelados, permite y marca aviso."""
+        valor = (self.cleaned_data.get('observaciones_solicitud') or '').strip()
+        if not valor:
+            return valor
+        excluir = self.instance.pk if self.instance else None
+        existe_activo, existe_cancelado = verificar_folio_pedido_duplicado(valor, excluir_solicitud_id=excluir)
+        if existe_activo:
+            raise ValidationError(
+                'Ya existe un pedido activo con este folio. No puede duplicar. '
+                'Use otro folio o cancele el pedido existente si corresponde.'
+            )
+        if existe_cancelado:
+            self._folio_existe_cancelado = True
+        return valor
+
     def save(self, commit=True):
         """Guarda el formulario y actualiza fecha_solicitud manualmente"""
         instance = super().save(commit=False)

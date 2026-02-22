@@ -71,6 +71,7 @@ urlpatterns = [
     # ========================================================================
     path('pedidos/', pedidos_views.lista_solicitudes, name='lista_pedidos'),
     path('pedidos/crear/', pedidos_views.crear_solicitud, name='crear_pedido'),
+    path('pedidos/api/verificar-folio/', pedidos_views.verificar_folio_pedido, name='verificar_folio_pedido'),
     path('pedidos/<uuid:solicitud_id>/', pedidos_views.detalle_solicitud, name='detalle_pedido'),
     path('pedidos/<uuid:solicitud_id>/validar/', pedidos_views.validar_solicitud, name='validar_pedido'),
     path('pedidos/<uuid:solicitud_id>/editar/', pedidos_views.editar_solicitud, name='editar_solicitud'),

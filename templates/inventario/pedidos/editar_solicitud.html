@@ -85,6 +85,7 @@
                                 <div class="form-group">
                                     <label for="{{ form_encabezado.observaciones_solicitud.id_for_label }}"><strong>Folio del Pedido (Observaciones):</strong></label>
                                     {{ form_encabezado.observaciones_solicitud }}
+                                    <div id="folio-pedido-aviso" class="mt-2" style="display: none;" aria-live="polite"></div>
                                     {% if form_encabezado.observaciones_solicitud.errors %}
                                         <div class="text-danger small">
                                             {{ form_encabezado.observaciones_solicitud.errors }}
@@ -617,6 +618,63 @@ document.addEventListener('DOMContentLoaded', function() {
     $(document).on('DOMNodeInserted', function() {
         initializeVisibleSelects();
     });
+
+    // Aviso en tiempo real por folio de pedido duplicado
+    var folioAvisoEl = document.getElementById('folio-pedido-aviso');
+    var folioInput = document.getElementById('id_observaciones_solicitud');
+    var folioCheckTimeout = null;
+    var verificarFolioUrl = '{% url "logistica:verificar_folio_pedido" %}';
+    var solicitudIdEditar = '{{ solicitud.id|escapejs }}';
+
+    function mostrarAvisoFolio(existeActivo, existeCancelado) {
+        if (!folioAvisoEl) return;
+        if (existeActivo) {
+            folioAvisoEl.className = 'mt-2 alert alert-danger';
+            folioAvisoEl.innerHTML = '<i class="fas fa-exclamation-circle me-1"></i> Ya existe un pedido <strong>activo</strong> con este folio. No puede duplicar. Use otro folio o cancele el pedido existente.';
+            folioAvisoEl.style.display = 'block';
+        } else if (existeCancelado) {
+            folioAvisoEl.className = 'mt-2 alert alert-warning';
+            folioAvisoEl.innerHTML = '<i class="fas fa-exclamation-triangle me-1"></i> Ya existe un pedido <strong>cancelado</strong> con este folio. Puede continuar si es correcto.';
+            folioAvisoEl.style.display = 'block';
+        } else {
+            folioAvisoEl.style.display = 'none';
+            folioAvisoEl.innerHTML = '';
+        }
+    }
+
+    function verificarFolioPedido() {
+        var valor = (folioInput && folioInput.value) ? folioInput.value.trim() : '';
+        if (!valor) {
+            folioAvisoEl.style.display = 'none';
+            folioAvisoEl.innerHTML = '';
+            return;
+        }
+        var url = verificarFolioUrl + '?folio=' + encodeURIComponent(valor) + '&solicitud_id=' + encodeURIComponent(solicitudIdEditar);
+        fetch(url, {
+            method: 'GET',
+            headers: { 'X-Requested-With': 'XMLHttpRequest', 'Accept': 'application/json' },
+            credentials: 'same-origin'
+        }).then(function(r) { return r.json(); })
+          .then(function(data) {
+            mostrarAvisoFolio(data.existe_activo, data.existe_cancelado);
+        }).catch(function() {
+            folioAvisoEl.style.display = 'none';
+        });
+    }
+
+    if (folioInput) {
+        folioInput.addEventListener('blur', verificarFolioPedido);
+        folioInput.addEventListener('input', function() {
+            if (folioCheckTimeout) clearTimeout(folioCheckTimeout);
+            var v = (folioInput.value || '').trim();
+            if (!v) {
+                folioAvisoEl.style.display = 'none';
+                folioAvisoEl.innerHTML = '';
+                return;
+            }
+            folioCheckTimeout = setTimeout(verificarFolioPedido, 500);
+        });
+    }
 });
 </script>
 {% endblock %}
