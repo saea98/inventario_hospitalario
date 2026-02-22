@@ -449,6 +449,42 @@ def reporte_lotes_personalizado(request):
 
 
 @login_required
+@require_http_methods(["POST"])
+def corregir_fecha_recepcion_lote(request, lote_id):
+    """
+    Corrige la fecha de recepción de un lote (desde la lista, para lotes con etiqueta REVISAR).
+    Espera POST con 'nueva_fecha' (YYYY-MM-DD). Devuelve JSON.
+    """
+    lote = get_object_or_404(Lote, id=lote_id)
+    nueva_fecha_str = (request.POST.get('nueva_fecha') or request.GET.get('nueva_fecha') or '').strip()
+    if not nueva_fecha_str:
+        return JsonResponse({'success': False, 'error': 'Falta la nueva fecha (nueva_fecha).'}, status=400)
+    try:
+        nueva_fecha = datetime.strptime(nueva_fecha_str, '%Y-%m-%d').date()
+    except ValueError:
+        return JsonResponse({'success': False, 'error': 'Formato de fecha inválido. Use YYYY-MM-DD.'}, status=400)
+    # Opcional: acotar a rango coherente para no permitir de nuevo fechas futuras
+    hoy = timezone.now().date()
+    if nueva_fecha > hoy:
+        return JsonResponse({
+            'success': False,
+            'error': f'La fecha no puede ser futura. Use hoy ({hoy.strftime("%d/%m/%Y")}) o anterior.'
+        }, status=400)
+    if nueva_fecha < FECHA_RECEPCION_MIN:
+        return JsonResponse({
+            'success': False,
+            'error': f'La fecha no puede ser anterior a {FECHA_RECEPCION_MIN.strftime("%d/%m/%Y")}.'
+        }, status=400)
+    lote.fecha_recepcion = nueva_fecha
+    lote.save(update_fields=['fecha_recepcion'])
+    return JsonResponse({
+        'success': True,
+        'fecha_mostrar': nueva_fecha.strftime('%d/%m/%Y'),
+        'es_coherente': _fecha_recepcion_es_coherente(nueva_fecha, hoy),
+    })
+
+
+@login_required
 def detalle_lote(request, lote_id):
     """Detalle de un lote específico"""
     

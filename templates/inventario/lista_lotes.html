@@ -268,11 +268,18 @@
                                 <span class="text-muted">-</span>
                             {% endif %}
                         </td>
-                        <td>
+                        <td class="cell-fecha-recepcion" data-lote-id="{{ lote.id }}">
                             {% if lote.fecha_recepcion %}
-                                {{ lote.fecha_recepcion|date:"d/m/Y" }}
+                                <span class="fecha-recepcion-texto">{{ lote.fecha_recepcion|date:"d/m/Y" }}</span>
                                 {% if lote.id in lotes_fecha_incoherente %}
                                     <span class="badge bg-warning text-dark ms-1" title="Fecha futura o anterior al arranque del sistema. Revisar.">Revisar</span>
+                                    <button type="button" class="btn btn-sm btn-outline-warning ms-1 py-0 px-1" title="Corregir fecha de recepción"
+                                            data-bs-toggle="modal" data-bs-target="#modalCorregirFechaRecepcion"
+                                            data-lote-id="{{ lote.id }}"
+                                            data-lote-numero="{{ lote.numero_lote }}"
+                                            data-fecha-actual="{{ lote.fecha_recepcion|date:'Y-m-d' }}">
+                                        <i class="fas fa-edit"></i> Corregir
+                                    </button>
                                 {% endif %}
                             {% else %}
                                 <span class="text-muted">-</span>
@@ -377,6 +384,38 @@
                     <li>Los campos de búsqueda no distinguen mayúsculas de minúsculas</li>
                 </ul>
             </div>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Corregir fecha de recepción -->
+<div class="modal fade" id="modalCorregirFechaRecepcion" tabindex="-1" aria-labelledby="modalCorregirFechaRecepcionLabel" aria-hidden="true">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h5 class="modal-title" id="modalCorregirFechaRecepcionLabel">
+                    <i class="fas fa-calendar-alt text-warning"></i> Corregir fecha de recepción
+                </h5>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+            </div>
+            <form id="formCorregirFechaRecepcion" method="post">
+                {% csrf_token %}
+                <div class="modal-body">
+                    <p class="mb-2 text-muted small">Lote: <strong id="modalLoteNumero"></strong></p>
+                    <div class="mb-0">
+                        <label for="corregirFechaRecepcionInput" class="form-label">Nueva fecha de recepción</label>
+                        <input type="date" class="form-control" id="corregirFechaRecepcionInput" name="nueva_fecha" required>
+                    </div>
+                    <p class="form-text small text-muted mt-2 mb-0">La fecha debe ser hoy o anterior (no futura).</p>
+                    <div id="corregirFechaError" class="alert alert-danger mt-2 mb-0 py-2" style="display: none;"></div>
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">Cancelar</button>
+                    <button type="submit" class="btn btn-primary" id="btnGuardarFechaRecepcion">
+                        <i class="fas fa-save me-1"></i> Guardar
+                    </button>
+                </div>
+            </form>
         </div>
     </div>
 </div>
@@ -557,6 +596,79 @@ document.addEventListener("DOMContentLoaded", function() {
     .catch(err => alert(err));
   });
 });
+</script>
+<script>
+(function() {
+  var modal = document.getElementById('modalCorregirFechaRecepcion');
+  var form = document.getElementById('formCorregirFechaRecepcion');
+  var inputFecha = document.getElementById('corregirFechaRecepcionInput');
+  var modalLoteNumero = document.getElementById('modalLoteNumero');
+  var errorDiv = document.getElementById('corregirFechaError');
+  var btnGuardar = document.getElementById('btnGuardarFechaRecepcion');
+  if (!modal || !form) return;
+
+  function getCorregirFechaUrl(loteId) {
+    var base = window.location.pathname.replace(/\/?$/, '');
+    if (base.indexOf('/lotes') !== -1) return base + '/' + loteId + '/corregir-fecha-recepcion/';
+    return '/gestion-inventario/lotes/' + loteId + '/corregir-fecha-recepcion/';
+  }
+
+  modal.addEventListener('show.bs.modal', function(e) {
+    var btn = e.relatedTarget;
+    if (!btn || !btn.dataset.loteId) return;
+    var loteId = btn.dataset.loteId;
+    var loteNumero = btn.dataset.loteNumero || loteId;
+    var fechaActual = btn.dataset.fechaActual || '';
+    form.action = getCorregirFechaUrl(loteId);
+    form.setAttribute('data-lote-id', loteId);
+    if (modalLoteNumero) modalLoteNumero.textContent = loteNumero;
+    inputFecha.value = fechaActual;
+    if (errorDiv) { errorDiv.style.display = 'none'; errorDiv.textContent = ''; }
+  });
+
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    var loteId = form.getAttribute('data-lote-id');
+    if (!loteId) return;
+    var formData = new FormData(form);
+    var url = getCorregirFechaUrl(loteId);
+    if (errorDiv) { errorDiv.style.display = 'none'; errorDiv.textContent = ''; }
+    btnGuardar.disabled = true;
+    fetch(url, {
+      method: 'POST',
+      body: formData,
+      headers: { 'X-CSRFToken': formData.get('csrfmiddlewaretoken'), 'X-Requested-With': 'XMLHttpRequest' },
+      credentials: 'same-origin'
+    })
+    .then(function(r) { return r.json().then(function(data) { return { ok: r.ok, data: data }; }); })
+    .then(function(result) {
+      if (result.ok && result.data.success) {
+        var cell = document.querySelector('.cell-fecha-recepcion[data-lote-id="' + loteId + '"]');
+        if (cell) {
+          var span = cell.querySelector('.fecha-recepcion-texto');
+          if (span) span.textContent = result.data.fecha_mostrar;
+          var badge = cell.querySelector('.badge.bg-warning');
+          var corregirBtn = cell.querySelector('button[data-bs-toggle="modal"]');
+          if (badge) badge.remove();
+          if (corregirBtn) corregirBtn.remove();
+        }
+        bootstrap.Modal.getInstance(modal).hide();
+      } else {
+        if (errorDiv) {
+          errorDiv.textContent = result.data && result.data.error ? result.data.error : 'Error al guardar.';
+          errorDiv.style.display = 'block';
+        }
+      }
+    })
+    .catch(function() {
+      if (errorDiv) {
+        errorDiv.textContent = 'Error de conexión. Intente de nuevo.';
+        errorDiv.style.display = 'block';
+      }
+    })
+    .finally(function() { btnGuardar.disabled = false; });
+  });
+})();
 </script>
 
 <!-- Estilos personalizados -->
