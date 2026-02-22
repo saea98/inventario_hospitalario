@@ -1043,13 +1043,18 @@ def editar_propuesta(request, propuesta_id):
             if nueva_ubicacion_id:
                 lote_ubicacion = LoteUbicacion.objects.get(id=nueva_ubicacion_id)
                 cantidad_nuevo = int(request.POST.get(f'item_{item.id}_cantidad_nueva_ubicacion', 0))
-                
                 if cantidad_nuevo > 0:
-                    LoteAsignado.objects.create(
-                        item_propuesta=item,
-                        lote_ubicacion=lote_ubicacion,
-                        cantidad_asignada=cantidad_nuevo
-                    )
+                    # Evitar duplicados: si ya existe asignación para este item y lote_ubicacion, actualizar cantidad; si no, crear
+                    lote_asignado_existente = item.lotes_asignados.filter(lote_ubicacion=lote_ubicacion).first()
+                    if lote_asignado_existente:
+                        lote_asignado_existente.cantidad_asignada = cantidad_nuevo
+                        lote_asignado_existente.save()
+                    else:
+                        LoteAsignado.objects.create(
+                            item_propuesta=item,
+                            lote_ubicacion=lote_ubicacion,
+                            cantidad_asignada=cantidad_nuevo
+                        )
         
         # Manejar nuevo item agregado
         nuevo_producto_id = request.POST.get('nuevo_item_producto')

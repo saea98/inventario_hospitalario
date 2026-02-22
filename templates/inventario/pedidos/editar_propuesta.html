@@ -252,11 +252,31 @@
             });
         }
 
+        function clearNuevaUbicacionFields() {
+            // Evitar que el próximo auto-guardado reenvíe la misma "nueva ubicación" y duplique registros
+            form.querySelectorAll('select[name*="_nueva_ubicacion"]').forEach(function(sel) {
+                sel.value = '';
+                if (window.jQuery && $(sel).data('select2')) $(sel).trigger('change');
+            });
+            form.querySelectorAll('input[name*="_cantidad_nueva_ubicacion"]').forEach(function(inp) {
+                inp.value = '0';
+            });
+            var np = document.getElementById('nuevo_item_producto');
+            var nu = document.getElementById('nuevo_item_ubicacion');
+            var nc = document.getElementById('nuevo_item_cantidad');
+            var ncu = document.getElementById('nuevo_item_cantidad_ubicacion');
+            if (np) { np.value = ''; if (window.jQuery && $(np).data('select2')) $(np).trigger('change'); }
+            if (nu) { nu.value = ''; if (window.jQuery && $(nu).data('select2')) $(nu).trigger('change'); }
+            if (nc) nc.value = '0';
+            if (ncu) ncu.value = '0';
+        }
+
         function doAutoSave() {
             if (!formDirty) return;
             guardarBorradorAjax()
                 .then(function(data) {
                     formDirty = false;
+                    clearNuevaUbicacionFields();
                     showUltimaGuardada(data.timestamp || null);
                     if (autoSaveTimer) {
                         clearInterval(autoSaveTimer);
@@ -277,6 +297,7 @@
                 guardarBorradorAjax()
                     .then(function(data) {
                         formDirty = false;
+                        clearNuevaUbicacionFields();
                         showUltimaGuardada(data.timestamp || null);
                         if (autoSaveTimer) {
                             clearInterval(autoSaveTimer);
