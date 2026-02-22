@@ -87,6 +87,7 @@ urlpatterns = [
     path('propuestas/<uuid:propuesta_id>/revisar/', pedidos_views.revisar_propuesta, name='revisar_propuesta'),
     path('propuestas/<uuid:propuesta_id>/surtir/', pedidos_views.surtir_propuesta, name='surtir_propuesta'),
     path('propuestas/auditar-surtido-documento/', pedidos_views.auditar_surtido_documento, name='auditar_surtido_documento'),
+    path('propuestas/auditar-surtido-documento/exportar-excel/', pedidos_views.exportar_auditoria_surtido_excel, name='exportar_auditoria_surtido_excel'),
     path('api/obtener-ubicaciones-producto/', pedidos_views.obtener_ubicaciones_producto, name='obtener_ubicaciones_producto'),
     
     # ========================================================================

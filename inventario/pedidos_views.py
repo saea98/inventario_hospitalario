@@ -15,6 +15,7 @@ from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.http import HttpResponse, JsonResponse
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+from openpyxl.utils import get_column_letter
 
 from .pedidos_models import SolicitudPedido, ItemSolicitud, PropuestaPedido, ItemPropuesta, Producto
 from .pedidos_forms import (
@@ -806,6 +807,135 @@ def auditar_surtido_documento(request):
         'page_title': 'Auditar surtido con documento',
     }
     return render(request, 'inventario/pedidos/auditar_surtido_documento.html', context)
+
+
+def _build_items_con_doc_auditoria(propuesta, post_data):
+    """Construye la lista items_con_doc igual que en auditar_surtido_documento (para export Excel)."""
+    def _cantidad_surtida_real(item):
+        return sum(la.cantidad_asignada for la in item.lotes_asignados.all() if la.surtido)
+
+    def _orden_surtido(item):
+        sur, sol = _cantidad_surtida_real(item), item.cantidad_solicitada
+        if sur >= sol:
+            return 0
+        return 1 if sur > 0 else 2
+
+    def _tipo_surtido(item):
+        sur, sol = _cantidad_surtida_real(item), item.cantidad_solicitada
+        if sur >= sol:
+            return 'completo'
+        return 'parcial' if sur > 0 else 'no_surtido'
+
+    def _lotes_display(item):
+        parts = []
+        for la in item.lotes_asignados.all():
+            if getattr(la, 'lote_ubicacion', None) and getattr(la.lote_ubicacion, 'lote', None):
+                parts.append(la.lote_ubicacion.lote.numero_lote)
+        return ', '.join(parts) if parts else '—'
+
+    items_con_doc = []
+    for item in propuesta.items.all():
+        key = f'item_{item.id}_doc'
+        raw = (post_data.get(key) or '').strip()
+        try:
+            cant_doc = int(raw) if raw else None
+        except ValueError:
+            cant_doc = None
+        cant_sistema = _cantidad_surtida_real(item)
+        coincide = (cant_doc is not None and cant_doc == cant_sistema)
+        items_con_doc.append({
+            'item': item,
+            'cant_sistema': cant_sistema,
+            'cant_documento': cant_doc,
+            'coincide': coincide,
+            'diferencia': (cant_doc - cant_sistema) if cant_doc is not None and cant_sistema is not None else None,
+            'tipo_surtido': _tipo_surtido(item),
+            'orden_surtido': _orden_surtido(item),
+            'lotes_display': _lotes_display(item),
+        })
+    items_con_doc.sort(key=lambda r: (r['orden_surtido'], (r['item'].producto.clave_cnis or '')))
+    return items_con_doc
+
+
+@login_required
+def exportar_auditoria_surtido_excel(request):
+    """
+    Exporta a Excel el resultado de la comparación (auditar surtido con documento).
+    Espera POST con propuesta_id y item_{id}_doc (mismas claves que el formulario de comparación).
+    """
+    if request.method != 'POST':
+        return redirect('logistica:auditar_surtido_documento')
+    propuesta_id = request.POST.get('propuesta_id')
+    if not propuesta_id:
+        messages.warning(request, 'Falta propuesta.')
+        return redirect('logistica:auditar_surtido_documento')
+    propuesta = PropuestaPedido.objects.filter(id=propuesta_id).select_related(
+        'solicitud__institucion_solicitante', 'solicitud__almacen_destino'
+    ).prefetch_related(
+        'items__producto',
+        'items__lotes_asignados__lote_ubicacion__lote',
+    ).first()
+    if not propuesta:
+        messages.warning(request, 'Propuesta no encontrada.')
+        return redirect('logistica:auditar_surtido_documento')
+    items_con_doc = _build_items_con_doc_auditoria(propuesta, request.POST)
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Auditoría surtido'
+    header_fill = PatternFill(start_color='2E5090', end_color='2E5090', fill_type='solid')
+    header_font = Font(bold=True, color='FFFFFF', size=11)
+    border = Border(
+        left=Side(style='thin'),
+        right=Side(style='thin'),
+        top=Side(style='thin'),
+        bottom=Side(style='thin'),
+    )
+    headers = [
+        'Estado', 'Clave', 'Descripción', 'Lote(s)',
+        'Solicitada', 'En sistema', 'Documento dice', '¿Coincide?', 'Diferencia'
+    ]
+    for col, h in enumerate(headers, 1):
+        cell = ws.cell(row=1, column=col)
+        cell.value = h
+        cell.fill = header_fill
+        cell.font = header_font
+        cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+        cell.border = border
+
+    for row_idx, row in enumerate(items_con_doc, 2):
+        desc = (row['item'].producto.descripcion or '')[:200]
+        estado = {'completo': 'Completo', 'parcial': 'Parcial', 'no_surtido': 'No surtido'}.get(row['tipo_surtido'], row['tipo_surtido'])
+        coincide_txt = '—'
+        if row['cant_documento'] is not None:
+            coincide_txt = 'Sí' if row['coincide'] else 'No'
+        dif_txt = '' if row['diferencia'] is None else row['diferencia']
+        doc_txt = '' if row['cant_documento'] is None else row['cant_documento']
+        ws.cell(row=row_idx, column=1).value = estado
+        ws.cell(row=row_idx, column=2).value = row['item'].producto.clave_cnis or ''
+        ws.cell(row=row_idx, column=3).value = desc
+        ws.cell(row=row_idx, column=4).value = row['lotes_display'] or ''
+        ws.cell(row=row_idx, column=5).value = row['item'].cantidad_solicitada
+        ws.cell(row=row_idx, column=6).value = row['cant_sistema']
+        ws.cell(row=row_idx, column=7).value = doc_txt
+        ws.cell(row=row_idx, column=8).value = coincide_txt
+        ws.cell(row=row_idx, column=9).value = dif_txt
+        for c in range(1, 10):
+            ws.cell(row=row_idx, column=c).border = border
+            ws.cell(row=row_idx, column=c).alignment = Alignment(horizontal='left', vertical='center')
+
+    for col, width in enumerate([14, 16, 42, 24, 12, 12, 14, 12, 12], 1):
+        ws.column_dimensions[get_column_letter(col)].width = width
+
+    folio_safe = (propuesta.solicitud.folio or 'propuesta').replace('/', '-')[:30]
+    from datetime import date
+    fecha_str = date.today().strftime('%Y%m%d')
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    response['Content-Disposition'] = f'attachment; filename="auditoria_surtido_{folio_safe}_{fecha_str}.xlsx"'
+    wb.save(response)
+    return response
 
 
 @login_required
