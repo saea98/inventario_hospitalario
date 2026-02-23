@@ -8,6 +8,22 @@ from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Submit, Row, Column, HTML
 from datetime import date, timedelta
 
+# Último día (inclusive) en que se permite en crear pedido fecha de entrega desde 1 ene del año (para atrasados).
+# Pasada esta fecha se vuelve al esquema normal: hoy-30 a hoy+7. Ajustar al desplegar (ej. hoy + 15 días).
+FECHA_LIMITE_PERIODO_ATRASADOS = date.today() + timedelta(days=15)
+
+
+def _rango_fecha_entrega_crear():
+    """Rango permitido para fecha de entrega al crear pedido. Durante el periodo de atrasados (15 días)
+    se permite desde 1 ene del año; después: hoy-30 a hoy+7."""
+    hoy = date.today()
+    fecha_maxima = hoy + timedelta(days=7)
+    if hoy <= FECHA_LIMITE_PERIODO_ATRASADOS:
+        fecha_minima = date(hoy.year, 1, 1)
+    else:
+        fecha_minima = hoy - timedelta(days=30)
+    return (fecha_minima, fecha_maxima)
+
 from django.core.exceptions import ValidationError
 
 from .pedidos_models import SolicitudPedido, ItemSolicitud, PropuestaPedido, ItemPropuesta
@@ -63,8 +79,6 @@ class SolicitudPedidoForm(forms.ModelForm):
                 attrs={
                     'class': 'form-control',
                     'type': 'date',
-                    'min': (date.today() - timedelta(days=30)).isoformat(),
-                    'max': (date.today() + timedelta(days=7)).isoformat(),
                     'required': 'required'
                 }
             ),
@@ -102,6 +116,11 @@ class SolicitudPedidoForm(forms.ModelForm):
         # Agregar data-attribute para filtrado dinámico con JavaScript
         self.fields['institucion_solicitante'].widget.attrs['data-almacen-filter'] = 'true'
         self.fields['almacen_destino'].widget.attrs['data-filtered-select'] = 'true'
+        # Rango fecha entrega: durante periodo atrasados (15 días) desde 1 ene del año; después hoy-30 a hoy+7
+        if not self.instance.pk:
+            fmin, fmax = _rango_fecha_entrega_crear()
+            self.fields['fecha_entrega_programada'].widget.attrs['min'] = fmin.isoformat()
+            self.fields['fecha_entrega_programada'].widget.attrs['max'] = fmax.isoformat()
         
         self.helper = FormHelper()
         self.helper.layout = Layout(
@@ -118,24 +137,17 @@ class SolicitudPedidoForm(forms.ModelForm):
     def clean_fecha_entrega_programada(self):
         """
         Valida que la fecha de entrega programada esté en el rango permitido.
-        Durante los próximos 7 días, el usuario puede capturar fechas atrasadas hasta 30 días.
-        Rango permitido: desde (hoy - 30 días) hasta (hoy + 7 días)
+        Durante los 15 días siguientes al despliegue: desde 1 ene del año hasta hoy+7 (para atrasados).
+        Pasado ese periodo: desde (hoy - 30 días) hasta (hoy + 7 días).
         """
         fecha_entrega = self.cleaned_data.get('fecha_entrega_programada')
         if fecha_entrega:
-            hoy = date.today()
-            fecha_minima = hoy - timedelta(days=30)
-            fecha_maxima = hoy + timedelta(days=7)
-            
+            fecha_minima, fecha_maxima = _rango_fecha_entrega_crear()
             if fecha_entrega < fecha_minima:
-                from django.core.exceptions import ValidationError
                 raise ValidationError(
-                    f"La fecha de entrega programada no puede ser anterior a {fecha_minima.strftime('%d/%m/%Y')} "
-                    f"(30 días antes de hoy)."
+                    f"La fecha de entrega programada no puede ser anterior a {fecha_minima.strftime('%d/%m/%Y')}."
                 )
-            
             if fecha_entrega > fecha_maxima:
-                from django.core.exceptions import ValidationError
                 raise ValidationError(
                     f"La fecha de entrega programada no puede ser posterior a {fecha_maxima.strftime('%d/%m/%Y')} "
                     f"(7 días después de hoy)."
