@@ -75,6 +75,9 @@
         <a href="{% url 'pedidos:exportar_dashboard_surtimiento_excel' %}?{{ request.GET.urlencode }}" class="btn btn-success">
             <i class="fas fa-file-excel"></i> Exportar a Excel
         </a>
+        <a href="{% url 'pedidos:exportar_dashboard_surtimiento_excel_con_lotes' %}?{{ request.GET.urlencode }}" class="btn btn-outline-success" title="Mismo detalle más columna Lote y cantidad por lote para revisión detallada">
+            <i class="fas fa-file-excel"></i> Exportar a Excel (con detalle de lote)
+        </a>
     </div>
 
     <!-- Tarjetas de resumen -->

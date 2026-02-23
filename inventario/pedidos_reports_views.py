@@ -1395,6 +1395,103 @@ def _obtener_datos_dashboard_surtimiento(request):
     return (surtido_completo, no_surtido, surtido_parcial)
 
 
+def _obtener_datos_dashboard_surtimiento_con_lotes(request):
+    """
+    Igual que _obtener_datos_dashboard_surtimiento pero genera una fila por cada
+    lote asignado (detalle por lote) para revisión detallada. Cada fila incluye
+    los mismos campos más 'lote' (numero_lote) y 'cantidad_lote'.
+    """
+    from datetime import datetime
+
+    institucion_id = request.GET.get('institucion', '').strip()
+    folio_pedido = request.GET.get('folio_pedido', '').strip()
+    fecha_desde = request.GET.get('fecha_desde', '').strip()
+    fecha_hasta = request.GET.get('fecha_hasta', '').strip()
+
+    if not (institucion_id or folio_pedido):
+        return None
+
+    items = ItemPropuesta.objects.select_related(
+        'propuesta__solicitud__institucion_solicitante',
+        'producto',
+        'producto__categoria',
+    ).prefetch_related('lotes_asignados__lote_ubicacion__lote').filter(
+        propuesta__solicitud__institucion_solicitante__activo=True,
+    ).exclude(propuesta__solicitud__estado='CANCELADA')
+
+    if institucion_id:
+        items = items.filter(propuesta__solicitud__institucion_solicitante_id=institucion_id)
+    if folio_pedido:
+        items = items.filter(propuesta__solicitud__observaciones_solicitud__icontains=folio_pedido)
+    if fecha_desde:
+        try:
+            fd = datetime.strptime(fecha_desde, '%Y-%m-%d').date()
+            items = items.filter(propuesta__solicitud__fecha_solicitud__date__gte=fd)
+        except ValueError:
+            pass
+    if fecha_hasta:
+        try:
+            fh = datetime.strptime(fecha_hasta, '%Y-%m-%d').date()
+            items = items.filter(propuesta__solicitud__fecha_solicitud__date__lte=fh)
+        except ValueError:
+            pass
+
+    surtido_completo = []
+    no_surtido = []
+    surtido_parcial = []
+
+    for item in items:
+        sol = item.cantidad_solicitada or 0
+        lotes_list = list(item.lotes_asignados.all())
+        sur = sum(la.cantidad_asignada for la in lotes_list if la.surtido)
+        solicitud = item.propuesta.solicitud if item.propuesta else None
+        inst = solicitud.institucion_solicitante if solicitud else None
+        prod = item.producto
+        cat = prod.categoria if prod else None
+        folio = (solicitud.observaciones_solicitud or solicitud.folio or '').strip() or '-' if solicitud else '-'
+        clave = (prod.clave_cnis or '-') if prod else '-'
+        desc = ((prod.descripcion or '-')[:200]) if prod else '-'
+        base = {
+            'folio': folio,
+            'clave_cnis': clave,
+            'descripcion': desc,
+            'institucion': (inst.denominacion or '-') if inst else '-',
+            'entidad': (getattr(inst, 'estado', None) or '-') if inst else '-',
+            'categoria_nombre': (cat.nombre or '-') if cat else '-',
+            'categoria_descripcion': (getattr(cat, 'descripcion', None) or '-') if cat else '-',
+            'categoria_codigo': (getattr(cat, 'codigo', None) or '-') if cat else '-',
+            'categoria_tipo': (getattr(cat, 'tipo', None) or '-') if cat else '-',
+            'marca': (getattr(prod, 'marca', None) or '-') if prod else '-',
+            'fabricante': (getattr(prod, 'fabricante', None) or '-') if prod else '-',
+            'fecha_emision': solicitud.fecha_solicitud.strftime('%d/%m/%Y') if solicitud and getattr(solicitud, 'fecha_solicitud', None) else '-',
+            'cantidad_solicitada': sol,
+            'cantidad_surtida': sur,
+            'diferencia': sol - sur if sur < sol else 0,
+        }
+        if sur == 0:
+            base['diferencia'] = sol
+            lista_destino = no_surtido
+        elif sur >= sol:
+            lista_destino = surtido_completo
+        else:
+            base['diferencia'] = sol - sur
+            lista_destino = surtido_parcial
+
+        if not lotes_list:
+            row = dict(base)
+            row['lote'] = '-'
+            row['cantidad_lote'] = 0
+            lista_destino.append(row)
+        else:
+            for la in lotes_list:
+                row = dict(base)
+                row['lote'] = (la.lote_ubicacion.lote.numero_lote or '-') if (getattr(la, 'lote_ubicacion', None) and getattr(la.lote_ubicacion, 'lote', None)) else '-'
+                row['cantidad_lote'] = la.cantidad_asignada or 0
+                lista_destino.append(row)
+
+    return (surtido_completo, no_surtido, surtido_parcial)
+
+
 @login_required
 def exportar_dashboard_surtimiento_excel(request):
     """Exporta el dashboard de surtimiento a Excel con los mismos filtros (institución o folio obligatorio)."""
@@ -1467,5 +1564,89 @@ def exportar_dashboard_surtimiento_excel(request):
     )
     fecha_str = date.today().strftime('%Y%m%d')
     response['Content-Disposition'] = f'attachment; filename="dashboard_surtimiento_{fecha_str}.xlsx"'
+    wb.save(response)
+    return response
+
+
+@login_required
+def exportar_dashboard_surtimiento_excel_con_lotes(request):
+    """
+    Exporta el mismo detalle del dashboard de surtimiento pero con una fila por lote
+    (campo Lote y Cant. por lote) para revisión detallada. Mismos filtros que el dashboard.
+    No modifica el comportamiento del dashboard ni del export estándar.
+    """
+    from datetime import date
+
+    datos = _obtener_datos_dashboard_surtimiento_con_lotes(request)
+    if datos is None:
+        from django.shortcuts import redirect
+        from django.contrib import messages
+        messages.warning(request, 'Seleccione una institución o un folio de pedido para exportar.')
+        return redirect('pedidos:dashboard_surtimiento_institucion')
+
+    surtido_completo, no_surtido, surtido_parcial = datos
+
+    wb = openpyxl.Workbook()
+    header_fill = PatternFill(start_color='1F4E78', end_color='1F4E78', fill_type='solid')
+    header_font = Font(bold=True, color='FFFFFF', size=11)
+    border = Border(
+        left=Side(style='thin'), right=Side(style='thin'),
+        top=Side(style='thin'), bottom=Side(style='thin'),
+    )
+
+    def escribir_hoja_con_lotes(ws, titulo, filas, color_header='1F4E78'):
+        headers = [
+            'Folio', 'INSTITUCIÓN', 'ENTIDAD', 'Clave CNIS', 'Descripción',
+            'Cat. Nombre', 'Cat. Descripción', 'Cat. Código', 'Cat. Tipo',
+            'MARCA', 'FABRICANTE', 'FECHA DE EMISIÓN',
+            'PZAS. SOLICITADAS', 'PZAS. ENTREGADAS', 'Diferencia',
+            'LOTE', 'Cant. por lote',
+        ]
+        for col, h in enumerate(headers, 1):
+            c = ws.cell(row=1, column=col)
+            c.value = h
+            c.fill = PatternFill(start_color=color_header, end_color=color_header, fill_type='solid')
+            c.font = header_font
+            c.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+            c.border = border
+        for row_idx, r in enumerate(filas, 2):
+            ws.cell(row=row_idx, column=1).value = r.get('folio', '')
+            ws.cell(row=row_idx, column=2).value = r.get('institucion', '')
+            ws.cell(row=row_idx, column=3).value = r.get('entidad', '')
+            ws.cell(row=row_idx, column=4).value = r.get('clave_cnis', '')
+            ws.cell(row=row_idx, column=5).value = r.get('descripcion', '')
+            ws.cell(row=row_idx, column=6).value = r.get('categoria_nombre', '')
+            ws.cell(row=row_idx, column=7).value = r.get('categoria_descripcion', '')
+            ws.cell(row=row_idx, column=8).value = r.get('categoria_codigo', '')
+            ws.cell(row=row_idx, column=9).value = r.get('categoria_tipo', '')
+            ws.cell(row=row_idx, column=10).value = r.get('marca', '')
+            ws.cell(row=row_idx, column=11).value = r.get('fabricante', '')
+            ws.cell(row=row_idx, column=12).value = r.get('fecha_emision', '')
+            ws.cell(row=row_idx, column=13).value = r.get('cantidad_solicitada', 0)
+            ws.cell(row=row_idx, column=14).value = r.get('cantidad_surtida', 0)
+            ws.cell(row=row_idx, column=15).value = r.get('diferencia', 0)
+            ws.cell(row=row_idx, column=16).value = r.get('lote', '')
+            ws.cell(row=row_idx, column=17).value = r.get('cantidad_lote', 0)
+            for col in range(1, 18):
+                ws.cell(row=row_idx, column=col).border = border
+        for letra, w in [('A', 18), ('B', 28), ('C', 18), ('D', 14), ('E', 50),
+                         ('F', 18), ('G', 30), ('H', 12), ('I', 14), ('J', 14),
+                         ('K', 18), ('L', 14), ('M', 12), ('N', 12), ('O', 12),
+                         ('P', 14), ('Q', 12)]:
+            ws.column_dimensions[letra].width = w
+
+    ws1 = wb.active
+    ws1.title = 'Surtido completo'
+    escribir_hoja_con_lotes(ws1, 'Surtido completo', surtido_completo, '28a745')
+    ws2 = wb.create_sheet('No surtido')
+    escribir_hoja_con_lotes(ws2, 'No surtido', no_surtido, 'dc3545')
+    ws3 = wb.create_sheet('Surtido parcial')
+    escribir_hoja_con_lotes(ws3, 'Surtido parcial', surtido_parcial, 'ffc107')
+
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    fecha_str = date.today().strftime('%Y%m%d')
+    response['Content-Disposition'] = f'attachment; filename="dashboard_surtimiento_detalle_lotes_{fecha_str}.xlsx"'
     wb.save(response)
     return response
