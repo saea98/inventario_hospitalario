@@ -4,13 +4,30 @@ Funciones auxiliares para generar movimientos de inventario automáticamente
 cuando se marca una propuesta como surtida.
 """
 
+from collections import defaultdict
 from django.db import transaction
 from django.utils import timezone
+from datetime import date
 import logging
 from .models import MovimientoInventario, Lote
 from .pedidos_models import PropuestaPedido
 
 logger = logging.getLogger(__name__)
+
+
+def _mensaje_cantidad_insuficiente(lote, lote_ubicacion, cantidad_anterior_ubicacion, cantidad_surtida):
+    """Mensaje de error incluyendo nota sobre fecha de recepción si está en el futuro."""
+    msg = (
+        f"Cantidad insuficiente en lote {lote.numero_lote} ubicación {lote_ubicacion.ubicacion.codigo}. "
+        f"Disponible: {cantidad_anterior_ubicacion}, Solicitado: {cantidad_surtida}"
+    )
+    if getattr(lote, 'fecha_recepcion', None) and lote.fecha_recepcion > date.today():
+        msg += (
+            f" Este lote tiene fecha de recepción en el futuro ({lote.fecha_recepcion.strftime('%d/%m/%Y')}). "
+            "La disponibilidad no depende de esa fecha; si la cantidad en ubicación es correcta, verifique que no haya "
+            "asignaciones duplicadas en la propuesta (editar propuesta y quitar filas repetidas del mismo lote)."
+        )
+    return msg
 
 
 def generar_movimientos_suministro(propuesta_id, usuario):
@@ -19,7 +36,8 @@ def generar_movimientos_suministro(propuesta_id, usuario):
     Se llama ANTES de marcar como surtido para validar y crear movimientos.
     Si falla, no se marca la propuesta como SURTIDA (evita falsos positivos).
 
-    Procesa TODOS los lotes asignados (no filtra por surtido=True porque aún no se han marcado).
+    Agrupa por (item, lote_ubicacion) para deducir una sola vez por ubicación y evitar
+    doble descuento si hubiera LoteAsignado duplicados.
 
     Args:
         propuesta_id: UUID de la propuesta
@@ -34,39 +52,54 @@ def generar_movimientos_suministro(propuesta_id, usuario):
         movimientos_creados = 0
 
         with transaction.atomic():
-            # Iterar sobre los items de la propuesta
+            # Detectar asignaciones duplicadas (mismo item + misma lote_ubicacion): provocan doble descuento
+            for item in propuesta.items.all():
+                seen = set()
+                for la in item.lotes_asignados.select_related('lote_ubicacion').all():
+                    key = (item.id, la.lote_ubicacion_id)
+                    if key in seen:
+                        return {
+                            'exito': False,
+                            'mensaje': (
+                                f"La propuesta tiene asignaciones duplicadas del mismo lote/ubicación "
+                                f"(producto {item.producto.clave_cnis}). Edite la propuesta, elimine la fila duplicada "
+                                f"del lote en «Lotes Asignados» y guarde de nuevo antes de surtir."
+                            )
+                        }
+                    seen.add(key)
+
+            # Iterar sobre los items y agrupar por lote_ubicacion para deducir una sola vez por ubicación
             for item in propuesta.items.all():
                 logger.info(f"Procesando item {item.id} de propuesta {propuesta_id}")
-                # Procesar TODOS los lotes asignados (se llama antes de marcar surtido)
-                lotes_asignados = item.lotes_asignados.select_related(
+                lotes_asignados = list(item.lotes_asignados.select_related(
                     'lote_ubicacion__lote', 'lote_ubicacion__ubicacion'
-                ).all()
-                logger.info(f"Lotes asignados a procesar: {lotes_asignados.count()}")
-                for lote_asignado in lotes_asignados:
-                    cantidad_surtida = lote_asignado.cantidad_asignada
+                ).all())
+                # Agrupar por lote_ubicacion: total a deducir por ubicación
+                por_ubicacion = defaultdict(int)
+                for la in lotes_asignados:
+                    if la.cantidad_asignada > 0:
+                        por_ubicacion[la.lote_ubicacion] += la.cantidad_asignada
+
+                for lote_ubicacion, cantidad_surtida in por_ubicacion.items():
                     if cantidad_surtida <= 0:
                         continue
-                    lote_ubicacion = lote_asignado.lote_ubicacion
                     lote = lote_ubicacion.lote
-
-                    # Obtener cantidad anterior de la ubicación específica
                     cantidad_anterior_ubicacion = lote_ubicacion.cantidad
                     cantidad_nueva_ubicacion = cantidad_anterior_ubicacion - cantidad_surtida
-                    
-                    # Validar que no quede negativa
+
                     if cantidad_nueva_ubicacion < 0:
                         raise ValueError(
-                            f"Cantidad insuficiente en lote {lote.numero_lote} ubicación {lote_ubicacion.ubicacion.codigo}. "
-                            f"Disponible: {cantidad_anterior_ubicacion}, Solicitado: {cantidad_surtida}"
+                            _mensaje_cantidad_insuficiente(
+                                lote, lote_ubicacion,
+                                cantidad_anterior_ubicacion, cantidad_surtida
+                            )
                         )
-                    
-                    # Obtener cantidad anterior del lote total
+
                     cantidad_anterior_lote = lote.cantidad_disponible
                     cantidad_nueva_lote = cantidad_anterior_lote - cantidad_surtida
-                    
-                    # Crear movimiento de inventario
+
                     logger.info(f"Creando movimiento para lote {lote.numero_lote}: {cantidad_surtida} unidades")
-                    movimiento = MovimientoInventario.objects.create(
+                    MovimientoInventario.objects.create(
                         lote=lote,
                         tipo_movimiento='SALIDA',
                         cantidad=cantidad_surtida,
@@ -79,34 +112,32 @@ def generar_movimientos_suministro(propuesta_id, usuario):
                         institucion_destino=propuesta.solicitud.institucion_solicitante,
                         usuario=usuario
                     )
-                    logger.info(f"Movimiento creado: {movimiento.id}")
-                    
-                    # Actualizar cantidad en la ubicación específica
+
                     lote_ubicacion.cantidad = cantidad_nueva_ubicacion
-                    
-                    # Liberar la reserva en la ubicación específica
                     lote_ubicacion.cantidad_reservada = max(0, lote_ubicacion.cantidad_reservada - cantidad_surtida)
                     lote_ubicacion.save(update_fields=['cantidad', 'cantidad_reservada'])
-                    
-                    # Actualizar cantidad disponible y reservada del lote (recalcular desde ubicaciones)
+
                     cantidad_total_ubicaciones = sum(lu.cantidad for lu in lote.ubicaciones_detalle.all())
                     lote.cantidad_disponible = cantidad_total_ubicaciones
-                    # Liberar la reserva a nivel de lote
                     lote.cantidad_reservada = max(0, lote.cantidad_reservada - cantidad_surtida)
                     lote.save(update_fields=['cantidad_disponible', 'cantidad_reservada'])
-                    
                     movimientos_creados += 1
-        
+
         return {
             'exito': True,
             'movimientos_creados': movimientos_creados,
             'mensaje': f'Se generaron {movimientos_creados} movimientos de inventario'
         }
-    
+
     except PropuestaPedido.DoesNotExist:
         return {
             'exito': False,
             'mensaje': f'Propuesta {propuesta_id} no encontrada'
+        }
+    except ValueError as e:
+        return {
+            'exito': False,
+            'mensaje': f'Error al generar movimientos: {str(e)}'
         }
     except Exception as e:
         logger.error(f"Error al generar movimientos para propuesta {propuesta_id}: {str(e)}", exc_info=True)
