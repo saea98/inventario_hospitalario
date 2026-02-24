@@ -1244,7 +1244,7 @@ def _obtener_filas_entregas_por_pedido(request):
         lote = la.lote_ubicacion.lote if la.lote_ubicacion else None
         inst = solicitud.institucion_solicitante if solicitud else None
         filas.append({
-            'folio_pedido': (solicitud.observaciones_solicitud or solicitud.folio or '').strip() if solicitud else '-',
+            'folio_pedido': (solicitud.observaciones_solicitud or '').strip() if solicitud else '-',
             'institucion': (inst.denominacion or getattr(inst, 'nombre', '') or '-') if inst else '-',
             'fecha_entrega': la.fecha_surtimiento or (solicitud.fecha_solicitud if solicitud else None),
             'clave': (prod.clave_cnis or '-') if prod else '-',
