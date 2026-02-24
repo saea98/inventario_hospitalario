@@ -97,6 +97,33 @@
                 </tbody>
             </table>
         </div>
+        {% if is_paginated %}
+        <div class="card-footer bg-light">
+            <nav aria-label="Paginación del reporte">
+                <ul class="pagination pagination-sm mb-0 justify-content-center">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?{% if query_string %}{{ query_string }}&{% endif %}page=1">Primera</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?{% if query_string %}{{ query_string }}&{% endif %}page={{ page_obj.previous_page_number }}">‹ Anterior</a>
+                    </li>
+                    {% endif %}
+                    <li class="page-item disabled">
+                        <span class="page-link">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }} ({{ total_items }} registros)</span>
+                    </li>
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?{% if query_string %}{{ query_string }}&{% endif %}page={{ page_obj.next_page_number }}">Siguiente ›</a>
+                    </li>
+                    <li class="page-item">
+                        <a class="page-link" href="?{% if query_string %}{{ query_string }}&{% endif %}page={{ page_obj.paginator.num_pages }}">Última</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
     </div>
 
     <div class="mt-4">

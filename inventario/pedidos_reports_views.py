@@ -1264,6 +1264,18 @@ def reporte_entregas_por_pedido(request):
     """
     instituciones = Institucion.objects.filter(activo=True).order_by('denominacion')
     filas = _obtener_filas_entregas_por_pedido(request)
+    paginator = Paginator(filas, 25)
+    page = request.GET.get('page', 1)
+    try:
+        page_obj = paginator.page(page)
+    except PageNotAnInteger:
+        page_obj = paginator.page(1)
+    except EmptyPage:
+        page_obj = paginator.page(paginator.num_pages)
+    params = request.GET.copy()
+    if 'page' in params:
+        params.pop('page')
+    query_string = params.urlencode()
     try:
         selected_institucion_id = int(request.GET.get('institucion', 0)) or None
     except (ValueError, TypeError):
@@ -1277,7 +1289,12 @@ def reporte_entregas_por_pedido(request):
         'clave': request.GET.get('clave', ''),
     }
     context = {
-        'filas': filas,
+        'filas': page_obj,
+        'page_obj': page_obj,
+        'paginator': paginator,
+        'total_items': paginator.count,
+        'is_paginated': paginator.num_pages > 1,
+        'query_string': query_string,
         'instituciones': instituciones,
         'filtros': filtros,
         'page_title': 'Reporte de Entregas por Pedido',
