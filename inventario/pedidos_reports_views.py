@@ -1190,6 +1190,151 @@ def reporte_claves_no_existen(request):
 
 
 # ============================================================================
+# REPORTE ENTREGAS POR PEDIDO (Clave, Inventario disponible = cantidad entregada, Lote, F_CAD)
+# ============================================================================
+
+def _obtener_filas_entregas_por_pedido(request):
+    """
+    LoteAsignado con surtido=True; filtros: folio_pedido, institucion, fecha_desde, fecha_hasta, clave.
+    Retorna lista de dicts: folio_pedido, institucion, fecha_entrega, clave, descripcion,
+    inventario_disponible (cantidad entregada), lote, f_cad.
+    """
+    from datetime import datetime, time as dt_time
+    qs = LoteAsignado.objects.filter(
+        surtido=True
+    ).select_related(
+        'item_propuesta__propuesta__solicitud__institucion_solicitante',
+        'item_propuesta__producto',
+        'lote_ubicacion__lote',
+    ).order_by(
+        'item_propuesta__propuesta__solicitud__fecha_solicitud',
+        'item_propuesta__producto__clave_cnis',
+        'lote_ubicacion__lote__numero_lote',
+    )
+    folio = request.GET.get('folio_pedido', '').strip()
+    institucion_id = request.GET.get('institucion', '').strip()
+    fecha_desde = request.GET.get('fecha_desde', '').strip()
+    fecha_hasta = request.GET.get('fecha_hasta', '').strip()
+    clave = request.GET.get('clave', '').strip()
+    if folio:
+        qs = qs.filter(
+            Q(item_propuesta__propuesta__solicitud__observaciones_solicitud__icontains=folio)
+            | Q(item_propuesta__propuesta__solicitud__folio__icontains=folio)
+        )
+    if institucion_id:
+        qs = qs.filter(item_propuesta__propuesta__solicitud__institucion_solicitante_id=institucion_id)
+    if fecha_desde:
+        try:
+            fd = datetime.strptime(fecha_desde, '%Y-%m-%d').date()
+            qs = qs.filter(item_propuesta__propuesta__solicitud__fecha_solicitud__date__gte=fd)
+        except ValueError:
+            pass
+    if fecha_hasta:
+        try:
+            fh = datetime.strptime(fecha_hasta, '%Y-%m-%d').date()
+            qs = qs.filter(item_propuesta__propuesta__solicitud__fecha_solicitud__date__lte=fh)
+        except ValueError:
+            pass
+    if clave:
+        qs = qs.filter(item_propuesta__producto__clave_cnis__icontains=clave)
+    filas = []
+    for la in qs:
+        solicitud = la.item_propuesta.propuesta.solicitud if la.item_propuesta and la.item_propuesta.propuesta else None
+        prod = la.item_propuesta.producto if la.item_propuesta else None
+        lote = la.lote_ubicacion.lote if la.lote_ubicacion else None
+        inst = solicitud.institucion_solicitante if solicitud else None
+        filas.append({
+            'folio_pedido': (solicitud.observaciones_solicitud or solicitud.folio or '').strip() if solicitud else '-',
+            'institucion': (inst.denominacion or getattr(inst, 'nombre', '') or '-') if inst else '-',
+            'fecha_entrega': la.fecha_surtimiento or (solicitud.fecha_solicitud if solicitud else None),
+            'clave': (prod.clave_cnis or '-') if prod else '-',
+            'descripcion': ((prod.descripcion or '')[:120]) if prod else '-',
+            'inventario_disponible': la.cantidad_asignada,  # cantidad entregada en ese pedido
+            'lote': (lote.numero_lote or '-') if lote else '-',
+            'f_cad': lote.fecha_caducidad if lote else None,
+        })
+    return filas
+
+
+@login_required
+def reporte_entregas_por_pedido(request):
+    """
+    Reporte de entregas por pedido: consulta por folio de pedido, institución, fechas, clave.
+    Columnas: Folio pedido, Institución, Fecha entrega, Clave, Descripción, Inventario disponible (cantidad entregada), Lote, F_CAD.
+    """
+    instituciones = Institucion.objects.filter(activo=True).order_by('denominacion')
+    filas = _obtener_filas_entregas_por_pedido(request)
+    try:
+        selected_institucion_id = int(request.GET.get('institucion', 0)) or None
+    except (ValueError, TypeError):
+        selected_institucion_id = None
+    filtros = {
+        'folio_pedido': request.GET.get('folio_pedido', ''),
+        'institucion': request.GET.get('institucion', ''),
+        'selected_institucion_id': selected_institucion_id,
+        'fecha_desde': request.GET.get('fecha_desde', ''),
+        'fecha_hasta': request.GET.get('fecha_hasta', ''),
+        'clave': request.GET.get('clave', ''),
+    }
+    context = {
+        'filas': filas,
+        'instituciones': instituciones,
+        'filtros': filtros,
+        'page_title': 'Reporte de Entregas por Pedido',
+    }
+    return render(request, 'inventario/pedidos/reporte_entregas_por_pedido.html', context)
+
+
+@login_required
+def exportar_entregas_por_pedido_excel(request):
+    """Exporta el reporte de entregas por pedido a Excel con los mismos filtros."""
+    from datetime import date
+    filas = _obtener_filas_entregas_por_pedido(request)
+    wb = openpyxl.Workbook()
+    ws = wb.active
+    ws.title = 'Entregas por Pedido'
+    header_fill = PatternFill(start_color='2E7D32', end_color='2E7D32', fill_type='solid')
+    header_font = Font(bold=True, color='FFFFFF')
+    border = Border(
+        left=Side(style='thin'), right=Side(style='thin'),
+        top=Side(style='thin'), bottom=Side(style='thin'),
+    )
+    headers = [
+        'Folio pedido', 'Institución', 'Fecha entrega', 'Clave', 'Descripción',
+        'Inventario disponible (cant. entregada)', 'Lote', 'F_CAD',
+    ]
+    for col, h in enumerate(headers, 1):
+        c = ws.cell(row=1, column=col)
+        c.value = h
+        c.fill = header_fill
+        c.font = header_font
+        c.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+        c.border = border
+    for row_idx, r in enumerate(filas, 2):
+        ws.cell(row=row_idx, column=1).value = r.get('folio_pedido', '')
+        ws.cell(row=row_idx, column=2).value = r.get('institucion', '')
+        fecha = r.get('fecha_entrega')
+        ws.cell(row=row_idx, column=3).value = fecha.strftime('%d/%m/%Y %H:%M') if fecha else ''
+        ws.cell(row=row_idx, column=4).value = r.get('clave', '')
+        ws.cell(row=row_idx, column=5).value = r.get('descripcion', '')
+        ws.cell(row=row_idx, column=6).value = r.get('inventario_disponible', 0)
+        ws.cell(row=row_idx, column=7).value = r.get('lote', '')
+        f_cad = r.get('f_cad')
+        ws.cell(row=row_idx, column=8).value = f_cad.strftime('%d/%m/%Y') if f_cad else ''
+        for col in range(1, 9):
+            ws.cell(row=row_idx, column=col).border = border
+    for letra, w in [('A', 22), ('B', 32), ('C', 18), ('D', 16), ('E', 45), ('F', 22), ('G', 14), ('H', 12)]:
+        ws.column_dimensions[letra].width = w
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    fecha_str = date.today().strftime('%Y%m%d')
+    response['Content-Disposition'] = f'attachment; filename="entregas_por_pedido_{fecha_str}.xlsx"'
+    wb.save(response)
+    return response
+
+
+# ============================================================================
 # DASHBOARD SURTIMIENTO POR INSTITUCIÓN
 # ============================================================================
 
