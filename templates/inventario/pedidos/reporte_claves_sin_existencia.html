@@ -127,7 +127,7 @@
 
     <!-- Botones de acción -->
     <div class="mt-4">
-        <a href="{% url 'pedidos:exportar_claves_sin_existencia_excel' %}" class="btn btn-lg btn-success">
+        <a href="{% url 'pedidos:exportar_claves_sin_existencia_excel' %}?{{ request.GET.urlencode }}" class="btn btn-lg btn-success">
             <i class="fas fa-file-excel"></i> Exportar a Excel
         </a>
         <button class="btn btn-lg btn-primary" onclick="generarOficio()">

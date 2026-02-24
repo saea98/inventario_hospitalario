@@ -577,17 +577,38 @@ def exportar_reporte_pedidos_excel(request):
     return response
 
 
+def _obtener_claves_sin_existencia_queryset(request):
+    """Base queryset de errores SIN_EXISTENCIA con filtros fecha_inicio, fecha_fin, clave_solicitada."""
+    from datetime import datetime, time as dt_time
+    qs = LogErrorPedido.objects.filter(
+        tipo_error='SIN_EXISTENCIA'
+    ).select_related('usuario', 'institucion').order_by('-fecha_error')
+    fecha_inicio = request.GET.get('fecha_inicio', '').strip()
+    fecha_fin = request.GET.get('fecha_fin', '').strip()
+    clave_solicitada = request.GET.get('clave_solicitada', '').strip()
+    if fecha_inicio:
+        try:
+            qs = qs.filter(fecha_error__gte=datetime.strptime(fecha_inicio, '%Y-%m-%d'))
+        except ValueError:
+            pass
+    if fecha_fin:
+        try:
+            fh = datetime.strptime(fecha_fin, '%Y-%m-%d')
+            qs = qs.filter(fecha_error__lte=datetime.combine(fh.date(), dt_time.max))
+        except ValueError:
+            pass
+    if clave_solicitada:
+        qs = qs.filter(clave_solicitada__icontains=clave_solicitada)
+    return qs
+
+
 @login_required
 def reporte_claves_sin_existencia(request):
     """
     Muestra un reporte de claves solicitadas sin existencia.
     Útil para que el área médica genere oficios de solicitud.
     """
-    # Obtener claves sin existencia
-    errores_sin_existencia = LogErrorPedido.objects.filter(
-        tipo_error='SIN_EXISTENCIA'
-    ).select_related('usuario', 'institucion').order_by('-fecha_error')
-    
+    errores_sin_existencia = _obtener_claves_sin_existencia_queryset(request)
     # Agrupar por clave
     from .models import Producto
     claves_sin_existencia = {}
@@ -621,17 +642,20 @@ def reporte_claves_sin_existencia(request):
     for clave_data in claves_sin_existencia.values():
         clave_data['instituciones'] = list(clave_data['instituciones'])
         clave_data['ultimos_errores'] = clave_data['ultimos_errores'][:5]
-    
+    lista_ordenada = sorted(
+        claves_sin_existencia.values(),
+        key=lambda x: x['total_solicitudes'],
+        reverse=True
+    )
+    total_solicitudes = sum(c['total_solicitudes'] for c in lista_ordenada)
+    cantidad_total = sum(c['cantidad_total'] for c in lista_ordenada)
     context = {
-        'claves_sin_existencia': sorted(
-            claves_sin_existencia.values(),
-            key=lambda x: x['total_solicitudes'],
-            reverse=True
-        ),
+        'claves_sin_existencia': lista_ordenada,
         'total_claves': len(claves_sin_existencia),
+        'total_solicitudes': total_solicitudes,
+        'cantidad_total': cantidad_total,
         'page_title': 'Reporte de Claves sin Existencia'
     }
-    
     return render(request, 'inventario/pedidos/reporte_claves_sin_existencia.html', context)
 
 
@@ -1029,14 +1053,10 @@ def exportar_pedidos_sin_existencia_excel(request):
 @login_required
 def exportar_claves_sin_existencia_excel(request):
     """
-    Exporta el reporte de claves sin existencia a Excel
+    Exporta el reporte de claves sin existencia a Excel respetando los mismos filtros (fecha_inicio, fecha_fin, clave_solicitada).
     """
-    # Obtener claves sin existencia (mismo código que en la vista)
-    errores_sin_existencia = LogErrorPedido.objects.filter(
-        tipo_error='SIN_EXISTENCIA'
-    ).select_related('usuario', 'institucion').order_by('-fecha_error')
-    
-    # Agrupar por clave
+    from datetime import date
+    errores_sin_existencia = _obtener_claves_sin_existencia_queryset(request)
     from .models import Producto
     claves_sin_existencia = {}
     for error in errores_sin_existencia:
@@ -1044,10 +1064,9 @@ def exportar_claves_sin_existencia_excel(request):
             descripcion = 'Producto no encontrado'
             try:
                 producto = Producto.objects.get(clave_cnis=error.clave_solicitada)
-                descripcion = producto.descripcion
+                descripcion = (producto.descripcion or '')[:500]
             except Producto.DoesNotExist:
                 pass
-            
             claves_sin_existencia[error.clave_solicitada] = {
                 'clave': error.clave_solicitada,
                 'descripcion': descripcion,
@@ -1055,17 +1074,14 @@ def exportar_claves_sin_existencia_excel(request):
                 'cantidad_total': 0,
                 'instituciones': set(),
             }
-        
         claves_sin_existencia[error.clave_solicitada]['total_solicitudes'] += 1
         claves_sin_existencia[error.clave_solicitada]['cantidad_total'] += error.cantidad_solicitada or 0
         if error.institucion:
             claves_sin_existencia[error.clave_solicitada]['instituciones'].add(
-                error.institucion.nombre
+                error.institucion.nombre or error.institucion.denominacion or ''
             )
-    
-    # Convertir instituciones a lista
     for clave_data in claves_sin_existencia.values():
-        clave_data['instituciones'] = ', '.join(list(clave_data['instituciones']))
+        clave_data['instituciones'] = ', '.join(sorted(clave_data['instituciones'])) if clave_data['instituciones'] else ''
     
     # Crear workbook
     wb = openpyxl.Workbook()
@@ -1083,7 +1099,7 @@ def exportar_claves_sin_existencia_excel(request):
     )
     
     # Encabezados
-    headers = ['Clave', 'Descripción', 'Cantidad Total Solicitada', 'Total Solicitudes', 'Prioridad']
+    headers = ['Clave', 'Descripción', 'Cantidad Total Solicitada', 'Total Solicitudes', 'Instituciones', 'Prioridad']
     for col, header in enumerate(headers, 1):
         cell = ws.cell(row=1, column=col)
         cell.value = header
@@ -1102,25 +1118,23 @@ def exportar_claves_sin_existencia_excel(request):
         ws.cell(row=row, column=2).value = clave_data['descripcion']
         ws.cell(row=row, column=3).value = clave_data['cantidad_total']
         ws.cell(row=row, column=4).value = clave_data['total_solicitudes']
-        ws.cell(row=row, column=5).value = ''  # Prioridad: vacío para que lo llene quien corresponda
-        
-        for col in range(1, 6):
+        ws.cell(row=row, column=5).value = clave_data.get('instituciones', '')
+        ws.cell(row=row, column=6).value = ''  # Prioridad: vacío para que lo llene quien corresponda
+        for col in range(1, 7):
             cell = ws.cell(row=row, column=col)
             cell.border = border
             cell.alignment = Alignment(horizontal='left', vertical='center', wrap_text=True)
-    
-    # Ajustar ancho de columnas
     ws.column_dimensions['A'].width = 15
-    ws.column_dimensions['B'].width = 40
-    ws.column_dimensions['C'].width = 20
-    ws.column_dimensions['D'].width = 18
-    ws.column_dimensions['E'].width = 30
-    
-    # Generar respuesta
+    ws.column_dimensions['B'].width = 45
+    ws.column_dimensions['C'].width = 18
+    ws.column_dimensions['D'].width = 16
+    ws.column_dimensions['E'].width = 35
+    ws.column_dimensions['F'].width = 18
     response = HttpResponse(
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
-    response['Content-Disposition'] = 'attachment; filename="claves_sin_existencia.xlsx"'
+    fecha_str = date.today().strftime('%Y%m%d')
+    response['Content-Disposition'] = f'attachment; filename="claves_sin_existencia_{fecha_str}.xlsx"'
     wb.save(response)
     
     return response
