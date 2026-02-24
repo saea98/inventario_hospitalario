@@ -193,7 +193,7 @@
 
 <div class="alert alert-warning alert-dismissible fade show mt-3" role="alert">
     <i class="fas fa-info-circle me-2"></i>
-    <strong>Consejo:</strong> En propuestas grandes, use <strong>Guardar borrador</strong> con frecuencia o espere el guardado automático cada 2 minutos para no perder cambios si hay fallos de conexión.
+    <strong>Consejo:</strong> En propuestas grandes, use <strong>Guardar borrador</strong> con frecuencia o espere el guardado automático cada 10 minutos para no perder cambios si hay fallos de conexión.
     <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Cerrar"></button>
 </div>
 
@@ -204,7 +204,7 @@
     document.addEventListener('DOMContentLoaded', function() {
         var form = document.querySelector('form[method="post"]');
         var formDirty = false;
-        var autoSaveInterval = 2 * 60 * 1000; // 2 minutos
+        var autoSaveInterval = 10 * 60 * 1000; // 10 minutos
         var autoSaveTimer = null;
 
         // Marcar formulario con cambios
@@ -282,6 +282,8 @@
                         clearInterval(autoSaveTimer);
                         autoSaveTimer = null;
                     }
+                    // Recargar para que la tabla refleje lo guardado (eliminados, cantidades) y no haya confusión al revisar
+                    setTimeout(function() { location.reload(); }, 800);
                 })
                 .catch(function() {
                     console.warn('Auto-guardado falló. Use "Guardar borrador" manualmente.');
@@ -303,6 +305,8 @@
                             clearInterval(autoSaveTimer);
                             autoSaveTimer = null;
                         }
+                        // Recargar para que la tabla refleje lo guardado (eliminados, cantidades) y no haya confusión al revisar
+                        setTimeout(function() { location.reload(); }, 800);
                     })
                     .catch(function() {
                         // Fallback: enviar el formulario normal (form.submit() no dispara el evento submit)

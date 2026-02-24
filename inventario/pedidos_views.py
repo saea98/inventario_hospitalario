@@ -1048,15 +1048,24 @@ def editar_propuesta(request, propuesta_id):
                 item.cantidad_propuesta = int(nueva_cantidad)
                 item.save()
             
-            lotes_actuales = item.lotes_asignados.select_related('lote_ubicacion__lote', 'lote_ubicacion__ubicacion').all()
+            lotes_actuales = list(item.lotes_asignados.select_related('lote_ubicacion__lote', 'lote_ubicacion__ubicacion').all())
             for lote_asignado in lotes_actuales:
-                nueva_cantidad_lote = request.POST.get(f'lote_{lote_asignado.id}_cantidad')
-                if nueva_cantidad_lote:
-                    lote_asignado.cantidad_asignada = int(nueva_cantidad_lote)
-                    lote_asignado.save()
-                
-                if request.POST.get(f'lote_{lote_asignado.id}_eliminar'):
+                key_cant = f'lote_{lote_asignado.id}_cantidad'
+                key_elim = f'lote_{lote_asignado.id}_eliminar'
+                raw_cant = request.POST.get(key_cant)
+                quiere_eliminar = request.POST.get(key_elim)
+                # Cantidad 0 no es válida en el modelo (MinValueValidator(1)); tratarla como eliminar para no hacer rollback
+                cant_num = None
+                if raw_cant is not None and str(raw_cant).strip() != '':
+                    try:
+                        cant_num = int(raw_cant)
+                    except ValueError:
+                        pass
+                if quiere_eliminar or cant_num is not None and cant_num == 0:
                     lote_asignado.delete()
+                elif cant_num is not None and cant_num > 0:
+                    lote_asignado.cantidad_asignada = cant_num
+                    lote_asignado.save()
             
             nueva_ubicacion_id = request.POST.get(f'item_{item.id}_nueva_ubicacion')
             if nueva_ubicacion_id:
