@@ -597,9 +597,9 @@ class MovimientoInventario(models.Model):
     def __str__(self):
         return f"{self.tipo_movimiento} - {self.lote} - {self.cantidad}"
 
-    # ✅ Propiedad de conveniencia
+    # ✅ Propiedad de conveniencia (no nombrar 'estado' para no ocultar el campo IntegerField)
     @property
-    def estado(self):
+    def estado_display(self):
         return "Anulado" if self.anulado else "Vigente"
 
 

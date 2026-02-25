@@ -33,6 +33,16 @@ urlpatterns = [
         name="corregir_lote_propuesta",
     ),
     path(
+        "limites-cantidad/<uuid:lote_asignado_id>/",
+        picking_views.limites_cantidad_picking,
+        name="limites_cantidad_picking",
+    ),
+    path(
+        "cambiar-cantidad/<uuid:lote_asignado_id>/",
+        picking_views.cambiar_cantidad_picking,
+        name="cambiar_cantidad_picking",
+    ),
+    path(
         "propuesta/<uuid:propuesta_id>/imprimir/",
         picking_views.imprimir_hoja_surtido,
         name="imprimir_hoja_surtido",

@@ -446,7 +446,7 @@ def ubicaciones_para_corregir_lote(request):
         Q(ubicacion__almacen_id=almacen_id) | Q(lote__almacen_id=almacen_id)
     ).exclude(
         id=lote_ubicacion_actual_id
-    ).select_related('lote', 'ubicacion__almacen')
+    ).select_related('lote', 'ubicacion__almacen').order_by('lote__fecha_caducidad')
     opciones = []
     for lu in qs:
         disp = lu.cantidad - lu.cantidad_reservada
@@ -508,55 +508,226 @@ def corregir_lote_propuesta(request, lote_asignado_id):
     viejo_lote = vieja_lu.lote
     nuevo_lote = nueva_lu.lote
     cantidad = la.cantidad_asignada
-    folio_solicitud = (la.item_propuesta.propuesta.solicitud.observaciones_solicitud or '').strip() or la.item_propuesta.propuesta.solicitud.folio or ''
+    solicitud = getattr(la.item_propuesta.propuesta, 'solicitud', None)
+    folio_solicitud = ''
+    if solicitud:
+        folio_solicitud = (getattr(solicitud, 'observaciones_solicitud', None) or '').strip() or (getattr(solicitud, 'folio', None) or '')
+    try:
+        with transaction.atomic():
+            resultado_liberacion = liberar_cantidad_lote(vieja_lu, cantidad)
+            reserva_antigua_lote = resultado_liberacion.get('reserva_anterior_lote', 0)
+            reserva_nueva_lote = resultado_liberacion.get('nueva_reservada_lote', 0)
+            cantidad_real_liberada = resultado_liberacion.get('liberado_lote', cantidad)
+            motivo_liberacion = (
+                f"Cambio de lote en orden de picking - Liberación de reserva de {cantidad_real_liberada} unidades del lote {viejo_lote.numero_lote} "
+                f"(Producto: {viejo_lote.producto.clave_cnis or 'N/A'}). "
+                f"Folio pedido: {folio_solicitud}. Reserva anterior: {reserva_antigua_lote}, nueva: {reserva_nueva_lote}."
+            )
+            MovimientoInventario.objects.create(
+                lote=viejo_lote,
+                tipo_movimiento='AJUSTE_POSITIVO',
+                cantidad=cantidad_real_liberada,
+                cantidad_anterior=reserva_antigua_lote,
+                cantidad_nueva=reserva_nueva_lote,
+                motivo=motivo_liberacion,
+                documento_referencia=f"PROP-SURT-{la.item_propuesta.propuesta_id}",
+                folio=folio_solicitud or None,
+                usuario=request.user,
+            )
+            if not reservar_cantidad_lote(nueva_lu, cantidad):
+                raise ValueError("No se pudo reservar en el lote destino (posible condición de carrera).")
+            nueva_lu.refresh_from_db()
+            nuevo_lote.refresh_from_db()
+            reserva_ant_nueva = nuevo_lote.cantidad_reservada - cantidad
+            motivo_asig = (
+                f"Ajuste a datos de lote en propuesta de surtimiento (corrección de captura). "
+                f"Asignación al lote correcto {nuevo_lote.numero_lote} (producto: {nuevo_lote.producto.clave_cnis or 'N/A'}). "
+                f"Folio pedido: {folio_solicitud}. Reserva anterior: {reserva_ant_nueva}, nueva: {nuevo_lote.cantidad_reservada}."
+            )
+            MovimientoInventario.objects.create(
+                lote=nuevo_lote,
+                tipo_movimiento='AJUSTE_DATOS_LOTE',
+                cantidad=cantidad,
+                cantidad_anterior=reserva_ant_nueva,
+                cantidad_nueva=nuevo_lote.cantidad_reservada,
+                motivo=motivo_asig,
+                documento_referencia=f"PROP-SURT-{la.item_propuesta.propuesta_id}",
+                folio=folio_solicitud or None,
+                usuario=request.user,
+            )
+            la.lote_ubicacion = nueva_lu
+            la.save(update_fields=['lote_ubicacion'])
+        return JsonResponse({
+            'exito': True,
+            'mensaje': 'Lote corregido. Se generaron los registros de inventario (ajuste a datos de lote).',
+            'nuevo_lote_numero': nuevo_lote.numero_lote,
+            'nuevo_ubicacion_codigo': nueva_lu.ubicacion.codigo if nueva_lu.ubicacion else '',
+        })
+    except ValueError as e:
+        return JsonResponse({'exito': False, 'mensaje': str(e)}, status=400)
+    except Exception as e:
+        return JsonResponse({'exito': False, 'mensaje': f'Error al corregir el lote: {str(e)}'}, status=500)
+
+
+@login_required
+@require_http_methods(['GET'])
+def limites_cantidad_picking(request, lote_asignado_id):
+    """
+    Devuelve cantidad actual, máximo disponible y mínimo (por cantidad solicitada) para el modal de cambiar cantidad.
+    """
+    from django.db.models import Sum
+    try:
+        la = LoteAsignado.objects.select_related('item_propuesta', 'lote_ubicacion').get(id=lote_asignado_id)
+    except LoteAsignado.DoesNotExist:
+        return JsonResponse({'error': 'Asignación no encontrada'}, status=404)
+    if la.surtido:
+        return JsonResponse({'error': 'Ítem ya recogido'}, status=400)
+    lu = la.lote_ubicacion
+    cantidad_actual = la.cantidad_asignada
+    disponible_efectivo = (lu.cantidad - lu.cantidad_reservada) + cantidad_actual
+    cantidad_solicitada = la.item_propuesta.cantidad_solicitada
+    total_otros = la.item_propuesta.lotes_asignados.exclude(id=la.id).aggregate(t=Sum('cantidad_asignada'))['t'] or 0
+    minimo = 0
+    return JsonResponse({
+        'cantidad_actual': cantidad_actual,
+        'maximo_disponible': disponible_efectivo,
+        'minimo': minimo,
+        'cantidad_solicitada': cantidad_solicitada,
+        'total_otros': total_otros,
+    })
+
+
+@login_required
+@csrf_exempt
+@require_http_methods(['POST'])
+def cambiar_cantidad_picking(request, lote_asignado_id):
+    """
+    Cambia la cantidad asignada de un ítem en la orden de picking.
+    Permite cantidad menor a la solicitada o cero (ej. el hospital no se lleva el insumo o lleva menos).
+    Actualiza la cantidad reservada (libera o reserva según el caso), genera movimiento de inventario
+    como evidencia, y si la nueva cantidad es 0 elimina la asignación.
+    Validación: no exceder cantidad disponible (cantidad - cantidad_reservada).
+    """
+    import json
+    try:
+        la = LoteAsignado.objects.select_related(
+            'item_propuesta__propuesta__solicitud',
+            'lote_ubicacion__lote',
+            'lote_ubicacion__ubicacion',
+        ).get(id=lote_asignado_id)
+    except LoteAsignado.DoesNotExist:
+        return JsonResponse({'exito': False, 'mensaje': 'Asignación no encontrada'}, status=404)
+    if la.surtido:
+        return JsonResponse({'exito': False, 'mensaje': 'No se puede cambiar la cantidad de un ítem ya recogido'}, status=400)
+    try:
+        body = json.loads(request.body) if request.body else {}
+    except json.JSONDecodeError:
+        body = {}
+    try:
+        nueva_cantidad = int(body.get('nueva_cantidad', -1))
+    except (TypeError, ValueError):
+        return JsonResponse({'exito': False, 'mensaje': 'nueva_cantidad debe ser un número entero'}, status=400)
+    if nueva_cantidad < 0:
+        return JsonResponse({'exito': False, 'mensaje': 'La cantidad no puede ser negativa.'}, status=400)
+
+    lu = la.lote_ubicacion
+    lote = lu.lote
+    cantidad_actual = la.cantidad_asignada
+    item = la.item_propuesta
+    folio_solicitud = (item.propuesta.solicitud.observaciones_solicitud or '').strip() or item.propuesta.solicitud.folio or ''
+
+    if nueva_cantidad == cantidad_actual:
+        return JsonResponse({'exito': True, 'mensaje': 'La cantidad no ha cambiado.', 'nueva_cantidad': nueva_cantidad})
+
+    disponible_efectivo = (lu.cantidad - lu.cantidad_reservada) + cantidad_actual
+    if nueva_cantidad > disponible_efectivo:
+        return JsonResponse({
+            'exito': False,
+            'mensaje': f'No hay cantidad suficiente. Disponible (cantidad - reservada) para este lote/ubicación: {disponible_efectivo}.'
+        }, status=400)
+
     with transaction.atomic():
-        resultado_liberacion = liberar_cantidad_lote(vieja_lu, cantidad)
-        reserva_antigua_lote = resultado_liberacion.get('reserva_anterior_lote', 0)
-        reserva_nueva_lote = resultado_liberacion.get('nueva_reservada_lote', 0)
-        motivo_dev = (
-            f"Ajuste a datos de lote en propuesta de surtimiento (corrección de captura). "
-            f"Devolución de reserva al lote {viejo_lote.numero_lote} (producto: {viejo_lote.producto.clave_cnis or 'N/A'}). "
-            f"Folio pedido: {folio_solicitud}. Reserva anterior: {reserva_antigua_lote}, nueva: {reserva_nueva_lote}."
-        )
-        MovimientoInventario.objects.create(
-            lote=viejo_lote,
-            tipo_movimiento='AJUSTE_DATOS_LOTE',
-            cantidad=cantidad,
-            cantidad_anterior=reserva_antigua_lote,
-            cantidad_nueva=reserva_nueva_lote,
-            motivo=motivo_dev,
-            documento_referencia=f"PROP-SURT-{la.item_propuesta.propuesta_id}",
-            folio=folio_solicitud or None,
-            usuario=request.user,
-        )
-        if not reservar_cantidad_lote(nueva_lu, cantidad):
-            raise ValueError("No se pudo reservar en el lote destino (posible condición de carrera).")
-        nueva_lu.refresh_from_db()
-        nuevo_lote.refresh_from_db()
-        reserva_ant_nueva = nuevo_lote.cantidad_reservada - cantidad
-        motivo_asig = (
-            f"Ajuste a datos de lote en propuesta de surtimiento (corrección de captura). "
-            f"Asignación al lote correcto {nuevo_lote.numero_lote} (producto: {nuevo_lote.producto.clave_cnis or 'N/A'}). "
-            f"Folio pedido: {folio_solicitud}. Reserva anterior: {reserva_ant_nueva}, nueva: {nuevo_lote.cantidad_reservada}."
-        )
-        MovimientoInventario.objects.create(
-            lote=nuevo_lote,
-            tipo_movimiento='AJUSTE_DATOS_LOTE',
-            cantidad=cantidad,
-            cantidad_anterior=reserva_ant_nueva,
-            cantidad_nueva=nuevo_lote.cantidad_reservada,
-            motivo=motivo_asig,
-            documento_referencia=f"PROP-SURT-{la.item_propuesta.propuesta_id}",
-            folio=folio_solicitud or None,
-            usuario=request.user,
-        )
-        la.lote_ubicacion = nueva_lu
-        la.save(update_fields=['lote_ubicacion'])
+        if nueva_cantidad == 0:
+            liberar = cantidad_actual
+            resultado = liberar_cantidad_lote(lu, liberar)
+            reserva_ant = resultado.get('reserva_anterior_lote', 0)
+            reserva_nueva = resultado.get('nueva_reservada_lote', 0)
+            motivo = (
+                f"Cambio de cantidad en orden de picking - Liberación total de reserva ({liberar} unidades). "
+                f"El hospital no se lleva este insumo o se corrige la línea. Lote {lote.numero_lote} "
+                f"(Producto: {lote.producto.clave_cnis or 'N/A'}). Folio pedido: {folio_solicitud}. "
+                f"Reserva anterior: {reserva_ant}, nueva: {reserva_nueva}."
+            )
+            MovimientoInventario.objects.create(
+                lote=lote,
+                tipo_movimiento='AJUSTE_POSITIVO',
+                cantidad=liberar,
+                cantidad_anterior=reserva_ant,
+                cantidad_nueva=reserva_nueva,
+                motivo=motivo,
+                documento_referencia=f"PROP-SURT-{item.propuesta_id}",
+                folio=folio_solicitud or None,
+                usuario=request.user,
+            )
+            la.delete()
+            return JsonResponse({
+                'exito': True,
+                'mensaje': 'Cantidad actualizada a cero. Se liberó la reserva, se generó el movimiento de inventario y se quitó la línea de la orden.',
+                'nueva_cantidad': 0,
+            })
+        if nueva_cantidad < cantidad_actual:
+            liberar = cantidad_actual - nueva_cantidad
+            resultado = liberar_cantidad_lote(lu, liberar)
+            reserva_ant = resultado.get('reserva_anterior_lote', 0)
+            reserva_nueva = resultado.get('nueva_reservada_lote', 0)
+            motivo = (
+                f"Cambio de cantidad en orden de picking - Liberación de reserva de {liberar} unidades del lote {lote.numero_lote} "
+                f"(Producto: {lote.producto.clave_cnis or 'N/A'}). El hospital lleva menos de lo solicitado. Folio pedido: {folio_solicitud}. "
+                f"Reserva anterior: {reserva_ant}, nueva: {reserva_nueva}."
+            )
+            MovimientoInventario.objects.create(
+                lote=lote,
+                tipo_movimiento='AJUSTE_POSITIVO',
+                cantidad=liberar,
+                cantidad_anterior=reserva_ant,
+                cantidad_nueva=reserva_nueva,
+                motivo=motivo,
+                documento_referencia=f"PROP-SURT-{item.propuesta_id}",
+                folio=folio_solicitud or None,
+                usuario=request.user,
+            )
+        else:
+            reservar = nueva_cantidad - cantidad_actual
+            if not reservar_cantidad_lote(lu, reservar):
+                return JsonResponse({
+                    'exito': False,
+                    'mensaje': 'No se pudo reservar la cantidad adicional (condición de carrera o stock insuficiente).'
+                }, status=400)
+            lu.refresh_from_db()
+            lote.refresh_from_db()
+            reserva_ant = lote.cantidad_reservada - reservar
+            motivo = (
+                f"Cambio de cantidad en orden de picking - Incremento de reserva de {reservar} unidades en lote {lote.numero_lote} "
+                f"(Producto: {lote.producto.clave_cnis or 'N/A'}). Folio pedido: {folio_solicitud}. "
+                f"Reserva anterior: {reserva_ant}, nueva: {lote.cantidad_reservada}."
+            )
+            MovimientoInventario.objects.create(
+                lote=lote,
+                tipo_movimiento='AJUSTE_DATOS_LOTE',
+                cantidad=reservar,
+                cantidad_anterior=reserva_ant,
+                cantidad_nueva=lote.cantidad_reservada,
+                motivo=motivo,
+                documento_referencia=f"PROP-SURT-{item.propuesta_id}",
+                folio=folio_solicitud or None,
+                usuario=request.user,
+            )
+        la.cantidad_asignada = nueva_cantidad
+        la.save(update_fields=['cantidad_asignada'])
     return JsonResponse({
         'exito': True,
-        'mensaje': 'Lote corregido. Se generaron los registros de inventario (ajuste a datos de lote).',
-        'nuevo_lote_numero': nuevo_lote.numero_lote,
-        'nuevo_ubicacion_codigo': nueva_lu.ubicacion.codigo if nueva_lu.ubicacion else '',
+        'mensaje': 'Cantidad actualizada. Se ajustó la reserva y se generó el movimiento de inventario.',
+        'nueva_cantidad': nueva_cantidad,
     })
 
 

@@ -61,12 +61,6 @@
                                                        max="{{ lote_asignado.lote_ubicacion.cantidad }}">
                                             </td>
                                             <td>
-                                                <button type="button" class="btn btn-sm btn-outline-secondary mb-1 btn-corregir-lote-editar"
-                                                        data-lote-id="{{ lote_asignado.lote_ubicacion.lote.id }}"
-                                                        data-numero-lote-actual="{{ lote_asignado.lote_ubicacion.lote.numero_lote }}"
-                                                        data-producto="{{ item.producto.clave_cnis }} - {{ item.producto.descripcion }}">
-                                                    <i class="fas fa-edit"></i> Corregir lote
-                                                </button>
                                                 <label class="custom-control custom-checkbox d-block mb-0">
                                                     <input type="checkbox" 
                                                            name="lote_{{ lote_asignado.id }}_eliminar"
@@ -195,29 +189,6 @@
             </span>
         </div>
     </form>
-</div>
-
-<!-- Modal Corregir dato de lote en inventario (numero_lote mal capturado) -->
-<div class="modal-overlay-corregir-lote" id="modalCorregirLoteEditar" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); z-index: 1050; align-items: center; justify-content: center;">
-    <div class="modal-dialog modal-dialog-centered" style="max-width: 480px; margin: 1rem; pointer-events: auto;">
-        <div class="modal-content">
-            <div class="modal-header">
-                <h5 class="modal-title"><i class="fas fa-edit"></i> Corregir número de lote en inventario</h5>
-                <button type="button" class="btn-close" aria-label="Cerrar" id="btnCerrarModalCorregirEditar"></button>
-            </div>
-            <div class="modal-body">
-                <p class="mb-2">Producto: <strong id="modalProductoEditar"></strong></p>
-                <p class="mb-2">Número de lote actual (mal capturado): <strong id="modalLoteActualEditar"></strong></p>
-                <p class="small text-muted">Corrija el número de lote tal como debe quedar en inventario. Se actualizará el registro del lote y se generará un movimiento "Ajuste a datos de lote" sin perder el avance de la propuesta.</p>
-                <label for="inputNuevoNumeroLoteEditar">Número de lote correcto:</label>
-                <input type="text" id="inputNuevoNumeroLoteEditar" class="form-control" maxlength="50" placeholder="Ej. LOT-2025-001">
-            </div>
-            <div class="modal-footer">
-                <button type="button" class="btn btn-secondary" id="btnCerrarModalCorregirEditar2">Cancelar</button>
-                <button type="button" class="btn btn-primary" id="btnAplicarCorregirLoteEditar">Aplicar corrección</button>
-            </div>
-        </div>
-    </div>
 </div>
 
 <div class="alert alert-warning alert-dismissible fade show mt-3" role="alert">
@@ -406,70 +377,6 @@
                 $seccionUbicaciones.hide();
                 $ubicacionesSelect.empty();
             }
-        });
-
-        // Modal Corregir dato de lote en inventario (numero_lote mal capturado)
-        var loteIdCorregirEditar = null;
-        var modalCorregirEditar = document.getElementById('modalCorregirLoteEditar');
-        var inputNuevoNumeroLoteEditar = document.getElementById('inputNuevoNumeroLoteEditar');
-
-        function abrirModalCorregirLoteEditar(btn) {
-            loteIdCorregirEditar = btn.getAttribute('data-lote-id');
-            var numeroActual = btn.getAttribute('data-numero-lote-actual') || '';
-            document.getElementById('modalProductoEditar').textContent = btn.getAttribute('data-producto') || '';
-            document.getElementById('modalLoteActualEditar').textContent = numeroActual || '(vacío)';
-            inputNuevoNumeroLoteEditar.value = '';
-            inputNuevoNumeroLoteEditar.placeholder = 'Ej. ' + (numeroActual || 'LOT-2025-001');
-            modalCorregirEditar.style.display = 'flex';
-            inputNuevoNumeroLoteEditar.focus();
-        }
-
-        function cerrarModalCorregirEditar() {
-            modalCorregirEditar.style.display = 'none';
-            loteIdCorregirEditar = null;
-        }
-
-        document.querySelectorAll('.btn-corregir-lote-editar').forEach(function(btn) {
-            btn.addEventListener('click', function() { abrirModalCorregirLoteEditar(this); });
-        });
-        document.getElementById('btnCerrarModalCorregirEditar').addEventListener('click', cerrarModalCorregirEditar);
-        document.getElementById('btnCerrarModalCorregirEditar2').addEventListener('click', cerrarModalCorregirEditar);
-        modalCorregirEditar.addEventListener('click', function(e) {
-            if (e.target === modalCorregirEditar) cerrarModalCorregirEditar();
-        });
-        document.getElementById('btnAplicarCorregirLoteEditar').addEventListener('click', function() {
-            if (!loteIdCorregirEditar) return;
-            var nuevoNumero = (inputNuevoNumeroLoteEditar.value || '').trim();
-            if (!nuevoNumero) {
-                alert('Escriba el número de lote correcto.');
-                return;
-            }
-            var boton = this;
-            boton.disabled = true;
-            var csrfToken = document.querySelector('input[name=csrfmiddlewaretoken]') ? document.querySelector('input[name=csrfmiddlewaretoken]').value : '';
-            fetch('{% url "logistica:corregir_dato_lote" %}', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': csrfToken
-                },
-                body: JSON.stringify({ lote_id: parseInt(loteIdCorregirEditar, 10), nuevo_numero_lote: nuevoNumero })
-            })
-            .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); })
-            .then(function(result) {
-                if (result.ok && result.data.exito) {
-                    alert(result.data.mensaje || 'Número de lote corregido en inventario.');
-                    cerrarModalCorregirEditar();
-                    window.location.reload();
-                } else {
-                    alert(result.data.mensaje || 'Error al corregir el dato del lote.');
-                    boton.disabled = false;
-                }
-            })
-            .catch(function() {
-                alert('Error de conexión.');
-                boton.disabled = false;
-            });
         });
     });
 </script>

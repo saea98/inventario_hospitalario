@@ -166,6 +166,52 @@
         cursor: not-allowed;
     }
     
+    .btn-corregir-lote {
+        padding: 10px 14px;
+        font-size: 14px;
+        background-color: #6c757d;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+    }
+    .btn-corregir-lote:hover {
+        background-color: #5a6268;
+    }
+    .btn-cambiar-cantidad {
+        padding: 10px 14px;
+        font-size: 14px;
+        background-color: #17a2b8;
+        color: white;
+        border: none;
+        border-radius: 6px;
+        cursor: pointer;
+    }
+    .btn-cambiar-cantidad:hover {
+        background-color: #138496;
+    }
+    .modal-overlay-corregir {
+        display: none;
+        position: fixed;
+        top: 0; left: 0; right: 0; bottom: 0;
+        background: rgba(0,0,0,0.5);
+        z-index: 1000;
+        align-items: center;
+        justify-content: center;
+    }
+    .modal-overlay-corregir.activo { display: flex; }
+    .modal-corregir-lote-box {
+        background: white;
+        border-radius: 8px;
+        padding: 20px;
+        max-width: 500px;
+        width: 90%;
+        box-shadow: 0 4px 20px rgba(0,0,0,0.2);
+    }
+    .modal-corregir-lote-box h3 { margin-top: 0; }
+    .modal-corregir-lote-box select, .modal-corregir-lote-box input[type="number"] { width: 100%; padding: 10px; margin: 10px 0; font-size: 14px; box-sizing: border-box; }
+    .modal-corregir-lote-box .botones { margin-top: 16px; display: flex; gap: 10px; justify-content: flex-end; }
+    
     .resumen {
         background: white;
         border: 2px solid #1f77b4;
@@ -323,15 +369,65 @@
                 
                 <div class="item-cantidad">{{ item.cantidad }}</div>
                 
-                <button class="btn-recoger" 
-                        id="btn-{{ item.lote_asignado_id }}"
-                        onclick="marcarRecogido('{{ item.lote_asignado_id }}', this)">
-                    Recoger
-                </button>
+                <div style="display: flex; gap: 8px; flex-wrap: wrap; align-items: center;">
+                    <button type="button" class="btn-corregir-lote"
+                            data-lote-asignado-id="{{ item.lote_asignado_id }}"
+                            data-lote-actual="{{ item.lote_numero }}"
+                            data-producto="{{ item.producto }}"
+                            onclick="abrirModalCorregirLote(this)">
+                        Corregir lote
+                    </button>
+                    <button type="button" class="btn-cambiar-cantidad"
+                            data-lote-asignado-id="{{ item.lote_asignado_id }}"
+                            data-cantidad-actual="{{ item.cantidad }}"
+                            data-producto="{{ item.producto }}"
+                            onclick="abrirModalCambiarCantidad(this)">
+                        Cambiar cantidad
+                    </button>
+                    <button class="btn-recoger" 
+                            id="btn-{{ item.lote_asignado_id }}"
+                            onclick="marcarRecogido('{{ item.lote_asignado_id }}', this)">
+                        Recoger
+                    </button>
+                </div>
             </div>
             {% endfor %}
         </div>
         {% endfor %}
+    </div>
+</div>
+
+<!-- Modal Corregir lote: seleccionar otro lote de la misma clave -->
+<div class="modal-overlay-corregir" id="modalCorregirLote">
+    <div class="modal-corregir-lote-box">
+        <h3><i class="fas fa-edit"></i> Corregir lote</h3>
+        <p class="mb-2">Producto: <strong id="modalProducto"></strong></p>
+        <p class="mb-2">Lote actual: <strong id="modalLoteActual"></strong></p>
+        <p class="small text-muted">Seleccione el lote correcto (misma clave). Se liberará la reserva del lote actual y se reservará en el lote elegido; se generarán los movimientos de inventario como en la liberación de reservas.</p>
+        <label for="selectNuevoLote">Lote correcto:</label>
+        <select id="selectNuevoLote">
+            <option value="">-- Cargando opciones --</option>
+        </select>
+        <div class="botones">
+            <button type="button" class="btn-volver" id="btnCerrarModalCorregir">Cancelar</button>
+            <button type="button" class="btn-imprimir" id="btnAplicarCorregirLote">Aplicar</button>
+        </div>
+    </div>
+</div>
+
+<!-- Modal Cambiar cantidad -->
+<div class="modal-overlay-corregir" id="modalCambiarCantidad">
+    <div class="modal-corregir-lote-box">
+        <h3><i class="fas fa-sort-numeric-up"></i> Cambiar cantidad</h3>
+        <p class="mb-2">Producto: <strong id="modalCantProducto"></strong></p>
+        <p class="mb-2">Cantidad actual: <strong id="modalCantActual"></strong></p>
+        <p class="small text-muted" id="modalCantLimites">Puede ser menor a lo solicitado o cero si el hospital no se lleva el insumo o lleva menos. Máximo: disponible (cantidad − reservada) en este lote/ubicación. Se generará registro de movimiento de inventario como evidencia.</p>
+        <label for="inputNuevaCantidad">Nueva cantidad (0 = quitar línea y liberar reserva):</label>
+        <input type="number" id="inputNuevaCantidad" class="form-control" min="0" step="1" placeholder="0 o más">
+        <div class="botones mt-3">
+            <button type="button" class="btn-volver" id="btnCerrarModalCantidad">Cancelar</button>
+            <button type="button" class="btn-imprimir" id="btnAplicarCantidad">Aplicar</button>
+        </div>
     </div>
 </div>
 
@@ -393,5 +489,139 @@
         document.getElementById('progreso-relleno').style.width = porcentaje + '%';
         document.getElementById('progreso-texto').textContent = porcentaje + '%';
     }
+    
+    var loteAsignadoIdCorregir = null;
+    var modalCorregir = document.getElementById('modalCorregirLote');
+    var selectNuevoLote = document.getElementById('selectNuevoLote');
+    var urlBasePicking = '/picking';
+    
+    function abrirModalCorregirLote(btn) {
+        loteAsignadoIdCorregir = btn.getAttribute('data-lote-asignado-id');
+        document.getElementById('modalProducto').textContent = btn.getAttribute('data-producto') || '';
+        document.getElementById('modalLoteActual').textContent = btn.getAttribute('data-lote-actual') || '';
+        modalCorregir.classList.add('activo');
+        selectNuevoLote.innerHTML = '<option value="">-- Cargando opciones --</option>';
+        selectNuevoLote.disabled = true;
+        fetch(urlBasePicking + '/ubicaciones-para-corregir-lote/?lote_asignado_id=' + encodeURIComponent(loteAsignadoIdCorregir))
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                selectNuevoLote.innerHTML = '<option value="">-- Elija el lote correcto --</option>';
+                if (data.opciones && data.opciones.length) {
+                    data.opciones.forEach(function(o) {
+                        var opt = document.createElement('option');
+                        opt.value = o.id;
+                        opt.textContent = o.lote + ' - ' + (o.codigo || '') + ' (disp: ' + o.cantidad_disponible + ', F_CAD: ' + (o.fecha_caducidad || '') + ')';
+                        selectNuevoLote.appendChild(opt);
+                    });
+                } else {
+                    selectNuevoLote.innerHTML = '<option value="">No hay lotes alternativos disponibles</option>';
+                }
+                selectNuevoLote.disabled = false;
+            })
+            .catch(function() {
+                selectNuevoLote.innerHTML = '<option value="">Error al cargar opciones</option>';
+                selectNuevoLote.disabled = false;
+            });
+    }
+    document.getElementById('btnCerrarModalCorregir').addEventListener('click', function() {
+        modalCorregir.classList.remove('activo');
+        loteAsignadoIdCorregir = null;
+    });
+    modalCorregir.addEventListener('click', function(e) {
+        if (e.target === modalCorregir) modalCorregir.classList.remove('activo');
+    });
+    document.getElementById('btnAplicarCorregirLote').addEventListener('click', function() {
+        if (!loteAsignadoIdCorregir) return;
+        var nuevoId = selectNuevoLote.value;
+        if (!nuevoId) { alert('Seleccione un lote correcto.'); return; }
+        var boton = this;
+        boton.disabled = true;
+        var csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || document.querySelector('meta[name="csrf-token"]')?.content;
+        fetch(urlBasePicking + '/corregir-lote/' + loteAsignadoIdCorregir + '/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+            body: JSON.stringify({ nuevo_lote_ubicacion_id: nuevoId })
+        })
+        .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); })
+        .then(function(result) {
+            if (result.ok && result.data.exito) {
+                alert(result.data.mensaje || 'Lote corregido.');
+                modalCorregir.classList.remove('activo');
+                window.location.reload();
+            } else {
+                alert(result.data.mensaje || 'Error al corregir el lote.');
+                boton.disabled = false;
+            }
+        })
+        .catch(function() { alert('Error de conexión.'); boton.disabled = false; });
+    });
+    
+    var loteAsignadoIdCantidad = null;
+    var modalCantidad = document.getElementById('modalCambiarCantidad');
+    var inputNuevaCantidad = document.getElementById('inputNuevaCantidad');
+    
+    function abrirModalCambiarCantidad(btn) {
+        loteAsignadoIdCantidad = btn.getAttribute('data-lote-asignado-id');
+        var cantidadActual = btn.getAttribute('data-cantidad-actual') || '0';
+        document.getElementById('modalCantProducto').textContent = btn.getAttribute('data-producto') || '';
+        document.getElementById('modalCantActual').textContent = cantidadActual;
+        inputNuevaCantidad.value = cantidadActual;
+        inputNuevaCantidad.min = '1';
+        modalCantidad.classList.add('activo');
+        fetch(urlBasePicking + '/limites-cantidad/' + loteAsignadoIdCantidad + '/')
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (data.error) {
+                    document.getElementById('modalCantLimites').textContent = data.error;
+                    inputNuevaCantidad.placeholder = 'No disponible';
+                    return;
+                }
+                var min = data.minimo !== undefined ? data.minimo : 0;
+                var max = data.maximo_disponible || 99999;
+                inputNuevaCantidad.min = min;
+                inputNuevaCantidad.max = max;
+                inputNuevaCantidad.placeholder = 'Entre ' + min + ' y ' + max + ' (0 = no se lleva)';
+                document.getElementById('modalCantLimites').textContent = 'Puede ser menor a lo solicitado o cero (hospital no se lleva el insumo o lleva menos). Mínimo: ' + min + ', máximo: ' + max + '. Se generará movimiento de inventario como evidencia.';
+            })
+            .catch(function() {
+                document.getElementById('modalCantLimites').textContent = 'No se pudieron cargar los límites.';
+            });
+        inputNuevaCantidad.focus();
+    }
+    document.getElementById('btnCerrarModalCantidad').addEventListener('click', function() {
+        modalCantidad.classList.remove('activo');
+        loteAsignadoIdCantidad = null;
+    });
+    modalCantidad.addEventListener('click', function(e) {
+        if (e.target === modalCantidad) modalCantidad.classList.remove('activo');
+    });
+    document.getElementById('btnAplicarCantidad').addEventListener('click', function() {
+        if (!loteAsignadoIdCantidad) return;
+        var val = parseInt(inputNuevaCantidad.value, 10);
+        if (isNaN(val) || val < 0) {
+            alert('Indique una cantidad válida (entero mayor o igual a 0).');
+            return;
+        }
+        var boton = this;
+        boton.disabled = true;
+        var csrfToken = document.querySelector('[name=csrfmiddlewaretoken]')?.value || document.querySelector('meta[name="csrf-token"]')?.content;
+        fetch(urlBasePicking + '/cambiar-cantidad/' + loteAsignadoIdCantidad + '/', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json', 'X-CSRFToken': csrfToken },
+            body: JSON.stringify({ nueva_cantidad: val })
+        })
+        .then(function(r) { return r.json().then(function(d) { return { ok: r.ok, data: d }; }); })
+        .then(function(result) {
+            if (result.ok && result.data.exito) {
+                alert(result.data.mensaje || 'Cantidad actualizada.');
+                modalCantidad.classList.remove('activo');
+                window.location.reload();
+            } else {
+                alert(result.data.mensaje || 'Error al cambiar la cantidad.');
+                boton.disabled = false;
+            }
+        })
+        .catch(function() { alert('Error de conexión.'); boton.disabled = false; });
+    });
 </script>
 {% endblock %}
