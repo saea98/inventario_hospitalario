@@ -30,6 +30,13 @@ from .pedidos_models import SolicitudPedido, ItemSolicitud, PropuestaPedido, Ite
 from .models import Producto, Lote, Institucion, Almacen
 
 
+def _usuario_puede_duplicar_folio(usuario):
+    """Solo el rol administrador_local (grupo exacto) puede capturar folios duplicados. No se considera is_superuser."""
+    if not usuario or usuario.is_anonymous:
+        return False
+    return usuario.groups.filter(name='administrador_local').exists()
+
+
 def verificar_folio_pedido_duplicado(folio_valor, excluir_solicitud_id=None):
     """
     Verifica si ya existe otro pedido con el mismo folio (observaciones_solicitud).
@@ -92,6 +99,7 @@ class SolicitudPedidoForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        self._user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
         # Asegurar que los campos requeridos estén marcados
         self.fields['institucion_solicitante'].required = True
@@ -155,9 +163,12 @@ class SolicitudPedidoForm(forms.ModelForm):
         return fecha_entrega
 
     def clean_observaciones_solicitud(self):
-        """Evita folio de pedido duplicado: bloquea si hay uno activo; si solo hay cancelados, permite y marca aviso."""
+        """Evita folio de pedido duplicado: bloquea si hay uno activo; si solo hay cancelados, permite y marca aviso.
+        El rol administrador_local puede capturar folios duplicados (solo ese perfil)."""
         valor = (self.cleaned_data.get('observaciones_solicitud') or '').strip()
         if not valor:
+            return valor
+        if self._user and _usuario_puede_duplicar_folio(self._user):
             return valor
         existe_activo, existe_cancelado = verificar_folio_pedido_duplicado(valor, excluir_solicitud_id=None)
         if existe_activo:
@@ -467,6 +478,7 @@ class SolicitudPedidoEdicionForm(forms.ModelForm):
         }
 
     def __init__(self, *args, **kwargs):
+        self._user = kwargs.pop('user', None)
         super().__init__(*args, **kwargs)
         # Asegurar que los campos requeridos estén marcados
         self.fields['institucion_solicitante'].required = True
@@ -548,9 +560,12 @@ class SolicitudPedidoEdicionForm(forms.ModelForm):
         return fecha_entrega
 
     def clean_observaciones_solicitud(self):
-        """Evita folio de pedido duplicado: bloquea si hay uno activo; si solo hay cancelados, permite y marca aviso."""
+        """Evita folio de pedido duplicado: bloquea si hay uno activo; si solo hay cancelados, permite y marca aviso.
+        El rol administrador_local puede capturar folios duplicados (solo ese perfil)."""
         valor = (self.cleaned_data.get('observaciones_solicitud') or '').strip()
         if not valor:
+            return valor
+        if self._user and _usuario_puede_duplicar_folio(self._user):
             return valor
         excluir = self.instance.pk if self.instance else None
         existe_activo, existe_cancelado = verificar_folio_pedido_duplicado(valor, excluir_solicitud_id=excluir)

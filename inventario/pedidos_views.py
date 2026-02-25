@@ -30,6 +30,7 @@ from .pedidos_forms import (
 from .propuesta_generator import PropuestaGenerator
 from .propuesta_utils import cancelar_propuesta, eliminar_propuesta, validar_disponibilidad_para_propuesta, validar_disponibilidad_solicitud
 from .pedidos_utils import registrar_error_pedido
+from .pedidos_forms import _usuario_puede_duplicar_folio
 from django.db import models
 
 # ============================================================================
@@ -216,9 +217,12 @@ def verificar_folio_pedido(request):
     API para el frontend: verifica si ya existe un pedido con el folio dado.
     GET: folio=... (folio del pedido, ej. observaciones_solicitud), solicitud_id=... (opcional, excluir al editar).
     Retorna JSON: { existe_activo: bool, existe_cancelado: bool }
+    El rol administrador_local puede capturar folios duplicados: para ese perfil se retorna siempre sin duplicado.
     """
     folio = (request.GET.get('folio') or '').strip()
     solicitud_id = request.GET.get('solicitud_id', '').strip() or None
+    if _usuario_puede_duplicar_folio(request.user):
+        return JsonResponse({'existe_activo': False, 'existe_cancelado': False})
     existe_activo, existe_cancelado = verificar_folio_pedido_duplicado(folio, excluir_solicitud_id=solicitud_id)
     return JsonResponse({'existe_activo': existe_activo, 'existe_cancelado': existe_cancelado})
 
@@ -320,20 +324,20 @@ def crear_solicitud(request):
                     
                     ItemSolicitudFormSet = inlineformset_factory(SolicitudPedido, ItemSolicitud, form=ItemSolicitudForm, extra=len(items_data), can_delete=True)
                     formset = ItemSolicitudFormSet(initial=items_data)
-                    form = SolicitudPedidoForm()
+                    form = SolicitudPedidoForm(user=request.user)
                     messages.success(request, f"{len(items_data)} items cargados desde el CSV.")
                     
                 except Exception as e:
                     messages.error(request, f"Error al procesar el archivo CSV: {e}")
-                    form = SolicitudPedidoForm()
+                    form = SolicitudPedidoForm(user=request.user)
                     formset = ItemSolicitudFormSet(instance=SolicitudPedido())
             else:
                 messages.error(request, "Error en el formulario de carga de archivo.")
-                form = SolicitudPedidoForm()
+                form = SolicitudPedidoForm(user=request.user)
                 formset = ItemSolicitudFormSet(instance=SolicitudPedido())
         
         else:
-            form = SolicitudPedidoForm(request.POST)
+            form = SolicitudPedidoForm(request.POST, user=request.user)
             formset = ItemSolicitudFormSet(request.POST, instance=SolicitudPedido())
             
             if form.is_valid() and formset.is_valid():
@@ -389,7 +393,7 @@ def crear_solicitud(request):
                                     messages.error(request, f"Item {num_fila} — {label}: {error}")
 
     else:
-        form = SolicitudPedidoForm()
+        form = SolicitudPedidoForm(user=request.user)
         formset = ItemSolicitudFormSet(instance=SolicitudPedido())
         
     context = {
@@ -1385,7 +1389,7 @@ def editar_solicitud(request, solicitud_id):
     
     if request.method == 'POST':
         # Procesar formulario del encabezado
-        form_encabezado = SolicitudPedidoEdicionForm(request.POST, instance=solicitud)
+        form_encabezado = SolicitudPedidoEdicionForm(request.POST, instance=solicitud, user=request.user)
         # Procesar formset de items
         formset = ItemSolicitudFormSet(request.POST, instance=solicitud)
         
@@ -1466,7 +1470,7 @@ def editar_solicitud(request, solicitud_id):
             if not formset.is_valid():
                 messages.error(request, "Por favor, corrige los errores en los items.")
     else:
-        form_encabezado = SolicitudPedidoEdicionForm(instance=solicitud)
+        form_encabezado = SolicitudPedidoEdicionForm(instance=solicitud, user=request.user)
         formset = ItemSolicitudFormSet(instance=solicitud)
         
         # Asegurar que los formsets nuevos tengan el queryset de productos
