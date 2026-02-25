@@ -78,7 +78,7 @@
         {% if propuestas %}
             {% for item in propuestas %}
             <div class="col-12 col-md-6 col-lg-4 mb-4">
-                <a href="{% url 'picking:picking_propuesta' item.propuesta.id %}" class="text-decoration-none">
+                <a href="{% url 'logistica:picking_propuesta' item.propuesta.id %}" class="text-decoration-none">
                     <div class="card h-100 shadow-sm hover-card">
                         <div class="card-body">
                             <!-- Folio -->

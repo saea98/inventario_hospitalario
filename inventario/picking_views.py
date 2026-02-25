@@ -22,10 +22,13 @@ from io import BytesIO
 import os
 
 from .pedidos_models import PropuestaPedido, ItemPropuesta, LoteAsignado
-from .models import Lote, UbicacionAlmacen, Almacen
+from .models import Lote, LoteUbicacion, UbicacionAlmacen, Almacen, MovimientoInventario
+from django.urls import reverse
 from .decorators_roles import requiere_rol
 from .fase5_utils import generar_movimientos_suministro
 from .excel_to_pdf_converter import convertir_excel_a_pdf
+from .propuesta_utils import reservar_cantidad_lote, liberar_cantidad_lote
+from django.db import transaction
 
 
 def _natural_sort_key_codigo(codigo):
@@ -204,6 +207,16 @@ def monitor_picking(request):
         'ultimas_2h': ultimas_2h,
     }
     return render(request, 'inventario/picking/monitor_picking.html', context)
+
+
+# ============================================================
+# REDIRECCIÓN: picking/propuesta/<uuid>/ -> logistica/propuestas/<uuid>/picking/
+# ============================================================
+
+def redirect_picking_propuesta_a_logistica(request, propuesta_id):
+    """Redirige la URL antigua picking/propuesta/<uuid>/ a logistica/propuestas/<uuid>/picking/."""
+    url = reverse('logistica:picking_propuesta', kwargs={'propuesta_id': propuesta_id})
+    return redirect(url)
 
 
 # ============================================================
@@ -388,6 +401,163 @@ def marcar_item_recogido(request, lote_asignado_id):
             'exito': False,
             'mensaje': f'Error: {str(e)}'
         }, status=500)
+
+
+# ============================================================
+# CORRECCIÓN DE LOTE EN PROPUESTA DE SURTIMIENTO (sin perder avance)
+# ============================================================
+
+@login_required
+@require_http_methods(['GET'])
+def ubicaciones_para_corregir_lote(request):
+    """
+    Devuelve LoteUbicacion disponibles para el mismo producto y almacén que el ítem asignado.
+    Se usa en el modal de "Corregir lote" en la vista de picking.
+    """
+    lote_asignado_id = request.GET.get('lote_asignado_id')
+    if not lote_asignado_id:
+        return JsonResponse({'error': 'lote_asignado_id es requerido'}, status=400)
+    try:
+        la = LoteAsignado.objects.select_related(
+            'item_propuesta__producto',
+            'lote_ubicacion__lote',
+            'lote_ubicacion__ubicacion__almacen',
+        ).get(id=lote_asignado_id)
+    except LoteAsignado.DoesNotExist:
+        return JsonResponse({'error': 'Asignación no encontrada'}, status=404)
+    if la.surtido:
+        return JsonResponse({'error': 'No se puede corregir un ítem ya recogido'}, status=400)
+    producto = la.item_propuesta.producto
+    almacen_id = None
+    if la.lote_ubicacion and la.lote_ubicacion.ubicacion:
+        almacen_id = la.lote_ubicacion.ubicacion.almacen_id
+    if not almacen_id and la.lote_ubicacion and la.lote_ubicacion.lote and la.lote_ubicacion.lote.almacen_id:
+        almacen_id = la.lote_ubicacion.lote.almacen_id
+    if not almacen_id:
+        return JsonResponse({'error': 'No se pudo determinar el almacén del ítem'}, status=400)
+    cantidad_necesaria = la.cantidad_asignada
+    lote_ubicacion_actual_id = la.lote_ubicacion_id
+    # LoteUbicacion del mismo producto, mismo almacén, con stock suficiente (excluir el actual)
+    from django.db.models import Q
+    qs = LoteUbicacion.objects.filter(
+        lote__producto=producto,
+        lote__estado=1,
+    ).filter(
+        Q(ubicacion__almacen_id=almacen_id) | Q(lote__almacen_id=almacen_id)
+    ).exclude(
+        id=lote_ubicacion_actual_id
+    ).select_related('lote', 'ubicacion__almacen')
+    opciones = []
+    for lu in qs:
+        disp = lu.cantidad - lu.cantidad_reservada
+        if disp < cantidad_necesaria:
+            continue
+        opciones.append({
+            'id': str(lu.id),
+            'lote': lu.lote.numero_lote,
+            'codigo': lu.ubicacion.codigo if lu.ubicacion else '',
+            'cantidad_disponible': disp,
+            'fecha_caducidad': lu.lote.fecha_caducidad.strftime('%d/%m/%Y') if lu.lote.fecha_caducidad else '',
+        })
+    return JsonResponse({'opciones': opciones})
+
+
+@login_required
+@csrf_exempt
+@require_http_methods(['POST'])
+def corregir_lote_propuesta(request, lote_asignado_id):
+    """
+    Corrige el lote asignado en la propuesta de surtimiento: libera la reserva del lote erróneo,
+    reserva en el lote correcto, actualiza LoteAsignado y crea movimientos de inventario
+    tipo AJUSTE_DATOS_LOTE (igual que el resto de movimientos).
+    Solo se permite si el ítem no ha sido marcado como recogido (surtido=False).
+    """
+    try:
+        la = LoteAsignado.objects.select_related(
+            'item_propuesta__propuesta__solicitud',
+            'lote_ubicacion__lote',
+            'lote_ubicacion__ubicacion__almacen',
+        ).get(id=lote_asignado_id)
+    except LoteAsignado.DoesNotExist:
+        return JsonResponse({'exito': False, 'mensaje': 'Asignación no encontrada'}, status=404)
+    if la.surtido:
+        return JsonResponse({'exito': False, 'mensaje': 'No se puede corregir un ítem ya recogido'}, status=400)
+    import json
+    try:
+        body = json.loads(request.body) if request.body else {}
+    except json.JSONDecodeError:
+        body = {}
+    nuevo_lu_id = body.get('nuevo_lote_ubicacion_id') or request.POST.get('nuevo_lote_ubicacion_id')
+    if not nuevo_lu_id:
+        return JsonResponse({'exito': False, 'mensaje': 'Falta nuevo_lote_ubicacion_id'}, status=400)
+    try:
+        nueva_lu = LoteUbicacion.objects.select_related('lote', 'ubicacion__almacen').get(id=nuevo_lu_id)
+    except LoteUbicacion.DoesNotExist:
+        return JsonResponse({'exito': False, 'mensaje': 'Ubicación/lote destino no encontrada'}, status=404)
+    if nueva_lu.id == la.lote_ubicacion_id:
+        return JsonResponse({'exito': False, 'mensaje': 'Debe elegir un lote distinto al actual'}, status=400)
+    if nueva_lu.lote.producto_id != la.item_propuesta.producto_id:
+        return JsonResponse({'exito': False, 'mensaje': 'El lote debe ser del mismo producto'}, status=400)
+    disp_nueva = nueva_lu.cantidad - nueva_lu.cantidad_reservada
+    if disp_nueva < la.cantidad_asignada:
+        return JsonResponse({
+            'exito': False,
+            'mensaje': f'No hay cantidad suficiente en el lote elegido (disponible: {disp_nueva}, necesario: {la.cantidad_asignada})'
+        }, status=400)
+    vieja_lu = la.lote_ubicacion
+    viejo_lote = vieja_lu.lote
+    nuevo_lote = nueva_lu.lote
+    cantidad = la.cantidad_asignada
+    folio_solicitud = (la.item_propuesta.propuesta.solicitud.observaciones_solicitud or '').strip() or la.item_propuesta.propuesta.solicitud.folio or ''
+    with transaction.atomic():
+        resultado_liberacion = liberar_cantidad_lote(vieja_lu, cantidad)
+        reserva_antigua_lote = resultado_liberacion.get('reserva_anterior_lote', 0)
+        reserva_nueva_lote = resultado_liberacion.get('nueva_reservada_lote', 0)
+        motivo_dev = (
+            f"Ajuste a datos de lote en propuesta de surtimiento (corrección de captura). "
+            f"Devolución de reserva al lote {viejo_lote.numero_lote} (producto: {viejo_lote.producto.clave_cnis or 'N/A'}). "
+            f"Folio pedido: {folio_solicitud}. Reserva anterior: {reserva_antigua_lote}, nueva: {reserva_nueva_lote}."
+        )
+        MovimientoInventario.objects.create(
+            lote=viejo_lote,
+            tipo_movimiento='AJUSTE_DATOS_LOTE',
+            cantidad=cantidad,
+            cantidad_anterior=reserva_antigua_lote,
+            cantidad_nueva=reserva_nueva_lote,
+            motivo=motivo_dev,
+            documento_referencia=f"PROP-SURT-{la.item_propuesta.propuesta_id}",
+            folio=folio_solicitud or None,
+            usuario=request.user,
+        )
+        if not reservar_cantidad_lote(nueva_lu, cantidad):
+            raise ValueError("No se pudo reservar en el lote destino (posible condición de carrera).")
+        nueva_lu.refresh_from_db()
+        nuevo_lote.refresh_from_db()
+        reserva_ant_nueva = nuevo_lote.cantidad_reservada - cantidad
+        motivo_asig = (
+            f"Ajuste a datos de lote en propuesta de surtimiento (corrección de captura). "
+            f"Asignación al lote correcto {nuevo_lote.numero_lote} (producto: {nuevo_lote.producto.clave_cnis or 'N/A'}). "
+            f"Folio pedido: {folio_solicitud}. Reserva anterior: {reserva_ant_nueva}, nueva: {nuevo_lote.cantidad_reservada}."
+        )
+        MovimientoInventario.objects.create(
+            lote=nuevo_lote,
+            tipo_movimiento='AJUSTE_DATOS_LOTE',
+            cantidad=cantidad,
+            cantidad_anterior=reserva_ant_nueva,
+            cantidad_nueva=nuevo_lote.cantidad_reservada,
+            motivo=motivo_asig,
+            documento_referencia=f"PROP-SURT-{la.item_propuesta.propuesta_id}",
+            folio=folio_solicitud or None,
+            usuario=request.user,
+        )
+        la.lote_ubicacion = nueva_lu
+        la.save(update_fields=['lote_ubicacion'])
+    return JsonResponse({
+        'exito': True,
+        'mensaje': 'Lote corregido. Se generaron los registros de inventario (ajuste a datos de lote).',
+        'nuevo_lote_numero': nuevo_lote.numero_lote,
+        'nuevo_ubicacion_codigo': nueva_lu.ubicacion.codigo if nueva_lu.ubicacion else '',
+    })
 
 
 # ============================================================

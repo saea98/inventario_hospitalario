@@ -537,6 +537,7 @@ class MovimientoInventario(models.Model):
         ('TRANSFERENCIA_SALIDA', 'Transferencia Salida'),
         ('CADUCIDAD', 'Caducidad'),
         ('DETERIORO', 'Deterioro'),
+        ('AJUSTE_DATOS_LOTE', 'Ajuste a datos de lote'),
     ]
 
     lote = models.ForeignKey(Lote, on_delete=models.CASCADE, related_name="movimientos")

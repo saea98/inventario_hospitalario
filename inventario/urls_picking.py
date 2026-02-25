@@ -13,14 +13,24 @@ urlpatterns = [
     # Monitor electrónico vs manual
     path('monitor/', picking_views.monitor_picking, name='monitor'),
 
-    # Picking
-    path('propuesta/<uuid:propuesta_id>/', picking_views.picking_propuesta, name='picking_propuesta'),
+    # Picking (redirige a logistica/propuestas/<uuid>/picking/)
+    path('propuesta/<uuid:propuesta_id>/', picking_views.redirect_picking_propuesta_a_logistica, name='picking_propuesta'),
     
     # AJAX
     path(
         "marcar-recogido/<uuid:lote_asignado_id>/",
         picking_views.marcar_item_recogido,
         name="marcar_recogido",
+    ),
+    path(
+        "ubicaciones-para-corregir-lote/",
+        picking_views.ubicaciones_para_corregir_lote,
+        name="ubicaciones_para_corregir_lote",
+    ),
+    path(
+        "corregir-lote/<uuid:lote_asignado_id>/",
+        picking_views.corregir_lote_propuesta,
+        name="corregir_lote_propuesta",
     ),
     path(
         "propuesta/<uuid:propuesta_id>/imprimir/",

@@ -1249,6 +1249,72 @@ def obtener_ubicaciones_producto(request):
 
 
 @login_required
+def corregir_dato_lote(request):
+    """
+    Corrige el dato del lote en inventario (ej. numero_lote mal capturado) desde la edición de propuesta.
+    Actualiza el registro Lote y crea un MovimientoInventario tipo AJUSTE_DATOS_LOTE.
+    POST JSON: { lote_id: <int>, nuevo_numero_lote: "<string>" }
+    """
+    from .models import Lote, MovimientoInventario
+    import json
+
+    if request.method != 'POST':
+        return JsonResponse({'exito': False, 'mensaje': 'Método no permitido'}, status=405)
+
+    try:
+        body = json.loads(request.body) if request.body else {}
+    except json.JSONDecodeError:
+        body = {}
+    lote_id = body.get('lote_id')
+    nuevo_numero = (body.get('nuevo_numero_lote') or '').strip()
+    if not lote_id:
+        return JsonResponse({'exito': False, 'mensaje': 'Falta lote_id'}, status=400)
+    if not nuevo_numero:
+        return JsonResponse({'exito': False, 'mensaje': 'El nuevo número de lote no puede estar vacío'}, status=400)
+
+    try:
+        lote = Lote.objects.select_related('producto', 'institucion').get(pk=lote_id)
+    except Lote.DoesNotExist:
+        return JsonResponse({'exito': False, 'mensaje': 'Lote no encontrado'}, status=404)
+
+    numero_anterior = (lote.numero_lote or '').strip()
+    if numero_anterior == nuevo_numero:
+        return JsonResponse({'exito': False, 'mensaje': 'El nuevo número de lote es igual al actual'}, status=400)
+
+    # unique_together = ['numero_lote', 'producto', 'institucion']
+    if Lote.objects.filter(producto=lote.producto, institucion=lote.institucion, numero_lote=nuevo_numero).exclude(pk=lote_id).exists():
+        return JsonResponse({
+            'exito': False,
+            'mensaje': f'Ya existe otro lote con el número "{nuevo_numero}" para el mismo producto e institución.'
+        }, status=400)
+
+    with transaction.atomic():
+        lote.numero_lote = nuevo_numero
+        lote.save(update_fields=['numero_lote'])
+        cantidad_actual = lote.cantidad_disponible
+        motivo = (
+            f"Corrección de dato de lote en inventario (desde edición de propuesta). "
+            f"Número de lote corregido de '{numero_anterior}' a '{nuevo_numero}'. "
+            f"Producto: {lote.producto.clave_cnis or 'N/A'}. Sin cambio en cantidades."
+        )
+        MovimientoInventario.objects.create(
+            lote=lote,
+            tipo_movimiento='AJUSTE_DATOS_LOTE',
+            cantidad=0,
+            cantidad_anterior=cantidad_actual,
+            cantidad_nueva=cantidad_actual,
+            motivo=motivo,
+            documento_referencia='CORRECCION-DATO-LOTE',
+            usuario=request.user,
+        )
+    return JsonResponse({
+        'exito': True,
+        'mensaje': 'Número de lote corregido en inventario. Se generó el registro de movimiento "Ajuste a datos de lote".',
+        'nuevo_numero_lote': nuevo_numero,
+    })
+
+
+@login_required
 def cancelar_propuesta_view(request, propuesta_id):
     """
     Libera todas las cantidades reservadas y devuelve la propuesta al estado GENERADA (editable).

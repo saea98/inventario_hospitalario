@@ -7,14 +7,19 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.utils import timezone
-from django.db.models import Q
+from django.db.models import Q, Sum
+from django.http import JsonResponse
+from django.urls import reverse
+from django.urls import NoReverseMatch
 from datetime import datetime
 import logging
 
 from .models import (
-    OrdenTraslado, ItemTraslado, Almacen, Lote, 
+    OrdenTraslado, ItemTraslado, Almacen, Lote,
+    OrdenSuministro,
     UbicacionAlmacen, MovimientoInventario, Folio, TipoEntrega
 )
+from .pedidos_models import SolicitudPedido, PropuestaPedido, LoteAsignado
 from .forms import OrdenTrasladoForm, LogisticaTrasladoForm
 from .servicios_notificaciones import notificaciones
 
@@ -72,32 +77,256 @@ def lista_traslados(request):
 
 
 @login_required
+def datos_traslado_desde_orden_suministro(request):
+    """
+    API JSON: dados para llenar una orden de traslado desde una orden de suministro.
+    GET: orden_suministro_id=...
+    Retorna: almacen_origen { id, nombre }, numero_orden, items [ { lote_id, numero_lote, producto, cantidad_disponible } ]
+    """
+    orden_suministro_id = request.GET.get('orden_suministro_id', '').strip()
+    if not orden_suministro_id:
+        return JsonResponse({'error': 'Falta orden_suministro_id'}, status=400)
+    try:
+        orden_suministro = OrdenSuministro.objects.get(pk=orden_suministro_id, activo=True)
+    except OrdenSuministro.DoesNotExist:
+        return JsonResponse({'error': 'Orden de suministro no encontrada'}, status=404)
+    lotes = Lote.objects.filter(
+        orden_suministro=orden_suministro,
+        cantidad_disponible__gt=0,
+        estado=1
+    ).select_related('almacen', 'producto')
+    if not lotes.exists():
+        return JsonResponse({
+            'error': 'No hay lotes disponibles con existencia para esta orden de suministro',
+            'almacen_origen': None,
+            'items': []
+        })
+    # Agrupar por almacén y elegir el almacén con más cantidad total
+    by_almacen = lotes.values('almacen').annotate(total=Sum('cantidad_disponible')).order_by('-total')
+    if not by_almacen or not by_almacen[0]['almacen']:
+        return JsonResponse({'error': 'Los lotes no tienen almacén asignado', 'almacen_origen': None, 'items': []})
+    almacen_id = by_almacen[0]['almacen']
+    almacen = Almacen.objects.get(pk=almacen_id)
+    items_lotes = lotes.filter(almacen_id=almacen_id)
+    items = [
+        {
+            'lote_id': l.id,
+            'numero_lote': l.numero_lote or '',
+            'producto': (l.producto.clave_cnis or '') + ' - ' + (l.producto.descripcion or '')[:80],
+            'cantidad_disponible': l.cantidad_disponible,
+        }
+        for l in items_lotes
+    ]
+    return JsonResponse({
+        'numero_orden': orden_suministro.numero_orden,
+        'almacen_origen': {'id': almacen.id, 'nombre': almacen.nombre},
+        'items': items,
+    })
+
+
+@login_required
+def datos_traslado_desde_folio_pedido(request):
+    """
+    API JSON: datos para llenar una orden de traslado desde el folio de pedido (observaciones_solicitud).
+    Los datos se obtienen directamente de la tabla de propuesta de suministro (LoteAsignado surtido).
+    GET: folio=... (valor de observaciones_solicitud de la solicitud de pedido)
+    Retorna: almacen_origen { id, nombre }, folio_pedido, items [ { lote_id, numero_lote, producto, cantidad_disponible } ]
+    """
+    folio = (request.GET.get('folio') or '').strip()
+    if not folio:
+        return JsonResponse({'error': 'Falta el folio del pedido'}, status=400)
+    solicitud = SolicitudPedido.objects.filter(
+        observaciones_solicitud__iexact=folio
+    ).select_related('propuesta_pedido').first()
+    if not solicitud:
+        return JsonResponse({'error': 'No se encontró solicitud con ese folio de pedido'}, status=404)
+    try:
+        propuesta = solicitud.propuesta_pedido
+    except PropuestaPedido.DoesNotExist:
+        return JsonResponse({'error': 'La solicitud no tiene propuesta de suministro'}, status=404)
+    asignaciones = LoteAsignado.objects.filter(
+        item_propuesta__propuesta=propuesta,
+        surtido=True
+    ).select_related(
+        'lote_ubicacion__lote__producto',
+        'lote_ubicacion__ubicacion__almacen',
+    )
+    if not asignaciones.exists():
+        return JsonResponse({
+            'error': 'No hay ítems surtidos en la propuesta para este pedido',
+            'almacen_origen': None,
+            'items': [],
+        })
+    by_almacen = {}
+    for la in asignaciones:
+        if not la.lote_ubicacion or not la.lote_ubicacion.lote:
+            continue
+        lote = la.lote_ubicacion.lote
+        almacen = None
+        if la.lote_ubicacion.ubicacion:
+            almacen = la.lote_ubicacion.ubicacion.almacen
+        if not almacen and lote.almacen_id:
+            almacen = lote.almacen
+        if not almacen:
+            continue
+        aid = almacen.id
+        if aid not in by_almacen:
+            by_almacen[aid] = {'almacen': almacen, 'items': []}
+        by_almacen[aid]['items'].append({
+            'lote_id': lote.id,
+            'numero_lote': lote.numero_lote or '',
+            'producto': (lote.producto.clave_cnis or '') + ' - ' + (lote.producto.descripcion or '')[:80],
+            'cantidad_disponible': la.cantidad_asignada,
+        })
+    if not by_almacen:
+        return JsonResponse({'error': 'Los ítems surtidos no tienen almacén asignado', 'almacen_origen': None, 'items': []})
+    almacen_id = max(by_almacen.keys(), key=lambda aid: sum(it['cantidad_disponible'] for it in by_almacen[aid]['items']))
+    almacen = by_almacen[almacen_id]['almacen']
+    items = by_almacen[almacen_id]['items']
+    return JsonResponse({
+        'folio_pedido': folio,
+        'almacen_origen': {'id': almacen.id, 'nombre': almacen.nombre},
+        'items': items,
+    })
+
+
+@login_required
 def crear_traslado(request):
-    """Crear una nueva orden de traslado"""
+    """Crear una nueva orden de traslado. Opcional: cargar datos desde folio de pedido (propuesta suministro) o desde orden de suministro."""
     if request.method == 'POST':
         form = OrdenTrasladoForm(request.POST)
         if form.is_valid():
             orden = form.save(commit=False)
             orden.usuario_creacion = request.user
-            
+
             # Generar folio automáticamente
             try:
                 tipo_entrega = TipoEntrega.objects.get(codigo='TRA')
                 folio_obj = Folio.objects.get(tipo_entrega=tipo_entrega)
                 orden.folio = folio_obj.generar_folio()
-            except:
+            except Exception:
                 orden.folio = f"TRA-{timezone.now().strftime('%Y%m%d%H%M%S')}"
-            
+
             orden.save()
-            
-            messages.success(request, f'✓ Orden de traslado creada: {orden.folio}')
+
+            # Si se cargó desde folio de pedido (propuesta suministro), crear items desde LoteAsignado surtido
+            folio_pedido = request.POST.get('folio_pedido', '').strip()
+            if folio_pedido:
+                try:
+                    solicitud = SolicitudPedido.objects.filter(
+                        observaciones_solicitud__iexact=folio_pedido
+                    ).first()
+                    if not solicitud:
+                        solicitud = SolicitudPedido.objects.filter(
+                            observaciones_solicitud__icontains=folio_pedido
+                        ).first()
+                    if solicitud:
+                        try:
+                            propuesta = solicitud.propuesta_pedido
+                        except PropuestaPedido.DoesNotExist:
+                            propuesta = None
+                        if propuesta:
+                            asignaciones = LoteAsignado.objects.filter(
+                                item_propuesta__propuesta=propuesta,
+                                surtido=True,
+                            ).select_related(
+                                'lote_ubicacion__lote',
+                                'lote_ubicacion__ubicacion__almacen',
+                            )
+                            creados = 0
+                            almacen_origen_id = orden.almacen_origen_id
+                            for la in asignaciones:
+                                if not la.lote_ubicacion or not la.lote_ubicacion.lote:
+                                    continue
+                                lote = la.lote_ubicacion.lote
+                                ub = la.lote_ubicacion.ubicacion
+                                en_almacen_origen = (
+                                    (lote.almacen_id == almacen_origen_id)
+                                    or (ub and getattr(ub, 'almacen_id', None) == almacen_origen_id)
+                                )
+                                if not en_almacen_origen:
+                                    continue
+                                ItemTraslado.objects.create(
+                                    orden_traslado=orden,
+                                    lote=lote,
+                                    cantidad=la.cantidad_asignada,
+                                    estado='pendiente',
+                                )
+                                creados += 1
+                            if creados:
+                                messages.success(request, f'✓ Orden de traslado creada: {orden.folio}. Se agregaron {creados} ítem(s) desde el pedido {folio_pedido}.')
+                            else:
+                                messages.success(request, f'✓ Orden de traslado creada: {orden.folio}')
+                        else:
+                            messages.success(request, f'✓ Orden de traslado creada: {orden.folio}')
+                    else:
+                        messages.success(request, f'✓ Orden de traslado creada: {orden.folio}')
+                except Exception as e:
+                    logger.warning('Error al crear items desde folio pedido: %s', e)
+                    messages.success(request, f'✓ Orden de traslado creada: {orden.folio}. No se pudieron cargar ítems desde el folio de pedido.')
+            else:
+                # Opcional: desde orden de suministro (legacy)
+                orden_suministro_id = request.POST.get('orden_suministro_id', '').strip()
+                if orden_suministro_id:
+                    try:
+                        lotes = Lote.objects.filter(
+                            orden_suministro_id=orden_suministro_id,
+                            almacen=orden.almacen_origen,
+                            cantidad_disponible__gt=0,
+                            estado=1,
+                        )
+                        creados = 0
+                        for lote in lotes:
+                            ItemTraslado.objects.create(
+                                orden_traslado=orden,
+                                lote=lote,
+                                cantidad=lote.cantidad_disponible,
+                                estado='pendiente',
+                            )
+                            creados += 1
+                        if creados:
+                            messages.success(request, f'✓ Orden de traslado creada: {orden.folio}. Se agregaron {creados} ítem(s) desde la orden de suministro.')
+                        else:
+                            messages.success(request, f'✓ Orden de traslado creada: {orden.folio}')
+                    except Exception as e:
+                        logger.warning('Error al crear items desde orden suministro: %s', e)
+                        messages.success(request, f'✓ Orden de traslado creada: {orden.folio}')
+                else:
+                    messages.success(request, f'✓ Orden de traslado creada: {orden.folio}')
             return redirect('logistica:detalle_traslado', pk=orden.pk)
         else:
             messages.error(request, 'Error al crear la orden. Verifica los datos.')
     else:
         form = OrdenTrasladoForm()
-    
-    return render(request, 'inventario/traslados/crear.html', {'form': form})
+
+    # Solicitudes con propuesta y al menos un ítem surtido (para selector de folio de pedido)
+    from django.db.models import Exists, OuterRef
+    tiene_surtido = LoteAsignado.objects.filter(
+        item_propuesta__propuesta__solicitud=OuterRef('pk'),
+        surtido=True,
+    )
+    solicitudes_con_surtido = SolicitudPedido.objects.filter(
+        estado__in=['EN_PREPARACION', 'PREPARADA', 'ENTREGADA', 'VALIDADA'],
+    ).annotate(
+        tiene_surtido=Exists(tiene_surtido),
+    ).filter(tiene_surtido=True).values_list('observaciones_solicitud', flat=True).distinct()
+    folios_pedido = [f for f in solicitudes_con_surtido if (f or '').strip()][:150]
+
+    try:
+        url_datos_folio_pedido = reverse('logistica:datos_traslado_desde_folio_pedido')
+    except NoReverseMatch:
+        url_datos_folio_pedido = '/logistica/traslados/datos-desde-folio-pedido/'
+    try:
+        url_datos_orden_suministro = reverse('logistica:datos_traslado_desde_orden_suministro')
+    except NoReverseMatch:
+        url_datos_orden_suministro = '/logistica/traslados/datos-desde-orden-suministro/'
+    return render(request, 'inventario/traslados/crear.html', {
+        'form': form,
+        'folios_pedido': folios_pedido,
+        'ordenes_suministro': OrdenSuministro.objects.filter(activo=True).order_by('-fecha_orden')[:100],
+        'url_datos_folio_pedido': url_datos_folio_pedido,
+        'url_datos_orden_suministro': url_datos_orden_suministro,
+    })
 
 
 @login_required

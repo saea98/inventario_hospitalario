@@ -5,7 +5,7 @@ Incluye: Citas, Traslados y Conteo Físico
 """
 
 from django.urls import path, include
-from . import views_fase2, views_telegram_test, views_traslados_completo, views_conteo_fisico_v2, pedidos_views, views_dashboard_conteos, views_acuse_entrega, views_cedula_rechazo, views_citas_dos_pasos
+from . import views_fase2, views_telegram_test, views_traslados_completo, views_conteo_fisico_v2, pedidos_views, views_dashboard_conteos, views_acuse_entrega, views_cedula_rechazo, views_citas_dos_pasos, picking_views
 from . import llegada_urls
 
 app_name = 'logistica'
@@ -38,6 +38,8 @@ urlpatterns = [
     # ========================================================================
     path('traslados/', views_traslados_completo.lista_traslados, name='lista_traslados'),
     path('traslados/crear/', views_traslados_completo.crear_traslado, name='crear_traslado'),
+    path('traslados/datos-desde-orden-suministro/', views_traslados_completo.datos_traslado_desde_orden_suministro, name='datos_traslado_desde_orden_suministro'),
+    path('traslados/datos-desde-folio-pedido/', views_traslados_completo.datos_traslado_desde_folio_pedido, name='datos_traslado_desde_folio_pedido'),
     path('traslados/<int:pk>/', views_traslados_completo.detalle_traslado, name='detalle_traslado'),
     path('traslados/<int:pk>/editar/', views_traslados_completo.editar_traslado, name='editar_traslado'),
     path('traslados/<int:pk>/asignar-logistica/', views_traslados_completo.asignar_logistica_traslado, name='asignar_logistica_traslado'),
@@ -85,11 +87,15 @@ urlpatterns = [
     path('propuestas/<uuid:propuesta_id>/cancelar/', pedidos_views.cancelar_propuesta_view, name='cancelar_propuesta'),
     path('propuestas/<uuid:propuesta_id>/eliminar/', pedidos_views.eliminar_propuesta_view, name='eliminar_propuesta'),
     path('propuestas/<uuid:propuesta_id>/editar/', pedidos_views.editar_propuesta, name='editar_propuesta'),
+    path('propuestas/<uuid:propuesta_id>/picking/', picking_views.picking_propuesta, name='picking_propuesta'),
+    path('propuestas/<uuid:propuesta_id>/picking/imprimir/', picking_views.imprimir_hoja_surtido, name='imprimir_hoja_surtido'),
+    path('propuestas/<uuid:propuesta_id>/picking/exportar-excel/', picking_views.exportar_picking_excel, name='exportar_picking_excel'),
     path('propuestas/<uuid:propuesta_id>/revisar/', pedidos_views.revisar_propuesta, name='revisar_propuesta'),
     path('propuestas/<uuid:propuesta_id>/surtir/', pedidos_views.surtir_propuesta, name='surtir_propuesta'),
     path('propuestas/auditar-surtido-documento/', pedidos_views.auditar_surtido_documento, name='auditar_surtido_documento'),
     path('propuestas/auditar-surtido-documento/exportar-excel/', pedidos_views.exportar_auditoria_surtido_excel, name='exportar_auditoria_surtido_excel'),
     path('api/obtener-ubicaciones-producto/', pedidos_views.obtener_ubicaciones_producto, name='obtener_ubicaciones_producto'),
+    path('api/corregir-dato-lote/', pedidos_views.corregir_dato_lote, name='corregir_dato_lote'),
     
     # ========================================================================
     # FASE 2.2.2: LLEGADA DE PROVEEDORES
