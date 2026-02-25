@@ -11,6 +11,10 @@
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
     <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- Flatpickr: forzar formato dd/mm/yyyy en todos los date pickers (independiente de región Windows) -->
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/flatpickr/dist/flatpickr.min.css">
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr"></script>
+    <script src="https://cdn.jsdelivr.net/npm/flatpickr/dist/l10n/es.js"></script>
 
     <style>
         .sidebar {
@@ -337,6 +341,25 @@ $(document).ready(function() {
             $(target).addClass('show');
         }
     });
+
+    // Forzar formato dd/mm/yyyy en todos los date y datetime-local (independiente de región Windows)
+    window.applyFlatpickrDdMm = function(container) {
+        if (typeof flatpickr === 'undefined') return;
+        var root = container ? (container.nodeType ? container : document.querySelector(container)) : document;
+        if (!root) root = document;
+        var locale = flatpickr.l10ns.es || flatpickr.l10ns.default;
+        var optsDate = { altInput: true, altFormat: 'd/m/Y', dateFormat: 'Y-m-d', locale: locale, allowInput: false };
+        var optsDateTime = { enableTime: true, time_24hr: true, altInput: true, altFormat: 'd/m/Y H:i', dateFormat: 'Y-m-d\\TH:i', locale: locale, allowInput: false };
+        (root.querySelectorAll ? root.querySelectorAll('input[type="date"]') : []).forEach(function(el) {
+            if (el._flatpickr) return;
+            flatpickr(el, optsDate);
+        });
+        (root.querySelectorAll ? root.querySelectorAll('input[type="datetime-local"]') : []).forEach(function(el) {
+            if (el._flatpickr) return;
+            flatpickr(el, optsDateTime);
+        });
+    };
+    (function() { window.applyFlatpickrDdMm(document); })();
 });
 </script>
 {% endblock %}
