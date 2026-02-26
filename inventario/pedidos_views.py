@@ -1094,9 +1094,168 @@ def editar_propuesta(request, propuesta_id):
                 messages.success(request, f"Se eliminó el ítem de la propuesta.")
             return redirect('logistica:editar_propuesta', propuesta_id=propuesta_id)
 
+        # "Guardar y terminar": no aplicar reservas (ya se guardó por renglón). Solo validar cambios sin guardar y cambiar estado.
+        if request.POST.get('guardar_cambios'):
+            from .models import Producto, Lote, LoteUbicacion
+            from datetime import date, timedelta
+
+            propuesta.refresh_from_db()
+            cambios_sin_guardar = []
+            for item in propuesta.items.select_related('producto').prefetch_related('lotes_asignados__lote_ubicacion__lote').all():
+                # Cantidad propuesta distinta a la guardada
+                raw_cant = request.POST.get(f'item_{item.id}_cantidad_propuesta')
+                if raw_cant is not None and str(raw_cant).strip() != '':
+                    try:
+                        if int(raw_cant) != item.cantidad_propuesta:
+                            cambios_sin_guardar.append(f"{item.producto.clave_cnis}: cantidad propuesta modificada")
+                    except ValueError:
+                        pass
+                # Algún lote con cantidad distinta o marcado eliminar
+                for la in item.lotes_asignados.all():
+                    key_cant = f'lote_{la.id}_cantidad'
+                    key_elim = f'lote_{la.id}_eliminar'
+                    if request.POST.get(key_elim):
+                        cambios_sin_guardar.append(f"{item.producto.clave_cnis}: lote marcado para eliminar")
+                        break
+                    raw = request.POST.get(key_cant)
+                    if raw is not None and str(raw).strip() != '':
+                        try:
+                            if int(raw) != la.cantidad_asignada:
+                                cambios_sin_guardar.append(f"{item.producto.clave_cnis}: cantidad en lote modificada")
+                        except ValueError:
+                            pass
+                # Nueva ubicación seleccionada con cantidad > 0 (y que no esté ya asignada)
+                nueva_ubic = request.POST.get(f'item_{item.id}_nueva_ubicacion')
+                cant_nueva = request.POST.get(f'item_{item.id}_cantidad_nueva_ubicacion', '0')
+                if nueva_ubic and str(nueva_ubic).strip():
+                    try:
+                        if int(cant_nueva or 0) > 0:
+                            ids_ya = set(item.lotes_asignados.values_list('lote_ubicacion_id', flat=True))
+                            if int(nueva_ubic) not in ids_ya:
+                                cambios_sin_guardar.append(f"{item.producto.clave_cnis}: nueva ubicación seleccionada sin guardar")
+                    except (ValueError, TypeError):
+                        pass
+
+            if cambios_sin_guardar:
+                messages.error(
+                    request,
+                    "Hay cambios sin guardar. Guarde cada renglón modificado con «Guardar este renglón» antes de terminar."
+                )
+                for msg in cambios_sin_guardar[:5]:
+                    messages.warning(request, msg)
+                if len(cambios_sin_guardar) > 5:
+                    messages.warning(request, f"... y {len(cambios_sin_guardar) - 5} más.")
+                # Re-render formulario de edición con el mismo contexto
+                productos_disponibles = Producto.objects.filter(activo=True).order_by('clave_cnis')
+                fecha_minima = date.today() + timedelta(days=60)
+                ubicaciones_por_item = {}
+                for it in propuesta.items.select_related('producto').all():
+                    lotes = Lote.objects.filter(
+                        producto=it.producto,
+                        fecha_caducidad__gte=fecha_minima,
+                        estado=1
+                    ).order_by('fecha_caducidad', 'numero_lote')
+                    lista = []
+                    for lote in lotes:
+                        for lu in lote.ubicaciones_detalle.filter(cantidad__gt=0).select_related('ubicacion').order_by('ubicacion__codigo'):
+                            if (lu.cantidad - getattr(lu, 'cantidad_reservada', 0)) <= 0:
+                                continue
+                            lista.append({'lote': lote, 'ubicacion': lu})
+                    ubicaciones_por_item[it.id] = lista
+                items_propuesta = []
+                for it in propuesta.items.select_related('producto').prefetch_related('lotes_asignados__lote_ubicacion__lote', 'lotes_asignados__lote_ubicacion__ubicacion').all():
+                    it.ubicaciones_ordenadas_para_editar = ubicaciones_por_item.get(it.id, [])
+                    items_propuesta.append(it)
+                context = {
+                    'propuesta': propuesta,
+                    'items_propuesta': items_propuesta,
+                    'productos_disponibles': productos_disponibles,
+                    'page_title': f"Editar Propuesta {propuesta.solicitud.folio}",
+                }
+                return render(request, 'inventario/pedidos/editar_propuesta.html', context)
+
+            # Sin cambios pendientes: solo actualizar total y estado (no tocar reservas)
+            propuesta.total_propuesto = sum(i.cantidad_propuesta for i in propuesta.items.all())
+            propuesta.estado = 'REVISADA'
+            propuesta.fecha_revision = timezone.now()
+            propuesta.usuario_revision = request.user
+            propuesta.save()
+            messages.success(request, "Propuesta cerrada. Ya puede continuar con el surtimiento.")
+            return redirect('logistica:detalle_propuesta', propuesta_id=propuesta.id)
+
         for item in propuesta.items.all():
             if solo_item_id and str(item.id) != solo_item_id:
                 continue
+
+            # "Guardar este renglón": primero liberar todas las reservas del ítem, luego reservar según el formulario.
+            if solo_item_id:
+                # 1. Leer estado deseado desde POST (antes de borrar nada)
+                desired = {}  # lote_ubicacion_id -> cantidad
+                raw_prop = request.POST.get(f'item_{item.id}_cantidad_propuesta')
+                if raw_prop is not None and str(raw_prop).strip() != '':
+                    try:
+                        item.cantidad_propuesta = int(raw_prop)
+                        item.save()
+                    except ValueError:
+                        pass
+                lotes_actuales = list(item.lotes_asignados.select_related('lote_ubicacion').all())
+                for la in lotes_actuales:
+                    key_cant = f'lote_{la.id}_cantidad'
+                    key_elim = f'lote_{la.id}_eliminar'
+                    raw = request.POST.get(key_cant)
+                    elim = request.POST.get(key_elim)
+                    if elim or (raw is not None and str(raw).strip() != '' and int(raw) == 0):
+                        continue
+                    if raw is not None and str(raw).strip() != '':
+                        try:
+                            c = int(raw)
+                            if c > 0:
+                                desired[la.lote_ubicacion_id] = c
+                        except ValueError:
+                            pass
+                nueva_ubic = request.POST.get(f'item_{item.id}_nueva_ubicacion')
+                cant_nueva = request.POST.get(f'item_{item.id}_cantidad_nueva_ubicacion', '0')
+                if nueva_ubic and str(nueva_ubic).strip():
+                    try:
+                        lu_id = int(nueva_ubic)
+                        c = int(cant_nueva or 0)
+                        if c > 0:
+                            desired[lu_id] = desired.get(lu_id, 0) + c
+                    except (ValueError, TypeError):
+                        pass
+                # 2. Liberar y borrar todos los LoteAsignado de este ítem
+                for la in lotes_actuales:
+                    liberar_cantidad_lote(la.lote_ubicacion, la.cantidad_asignada)
+                    la.delete()
+                # 3. Reservar y crear LoteAsignado para cada (lote_ubicacion_id, cantidad) deseado
+                for lu_id, cantidad in desired.items():
+                    if cantidad <= 0:
+                        continue
+                    lu = LoteUbicacion.objects.select_related('lote', 'ubicacion').get(id=lu_id)
+                    disponible = _disponible_lu(lu)
+                    if cantidad > disponible:
+                        messages.warning(
+                            request,
+                            f"[{item.producto.clave_cnis}] Lote {lu.lote.numero_lote} / {lu.ubicacion.codigo}: "
+                            f"se solicitaban {cantidad}, solo hay {disponible} disponibles. Se reservó {disponible}."
+                        )
+                        cantidad = disponible
+                    if cantidad <= 0:
+                        continue
+                    if not reservar_cantidad_lote(lu, cantidad):
+                        messages.error(
+                            request,
+                            f"[{item.producto.clave_cnis}] No hay cantidad suficiente en "
+                            f"{lu.lote.numero_lote} / {lu.ubicacion.codigo}. No se aplicó la reserva."
+                        )
+                        continue
+                    LoteAsignado.objects.create(
+                        item_propuesta=item,
+                        lote_ubicacion=lu,
+                        cantidad_asignada=cantidad
+                    )
+                continue  # no ejecutar la lógica por deltas más abajo
+
             nueva_cantidad = request.POST.get(f'item_{item.id}_cantidad_propuesta')
             if nueva_cantidad:
                 item.cantidad_propuesta = int(nueva_cantidad)
@@ -1120,6 +1279,10 @@ def editar_propuesta(request, propuesta_id):
                     lote_asignado.delete()
                 elif cant_num is not None and cant_num > 0:
                     lu = lote_asignado.lote_ubicacion
+                    lote_asignado.refresh_from_db()
+                    ant = lote_asignado.cantidad_asignada
+                    if cant_num == ant:
+                        continue
                     max_permitido = _disponible_lu(lu) + lote_asignado.cantidad_asignada
                     if cant_num > max_permitido:
                         cant_num = max_permitido
@@ -1128,7 +1291,6 @@ def editar_propuesta(request, propuesta_id):
                             f"Lote {lu.lote.numero_lote} / {lu.ubicacion.codigo}: la cantidad se ajustó a {cant_num} "
                             f"(disponible restando reservas de otros pedidos)."
                         )
-                    ant = lote_asignado.cantidad_asignada
                     if cant_num < ant:
                         liberar_cantidad_lote(lu, ant - cant_num)
                     elif cant_num > ant:
@@ -1142,10 +1304,9 @@ def editar_propuesta(request, propuesta_id):
                     lote_asignado.cantidad_asignada = cant_num
                     lote_asignado.save()
 
-            # Solo procesar "nueva ubicación" si no es una ya asignada (evitar duplicar reserva)
             nueva_ubicacion_id = request.POST.get(f'item_{item.id}_nueva_ubicacion')
             ids_ya_asignados = set(
-                item.lotes_asignados.values_list('lote_ubicacion_id', flat=True)
+                LoteAsignado.objects.filter(item_propuesta=item).values_list('lote_ubicacion_id', flat=True)
             )
             if nueva_ubicacion_id:
                 try:
@@ -1153,7 +1314,6 @@ def editar_propuesta(request, propuesta_id):
                 except (TypeError, ValueError):
                     nueva_ubicacion_id_int = None
                 if nueva_ubicacion_id_int is not None and nueva_ubicacion_id_int in ids_ya_asignados:
-                    # La ubicación ya está en una fila del ítem; ya se procesó arriba, no volver a reservar
                     nueva_ubicacion_id = None
             if nueva_ubicacion_id:
                 lote_ubicacion = LoteUbicacion.objects.select_related('lote', 'ubicacion').get(id=nueva_ubicacion_id)

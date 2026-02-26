@@ -71,14 +71,16 @@
                                             <td>{{ lote_asignado.lote_ubicacion.lote.fecha_caducidad|date:"d/m/Y" }}</td>
                                             <td>
                                                 {% with disp_real=lote_asignado.lote_ubicacion|disponible_real %}
+                                                {% with max_editable=disp_real|add:lote_asignado.cantidad_asignada %}
                                                 <input type="number"
                                                        name="lote_{{ lote_asignado.id }}_cantidad"
                                                        class="form-control form-control-sm input-cantidad-asignada"
                                                        value="{{ lote_asignado.cantidad_asignada }}"
                                                        min="0"
-                                                       max="{{ disp_real }}"
-                                                       data-max-real="{{ disp_real }}">
-                                                <small class="form-text text-muted">Disponible (restando reservas): {{ disp_real }}</small>
+                                                       max="{{ max_editable }}"
+                                                       data-max-real="{{ max_editable }}">
+                                                <small class="form-text text-muted">Disponible (restando otras reservas): {{ disp_real }}. Máx. editable: {{ max_editable }} (al guardar este renglón se libera lo anterior y se reserva lo que indique).</small>
+                                                {% endwith %}
                                                 {% endwith %}
                                             </td>
                                             <td>
