@@ -100,11 +100,20 @@
         .observations {
             margin: 12px 0;
             font-size: 9px;
+            border: 1px solid #000;
+            padding: 8px;
+            background: #fff;
         }
         
         .observations-title {
             font-weight: bold;
             margin-bottom: 5px;
+        }
+        
+        .observations-leyenda {
+            margin: 0;
+            font-size: 9px;
+            line-height: 1.4;
         }
         
         .table-section {
@@ -455,9 +464,10 @@
             <span class="info-value">{{ total_items }}</span>
         </div>
         
-        <!-- Observaciones: solo el campo, sin recuadro ni líneas -->
+        <!-- Observaciones: leyenda fija en el campo -->
         <div class="observations">
             <div class="observations-title">OBSERVACIONES</div>
+            <p class="observations-leyenda">LA REMISIÓN NO ESTA COSTEADA, POR LO QUE, SE CONSIDERAN LOS PRECIOS UNITARIOS DE LA PLATAFORMA FEDERAL, HASTA QUE SE REALICE LA CONCILIACIÓN CON LA UNIDAD ADMINISTRATIVA FEDERAL</p>
         </div>
         
         <!-- Firmas: sin recuadros ni leyendas NOMBRE/FIRMA; título y línea como antes -->
