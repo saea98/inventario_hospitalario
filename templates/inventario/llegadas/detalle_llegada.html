@@ -140,7 +140,7 @@
 
     <!-- Acciones -->
     <div class="d-flex justify-content-end">
-        {% if user|has_role:'Entrada' and llegada.puede_editar_recepcion %}
+        {% if puede_editar_llegada %}
             <a href="{% url 'logistica:llegadas:editar_llegada' pk=llegada.pk %}" class="btn btn-primary mr-2">Editar</a>
             {% if llegada.items.all %}
                 <form method="post" action="{% url 'logistica:llegadas:aprobar_entrada' pk=llegada.pk %}" style="display:inline;">

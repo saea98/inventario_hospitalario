@@ -99,16 +99,27 @@
         
         .observations {
             margin: 12px 0;
-            padding: 8px;
+            padding: 0;
             border: 1px solid #000;
-            background: #f9f9f9;
+            background: #fff;
             font-size: 9px;
-            line-height: 1.4;
         }
         
         .observations-title {
             font-weight: bold;
-            margin-bottom: 5px;
+            padding: 6px 8px;
+            border-bottom: 1px solid #000;
+            background: #f5f5f5;
+        }
+        
+        .observations-line {
+            min-height: 28px;
+            border-bottom: 1px solid #000;
+            padding: 4px 8px;
+        }
+        
+        .observations-line:last-child {
+            border-bottom: none;
         }
         
         .table-section {
@@ -189,19 +200,39 @@
         }
         
         .signature-box {
-            border-top: 1px solid #000;
-            padding-top: 5px;
+            border: 1px solid #000;
+            padding: 8px;
             font-size: 9px;
-            min-height: 60px;
+            min-height: 70px;
         }
         
         .signature-box .title {
             font-weight: bold;
-            margin-bottom: 3px;
+            margin-bottom: 8px;
         }
         
-        .signature-box .name {
-            margin-top: 15px;
+        .signature-box .nombre-firma {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            gap: 10px;
+            margin-top: 0;
+        }
+        
+        .signature-box .nombre-firma .campo {
+            flex: 1;
+            text-align: left;
+        }
+        
+        .signature-box .nombre-firma .campo label {
+            font-weight: bold;
+            display: block;
+            margin-bottom: 2px;
+        }
+        
+        .signature-box .nombre-firma .campo .linea {
+            border-bottom: 1px solid #000;
+            min-height: 18px;
         }
         
         .footer {
@@ -460,25 +491,36 @@
             <span class="info-value">{{ total_items }}</span>
         </div>
         
-        <!-- Observaciones -->
+        <!-- Observaciones: 3 renglones con marco y líneas para escribir a mano -->
         <div class="observations">
             <div class="observations-title">OBSERVACIONES</div>
-            <p>LA REMISIÓN NO ESTA COSTEADA, POR LO QUE, SE CONSIDERAN LOS PRECIOS UNITARIOS DE LA PLATAFORMA FEDERAL, HASTA QUE SE REALICE LA CONCILIACIÓN CON LA UNIDAD ADMINISTRATIVA FEDERAL</p>
+            <div class="observations-line"></div>
+            <div class="observations-line"></div>
+            <div class="observations-line"></div>
         </div>
         
-        <!-- Firmas -->
+        <!-- Firmas: NOMBRE y FIRMA a la misma altura en cada recuadro -->
         <div class="signatures">
             <div class="signature-box">
                 <div class="title">ALMACENISTA</div>
-                <div class="name">_____________________</div>
+                <div class="nombre-firma">
+                    <div class="campo"><label>NOMBRE:</label><div class="linea"></div></div>
+                    <div class="campo"><label>FIRMA:</label><div class="linea"></div></div>
+                </div>
             </div>
             <div class="signature-box">
                 <div class="title">ENCARGADA DEL ÁREA DE ENTRADAS</div>
-                <div class="name">{% if nombre_titular_entrada %}{{ nombre_titular_entrada }}{% else %}_____________________{% endif %}</div>
+                <div class="nombre-firma">
+                    <div class="campo"><label>NOMBRE:</label><div class="linea"></div></div>
+                    <div class="campo"><label>FIRMA:</label><div class="linea"></div></div>
+                </div>
             </div>
             <div class="signature-box">
                 <div class="title">TITULAR DE LA OFICINA DE INSUMOS</div>
-                <div class="name">{% if nombre_titular_insumos %}{{ nombre_titular_insumos }}{% else %}_____________________{% endif %}</div>
+                <div class="nombre-firma">
+                    <div class="campo"><label>NOMBRE:</label><div class="linea"></div></div>
+                    <div class="campo"><label>FIRMA:</label><div class="linea"></div></div>
+                </div>
             </div>
         </div>
         
