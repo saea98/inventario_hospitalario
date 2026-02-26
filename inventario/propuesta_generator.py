@@ -196,14 +196,10 @@ class PropuestaGenerator:
             if cantidad_maxima_a_asignar <= 0:
                 continue
 
-            # Distribuir la reserva entre las ubicaciones del lote
-            # Esto permite que el almacenista sepa exactamente de qué ubicación tomar
-            # Siempre buscar en el almacén Central (id=1), sin importar el almacén destino
-            almacen_central_id = 1  # Almacén Central
+            # Distribuir la reserva entre las ubicaciones del lote (todos los almacenes/subalmacenes)
             # 3) Dentro del lote: por ubicación (código de ubicación)
             ubicaciones_disponibles = lote.ubicaciones_detalle.filter(
-                cantidad__gt=0,
-                ubicacion__almacen_id=almacen_central_id  # Solo ubicaciones del almacén Central
+                cantidad__gt=0
             ).select_related('ubicacion').order_by('ubicacion__codigo')
             
             # Calcular la cantidad total disponible en todas las ubicaciones del lote
@@ -300,10 +296,6 @@ class PropuestaGenerator:
 
         # Actualizar estado y cantidad propuesta
         item_propuesta.cantidad_propuesta = cantidad_asignada_total
-        
-        # El sistema siempre busca en el almacén Central (id=1), sin importar el almacén destino
-        # Por lo tanto, no hay necesidad de detectar disponibilidad en otros almacenes
-        # ya que siempre se busca en el almacén Central
         
         if cantidad_asignada_total == 0:
             item_propuesta.estado = 'NO_DISPONIBLE'
