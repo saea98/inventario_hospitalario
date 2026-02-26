@@ -32,6 +32,34 @@ from .propuesta_utils import cancelar_propuesta, eliminar_propuesta, validar_dis
 from .pedidos_utils import registrar_error_pedido
 from .pedidos_forms import _usuario_puede_duplicar_folio
 from django.db import models
+from django.db.models import Q
+
+# ============================================================================
+# HELPERS PROPUESTA / UBICACIONES
+# ============================================================================
+
+def _almacen_ids_para_propuesta(solicitud=None, almacen_destino_id=None):
+    """
+    Devuelve lista de IDs de almacenes a considerar para ubicaciones en propuesta:
+    Almacén Central (por nombre/código o id=1) + almacén destino de la solicitud.
+    Si no se encuentra Central, se usa id=1; si con eso no hay resultados, el caller
+    puede no filtrar por almacén para mostrar todos los que cumplan condiciones.
+    """
+    from .models import Almacen
+    ids = set()
+    # Central: por nombre o código, luego fallback id=1
+    central = Almacen.objects.filter(
+        Q(nombre__icontains='Central') | Q(codigo__iexact='CENTRAL') | Q(codigo__iexact='001')
+    ).first() or Almacen.objects.filter(id=1).first()
+    if central:
+        ids.add(central.id)
+    # Almacén destino de la solicitud
+    if solicitud and getattr(solicitud, 'almacen_destino_id', None):
+        ids.add(solicitud.almacen_destino_id)
+    if almacen_destino_id:
+        ids.add(int(almacen_destino_id))
+    return list(ids) if ids else None  # None = no filtrar por almacén (mostrar todos)
+
 
 # ============================================================================
 # VISTAS DE GESTIÓN DE PEDIDOS
@@ -1234,7 +1262,6 @@ def editar_propuesta(request, propuesta_id):
             from datetime import date, timedelta
             productos_disponibles = Producto.objects.filter(activo=True).order_by('clave_cnis')
             fecha_minima = date.today() + timedelta(days=60)
-            almacen_central_id = 1
             ubicaciones_por_item = {}
             for item in propuesta.items.select_related('producto').all():
                 lotes = Lote.objects.filter(
@@ -1244,18 +1271,18 @@ def editar_propuesta(request, propuesta_id):
                 ).order_by('fecha_caducidad', 'numero_lote')
                 lista = []
                 for lote in lotes:
-                    for lu in lote.ubicaciones_detalle.filter(
-                        cantidad__gt=0,
-                        ubicacion__almacen_id=almacen_central_id
-                    ).select_related('ubicacion').order_by('ubicacion__codigo'):
+                    for lu in lote.ubicaciones_detalle.filter(cantidad__gt=0).select_related('ubicacion').order_by('ubicacion__codigo'):
                         if (lu.cantidad - getattr(lu, 'cantidad_reservada', 0)) <= 0:
                             continue
                         lista.append({'lote': lote, 'ubicacion': lu})
                 ubicaciones_por_item[item.id] = lista
-            for item in propuesta.items.all():
+            items_propuesta = []
+            for item in propuesta.items.select_related('producto').prefetch_related('lotes_asignados__lote_ubicacion__lote', 'lotes_asignados__lote_ubicacion__ubicacion').all():
                 item.ubicaciones_ordenadas_para_editar = ubicaciones_por_item.get(item.id, [])
+                items_propuesta.append(item)
             context = {
                 'propuesta': propuesta,
+                'items_propuesta': items_propuesta,
                 'productos_disponibles': productos_disponibles,
                 'page_title': f"Editar Propuesta {propuesta.solicitud.folio}",
             }
@@ -1272,7 +1299,6 @@ def editar_propuesta(request, propuesta_id):
 
     # Misma regla que generación de propuestas: más próximo a caducar, >= 60 días, por disponibilidad, por ubicación
     fecha_minima = date.today() + timedelta(days=60)
-    almacen_central_id = 1  # mismo criterio que PropuestaGenerator
     ubicaciones_por_item = {}
     for item in propuesta.items.select_related('producto').all():
         lotes = Lote.objects.filter(
@@ -1282,21 +1308,21 @@ def editar_propuesta(request, propuesta_id):
         ).order_by('fecha_caducidad', 'numero_lote')
         lista = []
         for lote in lotes:
-            for lu in lote.ubicaciones_detalle.filter(
-                cantidad__gt=0,
-                ubicacion__almacen_id=almacen_central_id
-            ).select_related('ubicacion').order_by('ubicacion__codigo'):
+            for lu in lote.ubicaciones_detalle.filter(cantidad__gt=0).select_related('ubicacion').order_by('ubicacion__codigo'):
                 if (lu.cantidad - getattr(lu, 'cantidad_reservada', 0)) <= 0:
                     continue
                 lista.append({'lote': lote, 'ubicacion': lu})
         ubicaciones_por_item[item.id] = lista
 
-    # Adjuntar lista a cada item para el template
-    for item in propuesta.items.all():
+    # Adjuntar lista a cada item y pasar la misma lista al template (así item.ubicaciones_ordenadas_para_editar está definido)
+    items_propuesta = []
+    for item in propuesta.items.select_related('producto').prefetch_related('lotes_asignados__lote_ubicacion__lote', 'lotes_asignados__lote_ubicacion__ubicacion').all():
         item.ubicaciones_ordenadas_para_editar = ubicaciones_por_item.get(item.id, [])
+        items_propuesta.append(item)
 
     context = {
         'propuesta': propuesta,
+        'items_propuesta': items_propuesta,
         'productos_disponibles': productos_disponibles,
         'page_title': f"Editar Propuesta {propuesta.solicitud.folio}"
     }
@@ -1329,22 +1355,20 @@ def obtener_ubicaciones_producto(request):
         ).select_related('producto').order_by('fecha_caducidad', 'numero_lote')
 
         ubicaciones = []
-        almacen_central_id = 1  # mismo criterio que PropuestaGenerator
         for lote in lotes:
             lote_ubicaciones = LoteUbicacion.objects.filter(
                 lote=lote,
-                cantidad__gt=0,
-                ubicacion__almacen_id=almacen_central_id
+                cantidad__gt=0
             ).select_related('ubicacion').order_by('ubicacion__codigo')
 
             for lote_ubicacion in lote_ubicaciones:
-                cantidad_disponible = lote_ubicacion.cantidad - lote_ubicacion.cantidad_reservada
+                cantidad_disponible = lote_ubicacion.cantidad - getattr(lote_ubicacion, 'cantidad_reservada', 0)
                 if cantidad_disponible > 0:
                     ubicaciones.append({
                         'id': lote_ubicacion.id,
                         'lote': lote.numero_lote,
                         'codigo': lote_ubicacion.ubicacion.codigo,
-                        'cantidad': cantidad_disponible,
+                        'cantidad': int(cantidad_disponible),
                         'fecha_caducidad': lote.fecha_caducidad.strftime('%d/%m/%Y')
                     })
         

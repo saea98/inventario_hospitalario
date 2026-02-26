@@ -19,7 +19,7 @@
                     o <strong>varios lotes</strong> que entre ellos sumen la cantidad necesaria.
                 </p>
                 
-                {% for item in propuesta.items.all %}
+                {% for item in items_propuesta %}
                     <div class="mb-5 p-3 border rounded">
                         <h5>{{ item.producto.clave_cnis }} - {{ item.producto.descripcion }}</h5>
                         
@@ -391,6 +391,8 @@
             });
         });
         
+        // Almacén destino de la propuesta (para incluir sus lotes en opciones)
+        var almacenDestinoId = '{{ propuesta.solicitud.almacen_destino_id|default:"" }}';
         // Cargar ubicaciones cuando se selecciona un producto nuevo
         $('#nuevo_item_producto').on('change', function() {
             var productoId = $(this).val();
@@ -398,12 +400,12 @@
             var $seccionUbicaciones = $('#nuevo-item-ubicaciones');
             
             if (productoId) {
+                var ajaxData = { 'producto_id': productoId };
+                if (almacenDestinoId) ajaxData.almacen_destino_id = almacenDestinoId;
                 $.ajax({
                     url: '{% url "logistica:obtener_ubicaciones_producto" %}',
                     method: 'GET',
-                    data: {
-                        'producto_id': productoId
-                    },
+                    data: ajaxData,
                     success: function(data) {
                         $ubicacionesSelect.empty();
                         $ubicacionesSelect.append('<option value="">-- Selecciona una ubicación --</option>');
