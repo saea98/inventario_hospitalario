@@ -5,8 +5,10 @@
 <div class="container-fluid">
     <h1 class="h3 mb-4 text-gray-800">{{ page_title }}</h1>
 
-    <form method="post">
+    <form method="post" id="form-editar-propuesta">
         {% csrf_token %}
+        <input type="hidden" name="solo_item_id" id="solo_item_id" value="">
+        <input type="hidden" name="eliminar_item_id" id="eliminar_item_id" value="">
         
         <div class="card shadow mb-4">
             <div class="card-header py-3">
@@ -20,8 +22,18 @@
                 </p>
                 
                 {% for item in items_propuesta %}
-                    <div class="mb-5 p-3 border rounded">
-                        <h5>{{ item.producto.clave_cnis }} - {{ item.producto.descripcion }}</h5>
+                    <div class="mb-5 p-3 border rounded item-row" data-item-id="{{ item.id }}">
+                        <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+                            <h5 class="mb-0">{{ item.producto.clave_cnis }} - {{ item.producto.descripcion }}</h5>
+                            <div class="d-flex gap-2">
+                                <button type="button" class="btn btn-sm btn-outline-primary btn-guardar-renglon" data-item-id="{{ item.id }}" title="Guardar solo este renglón">
+                                    <i class="fas fa-save"></i> Guardar este renglón
+                                </button>
+                                <button type="button" class="btn btn-sm btn-outline-danger btn-eliminar-item" data-item-id="{{ item.id }}" title="Eliminar ítem de la propuesta">
+                                    <i class="fas fa-trash-alt"></i> Eliminar ítem
+                                </button>
+                            </div>
+                        </div>
                         
                         <!-- Cantidad Propuesta -->
                         <div class="form-group">
@@ -212,7 +224,7 @@
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        var form = document.querySelector('form[method="post"]');
+        var form = document.getElementById('form-editar-propuesta');
         var formDirty = false;
         var autoSaveInterval = 10 * 60 * 1000; // 10 minutos
         var autoSaveTimer = null;
@@ -299,6 +311,31 @@
                     console.warn('Auto-guardado falló. Use "Guardar borrador" manualmente.');
                 });
         }
+
+        // Botón "Guardar este renglón": enviar solo ese ítem (formulario principal por ID para evitar confusión con formularios anidados)
+        document.querySelectorAll('.btn-guardar-renglon').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                var itemId = this.getAttribute('data-item-id');
+                if (itemId && form) {
+                    document.getElementById('solo_item_id').value = itemId;
+                    document.getElementById('eliminar_item_id').value = '';
+                    form.submit();
+                }
+            });
+        });
+
+        // Botón "Eliminar ítem": enviar formulario principal con eliminar_item_id (sin formulario anidado)
+        document.querySelectorAll('.btn-eliminar-item').forEach(function(btn) {
+            btn.addEventListener('click', function() {
+                if (!confirm('¿Eliminar este ítem de la propuesta? Se liberarán las reservas de sus lotes.')) return;
+                var itemId = this.getAttribute('data-item-id');
+                if (itemId && form) {
+                    document.getElementById('eliminar_item_id').value = itemId;
+                    document.getElementById('solo_item_id').value = '';
+                    form.submit();
+                }
+            });
+        });
 
         // Interceptar clic en "Guardar borrador": guardar por AJAX para no recargar la página
         form.addEventListener('submit', function(e) {

@@ -1078,7 +1078,25 @@ def editar_propuesta(request, propuesta_id):
         return max(0, lu.cantidad - getattr(lu, 'cantidad_reservada', 0))
 
     if request.method == 'POST':
+        solo_item_id = request.POST.get('solo_item_id', '').strip()
+        eliminar_item_id = request.POST.get('eliminar_item_id', '').strip()
+
+        # Eliminar ítem de la propuesta (liberar reservas y borrar ItemPropuesta)
+        if eliminar_item_id:
+            from .pedidos_models import ItemPropuesta
+            item_a_eliminar = propuesta.items.filter(id=eliminar_item_id).first()
+            if item_a_eliminar:
+                for la in item_a_eliminar.lotes_asignados.select_related('lote_ubicacion').all():
+                    liberar_cantidad_lote(la.lote_ubicacion, la.cantidad_asignada)
+                item_a_eliminar.delete()
+                propuesta.total_propuesto = sum(i.cantidad_propuesta for i in propuesta.items.all())
+                propuesta.save()
+                messages.success(request, f"Se eliminó el ítem de la propuesta.")
+            return redirect('logistica:editar_propuesta', propuesta_id=propuesta_id)
+
         for item in propuesta.items.all():
+            if solo_item_id and str(item.id) != solo_item_id:
+                continue
             nueva_cantidad = request.POST.get(f'item_{item.id}_cantidad_propuesta')
             if nueva_cantidad:
                 item.cantidad_propuesta = int(nueva_cantidad)
@@ -1248,6 +1266,11 @@ def editar_propuesta(request, propuesta_id):
         
         propuesta.total_propuesto = sum(item.cantidad_propuesta for item in propuesta.items.all())
         propuesta.save()
+
+        # Si solo se guardó un renglón, volver a editar con mensaje
+        if solo_item_id:
+            messages.success(request, "Se guardó este renglón correctamente.")
+            return redirect('logistica:editar_propuesta', propuesta_id=propuesta_id)
 
         # Guardar borrador: quedarse en la página para seguir editando (y soporte AJAX para auto-guardado)
         is_borrador = request.POST.get('guardar_borrador')
