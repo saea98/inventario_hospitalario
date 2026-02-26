@@ -117,6 +117,9 @@
             </button>
         {% endif %}
         {% if propuesta.estado == 'REVISADA' %}
+            <a href="{% url 'logistica:editar_propuesta' propuesta.id %}" class="btn btn-info" title="Agregar o corregir ítems">
+                <i class="fas fa-edit"></i> Editar Propuesta
+            </a>
             <a href="{% url 'logistica:surtir_propuesta' propuesta.id %}" class="btn btn-success">
                 <i class="fas fa-truck"></i> Surtir Propuesta
             </a>
@@ -128,12 +131,20 @@
             </button>
         {% endif %}
         {% if propuesta.estado == 'EN_SURTIMIENTO' %}
+            <a href="{% url 'logistica:editar_propuesta' propuesta.id %}" class="btn btn-info" title="Agregar o corregir ítems">
+                <i class="fas fa-edit"></i> Editar Propuesta
+            </a>
             <button type="button" class="btn btn-danger" data-bs-toggle="modal" data-bs-target="#modalCancelar">
                 <i class="fas fa-redo"></i> Rehacer Propuesta
             </button>
             <button type="button" class="btn btn-dark" data-bs-toggle="modal" data-bs-target="#modalEliminar">
                 <i class="fas fa-trash-alt"></i> Eliminar Propuesta
             </button>
+        {% endif %}
+        {% if propuesta.estado == 'SURTIDA' %}
+            <a href="{% url 'logistica:editar_propuesta' propuesta.id %}" class="btn btn-info" title="Agregar o corregir ítems (por ejemplo si falta un insumo en el acuse)">
+                <i class="fas fa-edit"></i> Editar Propuesta (corrección)
+            </a>
         {% endif %}
         {% if propuesta.estado == 'CANCELADA' %}
             <button type="button" class="btn btn-dark" data-bs-toggle="modal" data-bs-target="#modalEliminar">

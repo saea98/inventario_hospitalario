@@ -1067,12 +1067,14 @@ def surtir_propuesta(request, propuesta_id):
 def editar_propuesta(request, propuesta_id):
     """
     Permite al personal de almacén editar los lotes y cantidades de la propuesta.
+    Se permite editar también cuando está REVISADA, EN_SURTIMIENTO o SURTIDA (para correcciones).
     """
     from .pedidos_models import LoteAsignado
     from .models import LoteUbicacion
     from .propuesta_utils import reservar_cantidad_lote, liberar_cantidad_lote
 
-    propuesta = get_object_or_404(PropuestaPedido, id=propuesta_id, estado='GENERADA')
+    ESTADOS_EDITABLES = ['GENERADA', 'REVISADA', 'EN_SURTIMIENTO', 'SURTIDA']
+    propuesta = get_object_or_404(PropuestaPedido, id=propuesta_id, estado__in=ESTADOS_EDITABLES)
 
     def _disponible_lu(lu):
         return max(0, lu.cantidad - getattr(lu, 'cantidad_reservada', 0))
@@ -1451,7 +1453,7 @@ def editar_propuesta(request, propuesta_id):
                     'items__producto',
                 ).select_related('solicitud'),
                 id=propuesta_id,
-                estado='GENERADA',
+                estado__in=ESTADOS_EDITABLES,
             )
             from .models import Producto, Lote
             from datetime import date, timedelta
