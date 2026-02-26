@@ -1124,7 +1124,19 @@ def editar_propuesta(request, propuesta_id):
                     lote_asignado.cantidad_asignada = cant_num
                     lote_asignado.save()
 
+            # Solo procesar "nueva ubicación" si no es una ya asignada (evitar duplicar reserva)
             nueva_ubicacion_id = request.POST.get(f'item_{item.id}_nueva_ubicacion')
+            ids_ya_asignados = set(
+                item.lotes_asignados.values_list('lote_ubicacion_id', flat=True)
+            )
+            if nueva_ubicacion_id:
+                try:
+                    nueva_ubicacion_id_int = int(nueva_ubicacion_id)
+                except (TypeError, ValueError):
+                    nueva_ubicacion_id_int = None
+                if nueva_ubicacion_id_int is not None and nueva_ubicacion_id_int in ids_ya_asignados:
+                    # La ubicación ya está en una fila del ítem; ya se procesó arriba, no volver a reservar
+                    nueva_ubicacion_id = None
             if nueva_ubicacion_id:
                 lote_ubicacion = LoteUbicacion.objects.select_related('lote', 'ubicacion').get(id=nueva_ubicacion_id)
                 cantidad_nuevo = int(request.POST.get(f'item_{item.id}_cantidad_nueva_ubicacion', 0))

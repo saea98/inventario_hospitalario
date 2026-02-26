@@ -27,8 +27,10 @@ def reservar_cantidad_lote(lote_ubicacion, cantidad):
         cantidad: Cantidad a reservar
 
     Returns:
-        bool: True si se reservó exitosamente, False si no hay suficiente cantidad disponible
+        bool: True si se reservó exitosamente (o si cantidad<=0, sin hacer nada), False si no hay suficiente cantidad disponible
     """
+    if cantidad is None or cantidad <= 0:
+        return True
     lote_ubicacion.refresh_from_db()
     lote = lote_ubicacion.lote
     lote.refresh_from_db()
