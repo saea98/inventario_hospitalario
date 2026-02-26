@@ -1,4 +1,5 @@
 {% extends 'base.html' %}
+{% load custom_filters %}
 
 {% block content %}
 <div class="container-fluid">
@@ -12,7 +13,11 @@
                 <h6 class="m-0 font-weight-bold text-primary">Editar Lotes y Cantidades de la Propuesta</h6>
             </div>
             <div class="card-body">
-                <p>Puedes ajustar los lotes asignados y las cantidades propuestas para cada item.</p>
+                <p>Puedes ajustar los lotes asignados y las cantidades propuestas para cada ítem.</p>
+                <p class="text-muted small mb-0">
+                    <i class="fas fa-info-circle"></i> Puedes asignar <strong>un solo lote</strong> con existencia suficiente para cubrir la cantidad, 
+                    o <strong>varios lotes</strong> que entre ellos sumen la cantidad necesaria.
+                </p>
                 
                 {% for item in propuesta.items.all %}
                     <div class="mb-5 p-3 border rounded">
@@ -53,12 +58,16 @@
                                             <td>{{ lote_asignado.lote_ubicacion.ubicacion.codigo }}</td>
                                             <td>{{ lote_asignado.lote_ubicacion.lote.fecha_caducidad|date:"d/m/Y" }}</td>
                                             <td>
+                                                {% with disp_real=lote_asignado.lote_ubicacion|disponible_real %}
                                                 <input type="number"
                                                        name="lote_{{ lote_asignado.id }}_cantidad"
-                                                       class="form-control form-control-sm"
+                                                       class="form-control form-control-sm input-cantidad-asignada"
                                                        value="{{ lote_asignado.cantidad_asignada }}"
                                                        min="0"
-                                                       max="{{ lote_asignado.lote_ubicacion.cantidad }}">
+                                                       max="{{ disp_real }}"
+                                                       data-max-real="{{ disp_real }}">
+                                                <small class="form-text text-muted">Disponible (restando reservas): {{ disp_real }}</small>
+                                                {% endwith %}
                                             </td>
                                             <td>
                                                 <label class="custom-control custom-checkbox d-block mb-0">
@@ -81,6 +90,7 @@
                         <!-- Agregar Nuevo Lote -->
                         <div class="mt-4 p-3 bg-light rounded">
                             <h6>Agregar Nueva Ubicación de Lote</h6>
+                            <p class="small text-muted mb-2">Orden: más próximo a caducar, ≥60 días por caducar, por ubicación (misma regla que la generación de propuestas). Solo ubicaciones con disponibilidad.</p>
                             <div class="row">
                                 <div class="col-md-8">
                                     <label for="item_{{ item.id }}_nueva_ubicacion">Selecciona una ubicación de lote</label>
@@ -88,14 +98,12 @@
                                             name="item_{{ item.id }}_nueva_ubicacion"
                                             class="form-control select2-single">
                                         <option value="">-- Selecciona una ubicación --</option>
-                                        {% for lote in item.producto.lote_set.all %}
-                                            {% if lote.cantidad_disponible > 0 and lote.estado == 1 %}
-                                                {% for ubicacion in lote.ubicaciones_detalle.all %}
-                                                    <option value="{{ ubicacion.id }}">
-                                                        {{ lote.numero_lote }} / {{ ubicacion.ubicacion.codigo }} ({{ ubicacion.cantidad }} disponibles, vence: {{ lote.fecha_caducidad|date:"d/m/Y" }})
-                                                    </option>
-                                                {% endfor %}
-                                            {% endif %}
+                                        {% for elem in item.ubicaciones_ordenadas_para_editar %}
+                                            <option value="{{ elem.ubicacion.id }}" data-disponible="{{ elem.ubicacion|disponible_real }}">
+                                                {{ elem.lote.numero_lote }} / {{ elem.ubicacion.ubicacion.codigo }} ({{ elem.ubicacion|disponible_real }} disp., vence: {{ elem.lote.fecha_caducidad|date:"d/m/Y" }})
+                                            </option>
+                                        {% empty %}
+                                            <option value="" disabled>Sin ubicaciones con ≥60 días por caducar y disponibilidad</option>
                                         {% endfor %}
                                     </select>
                                 </div>
@@ -104,9 +112,11 @@
                                     <input type="number"
                                            id="item_{{ item.id }}_cantidad_nueva_ubicacion"
                                            name="item_{{ item.id }}_cantidad_nueva_ubicacion"
-                                           class="form-control"
+                                           class="form-control input-cantidad-nueva-ubicacion"
                                            value="0"
-                                           min="0">
+                                           min="0"
+                                           data-select-id="item_{{ item.id }}_nueva_ubicacion">
+                                    <small class="form-text text-muted item-nueva-ubicacion-max" id="item_{{ item.id }}_max_hint" style="display: none;">Máx. disponible (restando reservas): <span class="max-val">0</span></small>
                                 </div>
                             </div>
                         </div>
@@ -329,6 +339,56 @@
             width: '100%',
             language: 'es',
             allowClear: true
+        });
+
+        // Disponible real (restando reservas): actualizar máx. y avisar/ajustar si superan
+        function getMaxDisponibleFromSelect(selectEl) {
+            var opt = selectEl.options[selectEl.selectedIndex];
+            return opt && opt.getAttribute('data-disponible') !== null
+                ? parseInt(opt.getAttribute('data-disponible'), 10) || 0
+                : 0;
+        }
+        function avisarYCapar(inputEl, maxVal) {
+            var val = parseInt(inputEl.value, 10) || 0;
+            if (maxVal >= 0 && val > maxVal) {
+                inputEl.value = maxVal;
+                alert('La cantidad supera lo disponible en esa ubicación (restando reservas de otros pedidos). Se ajustó a ' + maxVal + '.');
+            }
+        }
+        document.querySelectorAll('.input-cantidad-nueva-ubicacion').forEach(function(inp) {
+            var selectId = inp.getAttribute('data-select-id');
+            var sel = selectId ? document.getElementById(selectId) : null;
+            if (!sel) return;
+            function actualizarMax() {
+                var maxD = getMaxDisponibleFromSelect(sel);
+                inp.setAttribute('max', maxD);
+                var hint = inp.closest('.row') && inp.closest('.row').querySelector('.item-nueva-ubicacion-max');
+                if (hint) {
+                    hint.querySelector('.max-val').textContent = maxD;
+                    hint.style.display = maxD >= 0 ? 'block' : 'none';
+                }
+                avisarYCapar(inp, maxD);
+            }
+            sel.addEventListener('change', actualizarMax);
+            if (window.jQuery && $(sel).data('select2')) {
+                $(sel).on('select2:select', actualizarMax);
+                $(sel).on('select2:clear', function() {
+                    inp.setAttribute('max', '');
+                    var hint = inp.closest('.row') && inp.closest('.row').querySelector('.item-nueva-ubicacion-max');
+                    if (hint) hint.style.display = 'none';
+                });
+            }
+            inp.addEventListener('change', function() {
+                var maxD = parseInt(inp.getAttribute('max'), 10);
+                if (!isNaN(maxD)) avisarYCapar(inp, maxD);
+            });
+        });
+        document.querySelectorAll('.input-cantidad-asignada').forEach(function(inp) {
+            var maxReal = parseInt(inp.getAttribute('data-max-real'), 10);
+            if (isNaN(maxReal)) return;
+            inp.addEventListener('change', function() {
+                avisarYCapar(inp, maxReal);
+            });
         });
         
         // Cargar ubicaciones cuando se selecciona un producto nuevo

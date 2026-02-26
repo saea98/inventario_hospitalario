@@ -534,8 +534,16 @@ def corregir_lote_propuesta(request, lote_asignado_id):
                 folio=folio_solicitud or None,
                 usuario=request.user,
             )
+            # Releer destino con bloqueo: otro usuario pudo haber reservado entre la comprobación inicial y aquí
+            nueva_lu = LoteUbicacion.objects.select_for_update().select_related('lote', 'ubicacion').get(id=nuevo_lu_id)
+            nuevo_lote = nueva_lu.lote
             if not reservar_cantidad_lote(nueva_lu, cantidad):
-                raise ValueError("No se pudo reservar en el lote destino (posible condición de carrera).")
+                disp_actual = nueva_lu.cantidad - nueva_lu.cantidad_reservada
+                raise ValueError(
+                    f"En este momento ya no hay cantidad suficiente en ese lote/ubicación "
+                    f"(disponible ahora: {disp_actual}, necesario: {cantidad}). "
+                    f"Puede que otro usuario o otra pantalla lo haya reservado. Intente de nuevo o elija otra ubicación."
+                )
             nueva_lu.refresh_from_db()
             nuevo_lote.refresh_from_db()
             reserva_ant_nueva = nuevo_lote.cantidad_reservada - cantidad
@@ -701,7 +709,8 @@ def cambiar_cantidad_picking(request, lote_asignado_id):
             if not reservar_cantidad_lote(lu, reservar):
                 return JsonResponse({
                     'exito': False,
-                    'mensaje': 'No se pudo reservar la cantidad adicional (condición de carrera o stock insuficiente).'
+                    'mensaje': 'En este momento ya no hay cantidad suficiente en ese lote/ubicación. '
+                               'Puede que otro usuario o otra pantalla lo haya reservado. Intente de nuevo.'
                 }, status=400)
             lu.refresh_from_db()
             lote.refresh_from_db()

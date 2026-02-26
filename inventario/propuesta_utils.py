@@ -19,34 +19,30 @@ def reservar_cantidad_lote(lote_ubicacion, cantidad):
     """
     Reserva una cantidad en un lote sin afectar cantidad_disponible.
     Se incrementa cantidad_reservada tanto en la ubicación como en el lote.
-    
+    Refresca desde BD antes de comprobar para reducir condiciones de carrera
+    (otra petición puede haber reservado el mismo stock entre la vista y esta llamada).
+
     Args:
         lote_ubicacion: Instancia de LoteUbicacion
         cantidad: Cantidad a reservar
-    
+
     Returns:
         bool: True si se reservó exitosamente, False si no hay suficiente cantidad disponible
     """
+    lote_ubicacion.refresh_from_db()
     lote = lote_ubicacion.lote
-    
-    # Verificar disponibilidad en la ubicación específica
+    lote.refresh_from_db()
+
     cantidad_disponible_ubicacion = lote_ubicacion.cantidad - lote_ubicacion.cantidad_reservada
-    
-    # También verificar disponibilidad a nivel de lote
     cantidad_realmente_disponible_lote = lote.cantidad_disponible - lote.cantidad_reservada
-    
-    # Debe haber suficiente en ambos niveles
+
     if cantidad_disponible_ubicacion < cantidad or cantidad_realmente_disponible_lote < cantidad:
         return False
-    
-    # Incrementar cantidad_reservada en la ubicación
+
     lote_ubicacion.cantidad_reservada += cantidad
     lote_ubicacion.save(update_fields=['cantidad_reservada'])
-    
-    # Incrementar cantidad_reservada a nivel de lote
     lote.cantidad_reservada += cantidad
     lote.save(update_fields=['cantidad_reservada'])
-    
     return True
 
 

@@ -1042,23 +1042,26 @@ def editar_propuesta(request, propuesta_id):
     """
     from .pedidos_models import LoteAsignado
     from .models import LoteUbicacion
-    
+    from .propuesta_utils import reservar_cantidad_lote, liberar_cantidad_lote
+
     propuesta = get_object_or_404(PropuestaPedido, id=propuesta_id, estado='GENERADA')
-    
+
+    def _disponible_lu(lu):
+        return max(0, lu.cantidad - getattr(lu, 'cantidad_reservada', 0))
+
     if request.method == 'POST':
         for item in propuesta.items.all():
             nueva_cantidad = request.POST.get(f'item_{item.id}_cantidad_propuesta')
             if nueva_cantidad:
                 item.cantidad_propuesta = int(nueva_cantidad)
                 item.save()
-            
+
             lotes_actuales = list(item.lotes_asignados.select_related('lote_ubicacion__lote', 'lote_ubicacion__ubicacion').all())
             for lote_asignado in lotes_actuales:
                 key_cant = f'lote_{lote_asignado.id}_cantidad'
                 key_elim = f'lote_{lote_asignado.id}_eliminar'
                 raw_cant = request.POST.get(key_cant)
                 quiere_eliminar = request.POST.get(key_elim)
-                # Cantidad 0 no es válida en el modelo (MinValueValidator(1)); tratarla como eliminar para no hacer rollback
                 cant_num = None
                 if raw_cant is not None and str(raw_cant).strip() != '':
                     try:
@@ -1066,22 +1069,68 @@ def editar_propuesta(request, propuesta_id):
                     except ValueError:
                         pass
                 if quiere_eliminar or cant_num is not None and cant_num == 0:
+                    lu = lote_asignado.lote_ubicacion
+                    liberar_cantidad_lote(lu, lote_asignado.cantidad_asignada)
                     lote_asignado.delete()
                 elif cant_num is not None and cant_num > 0:
+                    lu = lote_asignado.lote_ubicacion
+                    max_permitido = _disponible_lu(lu) + lote_asignado.cantidad_asignada
+                    if cant_num > max_permitido:
+                        cant_num = max_permitido
+                        messages.warning(
+                            request,
+                            f"Lote {lu.lote.numero_lote} / {lu.ubicacion.codigo}: la cantidad se ajustó a {cant_num} "
+                            f"(disponible restando reservas de otros pedidos)."
+                        )
+                    ant = lote_asignado.cantidad_asignada
+                    if cant_num < ant:
+                        liberar_cantidad_lote(lu, ant - cant_num)
+                    elif cant_num > ant:
+                        if not reservar_cantidad_lote(lu, cant_num - ant):
+                            messages.error(
+                                request,
+                                f"No hay cantidad suficiente en {lu.lote.numero_lote} / {lu.ubicacion.codigo}. "
+                                f"Se mantuvo la cantidad anterior."
+                            )
+                            continue
                     lote_asignado.cantidad_asignada = cant_num
                     lote_asignado.save()
-            
+
             nueva_ubicacion_id = request.POST.get(f'item_{item.id}_nueva_ubicacion')
             if nueva_ubicacion_id:
-                lote_ubicacion = LoteUbicacion.objects.get(id=nueva_ubicacion_id)
+                lote_ubicacion = LoteUbicacion.objects.select_related('lote', 'ubicacion').get(id=nueva_ubicacion_id)
                 cantidad_nuevo = int(request.POST.get(f'item_{item.id}_cantidad_nueva_ubicacion', 0))
                 if cantidad_nuevo > 0:
-                    # Evitar duplicados: si ya existe asignación para este item y lote_ubicacion, actualizar cantidad; si no, crear
+                    disponible = _disponible_lu(lote_ubicacion)
+                    if cantidad_nuevo > disponible:
+                        messages.warning(
+                            request,
+                            f"Lote {lote_ubicacion.lote.numero_lote} / {lote_ubicacion.ubicacion.codigo}: "
+                            f"se solicitaban {cantidad_nuevo} pero solo hay {disponible} disponibles (restando reservas). "
+                            f"Se asignó {disponible}."
+                        )
+                        cantidad_nuevo = disponible
+                    if cantidad_nuevo <= 0:
+                        continue
                     lote_asignado_existente = item.lotes_asignados.filter(lote_ubicacion=lote_ubicacion).first()
                     if lote_asignado_existente:
+                        ant = lote_asignado_existente.cantidad_asignada
+                        if cantidad_nuevo < ant:
+                            liberar_cantidad_lote(lote_ubicacion, ant - cantidad_nuevo)
+                        elif cantidad_nuevo > ant:
+                            if not reservar_cantidad_lote(lote_ubicacion, cantidad_nuevo - ant):
+                                messages.error(request, "No hay cantidad suficiente en la ubicación seleccionada. No se aplicó el cambio.")
+                                continue
                         lote_asignado_existente.cantidad_asignada = cantidad_nuevo
                         lote_asignado_existente.save()
                     else:
+                        if not reservar_cantidad_lote(lote_ubicacion, cantidad_nuevo):
+                            messages.error(
+                                request,
+                                f"No hay cantidad suficiente en {lote_ubicacion.lote.numero_lote} / {lote_ubicacion.ubicacion.codigo}. "
+                                f"No se agregó la asignación."
+                            )
+                            continue
                         LoteAsignado.objects.create(
                             item_propuesta=item,
                             lote_ubicacion=lote_ubicacion,
@@ -1131,14 +1180,25 @@ def editar_propuesta(request, propuesta_id):
                         estado='DISPONIBLE' if cantidad_propuesta > 0 else 'NO_DISPONIBLE'
                     )
                     
-                    # Si se seleccionó una ubicación, crear el LoteAsignado
+                    # Si se seleccionó una ubicación, crear el LoteAsignado (validar disponible restando reservas y reservar)
                     if nueva_ubicacion_id and cantidad_ubicacion > 0:
-                        lote_ubicacion = LoteUbicacion.objects.get(id=nueva_ubicacion_id)
-                        LoteAsignado.objects.create(
-                            item_propuesta=item_propuesta,
-                            lote_ubicacion=lote_ubicacion,
-                            cantidad_asignada=cantidad_ubicacion
-                        )
+                        lote_ubicacion = LoteUbicacion.objects.select_related('lote', 'ubicacion').get(id=nueva_ubicacion_id)
+                        disponible = _disponible_lu(lote_ubicacion)
+                        if cantidad_ubicacion > disponible:
+                            messages.warning(
+                                request,
+                                f"Ubicación {lote_ubicacion.lote.numero_lote} / {lote_ubicacion.ubicacion.codigo}: "
+                                f"se solicitaban {cantidad_ubicacion}, solo hay {disponible} disponibles (restando reservas). Se asignó {disponible}."
+                            )
+                            cantidad_ubicacion = disponible
+                        if cantidad_ubicacion > 0 and reservar_cantidad_lote(lote_ubicacion, cantidad_ubicacion):
+                            LoteAsignado.objects.create(
+                                item_propuesta=item_propuesta,
+                                lote_ubicacion=lote_ubicacion,
+                                cantidad_asignada=cantidad_ubicacion
+                            )
+                        elif cantidad_ubicacion > 0:
+                            messages.error(request, "No hay cantidad suficiente en la ubicación seleccionada (restando reservas). No se asignó lote.")
                     
                     messages.success(request, f"Item {producto.clave_cnis} agregado a la propuesta.")
             except Producto.DoesNotExist:
@@ -1170,8 +1230,30 @@ def editar_propuesta(request, propuesta_id):
                 id=propuesta_id,
                 estado='GENERADA',
             )
-            from .models import Producto
+            from .models import Producto, Lote
+            from datetime import date, timedelta
             productos_disponibles = Producto.objects.filter(activo=True).order_by('clave_cnis')
+            fecha_minima = date.today() + timedelta(days=60)
+            almacen_central_id = 1
+            ubicaciones_por_item = {}
+            for item in propuesta.items.select_related('producto').all():
+                lotes = Lote.objects.filter(
+                    producto=item.producto,
+                    fecha_caducidad__gte=fecha_minima,
+                    estado=1
+                ).order_by('fecha_caducidad', 'numero_lote')
+                lista = []
+                for lote in lotes:
+                    for lu in lote.ubicaciones_detalle.filter(
+                        cantidad__gt=0,
+                        ubicacion__almacen_id=almacen_central_id
+                    ).select_related('ubicacion').order_by('ubicacion__codigo'):
+                        if (lu.cantidad - getattr(lu, 'cantidad_reservada', 0)) <= 0:
+                            continue
+                        lista.append({'lote': lote, 'ubicacion': lu})
+                ubicaciones_por_item[item.id] = lista
+            for item in propuesta.items.all():
+                item.ubicaciones_ordenadas_para_editar = ubicaciones_por_item.get(item.id, [])
             context = {
                 'propuesta': propuesta,
                 'productos_disponibles': productos_disponibles,
@@ -1183,9 +1265,36 @@ def editar_propuesta(request, propuesta_id):
         return redirect('logistica:detalle_propuesta', propuesta_id=propuesta.id)
     
     # Obtener todos los productos disponibles para el selector
-    from .models import Producto
+    from .models import Producto, Lote, LoteUbicacion
+    from datetime import date, timedelta
+
     productos_disponibles = Producto.objects.filter(activo=True).order_by('clave_cnis')
-    
+
+    # Misma regla que generación de propuestas: más próximo a caducar, >= 60 días, por disponibilidad, por ubicación
+    fecha_minima = date.today() + timedelta(days=60)
+    almacen_central_id = 1  # mismo criterio que PropuestaGenerator
+    ubicaciones_por_item = {}
+    for item in propuesta.items.select_related('producto').all():
+        lotes = Lote.objects.filter(
+            producto=item.producto,
+            fecha_caducidad__gte=fecha_minima,
+            estado=1
+        ).order_by('fecha_caducidad', 'numero_lote')
+        lista = []
+        for lote in lotes:
+            for lu in lote.ubicaciones_detalle.filter(
+                cantidad__gt=0,
+                ubicacion__almacen_id=almacen_central_id
+            ).select_related('ubicacion').order_by('ubicacion__codigo'):
+                if (lu.cantidad - getattr(lu, 'cantidad_reservada', 0)) <= 0:
+                    continue
+                lista.append({'lote': lote, 'ubicacion': lu})
+        ubicaciones_por_item[item.id] = lista
+
+    # Adjuntar lista a cada item para el template
+    for item in propuesta.items.all():
+        item.ubicaciones_ordenadas_para_editar = ubicaciones_por_item.get(item.id, [])
+
     context = {
         'propuesta': propuesta,
         'productos_disponibles': productos_disponibles,
@@ -1211,22 +1320,23 @@ def obtener_ubicaciones_producto(request):
         from .models import Producto
         producto = Producto.objects.get(id=producto_id, activo=True)
         
-        # Buscar lotes disponibles del producto (con más de 60 días para caducar)
+        # Misma regla que generación de propuestas: ≥60 días por caducar, más próximo a caducar, por ubicación
         fecha_minima = date.today() + timedelta(days=60)
         lotes = Lote.objects.filter(
             producto=producto,
             fecha_caducidad__gte=fecha_minima,
-            estado=1  # Solo lotes disponibles
-        ).select_related('producto').order_by('fecha_caducidad')
-        
+            estado=1
+        ).select_related('producto').order_by('fecha_caducidad', 'numero_lote')
+
         ubicaciones = []
+        almacen_central_id = 1  # mismo criterio que PropuestaGenerator
         for lote in lotes:
-            # Obtener todas las ubicaciones de este lote
             lote_ubicaciones = LoteUbicacion.objects.filter(
                 lote=lote,
-                cantidad__gt=0
-            ).select_related('ubicacion')
-            
+                cantidad__gt=0,
+                ubicacion__almacen_id=almacen_central_id
+            ).select_related('ubicacion').order_by('ubicacion__codigo')
+
             for lote_ubicacion in lote_ubicaciones:
                 cantidad_disponible = lote_ubicacion.cantidad - lote_ubicacion.cantidad_reservada
                 if cantidad_disponible > 0:
