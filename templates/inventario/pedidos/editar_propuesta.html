@@ -114,8 +114,8 @@
                                             data-num-opciones="{{ item.ubicaciones_ordenadas_para_editar|length }}">
                                         <option value="">-- Selecciona una ubicación --</option>
                                         {% for elem in item.ubicaciones_ordenadas_para_editar %}
-                                            <option value="{{ elem.ubicacion.id }}" data-disponible="{{ elem.ubicacion|disponible_real }}">
-                                                {{ elem.lote.numero_lote }} / {{ elem.ubicacion.ubicacion.codigo }} ({{ elem.ubicacion|disponible_real }} disp., vence: {{ elem.lote.fecha_caducidad|date:"d/m/Y" }})
+                                            <option value="{{ elem.ubicacion.id }}" data-disponible="{% if elem.disponible_real is not None %}{{ elem.disponible_real }}{% else %}{{ elem.ubicacion|disponible_real }}{% endif %}">
+                                                {{ elem.lote.numero_lote }} / {{ elem.ubicacion.ubicacion.codigo }} ({% if elem.disponible_real is not None %}{{ elem.disponible_real }}{% else %}{{ elem.ubicacion|disponible_real }}{% endif %} disp., vence: {{ elem.lote.fecha_caducidad|date:"d/m/Y" }})
                                             </option>
                                         {% empty %}
                                             <option value="" disabled>Sin ubicaciones con caducidad vigente y disponibilidad</option>
