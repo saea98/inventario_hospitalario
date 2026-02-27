@@ -1073,6 +1073,8 @@ def editar_propuesta(request, propuesta_id):
     from .pedidos_models import LoteAsignado
     from .models import LoteUbicacion
     from .propuesta_utils import reservar_cantidad_lote, liberar_cantidad_lote
+    from django.db.models import Sum, Value, IntegerField
+    from django.db.models.functions import Coalesce
 
     ESTADOS_EDITABLES = ['GENERADA', 'REVISADA', 'EN_SURTIMIENTO', 'SURTIDA']
     propuesta = get_object_or_404(PropuestaPedido, id=propuesta_id, estado__in=ESTADOS_EDITABLES)
