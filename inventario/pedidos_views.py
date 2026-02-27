@@ -32,7 +32,7 @@ from .propuesta_utils import cancelar_propuesta, eliminar_propuesta, validar_dis
 from .pedidos_utils import registrar_error_pedido
 from .pedidos_forms import _usuario_puede_duplicar_folio
 from django.db import models
-from django.db.models import Q, Prefetch
+from django.db.models import Q
 
 # ============================================================================
 # HELPERS PROPUESTA / UBICACIONES
@@ -1150,17 +1150,16 @@ def editar_propuesta(request, propuesta_id):
                 # Re-render formulario de edición con el mismo contexto
                 productos_disponibles = Producto.objects.filter(activo=True).order_by('clave_cnis')
                 fecha_minima_edicion = date.today()
-                qs_lu = LoteUbicacion.objects.filter(cantidad__gt=0).select_related('ubicacion').order_by('ubicacion__codigo')
                 ubicaciones_por_item = {}
                 for it in propuesta.items.select_related('producto').all():
-                    lotes = Lote.objects.filter(
+                    lotes = list(Lote.objects.filter(
                         producto=it.producto,
                         fecha_caducidad__gte=fecha_minima_edicion,
                         estado=1,
-                    ).prefetch_related(Prefetch('ubicaciones_detalle', queryset=qs_lu)).order_by('fecha_caducidad', 'numero_lote')
+                    ).order_by('fecha_caducidad', 'numero_lote'))
                     lista = []
                     for lote in lotes:
-                        for lu in lote.ubicaciones_detalle.all():
+                        for lu in LoteUbicacion.objects.filter(lote=lote, cantidad__gt=0).select_related('ubicacion').order_by('ubicacion__codigo'):
                             if (lu.cantidad - lu.cantidad_reservada) <= 0:
                                 continue
                             lista.append({'lote': lote, 'ubicacion': lu})
@@ -1460,17 +1459,16 @@ def editar_propuesta(request, propuesta_id):
             from datetime import date, timedelta
             productos_disponibles = Producto.objects.filter(activo=True).order_by('clave_cnis')
             fecha_minima_edicion = date.today()
-            qs_lu = LoteUbicacion.objects.filter(cantidad__gt=0).select_related('ubicacion').order_by('ubicacion__codigo')
             ubicaciones_por_item = {}
             for item in propuesta.items.select_related('producto').all():
-                lotes = Lote.objects.filter(
+                lotes = list(Lote.objects.filter(
                     producto=item.producto,
                     fecha_caducidad__gte=fecha_minima_edicion,
                     estado=1,
-                ).prefetch_related(Prefetch('ubicaciones_detalle', queryset=qs_lu)).order_by('fecha_caducidad', 'numero_lote')
+                ).order_by('fecha_caducidad', 'numero_lote'))
                 lista = []
                 for lote in lotes:
-                    for lu in lote.ubicaciones_detalle.all():
+                    for lu in LoteUbicacion.objects.filter(lote=lote, cantidad__gt=0).select_related('ubicacion').order_by('ubicacion__codigo'):
                         if (lu.cantidad - lu.cantidad_reservada) <= 0:
                             continue
                         lista.append({'lote': lote, 'ubicacion': lu})
@@ -1497,21 +1495,18 @@ def editar_propuesta(request, propuesta_id):
     productos_disponibles = Producto.objects.filter(activo=True).order_by('clave_cnis')
 
     # Ubicaciones para cada ítem: una opción por cada (lote, ubicación) con disp. > 0.
-    # Prefetch explícito de todas las ubicaciones por lote para no depender de una sola consulta.
+    # Consulta explícita por lote (sin Prefetch) para asegurar que se listen todas las ubicaciones de cada lote.
     fecha_minima_edicion = date.today()
     ubicaciones_por_item = {}
-    qs_ubicaciones = LoteUbicacion.objects.filter(cantidad__gt=0).select_related('ubicacion').order_by('ubicacion__codigo')
     for item in propuesta.items.select_related('producto').all():
-        lotes = Lote.objects.filter(
+        lotes = list(Lote.objects.filter(
             producto=item.producto,
             fecha_caducidad__gte=fecha_minima_edicion,
             estado=1,
-        ).prefetch_related(
-            Prefetch('ubicaciones_detalle', queryset=qs_ubicaciones)
-        ).order_by('fecha_caducidad', 'numero_lote')
+        ).order_by('fecha_caducidad', 'numero_lote'))
         lista = []
         for lote in lotes:
-            for lu in lote.ubicaciones_detalle.all():
+            for lu in LoteUbicacion.objects.filter(lote=lote, cantidad__gt=0).select_related('ubicacion').order_by('ubicacion__codigo'):
                 if (lu.cantidad - lu.cantidad_reservada) <= 0:
                     continue
                 lista.append({'lote': lote, 'ubicacion': lu})
