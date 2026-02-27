@@ -104,7 +104,7 @@
                         <!-- Agregar Nuevo Lote -->
                         <div class="mt-4 p-3 bg-light rounded">
                             <h6>Agregar Nueva Ubicación de Lote</h6>
-                            <p class="small text-muted mb-2">Orden: más próximo a caducar, ≥60 días por caducar, por ubicación (misma regla que la generación de propuestas). Solo ubicaciones con disponibilidad.</p>
+                            <p class="small text-muted mb-2">Orden: más próximo a caducar, por ubicación. Se muestran todos los lotes con caducidad vigente (no vencidos) y con disponibilidad.</p>
                             <div class="row">
                                 <div class="col-md-8">
                                     <label for="item_{{ item.id }}_nueva_ubicacion">Selecciona una ubicación de lote</label>
@@ -117,7 +117,7 @@
                                                 {{ elem.lote.numero_lote }} / {{ elem.ubicacion.ubicacion.codigo }} ({{ elem.ubicacion|disponible_real }} disp., vence: {{ elem.lote.fecha_caducidad|date:"d/m/Y" }})
                                             </option>
                                         {% empty %}
-                                            <option value="" disabled>Sin ubicaciones con ≥60 días por caducar y disponibilidad</option>
+                                            <option value="" disabled>Sin ubicaciones con caducidad vigente y disponibilidad</option>
                                         {% endfor %}
                                     </select>
                                 </div>
@@ -373,11 +373,12 @@
             }
         });
 
-        // Inicializar Select2 para todos los selects
+        // Inicializar Select2 para todos los selects (sin límite de opciones; se muestran todas)
         $('.select2-single').select2({
             width: '100%',
             language: 'es',
-            allowClear: true
+            allowClear: true,
+            minimumResultsForSearch: 0  // Siempre mostrar buscador por si hay muchas ubicaciones
         });
 
         // Disponible real (restando reservas): actualizar máx. y avisar/ajustar si superan
@@ -430,21 +431,17 @@
             });
         });
         
-        // Almacén destino de la propuesta (para incluir sus lotes en opciones)
-        var almacenDestinoId = '{{ propuesta.solicitud.almacen_destino_id|default:"" }}';
-        // Cargar ubicaciones cuando se selecciona un producto nuevo
+        // Cargar ubicaciones de todos los almacenes cuando se selecciona un producto nuevo (sin filtrar por almacén)
         $('#nuevo_item_producto').on('change', function() {
             var productoId = $(this).val();
             var $ubicacionesSelect = $('#nuevo_item_ubicacion');
             var $seccionUbicaciones = $('#nuevo-item-ubicaciones');
             
             if (productoId) {
-                var ajaxData = { 'producto_id': productoId };
-                if (almacenDestinoId) ajaxData.almacen_destino_id = almacenDestinoId;
                 $.ajax({
                     url: '{% url "logistica:obtener_ubicaciones_producto" %}',
                     method: 'GET',
-                    data: ajaxData,
+                    data: { 'producto_id': productoId },
                     success: function(data) {
                         $ubicacionesSelect.empty();
                         $ubicacionesSelect.append('<option value="">-- Selecciona una ubicación --</option>');
@@ -453,8 +450,8 @@
                             $.each(data.ubicaciones, function(index, ubicacion) {
                                 $ubicacionesSelect.append(
                                     '<option value="' + ubicacion.id + '">' +
-                                    ubicacion.lote + ' / ' + ubicacion.codigo + 
-                                    ' (' + ubicacion.cantidad + ' disponibles, vence: ' + ubicacion.fecha_caducidad + ')' +
+                                    ubicacion.lote + ' / ' + ubicacion.codigo +
+                                    ' (' + ubicacion.cantidad + ' disp., vence: ' + ubicacion.fecha_caducidad + ')' +
                                     '</option>'
                                 );
                             });
@@ -462,7 +459,8 @@
                             $ubicacionesSelect.select2({
                                 width: '100%',
                                 language: 'es',
-                                allowClear: true
+                                allowClear: true,
+                                minimumResultsForSearch: 0
                             });
                         } else {
                             $seccionUbicaciones.hide();
