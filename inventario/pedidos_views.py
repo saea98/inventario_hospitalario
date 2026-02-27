@@ -1150,20 +1150,22 @@ def editar_propuesta(request, propuesta_id):
                 # Re-render formulario de edición con el mismo contexto
                 productos_disponibles = Producto.objects.filter(activo=True).order_by('clave_cnis')
                 fecha_minima_edicion = date.today()
+                from django.db.models import F
                 ubicaciones_por_item = {}
                 for it in propuesta.items.select_related('producto').all():
-                    lotes = Lote.objects.filter(
-                        producto=it.producto,
-                        fecha_caducidad__gte=fecha_minima_edicion,
-                        estado=1
-                    ).order_by('fecha_caducidad', 'numero_lote')
-                    lista = []
-                    for lote in lotes:
-                        for lu in lote.ubicaciones_detalle.filter(cantidad__gt=0).select_related('ubicacion').order_by('ubicacion__codigo'):
-                            if (lu.cantidad - getattr(lu, 'cantidad_reservada', 0)) <= 0:
-                                continue
-                            lista.append({'lote': lote, 'ubicacion': lu})
-                    ubicaciones_por_item[it.id] = lista
+                    ubicaciones = list(
+                        LoteUbicacion.objects.filter(
+                            lote__producto=it.producto,
+                            lote__fecha_caducidad__gte=fecha_minima_edicion,
+                            lote__estado=1,
+                            cantidad__gt=0,
+                        )
+                        .annotate(disp=F('cantidad') - F('cantidad_reservada'))
+                        .filter(disp__gt=0)
+                        .select_related('lote', 'ubicacion')
+                        .order_by('lote__fecha_caducidad', 'lote__numero_lote', 'ubicacion__codigo')
+                    )
+                    ubicaciones_por_item[it.id] = [{'lote': lu.lote, 'ubicacion': lu} for lu in ubicaciones]
                 items_propuesta = []
                 for it in propuesta.items.select_related('producto').prefetch_related('lotes_asignados__lote_ubicacion__lote', 'lotes_asignados__lote_ubicacion__ubicacion').all():
                     it.ubicaciones_ordenadas_para_editar = ubicaciones_por_item.get(it.id, [])
@@ -1455,24 +1457,26 @@ def editar_propuesta(request, propuesta_id):
                 id=propuesta_id,
                 estado__in=ESTADOS_EDITABLES,
             )
-            from .models import Producto, Lote
+            from .models import Producto, Lote, LoteUbicacion
             from datetime import date, timedelta
-                productos_disponibles = Producto.objects.filter(activo=True).order_by('clave_cnis')
-                fecha_minima_edicion = date.today()
-                ubicaciones_por_item = {}
-                for item in propuesta.items.select_related('producto').all():
-                    lotes = Lote.objects.filter(
-                        producto=item.producto,
-                        fecha_caducidad__gte=fecha_minima_edicion,
-                        estado=1
-                    ).order_by('fecha_caducidad', 'numero_lote')
-                    lista = []
-                    for lote in lotes:
-                        for lu in lote.ubicaciones_detalle.filter(cantidad__gt=0).select_related('ubicacion').order_by('ubicacion__codigo'):
-                            if (lu.cantidad - getattr(lu, 'cantidad_reservada', 0)) <= 0:
-                                continue
-                            lista.append({'lote': lote, 'ubicacion': lu})
-                    ubicaciones_por_item[item.id] = lista
+            from django.db.models import F
+            productos_disponibles = Producto.objects.filter(activo=True).order_by('clave_cnis')
+            fecha_minima_edicion = date.today()
+            ubicaciones_por_item = {}
+            for item in propuesta.items.select_related('producto').all():
+                ubicaciones = list(
+                    LoteUbicacion.objects.filter(
+                        lote__producto=item.producto,
+                        lote__fecha_caducidad__gte=fecha_minima_edicion,
+                        lote__estado=1,
+                        cantidad__gt=0,
+                    )
+                    .annotate(disp=F('cantidad') - F('cantidad_reservada'))
+                    .filter(disp__gt=0)
+                    .select_related('lote', 'ubicacion')
+                    .order_by('lote__fecha_caducidad', 'lote__numero_lote', 'ubicacion__codigo')
+                )
+                ubicaciones_por_item[item.id] = [{'lote': lu.lote, 'ubicacion': lu} for lu in ubicaciones]
             items_propuesta = []
             for item in propuesta.items.select_related('producto').prefetch_related('lotes_asignados__lote_ubicacion__lote', 'lotes_asignados__lote_ubicacion__ubicacion').all():
                 item.ubicaciones_ordenadas_para_editar = ubicaciones_por_item.get(item.id, [])
@@ -1494,22 +1498,25 @@ def editar_propuesta(request, propuesta_id):
 
     productos_disponibles = Producto.objects.filter(activo=True).order_by('clave_cnis')
 
-    # Ubicaciones para cada ítem: todos los almacenes, sin filtrar por almacén.
-    # En edición usamos solo caducidad >= hoy (no 60 días) para poder elegir lotes del almacén principal aunque tengan menos de 60 días.
+    # Ubicaciones para cada ítem: una opción por cada (lote, ubicación) con disp. > 0.
+    # Una sola consulta por producto para traer todos los lotes que cumplan condiciones y todas sus ubicaciones.
+    from django.db.models import F
     fecha_minima_edicion = date.today()
     ubicaciones_por_item = {}
     for item in propuesta.items.select_related('producto').all():
-        lotes = Lote.objects.filter(
-            producto=item.producto,
-            fecha_caducidad__gte=fecha_minima_edicion,
-            estado=1
-        ).order_by('fecha_caducidad', 'numero_lote')
-        lista = []
-        for lote in lotes:
-            for lu in lote.ubicaciones_detalle.filter(cantidad__gt=0).select_related('ubicacion').order_by('ubicacion__codigo'):
-                if (lu.cantidad - getattr(lu, 'cantidad_reservada', 0)) <= 0:
-                    continue
-                lista.append({'lote': lote, 'ubicacion': lu})
+        ubicaciones = list(
+            LoteUbicacion.objects.filter(
+                lote__producto=item.producto,
+                lote__fecha_caducidad__gte=fecha_minima_edicion,
+                lote__estado=1,
+                cantidad__gt=0,
+            )
+            .annotate(disp=F('cantidad') - F('cantidad_reservada'))
+            .filter(disp__gt=0)
+            .select_related('lote', 'ubicacion')
+            .order_by('lote__fecha_caducidad', 'lote__numero_lote', 'ubicacion__codigo')
+        )
+        lista = [{'lote': lu.lote, 'ubicacion': lu} for lu in ubicaciones]
         ubicaciones_por_item[item.id] = lista
 
     # Adjuntar lista a cada item y pasar la misma lista al template (así item.ubicaciones_ordenadas_para_editar está definido)
@@ -1545,35 +1552,30 @@ def obtener_ubicaciones_producto(request):
         from .models import Producto
         producto = Producto.objects.get(id=producto_id, activo=True)
         
-        # En edición: mostrar todos los lotes no vencidos (caducidad >= hoy) para poder elegir del almacén principal
+        # Todas las ubicaciones de todos los lotes del producto que cumplan: caducidad >= hoy, estado=1, disp. > 0
+        from django.db.models import F
         fecha_minima_edicion = date.today()
-        lotes = Lote.objects.filter(
-            producto=producto,
-            fecha_caducidad__gte=fecha_minima_edicion,
-            estado=1
-        ).select_related('producto').order_by('fecha_caducidad', 'numero_lote')
-
-        # Una opción por cada (lote, ubicación) con cantidad disponible > 0
-        ubicaciones = []
-        for lote in lotes:
-            lote_ubicaciones = LoteUbicacion.objects.filter(
-                lote=lote,
-                cantidad__gt=0
-            ).select_related('ubicacion').order_by('ubicacion__codigo')
-            for lote_ubicacion in lote_ubicaciones:
-                cantidad_disponible = lote_ubicacion.cantidad - getattr(lote_ubicacion, 'cantidad_reservada', 0)
-                if cantidad_disponible > 0:
-                    ubicaciones.append({
-                        'id': lote_ubicacion.id,
-                        'lote': lote.numero_lote,
-                        'codigo': lote_ubicacion.ubicacion.codigo,
-                        'cantidad': int(cantidad_disponible),
-                        'fecha_caducidad': lote.fecha_caducidad.strftime('%d/%m/%Y')
-                    })
-        
-        return JsonResponse({
-            'ubicaciones': ubicaciones
-        })
+        lote_ubicaciones = LoteUbicacion.objects.filter(
+            lote__producto=producto,
+            lote__fecha_caducidad__gte=fecha_minima_edicion,
+            lote__estado=1,
+            cantidad__gt=0,
+        ).annotate(disp=F('cantidad') - F('cantidad_reservada')).filter(
+            disp__gt=0
+        ).select_related('lote', 'ubicacion').order_by(
+            'lote__fecha_caducidad', 'lote__numero_lote', 'ubicacion__codigo'
+        )
+        ubicaciones = [
+            {
+                'id': lu.id,
+                'lote': lu.lote.numero_lote,
+                'codigo': lu.ubicacion.codigo,
+                'cantidad': int(lu.cantidad - lu.cantidad_reservada),
+                'fecha_caducidad': lu.lote.fecha_caducidad.strftime('%d/%m/%Y')
+            }
+            for lu in lote_ubicaciones
+        ]
+        return JsonResponse({'ubicaciones': ubicaciones})
     
     except Producto.DoesNotExist:
         return JsonResponse({'error': 'Producto no encontrado'}, status=404)
