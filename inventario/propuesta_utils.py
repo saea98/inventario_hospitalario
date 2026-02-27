@@ -9,18 +9,31 @@ Este módulo proporciona funciones para:
 """
 
 from django.db import transaction
-from django.db.models import F
+from django.db.models import F, Sum
 from django.utils import timezone
 from .pedidos_models import PropuestaPedido, ItemPropuesta, LoteAsignado, LogPropuesta
 from .models import Lote, LoteUbicacion, MovimientoInventario
+
+
+def _reserva_real_lote_ubicacion(lote_ubicacion):
+    """Reserva real en esta ubicación = suma de LoteAsignado (surtido=False). Igual que reporte de reservas."""
+    return LoteAsignado.objects.filter(
+        lote_ubicacion=lote_ubicacion, surtido=False
+    ).aggregate(total=Sum('cantidad_asignada'))['total'] or 0
+
+
+def _reserva_real_lote(lote):
+    """Reserva real en el lote (todas sus ubicaciones) = suma de LoteAsignado (surtido=False)."""
+    return LoteAsignado.objects.filter(
+        lote_ubicacion__lote=lote, surtido=False
+    ).aggregate(total=Sum('cantidad_asignada'))['total'] or 0
 
 
 def reservar_cantidad_lote(lote_ubicacion, cantidad):
     """
     Reserva una cantidad en un lote sin afectar cantidad_disponible.
     Se incrementa cantidad_reservada tanto en la ubicación como en el lote.
-    Refresca desde BD antes de comprobar para reducir condiciones de carrera
-    (otra petición puede haber reservado el mismo stock entre la vista y esta llamada).
+    Comprueba disponibilidad con reserva real (suma de LoteAsignado surtido=False), igual que el reporte de reservas.
 
     Args:
         lote_ubicacion: Instancia de LoteUbicacion
@@ -35,8 +48,10 @@ def reservar_cantidad_lote(lote_ubicacion, cantidad):
     lote = lote_ubicacion.lote
     lote.refresh_from_db()
 
-    cantidad_disponible_ubicacion = lote_ubicacion.cantidad - lote_ubicacion.cantidad_reservada
-    cantidad_realmente_disponible_lote = lote.cantidad_disponible - lote.cantidad_reservada
+    reservado_ubicacion = _reserva_real_lote_ubicacion(lote_ubicacion)
+    reservado_lote = _reserva_real_lote(lote)
+    cantidad_disponible_ubicacion = lote_ubicacion.cantidad - reservado_ubicacion
+    cantidad_realmente_disponible_lote = lote.cantidad_disponible - reservado_lote
 
     if cantidad_disponible_ubicacion < cantidad or cantidad_realmente_disponible_lote < cantidad:
         return False
