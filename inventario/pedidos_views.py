@@ -1080,7 +1080,11 @@ def editar_propuesta(request, propuesta_id):
     propuesta = get_object_or_404(PropuestaPedido, id=propuesta_id, estado__in=ESTADOS_EDITABLES)
 
     def _disponible_lu(lu):
-        return max(0, lu.cantidad - getattr(lu, 'cantidad_reservada', 0))
+        """Disponible = cantidad - reserva real (suma de LoteAsignado con surtido=False), igual que el reporte de reservas y el select."""
+        reservado_real = LoteAsignado.objects.filter(
+            lote_ubicacion=lu, surtido=False
+        ).aggregate(total=Sum('cantidad_asignada'))['total'] or 0
+        return max(0, lu.cantidad - reservado_real)
 
     if request.method == 'POST':
         solo_item_id = request.POST.get('solo_item_id', '').strip()
