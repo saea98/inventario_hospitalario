@@ -1393,7 +1393,6 @@ def editar_propuesta(request, propuesta_id):
                         )
                     
                     # Calcular cantidad disponible
-                    from django.db.models import Sum
                     cantidad_disponible = producto.lote_set.filter(estado=1).aggregate(
                         total=Sum('cantidad_disponible')
                     )['total'] or 0
