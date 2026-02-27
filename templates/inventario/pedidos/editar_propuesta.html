@@ -110,7 +110,8 @@
                                     <label for="item_{{ item.id }}_nueva_ubicacion">Selecciona una ubicación de lote</label>
                                     <select id="item_{{ item.id }}_nueva_ubicacion"
                                             name="item_{{ item.id }}_nueva_ubicacion"
-                                            class="form-control select2-single">
+                                            class="form-control select2-single"
+                                            data-num-opciones="{{ item.ubicaciones_ordenadas_para_editar|length }}">
                                         <option value="">-- Selecciona una ubicación --</option>
                                         {% for elem in item.ubicaciones_ordenadas_para_editar %}
                                             <option value="{{ elem.ubicacion.id }}" data-disponible="{{ elem.ubicacion|disponible_real }}">
