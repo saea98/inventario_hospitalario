@@ -9,7 +9,7 @@ from django.db import transaction
 from django.utils import timezone
 from datetime import date
 import logging
-from .models import MovimientoInventario, Lote
+from .models import MovimientoInventario, Lote, LoteUbicacion
 from .pedidos_models import PropuestaPedido
 
 logger = logging.getLogger(__name__)
@@ -95,8 +95,18 @@ def generar_movimientos_suministro(propuesta_id, usuario):
                             )
                         )
 
-                    cantidad_anterior_lote = lote.cantidad_disponible
+                    # Usar suma real de ubicaciones (no lote.cantidad_disponible) para evitar falsos positivos
+                    # cuando el campo está desincronizado (ej. tras desincronización con cantidad_reservada).
+                    cantidad_anterior_lote = sum(
+                        LoteUbicacion.objects.filter(lote=lote).values_list('cantidad', flat=True)
+                    )
                     cantidad_nueva_lote = cantidad_anterior_lote - cantidad_surtida
+
+                    if cantidad_nueva_lote < 0:
+                        raise ValueError(
+                            f"Cantidad insuficiente en lote {lote.numero_lote} (total en ubicaciones). "
+                            f"Disponible: {cantidad_anterior_lote}, Solicitado: {cantidad_surtida}"
+                        )
 
                     logger.info(f"Creando movimiento para lote {lote.numero_lote}: {cantidad_surtida} unidades")
                     MovimientoInventario.objects.create(
