@@ -19,6 +19,19 @@ from django.urls import path, include
 from django.conf import settings
 from django.conf.urls.static import static
 from django.contrib.auth import views as auth_views
+from django.contrib.auth.mixins import LoginRequiredMixin
+from django.urls import reverse_lazy
+
+
+class PasswordChangeView(LoginRequiredMixin, auth_views.PasswordChangeView):
+    """Cambio de contraseña del usuario actual (requiere estar autenticado)."""
+    template_name = 'registration/password_change_form.html'
+    success_url = reverse_lazy('password_change_done')
+
+
+class PasswordChangeDoneView(LoginRequiredMixin, auth_views.PasswordChangeDoneView):
+    template_name = 'registration/password_change_done.html'
+
 
 urlpatterns = [
     path('admin/', admin.site.urls),
@@ -29,8 +42,8 @@ urlpatterns = [
     # Autenticación
     path('login/', auth_views.LoginView.as_view(), name='login'),
     path('logout/', auth_views.LogoutView.as_view(), name='logout'),
-    path('password_change/', auth_views.PasswordChangeView.as_view(), name='password_change'),
-    path('password_change/done/', auth_views.PasswordChangeDoneView.as_view(), name='password_change_done'),
+    path('password_change/', PasswordChangeView.as_view(), name='password_change'),
+    path('password_change/done/', PasswordChangeDoneView.as_view(), name='password_change_done'),
     path('password_reset/', auth_views.PasswordResetView.as_view(), name='password_reset'),
     path('password_reset/done/', auth_views.PasswordResetDoneView.as_view(), name='password_reset_done'),
     path('reset/<uidb64>/<token>/', auth_views.PasswordResetConfirmView.as_view(), name='password_reset_confirm'),

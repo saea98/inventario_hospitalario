@@ -201,10 +201,19 @@ def reporte_entradas(request):
         estado_llegada_label = ESTADO_LLEGADA_LABELS.get(estado_llegada_val, '') if estado_llegada_val else ''
         ubicacion_label = 'Sí' if ubicacion_asignada else ('—' if estado_llegada_val is None else 'No')
 
+        # Orden de suministro: de la OS vinculada al lote, o texto en lote.pedido si no hay OS
+        orden_suministro_val = (os and os.numero_orden) or (lote and lote.pedido) or ''
+        # Partida: solo partida real (lote.partida o OS.partida_presupuestal); si no hay, vacío para no hacer ruido
+        partida_val = ''
+        if lote and getattr(lote, 'partida', None):
+            partida_val = lote.partida
+        elif os and getattr(os, 'partida_presupuestal', None):
+            partida_val = os.partida_presupuestal
+
         row = [
             _valor(prov and prov.rfc or (lote and lote.rfc_proveedor)),
             _valor(prov and prov.razon_social or (lote and lote.proveedor)),
-            _valor(lote and lote.partida or (os and os.partida_presupuestal)),
+            _valor(partida_val),
             _valor(prod and prod.clave_cnis),
             _valor(prod and prod.descripcion),
             _valor(prod and prod.unidad_medida) or 'PIEZA',
@@ -213,7 +222,7 @@ def reporte_entradas(request):
             lugar_entrega,
             _valor(m.contrato or (lote and lote.contrato)),
             _valor(m.remision or (lote and lote.remision)),
-            _valor(os and os.numero_orden),
+            _valor(orden_suministro_val),
             _valor(lote and lote.numero_lote),
             _fecha(lote and lote.fecha_caducidad),
             _valor(m.folio or (lote and lote.folio)),
@@ -292,10 +301,16 @@ def _construir_fila_entrada(m):
     ubicacion_asignada = getattr(m, 'llegada_tiene_ubicacion', None)
     estado_llegada_label = ESTADO_LLEGADA_LABELS.get(estado_llegada_val, '') if estado_llegada_val else ''
     ubicacion_label = 'Sí' if ubicacion_asignada else ('—' if estado_llegada_val is None else 'No')
+    orden_suministro_val = (os and os.numero_orden) or (lote and lote.pedido) or ''
+    partida_val = ''
+    if lote and getattr(lote, 'partida', None):
+        partida_val = lote.partida
+    elif os and getattr(os, 'partida_presupuestal', None):
+        partida_val = os.partida_presupuestal
     return [
         _valor(prov and prov.rfc or (lote and lote.rfc_proveedor)),
         _valor(prov and prov.razon_social or (lote and lote.proveedor)),
-        _valor(lote and lote.partida or (os and os.partida_presupuestal)),
+        _valor(partida_val),
         _valor(prod and prod.clave_cnis),
         _valor(prod and prod.descripcion),
         _valor(prod and prod.unidad_medida) or 'PIEZA',
@@ -304,7 +319,7 @@ def _construir_fila_entrada(m):
         lugar_entrega,
         _valor(m.contrato or (lote and lote.contrato)),
         _valor(m.remision or (lote and lote.remision)),
-        _valor(os and os.numero_orden),
+        _valor(orden_suministro_val),
         _valor(lote and lote.numero_lote),
         _fecha(lote and lote.fecha_caducidad),
         _valor(m.folio or (lote and lote.folio)),
