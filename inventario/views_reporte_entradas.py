@@ -170,13 +170,26 @@ def reporte_entradas(request):
         entradas = entradas.filter(estado_llegada=filtro_estado_llegada)
     if filtro_con_ubicacion:
         entradas = entradas.filter(llegada_tiene_ubicacion__isnull=False)
+
+    # Orden de suministro desde logística/llegadas (misma fuente que esa vista): por folio
+    entradas_list = list(entradas)
+    folios = set()
+    for mov in entradas_list:
+        f = mov.folio or (mov.lote.folio if mov.lote else None)
+        if f:
+            folios.add(f)
+    llegadas_por_folio = {}
+    if folios:
+        for lleg in LlegadaProveedor.objects.filter(folio__in=folios).select_related('cita'):
+            orden = (lleg.numero_orden_suministro or '').strip() or (lleg.cita.numero_orden_suministro if lleg.cita else '') or ''
+            llegadas_por_folio[lleg.folio] = orden or llegadas_por_folio.get(lleg.folio, '')
     
     # Construir lista con el layout de 34 columnas
     entradas_lista = []
     total_cantidad = 0
     total_valor = 0
 
-    for m in entradas:
+    for m in entradas_list:
         lote = m.lote
         prod = lote.producto if lote else None
         os = lote.orden_suministro if lote else None
@@ -201,22 +214,26 @@ def reporte_entradas(request):
         estado_llegada_label = ESTADO_LLEGADA_LABELS.get(estado_llegada_val, '') if estado_llegada_val else ''
         ubicacion_label = 'Sí' if ubicacion_asignada else ('—' if estado_llegada_val is None else 'No')
 
-        # Partida presupuestal: con la que se adquiere el producto (lote u orden de suministro). Vacía si no hay.
-        partida_val = _valor(lote and getattr(lote, 'partida', None)) or _valor(os and getattr(os, 'partida_presupuestal', None)) or ''
-        # Orden de suministro: número de orden con la que el proveedor entrega el producto. Vacía si no hay.
-        orden_suministro_val = (os and os.numero_orden) or (lote and getattr(lote, 'pedido', None)) or ''
+        # Valor que antes iba en col 3 (partida/lote.partida u orden guardada ahí)
+        partida_crudo = _valor(lote and getattr(lote, 'partida', None)) or _valor(os and getattr(os, 'partida_presupuestal', None)) or ''
+        # Columna 10: orden de suministro (misma fuente que logística/llegadas: llegada o cita; luego OS, pedido, partida_crudo)
+        folio_val = m.folio or (lote and getattr(lote, 'folio', None))
+        orden_from_llegada = (llegadas_por_folio.get(folio_val, '') if folio_val else '') or ''
+        orden_suministro_val = orden_from_llegada or (os and os.numero_orden) or (lote and getattr(lote, 'pedido', None)) or partida_crudo or ''
+        # Columna 3: solo partida real; si es el mismo que la orden, vacío
+        partida_val = partida_crudo if (partida_crudo and partida_crudo.strip() != (orden_suministro_val or '').strip()) else ''
 
         row = [
             _valor(prov and prov.rfc or (lote and lote.rfc_proveedor)),
             _valor(prov and prov.razon_social or (lote and lote.proveedor)),
-            _valor(partida_val),                                                                   # C = PARTIDA
+            _valor(partida_val),                                                                   # col 3 = PARTIDA (vacía si no hay)
             _valor(prod and prod.clave_cnis),
             _valor(prod and prod.descripcion),
             _valor(prod and prod.unidad_medida) or 'PIEZA',
             m.cantidad,
             _fecha(lote and lote.fecha_recepcion or (m.fecha_movimiento.date() if m.fecha_movimiento else None)),
             lugar_entrega,
-            _valor(orden_suministro_val),                                                          # J = ORDEN DE SUMINISTRO
+            _valor(orden_suministro_val),                                                          # col 10 = ORDEN DE SUMINISTRO
             _valor(m.contrato or (lote and lote.contrato)),
             _valor(m.remision or (lote and lote.remision)),
             _valor(lote and lote.numero_lote),
@@ -280,8 +297,11 @@ def reporte_entradas(request):
     return render(request, 'inventario/reporte_entradas.html', context)
 
 
-def _construir_fila_entrada(m):
-    """Construye la fila de 34 valores para un MovimientoInventario ENTRADA (mismo orden que ENTRADAS_LAYOUT_HEADERS)."""
+def _construir_fila_entrada(m, llegadas_por_folio=None):
+    """Construye la fila de 34 valores para un MovimientoInventario ENTRADA (mismo orden que ENTRADAS_LAYOUT_HEADERS).
+    llegadas_por_folio: dict opcional folio -> orden de suministro (desde LlegadaProveedor, como en logística/llegadas).
+    """
+    llegadas_por_folio = llegadas_por_folio or {}
     lote = m.lote
     prod = lote.producto if lote else None
     os = lote.orden_suministro if lote else None
@@ -297,20 +317,22 @@ def _construir_fila_entrada(m):
     ubicacion_asignada = getattr(m, 'llegada_tiene_ubicacion', None)
     estado_llegada_label = ESTADO_LLEGADA_LABELS.get(estado_llegada_val, '') if estado_llegada_val else ''
     ubicacion_label = 'Sí' if ubicacion_asignada else ('—' if estado_llegada_val is None else 'No')
-    # Partida presupuestal: con la que se adquiere el producto. Orden de suministro: número de orden de entrega del proveedor.
-    partida_val = _valor(lote and getattr(lote, 'partida', None)) or _valor(os and getattr(os, 'partida_presupuestal', None)) or ''
-    orden_suministro_val = (os and os.numero_orden) or (lote and getattr(lote, 'pedido', None)) or ''
+    partida_crudo = _valor(lote and getattr(lote, 'partida', None)) or _valor(os and getattr(os, 'partida_presupuestal', None)) or ''
+    folio_val = m.folio or (lote and getattr(lote, 'folio', None))
+    orden_from_llegada = (llegadas_por_folio.get(folio_val, '') if folio_val else '') or ''
+    orden_suministro_val = orden_from_llegada or (os and os.numero_orden) or (lote and getattr(lote, 'pedido', None)) or partida_crudo or ''
+    partida_val = partida_crudo if (partida_crudo and partida_crudo.strip() != (orden_suministro_val or '').strip()) else ''
     return [
         _valor(prov and prov.rfc or (lote and lote.rfc_proveedor)),
         _valor(prov and prov.razon_social or (lote and lote.proveedor)),
-        _valor(partida_val),                                                                   # C = PARTIDA
+        _valor(partida_val),                                                                   # col 3 = PARTIDA (vacía si no hay)
         _valor(prod and prod.clave_cnis),
         _valor(prod and prod.descripcion),
         _valor(prod and prod.unidad_medida) or 'PIEZA',
         m.cantidad,
         _fecha(lote and lote.fecha_recepcion or (m.fecha_movimiento.date() if m.fecha_movimiento else None)),
         lugar_entrega,
-        _valor(orden_suministro_val),                                                          # J = ORDEN DE SUMINISTRO
+        _valor(orden_suministro_val),                                                          # col 10 = ORDEN DE SUMINISTRO
         _valor(m.contrato or (lote and lote.contrato)),
         _valor(m.remision or (lote and lote.remision)),
         _valor(lote and lote.numero_lote),
@@ -404,6 +426,19 @@ def exportar_entradas_excel(request):
     if filtro_con_ubicacion:
         entradas = entradas.filter(llegada_tiene_ubicacion__isnull=False)
 
+    # Orden de suministro desde logística/llegadas (misma fuente que esa vista)
+    entradas_list_export = list(entradas)
+    folios_export = set()
+    for mov in entradas_list_export:
+        f = mov.folio or (mov.lote.folio if mov.lote else None)
+        if f:
+            folios_export.add(f)
+    llegadas_por_folio_export = {}
+    if folios_export:
+        for lleg in LlegadaProveedor.objects.filter(folio__in=folios_export).select_related('cita'):
+            orden = (lleg.numero_orden_suministro or '').strip() or (lleg.cita.numero_orden_suministro if lleg.cita else '') or ''
+            llegadas_por_folio_export[lleg.folio] = orden or llegadas_por_folio_export.get(lleg.folio, '')
+
     wb = Workbook()
     ws = wb.active
     ws.title = "Entradas"
@@ -424,8 +459,8 @@ def exportar_entradas_excel(request):
     total_cantidad = 0
     total_importe = 0
     listado = []
-    for m in entradas:
-        fila = _construir_fila_entrada(m)
+    for m in entradas_list_export:
+        fila = _construir_fila_entrada(m, llegadas_por_folio_export)
         listado.append(fila)
         total_cantidad += fila[6] or 0
         total_importe += float(fila[20] or 0)  # IMPORTE TOTAL (índice 20 con nuevas columnas)
