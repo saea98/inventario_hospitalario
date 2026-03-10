@@ -202,13 +202,19 @@ def reporte_entradas(request):
         ubicacion_label = 'Sí' if ubicacion_asignada else ('—' if estado_llegada_val is None else 'No')
 
         # Orden de suministro: de la OS vinculada al lote, o texto en lote.pedido si no hay OS
-        orden_suministro_val = (os and os.numero_orden) or (lote and lote.pedido) or ''
-        # Partida: solo partida real (lote.partida o OS.partida_presupuestal); si no hay, vacío para no hacer ruido
+        orden_suministro_val = (os and os.numero_orden) or (lote and getattr(lote, 'pedido', None)) or ''
+        orden_str = (orden_suministro_val or '').strip()
+        # Partida: solo mostrar partida cuando tenga un valor definido y no sea el número de orden
+        # (en algunos flujos lote.partida se rellena con numero_orden_suministro; no mostrarlo en partida)
         partida_val = ''
-        if lote and getattr(lote, 'partida', None):
-            partida_val = lote.partida
-        elif os and getattr(os, 'partida_presupuestal', None):
-            partida_val = os.partida_presupuestal
+        if lote and getattr(lote, 'partida', None) and (lote.partida or '').strip():
+            cand = (lote.partida or '').strip()
+            if cand != orden_str:
+                partida_val = cand
+        if not partida_val and os and getattr(os, 'partida_presupuestal', None) and (os.partida_presupuestal or '').strip():
+            cand = (os.partida_presupuestal or '').strip()
+            if cand != orden_str:
+                partida_val = cand
 
         row = [
             _valor(prov and prov.rfc or (lote and lote.rfc_proveedor)),
@@ -301,12 +307,17 @@ def _construir_fila_entrada(m):
     ubicacion_asignada = getattr(m, 'llegada_tiene_ubicacion', None)
     estado_llegada_label = ESTADO_LLEGADA_LABELS.get(estado_llegada_val, '') if estado_llegada_val else ''
     ubicacion_label = 'Sí' if ubicacion_asignada else ('—' if estado_llegada_val is None else 'No')
-    orden_suministro_val = (os and os.numero_orden) or (lote and lote.pedido) or ''
+    orden_suministro_val = (os and os.numero_orden) or (lote and getattr(lote, 'pedido', None)) or ''
+    orden_str = (orden_suministro_val or '').strip()
     partida_val = ''
-    if lote and getattr(lote, 'partida', None):
-        partida_val = lote.partida
-    elif os and getattr(os, 'partida_presupuestal', None):
-        partida_val = os.partida_presupuestal
+    if lote and getattr(lote, 'partida', None) and (lote.partida or '').strip():
+        cand = (lote.partida or '').strip()
+        if cand != orden_str:
+            partida_val = cand
+    if not partida_val and os and getattr(os, 'partida_presupuestal', None) and (os.partida_presupuestal or '').strip():
+        cand = (os.partida_presupuestal or '').strip()
+        if cand != orden_str:
+            partida_val = cand
     return [
         _valor(prov and prov.rfc or (lote and lote.rfc_proveedor)),
         _valor(prov and prov.razon_social or (lote and lote.proveedor)),
