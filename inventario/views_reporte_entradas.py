@@ -19,20 +19,20 @@ from openpyxl.utils import get_column_letter
 from .models import MovimientoInventario, Institucion, Almacen, Proveedor, UbicacionAlmacen
 from .llegada_models import LlegadaProveedor
 
-# Layout del reporte de entradas (34 columnas, incl. estado llegada y ubicación)
+# Layout del reporte de entradas (34 columnas). Col C = PARTIDA, Col J = ORDEN DE SUMINISTRO.
 ENTRADAS_LAYOUT_HEADERS = [
-    'RFC',
-    'PROVEEDOR',
-    'PARTIDA',
-    'Clave CNIS',
-    'Producto',
-    'UNIDAD DE MEDIDA',
-    'CANTIDAD RECIBIDA',
-    'FECHA DE ENTREGA',
-    'LUGAR DE ENTREGA',
-    'CONTRATO',
-    'REMISION',
-    'ORDEN DE SUMINISTRO',
+    'RFC',                    # A
+    'PROVEEDOR',               # B
+    'PARTIDA',                 # C
+    'Clave CNIS',              # D
+    'Producto',                 # E
+    'UNIDAD DE MEDIDA',         # F
+    'CANTIDAD RECIBIDA',       # G
+    'FECHA DE ENTREGA',        # H
+    'LUGAR DE ENTREGA',        # I
+    'ORDEN DE SUMINISTRO',     # J
+    'CONTRATO',                # K
+    'REMISION',                # L
     'LOTE',
     'CADUCIDAD',
     'FOLIO',
@@ -209,16 +209,16 @@ def reporte_entradas(request):
         row = [
             _valor(prov and prov.rfc or (lote and lote.rfc_proveedor)),
             _valor(prov and prov.razon_social or (lote and lote.proveedor)),
-            _valor(partida_val),
+            _valor(partida_val),                                                                   # C = PARTIDA
             _valor(prod and prod.clave_cnis),
             _valor(prod and prod.descripcion),
             _valor(prod and prod.unidad_medida) or 'PIEZA',
             m.cantidad,
             _fecha(lote and lote.fecha_recepcion or (m.fecha_movimiento.date() if m.fecha_movimiento else None)),
             lugar_entrega,
+            _valor(orden_suministro_val),                                                          # J = ORDEN DE SUMINISTRO
             _valor(m.contrato or (lote and lote.contrato)),
             _valor(m.remision or (lote and lote.remision)),
-            _valor(orden_suministro_val),
             _valor(lote and lote.numero_lote),
             _fecha(lote and lote.fecha_caducidad),
             _valor(m.folio or (lote and lote.folio)),
@@ -303,16 +303,16 @@ def _construir_fila_entrada(m):
     return [
         _valor(prov and prov.rfc or (lote and lote.rfc_proveedor)),
         _valor(prov and prov.razon_social or (lote and lote.proveedor)),
-        _valor(partida_val),
+        _valor(partida_val),                                                                   # C = PARTIDA
         _valor(prod and prod.clave_cnis),
         _valor(prod and prod.descripcion),
         _valor(prod and prod.unidad_medida) or 'PIEZA',
         m.cantidad,
         _fecha(lote and lote.fecha_recepcion or (m.fecha_movimiento.date() if m.fecha_movimiento else None)),
         lugar_entrega,
+        _valor(orden_suministro_val),                                                          # J = ORDEN DE SUMINISTRO
         _valor(m.contrato or (lote and lote.contrato)),
         _valor(m.remision or (lote and lote.remision)),
-        _valor(orden_suministro_val),
         _valor(lote and lote.numero_lote),
         _fecha(lote and lote.fecha_caducidad),
         _valor(m.folio or (lote and lote.folio)),
