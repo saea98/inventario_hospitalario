@@ -1372,7 +1372,7 @@ def editar_propuesta(request, propuesta_id):
                             cantidad_asignada=cantidad_nuevo
                         )
         
-        # Manejar nuevo item agregado
+        # Manejar nuevo item agregado (solo si el producto no está ya en la propuesta, evita duplicar al guardar borrador)
         nuevo_producto_id = request.POST.get('nuevo_item_producto')
         if nuevo_producto_id:
             from .models import Producto
@@ -1380,61 +1380,67 @@ def editar_propuesta(request, propuesta_id):
             
             try:
                 producto = Producto.objects.get(id=nuevo_producto_id, activo=True)
-                cantidad_propuesta = int(request.POST.get('nuevo_item_cantidad', 0))
-                nueva_ubicacion_id = request.POST.get('nuevo_item_ubicacion')
-                cantidad_ubicacion = int(request.POST.get('nuevo_item_cantidad_ubicacion', 0))
+                # Evitar duplicar claves: si ya existe un ítem de este producto en la propuesta, no crear otro
+                if propuesta.items.filter(producto=producto).exists():
+                    if request.POST.get('guardar_borrador'):
+                        pass  # Silencioso al guardar borrador: el selector puede quedar con valor sin intención de agregar
+                    else:
+                        messages.warning(
+                            request,
+                            f"El producto {producto.clave_cnis} ya está en la propuesta. No se duplicó."
+                        )
+                else:
+                    cantidad_propuesta = int(request.POST.get('nuevo_item_cantidad', 0))
+                    nueva_ubicacion_id = request.POST.get('nuevo_item_ubicacion')
+                    cantidad_ubicacion = int(request.POST.get('nuevo_item_cantidad_ubicacion', 0))
                 
-                if cantidad_propuesta > 0:
-                    # Buscar si ya existe un ItemSolicitud para este producto en la solicitud
-                    # Si no existe, crear uno temporal (o usar el primero disponible)
-                    item_solicitud = propuesta.solicitud.items.filter(producto=producto).first()
-                    
-                    # Si no hay item_solicitud, crear uno temporal
-                    if not item_solicitud:
-                        item_solicitud = ItemSolicitud.objects.create(
-                            solicitud=propuesta.solicitud,
+                    if cantidad_propuesta > 0:
+                        # Buscar si ya existe un ItemSolicitud para este producto en la solicitud
+                        # Si no existe, crear uno temporal (o usar el primero disponible)
+                        item_solicitud = propuesta.solicitud.items.filter(producto=producto).first()
+                        
+                        if not item_solicitud:
+                            item_solicitud = ItemSolicitud.objects.create(
+                                solicitud=propuesta.solicitud,
+                                producto=producto,
+                                cantidad_solicitada=cantidad_propuesta,
+                                cantidad_aprobada=cantidad_propuesta
+                            )
+                        
+                        cantidad_disponible = producto.lote_set.filter(estado=1).aggregate(
+                            total=Sum('cantidad_disponible')
+                        )['total'] or 0
+                        
+                        item_propuesta = ItemPropuesta.objects.create(
+                            propuesta=propuesta,
+                            item_solicitud=item_solicitud,
                             producto=producto,
                             cantidad_solicitada=cantidad_propuesta,
-                            cantidad_aprobada=cantidad_propuesta
+                            cantidad_propuesta=cantidad_propuesta,
+                            cantidad_disponible=cantidad_disponible,
+                            estado='DISPONIBLE' if cantidad_propuesta > 0 else 'NO_DISPONIBLE'
                         )
-                    
-                    # Calcular cantidad disponible
-                    cantidad_disponible = producto.lote_set.filter(estado=1).aggregate(
-                        total=Sum('cantidad_disponible')
-                    )['total'] or 0
-                    
-                    # Crear el ItemPropuesta
-                    item_propuesta = ItemPropuesta.objects.create(
-                        propuesta=propuesta,
-                        item_solicitud=item_solicitud,
-                        producto=producto,
-                        cantidad_solicitada=cantidad_propuesta,
-                        cantidad_propuesta=cantidad_propuesta,
-                        cantidad_disponible=cantidad_disponible,
-                        estado='DISPONIBLE' if cantidad_propuesta > 0 else 'NO_DISPONIBLE'
-                    )
-                    
-                    # Si se seleccionó una ubicación, crear el LoteAsignado (validar disponible restando reservas y reservar)
-                    if nueva_ubicacion_id and cantidad_ubicacion > 0:
-                        lote_ubicacion = LoteUbicacion.objects.select_related('lote', 'ubicacion').get(id=nueva_ubicacion_id)
-                        disponible = _disponible_lu(lote_ubicacion)
-                        if cantidad_ubicacion > disponible:
-                            messages.warning(
-                                request,
-                                f"Ubicación {lote_ubicacion.lote.numero_lote} / {lote_ubicacion.ubicacion.codigo}: "
-                                f"se solicitaban {cantidad_ubicacion}, solo hay {disponible} disponibles (restando reservas). Se asignó {disponible}."
-                            )
-                            cantidad_ubicacion = disponible
-                        if cantidad_ubicacion > 0 and reservar_cantidad_lote(lote_ubicacion, cantidad_ubicacion):
-                            LoteAsignado.objects.create(
-                                item_propuesta=item_propuesta,
-                                lote_ubicacion=lote_ubicacion,
-                                cantidad_asignada=cantidad_ubicacion
-                            )
-                        elif cantidad_ubicacion > 0:
-                            messages.error(request, "No hay cantidad suficiente en la ubicación seleccionada (restando reservas). No se asignó lote.")
-                    
-                    messages.success(request, f"Item {producto.clave_cnis} agregado a la propuesta.")
+                        
+                        if nueva_ubicacion_id and cantidad_ubicacion > 0:
+                            lote_ubicacion = LoteUbicacion.objects.select_related('lote', 'ubicacion').get(id=nueva_ubicacion_id)
+                            disponible = _disponible_lu(lote_ubicacion)
+                            if cantidad_ubicacion > disponible:
+                                messages.warning(
+                                    request,
+                                    f"Ubicación {lote_ubicacion.lote.numero_lote} / {lote_ubicacion.ubicacion.codigo}: "
+                                    f"se solicitaban {cantidad_ubicacion}, solo hay {disponible} disponibles (restando reservas). Se asignó {disponible}."
+                                )
+                                cantidad_ubicacion = disponible
+                            if cantidad_ubicacion > 0 and reservar_cantidad_lote(lote_ubicacion, cantidad_ubicacion):
+                                LoteAsignado.objects.create(
+                                    item_propuesta=item_propuesta,
+                                    lote_ubicacion=lote_ubicacion,
+                                    cantidad_asignada=cantidad_ubicacion
+                                )
+                            elif cantidad_ubicacion > 0:
+                                messages.error(request, "No hay cantidad suficiente en la ubicación seleccionada (restando reservas). No se asignó lote.")
+                        
+                        messages.success(request, f"Item {producto.clave_cnis} agregado a la propuesta.")
             except Producto.DoesNotExist:
                 messages.error(request, "El producto seleccionado no existe o no está activo.")
             except Exception as e:
