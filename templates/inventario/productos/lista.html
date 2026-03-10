@@ -58,8 +58,8 @@
             Productos ({{ page_obj.paginator.count }} total)
         </h5>
         <div>
-            <a href="?format=excel" class="btn btn-sm btn-success">
-                <i class="fas fa-file-excel"></i> Exportar Excel
+            <a href="?format=excel{% if search %}&search={{ search|urlencode }}{% endif %}{% if categoria_selected %}&categoria={{ categoria_selected }}{% endif %}{% if es_cpm %}&es_cpm=1{% endif %}" class="btn btn-sm btn-success">
+                <i class="fas fa-file-excel"></i> Descargar catálogo Excel
             </a>
         </div>
     </div>

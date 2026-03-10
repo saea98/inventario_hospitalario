@@ -331,6 +331,49 @@ def lista_productos(request):
     if es_cpm:
         productos = productos.filter(es_insumo_cpm=True)
 
+    # Exportar catálogo a Excel (mismos filtros que la lista)
+    if request.GET.get('format') == 'excel':
+        from openpyxl import Workbook
+        from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
+
+        wb = Workbook()
+        ws = wb.active
+        ws.title = "Catálogo de Productos"
+        headers = ['Clave/CNIS', 'Descripción', 'Categoría', 'Unidad', 'Precio Ref.', 'CPM', 'Estado']
+        header_fill = PatternFill(start_color="2E7D32", end_color="2E7D32", fill_type="solid")
+        header_font = Font(bold=True, color="E8F5E9", size=10)
+        border = Border(
+            left=Side(style='thin'), right=Side(style='thin'),
+            top=Side(style='thin'), bottom=Side(style='thin')
+        )
+        for col, title in enumerate(headers, 1):
+            cell = ws.cell(row=1, column=col)
+            cell.value = title
+            cell.fill = header_fill
+            cell.font = header_font
+            cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+            cell.border = border
+
+        for row_num, p in enumerate(productos.order_by('clave_cnis'), 2):
+            ws.cell(row=row_num, column=1, value=p.clave_cnis or '').border = border
+            ws.cell(row=row_num, column=2, value=(p.descripcion or '')[:500]).border = border
+            ws.cell(row=row_num, column=3, value=p.categoria.nombre if p.categoria else '').border = border
+            ws.cell(row=row_num, column=4, value=p.unidad_medida or 'PIEZA').border = border
+            ws.cell(row=row_num, column=5, value=float(p.precio_unitario_referencia) if p.precio_unitario_referencia is not None else '').border = border
+            ws.cell(row=row_num, column=6, value='Sí' if p.es_insumo_cpm else 'No').border = border
+            ws.cell(row=row_num, column=7, value='Activo' if p.activo else 'Inactivo').border = border
+
+        for col in range(1, len(headers) + 1):
+            ws.column_dimensions[get_column_letter(col)].width = 18
+        ws.column_dimensions['B'].width = 50
+
+        response = HttpResponse(
+            content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        )
+        response['Content-Disposition'] = 'attachment; filename="catalogo_productos.xlsx"'
+        wb.save(response)
+        return response
+
     paginator = Paginator(productos, 20)
     page_obj = paginator.get_page(request.GET.get('page'))
 
