@@ -201,11 +201,10 @@ def reporte_entradas(request):
         estado_llegada_label = ESTADO_LLEGADA_LABELS.get(estado_llegada_val, '') if estado_llegada_val else ''
         ubicacion_label = 'Sí' if ubicacion_asignada else ('—' if estado_llegada_val is None else 'No')
 
-        # Orden de suministro: de la OS vinculada al lote, o texto en lote.pedido si no hay OS
+        # Orden de suministro: siempre el valor de orden (OS o lote.pedido) — va solo en esta columna
         orden_suministro_val = (os and os.numero_orden) or (lote and getattr(lote, 'pedido', None)) or ''
         orden_str = (orden_suministro_val or '').strip()
-        # Partida: solo mostrar partida cuando tenga un valor definido y no sea el número de orden
-        # (en algunos flujos lote.partida se rellena con numero_orden_suministro; no mostrarlo en partida)
+        # Partida: solo si hay partida definida; si no hay valor se deja vacía (nunca mostrar orden aquí para evitar conflicto)
         partida_val = ''
         if lote and getattr(lote, 'partida', None) and (lote.partida or '').strip():
             cand = (lote.partida or '').strip()
@@ -307,8 +306,10 @@ def _construir_fila_entrada(m):
     ubicacion_asignada = getattr(m, 'llegada_tiene_ubicacion', None)
     estado_llegada_label = ESTADO_LLEGADA_LABELS.get(estado_llegada_val, '') if estado_llegada_val else ''
     ubicacion_label = 'Sí' if ubicacion_asignada else ('—' if estado_llegada_val is None else 'No')
+    # Orden de suministro: siempre el valor de orden (solo en columna Orden de suministro)
     orden_suministro_val = (os and os.numero_orden) or (lote and getattr(lote, 'pedido', None)) or ''
     orden_str = (orden_suministro_val or '').strip()
+    # Partida: vacía si no hay valor; nunca mostrar orden en partida
     partida_val = ''
     if lote and getattr(lote, 'partida', None) and (lote.partida or '').strip():
         cand = (lote.partida or '').strip()
