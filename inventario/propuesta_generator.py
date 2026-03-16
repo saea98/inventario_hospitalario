@@ -44,13 +44,16 @@ class PropuestaGenerator:
             raise ValueError("La solicitud debe estar en estado VALIDADA para generar una propuesta.")
 
         # Crear la propuesta principal
+        # total_solicitado incluye todos los items (incluso con cantidad_aprobada=0) para el registro
         self.propuesta = PropuestaPedido.objects.create(
             solicitud=self.solicitud,
             usuario_generacion=self.usuario,
             total_solicitado=sum(item.cantidad_aprobada for item in self.solicitud.items.all())
         )
 
-        # Generar items de la propuesta (solo los que tienen cantidad_aprobada > 0)
+        # Solo se generan ítems de propuesta y se reserva inventario para claves con cantidad_aprobada > 0.
+        # Si cantidad_aprobada es 0: el ítem queda registrado en la solicitud (se sabe que el usuario lo solicitó),
+        # pero no se crea línea en la propuesta ni se reserva cantidad alguna.
         for item_solicitud in self.solicitud.items.filter(cantidad_aprobada__gt=0):
             self._generate_item_propuesta(item_solicitud)
 

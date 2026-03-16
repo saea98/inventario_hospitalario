@@ -382,6 +382,7 @@ def crear_solicitud(request):
                     
                     formset.instance = solicitud
                     formset.save()
+                    # Items con cantidad_aprobada=0 quedan registrados; al validar no se incluirán en la propuesta ni se reserva inventario.
                     messages.success(request, f"Solicitud {solicitud.folio} creada con éxito.")
                     return redirect('logistica:detalle_pedido', solicitud_id=solicitud.id)
                 except Exception as e:
@@ -1858,14 +1859,9 @@ def editar_solicitud(request, solicitud_id):
             
             # Guardar los cambios en los items
             instances = formset.save(commit=False)
-            
-            # Para items nuevos, establecer cantidad_aprobada = cantidad_solicitada si la solicitud está PENDIENTE
+            # Se respeta cantidad_aprobada tal como la capturó el usuario: si es 0, solo se registra
+            # (no se generará propuesta ni reserva para esa clave al validar/generar propuesta).
             for instance in instances:
-                if not instance.pk:  # Item nuevo
-                    if solicitud.estado == 'PENDIENTE':
-                        # Si está pendiente, cantidad_aprobada = cantidad_solicitada por defecto
-                        if instance.cantidad_aprobada == 0:
-                            instance.cantidad_aprobada = instance.cantidad_solicitada
                 instance.save()
             
             # Eliminar items marcados para eliminar
