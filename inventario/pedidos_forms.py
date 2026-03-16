@@ -206,7 +206,8 @@ class ItemSolicitudForm(forms.ModelForm):
                 attrs={
                     'class': 'form-control',
                     'type': 'number',
-                    'min': '0'
+                    'min': '0',
+                    'placeholder': 'Vacío = cantidad solicitada; 0 = no surtir'
                 }
             ),
             'justificacion_cambio': forms.TextInput(
@@ -237,8 +238,12 @@ class ItemSolicitudForm(forms.ModelForm):
         if not self.instance or not self.instance.pk:
             self.fields['producto'].required = False
             self.fields['cantidad_aprobada'].required = False
-            self.fields['cantidad_aprobada'].initial = 0
+            self.fields['cantidad_aprobada'].initial = None  # Vacío: al guardar se usará cantidad_solicitada; si captura 0 se respeta
             self.fields['justificacion_cambio'].required = False
+        else:
+            self.fields['cantidad_aprobada'].required = False
+            # Existente: mostrar valor actual; si el usuario deja vacío al guardar, se usará cantidad_solicitada
+            self.fields['cantidad_aprobada'].initial = self.instance.cantidad_aprobada
         
         self.helper = FormHelper()
         self.helper.form_tag = False
@@ -263,11 +268,21 @@ class ItemSolicitudForm(forms.ModelForm):
                 return cleaned_data
             if producto and (cantidad is None or cantidad == '' or cantidad < 1):
                 self.add_error('cantidad_solicitada', 'Indique la cantidad solicitada.')
+                return cleaned_data
+            # Cantidad aprobada vacía → usar cantidad solicitada; si el usuario capturó 0 se respeta
+            aprobada = cleaned_data.get('cantidad_aprobada')
+            if aprobada is None or aprobada == '':
+                cleaned_data['cantidad_aprobada'] = cleaned_data.get('cantidad_solicitada') or 0
             return cleaned_data
         # Renglón existente: exigir cantidad >= 1
         cantidad = cleaned_data.get('cantidad_solicitada')
         if cantidad is None or cantidad == '' or cantidad < 1:
             self.add_error('cantidad_solicitada', 'La cantidad solicitada debe ser al menos 1.')
+            return cleaned_data
+        # Cantidad aprobada vacía → usar cantidad solicitada; si el usuario capturó 0 se respeta
+        aprobada = cleaned_data.get('cantidad_aprobada')
+        if aprobada is None or aprobada == '':
+            cleaned_data['cantidad_aprobada'] = cantidad
         return cleaned_data
 
 
