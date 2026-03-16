@@ -688,39 +688,42 @@ def validar_disponibilidad_solicitud(solicitud_id):
     items_con_error = []
     todos_disponibles = True
     hay_disponibilidad_parcial = False
-    
+
+    # Solo validar disponibilidad para ítems que se van a surtir (cantidad_aprobada > 0).
+    # Si cantidad_aprobada es 0, no se genera propuesta ni se reserva; no debe aparecer en alertas.
     for item in solicitud.items.all():
-        if item.cantidad_solicitada > 0:
-            resultado = validar_disponibilidad_para_propuesta(
-                item.producto.id,
-                item.cantidad_solicitada,
-                solicitud.institucion_solicitante.id
-            )
-            
-            # Si no hay disponibilidad suficiente, pero hay alguna disponibilidad, es parcial
-            if not resultado['disponible']:
-                if resultado['cantidad_disponible'] > 0:
-                    # Hay disponibilidad parcial - el algoritmo buscará múltiples lotes
-                    hay_disponibilidad_parcial = True
-                    items_con_error.append({
-                        'clave': item.producto.clave_cnis,
-                        'descripcion': item.producto.descripcion,
-                        'cantidad_solicitada': item.cantidad_solicitada,
-                        'cantidad_disponible': resultado['cantidad_disponible'],
-                        'diferencia': item.cantidad_solicitada - resultado['cantidad_disponible'],
-                        'parcial': True  # Indica que hay disponibilidad parcial
-                    })
-                else:
-                    # No hay disponibilidad en absoluto
-                    todos_disponibles = False
-                    items_con_error.append({
-                        'clave': item.producto.clave_cnis,
-                        'descripcion': item.producto.descripcion,
-                        'cantidad_solicitada': item.cantidad_solicitada,
-                        'cantidad_disponible': resultado['cantidad_disponible'],
-                        'diferencia': item.cantidad_solicitada - resultado['cantidad_disponible'],
-                        'parcial': False  # No hay disponibilidad
-                    })
+        if item.cantidad_aprobada <= 0:
+            continue
+        resultado = validar_disponibilidad_para_propuesta(
+            item.producto.id,
+            item.cantidad_aprobada,
+            solicitud.institucion_solicitante.id
+        )
+
+        # Si no hay disponibilidad suficiente, pero hay alguna disponibilidad, es parcial
+        if not resultado['disponible']:
+            if resultado['cantidad_disponible'] > 0:
+                # Hay disponibilidad parcial - el algoritmo buscará múltiples lotes
+                hay_disponibilidad_parcial = True
+                items_con_error.append({
+                    'clave': item.producto.clave_cnis,
+                    'descripcion': item.producto.descripcion,
+                    'cantidad_solicitada': item.cantidad_aprobada,
+                    'cantidad_disponible': resultado['cantidad_disponible'],
+                    'diferencia': item.cantidad_aprobada - resultado['cantidad_disponible'],
+                    'parcial': True  # Indica que hay disponibilidad parcial
+                })
+            else:
+                # No hay disponibilidad en absoluto
+                todos_disponibles = False
+                items_con_error.append({
+                    'clave': item.producto.clave_cnis,
+                    'descripcion': item.producto.descripcion,
+                    'cantidad_solicitada': item.cantidad_aprobada,
+                    'cantidad_disponible': resultado['cantidad_disponible'],
+                    'diferencia': item.cantidad_aprobada - resultado['cantidad_disponible'],
+                    'parcial': False  # No hay disponibilidad
+                })
     
     if todos_disponibles:
         mensaje_resumen = 'Todos los productos tienen disponibilidad suficiente'
