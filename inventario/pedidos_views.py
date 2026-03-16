@@ -1909,11 +1909,23 @@ def editar_solicitud(request, solicitud_id):
             
             return redirect('logistica:detalle_pedido', solicitud_id=solicitud.id)
         else:
-            # Mostrar errores de validación
+            # Mostrar errores de validación (con detalle para que el usuario sepa qué corregir)
             if not form_encabezado.is_valid():
                 messages.error(request, "Por favor, corrige los errores en los datos del encabezado.")
             if not formset.is_valid():
-                messages.error(request, "Por favor, corrige los errores en los items.")
+                messages.error(request, "Hay errores en los items. Revisa los mensajes en rojo debajo de cada campo.")
+                if formset.non_form_errors():
+                    for error in formset.non_form_errors():
+                        messages.error(request, f"Items: {error}")
+                for i, form in enumerate(formset.forms):
+                    if form.errors:
+                        num_renglon = i + 1
+                        for field_name, errors in form.errors.items():
+                            if field_name == 'DELETE':
+                                continue
+                            label = form.fields[field_name].label if field_name in form.fields else field_name
+                            for error in errors:
+                                messages.error(request, f"Renglón {num_renglon} — {label}: {error}")
     else:
         form_encabezado = SolicitudPedidoEdicionForm(instance=solicitud, user=request.user)
         formset = ItemSolicitudFormSet(instance=solicitud)
@@ -1927,11 +1939,13 @@ def editar_solicitud(request, solicitud_id):
     from .models import Producto
     productos_disponibles = Producto.objects.filter(activo=True).order_by('clave_cnis')
     
+    formset_has_item_errors = any(f.errors for f in formset.forms)
     context = {
         'solicitud': solicitud,
         'propuesta': propuesta,
         'form_encabezado': form_encabezado,
         'formset': formset,
+        'formset_has_item_errors': formset_has_item_errors,
         'productos_disponibles': productos_disponibles,
         'page_title': f"Editar Solicitud {solicitud.folio}"
     }

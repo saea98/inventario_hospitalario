@@ -105,6 +105,30 @@
             </div>
             <div class="card-body">
                 {{ formset.management_form }}
+
+                {% if formset_has_item_errors %}
+                <div class="alert alert-danger mb-3" role="alert">
+                    <strong><i class="fas fa-exclamation-triangle"></i> Errores en los items:</strong>
+                    <ul class="mb-0 mt-2 pl-3">
+                        {% for form in formset %}
+                            {% if form.errors %}
+                                {% for field_name, errors in form.errors.items %}
+                                    {% if field_name != 'DELETE' %}
+                                        {% for error in errors %}
+                                        <li>Renglón {{ forloop.parentloop.parentloop.counter }}: {{ error }}</li>
+                                        {% endfor %}
+                                    {% endif %}
+                                {% endfor %}
+                            {% endif %}
+                        {% endfor %}
+                    </ul>
+                </div>
+                {% endif %}
+                {% if formset.non_form_errors %}
+                <div class="alert alert-danger mb-3">
+                    {{ formset.non_form_errors }}
+                </div>
+                {% endif %}
                 
                 <div class="table-responsive">
                     <table class="table table-bordered" id="items-table">
