@@ -54,15 +54,26 @@
 
                 <div id="item-forms-container">
                     {% for item_form in formset %}
-                        <div class="item-form mb-4 p-3 border rounded">
-                            {{ item_form.as_p }}
+                        <div class="item-form mb-4 p-3 border rounded position-relative" data-form-index="{{ forloop.counter0 }}">
+                            <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
+                                <span class="text-muted small">Renglón {{ forloop.counter }}</span>
+                                <button type="button" class="btn btn-sm btn-outline-danger btn-quitar-renglon" title="Quitar este renglón (no se guardará al enviar)">
+                                    <i class="fas fa-trash-alt"></i> Quitar renglón
+                                </button>
+                            </div>
+                            <div class="item-form-fields">
+                                {{ item_form.as_p }}
+                            </div>
                         </div>
                     {% endfor %}
                 </div>
 
-                <button type="button" id="add-item-form" class="btn btn-secondary btn-sm mt-3">
+                <button type="button" id="add-item-form" class="btn btn-success btn-sm mt-3">
                     <i class="fas fa-plus"></i> Añadir otro item
                 </button>
+                <p class="text-muted small mt-2 mb-0">
+                    <i class="fas fa-info-circle"></i> Puede quitar un renglón con «Quitar renglón» y guardar; no es necesario escribir cantidad para eliminarlo.
+                </p>
             </div>
         </div>
 
@@ -98,20 +109,37 @@
         const addButton = document.getElementById('add-item-form');
         const totalFormsInput = document.getElementById('id_items-TOTAL_FORMS');
         
+        // Quitar renglón: marcar DELETE y ocultar la fila. Al guardar, ese renglón no se crea (no hace falta poner cantidad).
+        container.addEventListener('click', function(e) {
+            const btn = e.target.closest('.btn-quitar-renglon');
+            if (!btn) return;
+            e.preventDefault();
+            const itemForm = btn.closest('.item-form');
+            if (!itemForm) return;
+            const deleteCheckbox = itemForm.querySelector('input[name$="-DELETE"]');
+            if (deleteCheckbox) {
+                deleteCheckbox.checked = true;
+            }
+            itemForm.style.display = 'none';
+        });
+
         addButton.addEventListener('click', function(e) {
             e.preventDefault();
             
             const formCount = parseInt(totalFormsInput.value);
-            const firstForm = container.querySelector('.item-form');
+            const firstForm = container.querySelector('.item-form:not([style*="display: none"])') || container.querySelector('.item-form');
             const newForm = firstForm.cloneNode(true);
-            
+            newForm.style.display = '';
+            newForm.querySelectorAll('input[name$="-DELETE"]').forEach(function(cb) { cb.checked = false; });
+
             const regex = new RegExp('items-(\\d+)-', 'g');
             newForm.innerHTML = newForm.innerHTML.replace(regex, 'items-' + formCount + '-');
             
             newForm.querySelectorAll('input, select, textarea').forEach(field => {
-                if (field.type !== 'hidden') field.value = '';
+                if (field.type !== 'hidden' && !field.name.endsWith('-DELETE')) field.value = '';
             });
-            
+            newForm.querySelector('input[name$="-DELETE"]').checked = false;
+
             container.appendChild(newForm);
             totalFormsInput.value = formCount + 1;
             initializeSelect2();
