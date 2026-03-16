@@ -346,15 +346,17 @@ def crear_solicitud(request):
                             #     messages.warning(request, f"Sin existencia para {clave}")
                             #     continue
                             
+                            # cantidad_aprobada vacía: al guardar se usará cantidad_solicitada; el usuario puede poner 0 en las que no quiera surtir
                             items_data.append({
                                 'producto': producto.id,
-                                'cantidad_solicitada': cantidad_int
+                                'cantidad_solicitada': cantidad_int,
+                                'cantidad_aprobada': None,
                             })
                     
                     ItemSolicitudFormSet = inlineformset_factory(SolicitudPedido, ItemSolicitud, form=ItemSolicitudForm, extra=len(items_data), can_delete=True)
                     formset = ItemSolicitudFormSet(initial=items_data)
                     form = SolicitudPedidoForm(user=request.user)
-                    messages.success(request, f"{len(items_data)} items cargados desde el CSV.")
+                    messages.success(request, f"{len(items_data)} items cargados desde el CSV. Revise «Cantidad aprobada»: vacío = se aprueba lo solicitado; 0 = no surtir.")
                     
                 except Exception as e:
                     messages.error(request, f"Error al procesar el archivo CSV: {e}")
