@@ -123,12 +123,18 @@
                                 <tr class="item-row {% if not form.instance.pk %}new-item-row{% endif %}" 
                                     {% if form.DELETE.value %}style="display: none;"{% elif not form.instance.pk %}style="display: none;"{% endif %}>
                                     {% if form.instance.pk %}
-                                        {# Item existente - mostrar datos y permitir editar cantidad #}
-                                        <td>
-                                            <strong>{{ form.instance.producto.clave_cnis }}</strong>
-                                            {{ form.producto.as_hidden }}
+                                        {# Item existente: permitir editar producto (clave) y cantidades #}
+                                        <td class="producto-cell" style="min-width: 250px;">
+                                            {{ form.producto }}
+                                            {% if form.producto.errors %}
+                                                <div class="text-danger small">
+                                                    {{ form.producto.errors }}
+                                                </div>
+                                            {% endif %}
                                         </td>
-                                        <td>{{ form.instance.producto.descripcion|truncatechars:50 }}</td>
+                                        <td>
+                                            <span class="text-muted descripcion-cell" id="descripcion_{{ forloop.counter0 }}">{{ form.instance.producto.descripcion|truncatechars:50 }}</span>
+                                        </td>
                                         <td>
                                             {{ form.cantidad_solicitada }}
                                             {% if form.cantidad_solicitada.errors %}
@@ -169,7 +175,7 @@
                                             {% endif %}
                                         </td>
                                         <td>
-                                            <span class="text-muted" id="descripcion_{{ forloop.counter0 }}">-</span>
+                                            <span class="text-muted descripcion-cell" id="descripcion_{{ forloop.counter0 }}">-</span>
                                         </td>
                                         <td>
                                             {{ form.cantidad_solicitada }}
@@ -188,7 +194,7 @@
                                             {{ form.justificacion_cambio.as_hidden }}
                                         </td>
                                         <td>
-                                            <button type="button" class="btn btn-sm btn-danger remove-row">
+                                            <button type="button" class="btn btn-sm btn-danger remove-row" title="Quitar renglón">
                                                 <i class="fas fa-times"></i>
                                             </button>
                                         </td>
@@ -251,30 +257,25 @@ document.addEventListener('DOMContentLoaded', function() {
         }
     }
     
-    // Inicializar Select2 para todos los selects de producto (items nuevos)
+    // Inicializar Select2 para todos los selects de producto (existentes y nuevos)
     function initializeProductSelects() {
         document.querySelectorAll('select[name$="-producto"]').forEach(function(select) {
             const row = select.closest('tr');
-            const idField = row.querySelector('input[name$="-id"]');
-            // Solo para items nuevos (sin id) y que no estén ocultos
-            if ((!idField || !idField.value) && row.style.display !== 'none') {
-                // Inicializar Select2 si no está ya inicializado
-                if (!$(select).hasClass('select2-hidden-accessible')) {
-                    $(select).select2({
-                        placeholder: 'Busca por CNIS o descripción',
-                        allowClear: true,
-                        width: '100%',
-                        language: 'es'
-                    });
-                }
-                
-                select.addEventListener('change', function() {
-                    updateDescription(this);
+            if (row.style.display === 'none') return;
+            if (!$(select).hasClass('select2-hidden-accessible')) {
+                $(select).select2({
+                    placeholder: 'Busca por CNIS o descripción',
+                    allowClear: true,
+                    width: '100%',
+                    language: 'es',
+                    dropdownParent: $(select).closest('.table-responsive').length ? $(select).closest('.table-responsive') : $('body')
                 });
-                // Actualizar descripción inicial si ya tiene valor
-                if (select.value) {
-                    updateDescription(select);
-                }
+            }
+            $(select).off('change').on('change', function() {
+                updateDescription(this);
+            });
+            if (select.value) {
+                updateDescription(select);
             }
         });
     }
@@ -585,15 +586,12 @@ document.addEventListener('DOMContentLoaded', function() {
         });
     });
     
-    // Inicializar Select2 para los campos de producto (items nuevos) que estén visibles
+    // Re-inicializar Select2 para los selects de producto visibles (al mostrar una fila nueva)
     function initializeVisibleSelects() {
         if (typeof $ !== 'undefined' && $.fn.select2) {
-            $('tr.new-item-row:visible select[name$="-producto"]').each(function() {
+            $('tr.item-row:visible select[name$="-producto"]').each(function() {
                 const $select = $(this);
-                const $row = $select.closest('tr');
-                const $idField = $row.find('input[name$="-id"]');
-                // Solo inicializar Select2 para items nuevos que no estén ya inicializados
-                if ((!$idField.length || !$idField.val()) && !$select.hasClass('select2-hidden-accessible')) {
+                if (!$select.hasClass('select2-hidden-accessible')) {
                     $select.select2({
                         placeholder: 'Busca por CNIS o descripción',
                         allowClear: true,
@@ -601,12 +599,11 @@ document.addEventListener('DOMContentLoaded', function() {
                         language: 'es',
                         dropdownParent: $select.closest('.table-responsive').length ? $select.closest('.table-responsive') : $('body')
                     });
-                    
-                    // Event listener para actualizar descripción
                     $select.on('change', function() {
                         updateDescription(this);
                     });
                 }
+                if (this.value) updateDescription(this);
             });
         }
     }

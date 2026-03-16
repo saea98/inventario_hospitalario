@@ -184,7 +184,7 @@ class SolicitudPedidoForm(forms.ModelForm):
 class ItemSolicitudForm(forms.ModelForm):
     """
     Formulario para agregar y editar items a una solicitud de pedido.
-    Permite editar cantidad_solicitada y agregar items nuevos.
+    Permite editar producto (clave), cantidad_solicitada y agregar/eliminar items.
     """
     
     class Meta:
@@ -199,8 +199,7 @@ class ItemSolicitudForm(forms.ModelForm):
                 attrs={
                     'class': 'form-control',
                     'type': 'number',
-                    'min': '1',
-                    'required': True
+                    'min': '0',
                 }
             ),
             'cantidad_aprobada': forms.NumberInput(
@@ -223,24 +222,20 @@ class ItemSolicitudForm(forms.ModelForm):
         # Filtrar solo productos activos
         self.fields['producto'].queryset = Producto.objects.filter(activo=True).order_by('clave_cnis')
         
-        # Si es un item existente, hacer producto readonly (no se puede cambiar el producto de un item existente)
-        # Para items existentes, el producto se enviará como hidden field en el template
-        # No usar disabled porque no se envía en POST, usar readonly o hidden
-        if self.instance and self.instance.pk:
-            # El template usará as_hidden para el producto de items existentes
-            # Mantener el campo pero será oculto en el template
-            pass
-        else:
-            # Para items nuevos, asegurar que el campo producto sea visible y funcional
-            self.fields['producto'].required = True
-            self.fields['producto'].widget.attrs.update({
-                'class': 'form-control select2-single nuevo-producto-select',
-                'data-placeholder': 'Busca por CNIS o descripción',
-                'style': 'width: 100%; display: block;'
-            })
+        # Producto editable en todos los renglones (existentes y nuevos)
+        self.fields['producto'].widget.attrs.update({
+            'class': 'form-control select2-single producto-select',
+            'data-placeholder': 'Busca por CNIS o descripción',
+            'style': 'width: 100%; display: block;'
+        })
         
-        # Para items nuevos, hacer cantidad_aprobada y justificacion opcionales/ocultos
+        # No marcar cantidad_solicitada como required en HTML: se valida en clean()
+        # para permitir renglones vacíos (eliminar sin capturar) y marcar DELETE sin cantidad
+        self.fields['cantidad_solicitada'].required = False
+        
+        # Para items nuevos (extra), producto tampoco obligatorio en HTML para permitir filas vacías
         if not self.instance or not self.instance.pk:
+            self.fields['producto'].required = False
             self.fields['cantidad_aprobada'].required = False
             self.fields['cantidad_aprobada'].initial = 0
             self.fields['justificacion_cambio'].required = False
@@ -254,6 +249,26 @@ class ItemSolicitudForm(forms.ModelForm):
                 css_class='form-row'
             ),
         )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        # Si el renglón se marca para eliminar, no exigir cantidad ni producto
+        if cleaned_data.get('DELETE'):
+            return cleaned_data
+        # Renglón nuevo vacío (sin producto ni cantidad): permitir para no bloquear eliminar fila
+        if not self.instance.pk:
+            producto = cleaned_data.get('producto')
+            cantidad = cleaned_data.get('cantidad_solicitada')
+            if not producto and (cantidad is None or cantidad == '' or cantidad == 0):
+                return cleaned_data
+            if producto and (cantidad is None or cantidad == '' or cantidad < 1):
+                self.add_error('cantidad_solicitada', 'Indique la cantidad solicitada.')
+            return cleaned_data
+        # Renglón existente: exigir cantidad >= 1
+        cantidad = cleaned_data.get('cantidad_solicitada')
+        if cantidad is None or cantidad == '' or cantidad < 1:
+            self.add_error('cantidad_solicitada', 'La cantidad solicitada debe ser al menos 1.')
+        return cleaned_data
 
 
 class ValidarSolicitudPedidoForm(forms.Form):
