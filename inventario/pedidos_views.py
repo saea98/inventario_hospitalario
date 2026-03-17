@@ -1093,6 +1093,19 @@ def editar_propuesta(request, propuesta_id):
         solo_item_id = request.POST.get('solo_item_id', '').strip()
         eliminar_item_id = request.POST.get('eliminar_item_id', '').strip()
 
+        # Si la propuesta ya está SURTIDA y se van a aplicar cambios (no solo "guardar y terminar"),
+        # revertir primero los movimientos de inventario para que al guardar se regenere con el nuevo estado.
+        if propuesta.estado == 'SURTIDA' and not request.POST.get('guardar_cambios'):
+            from .fase5_utils import revertir_movimientos_suministro
+            resultado_revertir = revertir_movimientos_suministro(propuesta.id, request.user)
+            if not resultado_revertir.get('exito'):
+                messages.error(
+                    request,
+                    f"No se pudo revertir el inventario para editar: {resultado_revertir.get('mensaje', 'Error desconocido')}. "
+                    "No se aplicaron cambios."
+                )
+                return redirect('logistica:editar_propuesta', propuesta_id=propuesta_id)
+
         # Eliminar ítem de la propuesta (liberar reservas y borrar ItemPropuesta)
         if eliminar_item_id:
             from .pedidos_models import ItemPropuesta
@@ -1103,6 +1116,17 @@ def editar_propuesta(request, propuesta_id):
                 item_a_eliminar.delete()
                 propuesta.total_propuesto = sum(i.cantidad_propuesta for i in propuesta.items.all())
                 propuesta.save()
+                # Si estaba SURTIDA, ya revertimos al inicio; volver a generar movimientos con el estado actual
+                if propuesta.estado == 'SURTIDA':
+                    from .fase5_utils import generar_movimientos_suministro
+                    res = generar_movimientos_suministro(propuesta.id, request.user)
+                    if not res.get('exito'):
+                        messages.error(request, f"Inventario: {res.get('mensaje', 'Error al regenerar movimientos')}.")
+                    else:
+                        for it in propuesta.items.all():
+                            for la in it.lotes_asignados.all():
+                                la.surtido = True
+                                la.save(update_fields=['surtido'])
                 messages.success(request, f"Se eliminó el ítem de la propuesta.")
             return redirect('logistica:editar_propuesta', propuesta_id=propuesta_id)
 
@@ -1451,6 +1475,18 @@ def editar_propuesta(request, propuesta_id):
         
         propuesta.total_propuesto = sum(item.cantidad_propuesta for item in propuesta.items.all())
         propuesta.save()
+
+        # Si la propuesta estaba SURTIDA, ya revertimos al inicio; volver a generar movimientos con el estado actual
+        if propuesta.estado == 'SURTIDA':
+            from .fase5_utils import generar_movimientos_suministro
+            res = generar_movimientos_suministro(propuesta.id, request.user)
+            if not res.get('exito'):
+                messages.error(request, f"Inventario: {res.get('mensaje', 'Error al regenerar movimientos')}. Revise cantidades/lotes.")
+            else:
+                for it in propuesta.items.all():
+                    for la in it.lotes_asignados.all():
+                        la.surtido = True
+                        la.save(update_fields=['surtido'])
 
         # Si solo se guardó un renglón, volver a editar con mensaje
         if solo_item_id:

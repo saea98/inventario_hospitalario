@@ -157,6 +157,71 @@ def generar_movimientos_suministro(propuesta_id, usuario):
         }
 
 
+def revertir_movimientos_suministro(propuesta_id, usuario):
+    """
+    Revierte los movimientos de inventario de una propuesta ya surtida.
+    Se usa al editar una propuesta SURTIDA: devuelve el stock a ubicaciones/lotes,
+    crea movimientos de ENTRADA (reversión) y marca LoteAsignado como no surtido.
+    Después de esto se pueden aplicar cambios en la propuesta y volver a llamar
+    a generar_movimientos_suministro para que el inventario quede alineado.
+    """
+    from .pedidos_models import LoteAsignado
+    try:
+        logger.info(f"Revirtiendo movimientos de suministro para propuesta {propuesta_id}")
+        propuesta = PropuestaPedido.objects.get(id=propuesta_id)
+        movimientos_revertidos = 0
+
+        with transaction.atomic():
+            for item in propuesta.items.select_related('producto').prefetch_related(
+                'lotes_asignados__lote_ubicacion__lote', 'lotes_asignados__lote_ubicacion__ubicacion'
+            ).all():
+                for la in item.lotes_asignados.all():
+                    if not la.surtido or la.cantidad_asignada <= 0:
+                        continue
+                    lu = la.lote_ubicacion
+                    lote = lu.lote
+                    cantidad = la.cantidad_asignada
+
+                    cantidad_anterior_lote = sum(
+                        LoteUbicacion.objects.filter(lote=lote).values_list('cantidad', flat=True)
+                    )
+                    cantidad_nueva_lote = cantidad_anterior_lote + cantidad
+
+                    MovimientoInventario.objects.create(
+                        lote=lote,
+                        tipo_movimiento='ENTRADA',
+                        cantidad=cantidad,
+                        cantidad_anterior=cantidad_anterior_lote,
+                        cantidad_nueva=cantidad_nueva_lote,
+                        motivo=f"Reversión suministro - corrección propuesta {propuesta.solicitud.folio}",
+                        documento_referencia=str(propuesta.solicitud.folio),
+                        pedido=str(propuesta.solicitud.folio),
+                        folio=str(propuesta.id),
+                        institucion_destino=propuesta.solicitud.institucion_solicitante,
+                        usuario=usuario
+                    )
+                    lu.cantidad += cantidad
+                    lu.save(update_fields=['cantidad'])
+                    cantidad_total_ubicaciones = sum(
+                        u.cantidad for u in lote.ubicaciones_detalle.all()
+                    )
+                    lote.cantidad_disponible = cantidad_total_ubicaciones
+                    lote.save(update_fields=['cantidad_disponible'])
+                    la.surtido = False
+                    la.save(update_fields=['surtido'])
+                    movimientos_revertidos += 1
+
+        return {
+            'exito': True,
+            'movimientos_revertidos': movimientos_revertidos,
+            'mensaje': f'Se revirtieron {movimientos_revertidos} movimientos de inventario'
+        }
+    except PropuestaPedido.DoesNotExist:
+        return {'exito': False, 'mensaje': f'Propuesta {propuesta_id} no encontrada'}
+    except Exception as e:
+        logger.error(f"Error al revertir movimientos para propuesta {propuesta_id}: {str(e)}", exc_info=True)
+        return {'exito': False, 'mensaje': str(e)}
+
 
 def generar_movimiento_entrada_llegada(llegada_id, usuario):
     """
