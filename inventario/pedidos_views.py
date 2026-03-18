@@ -1106,6 +1106,25 @@ def editar_propuesta(request, propuesta_id):
                 )
                 return redirect('logistica:editar_propuesta', propuesta_id=propuesta_id)
 
+        # Encabezado del pedido (institución, almacén, folio de pedido, fecha entrega programada)
+        from .models import Institucion, Almacen
+        sol = propuesta.solicitud
+        _iid = request.POST.get('solicitud_institucion_id', '').strip()
+        _aid = request.POST.get('solicitud_almacen_id', '').strip()
+        if _iid and Institucion.objects.filter(pk=_iid, activo=True).exists():
+            sol.institucion_solicitante_id = _iid
+        if _aid and Almacen.objects.filter(pk=_aid).exists():
+            sol.almacen_destino_id = _aid
+        _fe = request.POST.get('solicitud_fecha_entrega', '').strip()
+        if _fe:
+            try:
+                sol.fecha_entrega_programada = date.fromisoformat(_fe[:10])
+            except ValueError:
+                pass
+        if 'solicitud_folio_pedido' in request.POST:
+            sol.observaciones_solicitud = (request.POST.get('solicitud_folio_pedido') or '')[:5000]
+        sol.save()
+
         # Eliminar ítem de la propuesta (liberar reservas y borrar ItemPropuesta)
         if eliminar_item_id:
             from .pedidos_models import ItemPropuesta
@@ -1132,7 +1151,7 @@ def editar_propuesta(request, propuesta_id):
 
         # "Guardar y terminar": no aplicar reservas (ya se guardó por renglón). Solo validar cambios sin guardar y cambiar estado.
         if request.POST.get('guardar_cambios'):
-            from .models import Producto, Lote, LoteUbicacion
+            from .models import Producto, Lote, LoteUbicacion, Institucion, Almacen
             from datetime import date, timedelta
 
             propuesta.refresh_from_db()
@@ -1215,6 +1234,8 @@ def editar_propuesta(request, propuesta_id):
                     'items_propuesta': items_propuesta,
                     'productos_disponibles': productos_disponibles,
                     'page_title': f"Editar Propuesta {propuesta.solicitud.folio}",
+                    'instituciones_select': Institucion.objects.filter(activo=True).order_by('denominacion'),
+                    'almacenes_select': Almacen.objects.all().order_by('nombre'),
                 }
                 return render(request, 'inventario/pedidos/editar_propuesta.html', context)
 
@@ -1514,7 +1535,7 @@ def editar_propuesta(request, propuesta_id):
                 id=propuesta_id,
                 estado__in=ESTADOS_EDITABLES,
             )
-            from .models import Producto, Lote, LoteUbicacion
+            from .models import Producto, Lote, LoteUbicacion, Institucion, Almacen
             from datetime import date, timedelta
             productos_disponibles = Producto.objects.filter(activo=True).order_by('clave_cnis')
             fecha_minima_edicion = date.today()
@@ -1549,6 +1570,8 @@ def editar_propuesta(request, propuesta_id):
                 'items_propuesta': items_propuesta,
                 'productos_disponibles': productos_disponibles,
                 'page_title': f"Editar Propuesta {propuesta.solicitud.folio}",
+                'instituciones_select': Institucion.objects.filter(activo=True).order_by('denominacion'),
+                'almacenes_select': Almacen.objects.all().order_by('nombre'),
             }
             return render(request, 'inventario/pedidos/editar_propuesta.html', context)
 
@@ -1556,7 +1579,7 @@ def editar_propuesta(request, propuesta_id):
         return redirect('logistica:detalle_propuesta', propuesta_id=propuesta.id)
     
     # Obtener todos los productos disponibles para el selector
-    from .models import Producto, Lote, LoteUbicacion
+    from .models import Producto, Lote, LoteUbicacion, Institucion, Almacen
     from datetime import date, timedelta
 
     productos_disponibles = Producto.objects.filter(activo=True).order_by('clave_cnis')
@@ -1606,7 +1629,9 @@ def editar_propuesta(request, propuesta_id):
         'propuesta': propuesta,
         'items_propuesta': items_propuesta,
         'productos_disponibles': productos_disponibles,
-        'page_title': f"Editar Propuesta {propuesta.solicitud.folio}"
+        'page_title': f"Editar Propuesta {propuesta.solicitud.folio}",
+        'instituciones_select': Institucion.objects.filter(activo=True).order_by('denominacion'),
+        'almacenes_select': Almacen.objects.all().order_by('nombre'),
     }
     return render(request, 'inventario/pedidos/editar_propuesta.html', context)
 

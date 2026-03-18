@@ -10,6 +10,51 @@
         <input type="hidden" name="solo_item_id" id="solo_item_id" value="">
         <input type="hidden" name="eliminar_item_id" id="eliminar_item_id" value="">
         
+        {% if instituciones_select %}
+        <div class="card shadow mb-4 border-left-info">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-info">Datos del pedido (solicitud)</h6>
+            </div>
+            <div class="card-body">
+                <p class="small text-muted mb-3">
+                    Folio de sistema: <strong>{{ propuesta.solicitud.folio }}</strong>.
+                    Si la propuesta está <strong>surtida</strong>, al guardar cambios en lotes se revierte y vuelve a aplicar el inventario; los datos de aquí se guardan con cualquier «Guardar este renglón» o al actualizar la propuesta.
+                </p>
+                <div class="form-row">
+                    <div class="form-group col-md-6">
+                        <label for="solicitud_institucion_id">Institución solicitante</label>
+                        <select name="solicitud_institucion_id" id="solicitud_institucion_id" class="form-control">
+                            {% for inst in instituciones_select %}
+                            <option value="{{ inst.pk }}" {% if inst.pk == propuesta.solicitud.institucion_solicitante_id %}selected{% endif %}>{{ inst.denominacion }} ({{ inst.clue }})</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label for="solicitud_almacen_id">Almacén destino</label>
+                        <select name="solicitud_almacen_id" id="solicitud_almacen_id" class="form-control">
+                            {% for alm in almacenes_select %}
+                            <option value="{{ alm.pk }}" {% if alm.pk == propuesta.solicitud.almacen_destino_id %}selected{% endif %}>{{ alm.nombre }}</option>
+                            {% endfor %}
+                        </select>
+                    </div>
+                </div>
+                <div class="form-row">
+                    <div class="form-group col-md-6">
+                        <label for="solicitud_fecha_entrega">Fecha de entrega programada</label>
+                        <input type="date" name="solicitud_fecha_entrega" id="solicitud_fecha_entrega" class="form-control"
+                               value="{{ propuesta.solicitud.fecha_entrega_programada|date:'Y-m-d' }}">
+                    </div>
+                    <div class="form-group col-md-6">
+                        <label for="solicitud_folio_pedido">Folio del pedido (referencia / documento)</label>
+                        <input type="text" name="solicitud_folio_pedido" id="solicitud_folio_pedido" class="form-control"
+                               value="{{ propuesta.solicitud.observaciones_solicitud|default:'' }}" maxlength="5000"
+                               placeholder="Ej. número de pedido físico">
+                    </div>
+                </div>
+            </div>
+        </div>
+        {% endif %}
+
         <div class="card shadow mb-4">
             <div class="card-header py-3">
                 <h6 class="m-0 font-weight-bold text-primary">Editar Lotes y Cantidades de la Propuesta</h6>

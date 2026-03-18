@@ -6,6 +6,7 @@ cuando se marca una propuesta como surtida.
 
 from collections import defaultdict
 from django.db import transaction
+from django.db.models import Sum
 from django.utils import timezone
 from datetime import date
 import logging
@@ -68,70 +69,80 @@ def generar_movimientos_suministro(propuesta_id, usuario):
                         }
                     seen.add(key)
 
-            # Iterar sobre los items y agrupar por lote_ubicacion para deducir una sola vez por ubicación
+            # Total a descontar por lote_ubicacion (toda la propuesta), orden fijo para select_for_update
+            por_lu_id = defaultdict(int)
             for item in propuesta.items.all():
-                logger.info(f"Procesando item {item.id} de propuesta {propuesta_id}")
-                lotes_asignados = list(item.lotes_asignados.select_related(
-                    'lote_ubicacion__lote', 'lote_ubicacion__ubicacion'
-                ).all())
-                # Agrupar por lote_ubicacion: total a deducir por ubicación
-                por_ubicacion = defaultdict(int)
-                for la in lotes_asignados:
-                    if la.cantidad_asignada > 0:
-                        por_ubicacion[la.lote_ubicacion] += la.cantidad_asignada
+                for la in item.lotes_asignados.all():
+                    if la.cantidad_asignada and la.cantidad_asignada > 0:
+                        por_lu_id[la.lote_ubicacion_id] += la.cantidad_asignada
 
-                for lote_ubicacion, cantidad_surtida in por_ubicacion.items():
-                    if cantidad_surtida <= 0:
-                        continue
-                    lote = lote_ubicacion.lote
-                    cantidad_anterior_ubicacion = lote_ubicacion.cantidad
-                    cantidad_nueva_ubicacion = cantidad_anterior_ubicacion - cantidad_surtida
+            for lu_id in sorted(por_lu_id.keys()):
+                cantidad_surtida = por_lu_id[lu_id]
+                if cantidad_surtida <= 0:
+                    continue
+                lote_ubicacion = (
+                    LoteUbicacion.objects.select_for_update()
+                    .select_related('lote', 'ubicacion')
+                    .get(pk=lu_id)
+                )
+                lote = lote_ubicacion.lote
+                cantidad_anterior_ubicacion = lote_ubicacion.cantidad
+                cantidad_nueva_ubicacion = cantidad_anterior_ubicacion - cantidad_surtida
 
-                    if cantidad_nueva_ubicacion < 0:
-                        raise ValueError(
-                            _mensaje_cantidad_insuficiente(
-                                lote, lote_ubicacion,
-                                cantidad_anterior_ubicacion, cantidad_surtida
-                            )
+                if cantidad_nueva_ubicacion < 0:
+                    raise ValueError(
+                        _mensaje_cantidad_insuficiente(
+                            lote, lote_ubicacion,
+                            cantidad_anterior_ubicacion, cantidad_surtida
                         )
-
-                    # Usar suma real de ubicaciones (no lote.cantidad_disponible) para evitar falsos positivos
-                    # cuando el campo está desincronizado (ej. tras desincronización con cantidad_reservada).
-                    cantidad_anterior_lote = sum(
-                        LoteUbicacion.objects.filter(lote=lote).values_list('cantidad', flat=True)
-                    )
-                    cantidad_nueva_lote = cantidad_anterior_lote - cantidad_surtida
-
-                    if cantidad_nueva_lote < 0:
-                        raise ValueError(
-                            f"Cantidad insuficiente en lote {lote.numero_lote} (total en ubicaciones). "
-                            f"Disponible: {cantidad_anterior_lote}, Solicitado: {cantidad_surtida}"
-                        )
-
-                    logger.info(f"Creando movimiento para lote {lote.numero_lote}: {cantidad_surtida} unidades")
-                    MovimientoInventario.objects.create(
-                        lote=lote,
-                        tipo_movimiento='SALIDA',
-                        cantidad=cantidad_surtida,
-                        cantidad_anterior=cantidad_anterior_lote,
-                        cantidad_nueva=cantidad_nueva_lote,
-                        motivo=f"Suministro de Pedido - Propuesta {propuesta.solicitud.folio}",
-                        documento_referencia=str(propuesta.solicitud.folio),
-                        pedido=str(propuesta.solicitud.folio),
-                        folio=str(propuesta.id),
-                        institucion_destino=propuesta.solicitud.institucion_solicitante,
-                        usuario=usuario
                     )
 
-                    lote_ubicacion.cantidad = cantidad_nueva_ubicacion
-                    lote_ubicacion.cantidad_reservada = max(0, lote_ubicacion.cantidad_reservada - cantidad_surtida)
-                    lote_ubicacion.save(update_fields=['cantidad', 'cantidad_reservada'])
+                cantidad_anterior_lote = (
+                    LoteUbicacion.objects.filter(lote=lote).aggregate(t=Sum('cantidad'))['t'] or 0
+                )
+                cantidad_nueva_lote = cantidad_anterior_lote - cantidad_surtida
 
-                    cantidad_total_ubicaciones = sum(lu.cantidad for lu in lote.ubicaciones_detalle.all())
-                    lote.cantidad_disponible = cantidad_total_ubicaciones
-                    lote.cantidad_reservada = max(0, lote.cantidad_reservada - cantidad_surtida)
-                    lote.save(update_fields=['cantidad_disponible', 'cantidad_reservada'])
-                    movimientos_creados += 1
+                if cantidad_nueva_lote < 0:
+                    raise ValueError(
+                        f"Cantidad insuficiente en lote {lote.numero_lote} (total en ubicaciones). "
+                        f"Disponible: {cantidad_anterior_lote}, Solicitado: {cantidad_surtida}"
+                    )
+
+                logger.info(
+                    f"Movimiento surtido lote {lote.numero_lote} ubic {lote_ubicacion.ubicacion.codigo}: "
+                    f"{cantidad_surtida} u (exist. ubic antes {cantidad_anterior_ubicacion})"
+                )
+                MovimientoInventario.objects.create(
+                    lote=lote,
+                    tipo_movimiento='SALIDA',
+                    cantidad=cantidad_surtida,
+                    cantidad_anterior=cantidad_anterior_lote,
+                    cantidad_nueva=cantidad_nueva_lote,
+                    motivo=f"Suministro de Pedido - Propuesta {propuesta.solicitud.folio}",
+                    documento_referencia=str(propuesta.solicitud.folio),
+                    pedido=str(propuesta.solicitud.folio),
+                    folio=str(propuesta.id),
+                    institucion_destino=propuesta.solicitud.institucion_solicitante,
+                    usuario=usuario,
+                )
+
+                lote_ubicacion.cantidad = cantidad_nueva_ubicacion
+                lote_ubicacion.cantidad_reservada = max(
+                    0, lote_ubicacion.cantidad_reservada - cantidad_surtida
+                )
+                lote_ubicacion.save(update_fields=['cantidad', 'cantidad_reservada'])
+
+                tot_cant = (
+                    LoteUbicacion.objects.filter(lote=lote).aggregate(t=Sum('cantidad'))['t'] or 0
+                )
+                tot_res = (
+                    LoteUbicacion.objects.filter(lote=lote).aggregate(t=Sum('cantidad_reservada'))['t']
+                    or 0
+                )
+                Lote.objects.filter(pk=lote.pk).update(
+                    cantidad_disponible=tot_cant, cantidad_reservada=tot_res
+                )
+                movimientos_creados += 1
 
         return {
             'exito': True,
@@ -200,13 +211,21 @@ def revertir_movimientos_suministro(propuesta_id, usuario):
                         institucion_destino=propuesta.solicitud.institucion_solicitante,
                         usuario=usuario
                     )
+                    lu = LoteUbicacion.objects.select_for_update().get(pk=lu.pk)
                     lu.cantidad += cantidad
                     lu.save(update_fields=['cantidad'])
-                    cantidad_total_ubicaciones = sum(
-                        u.cantidad for u in lote.ubicaciones_detalle.all()
+                    tot_cant = (
+                        LoteUbicacion.objects.filter(lote=lote).aggregate(t=Sum('cantidad'))['t'] or 0
                     )
-                    lote.cantidad_disponible = cantidad_total_ubicaciones
-                    lote.save(update_fields=['cantidad_disponible'])
+                    tot_res = (
+                        LoteUbicacion.objects.filter(lote=lote).aggregate(t=Sum('cantidad_reservada'))[
+                            't'
+                        ]
+                        or 0
+                    )
+                    Lote.objects.filter(pk=lote.pk).update(
+                        cantidad_disponible=tot_cant, cantidad_reservada=tot_res
+                    )
                     la.surtido = False
                     la.save(update_fields=['surtido'])
                     movimientos_revertidos += 1
