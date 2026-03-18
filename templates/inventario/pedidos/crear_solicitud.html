@@ -17,7 +17,8 @@
                     <label for="id_csv_file">Selecciona un archivo CSV</label>
                     {{ upload_form.csv_file }}
                     <small class="form-text text-muted">
-                        El archivo debe tener las columnas "CLAVE" y "CANTIDAD SOLICITADA".
+                        Columnas requeridas: <strong>CLAVE</strong> y <strong>CANTIDAD SOLICITADA</strong>.
+                        Opcional: columna <strong>FOLIO</strong> (mismo valor en las filas); al cargar el CSV se copia al campo «Folio del pedido».
                     </small>
                 </div>
                 <button type="submit" name="upload_csv" class="btn btn-info">

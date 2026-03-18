@@ -290,8 +290,25 @@ def crear_solicitud(request):
                     
                     io_string = io.StringIO(decoded_file)
                     reader = csv.DictReader(io_string)
-                    
-                    for row in reader:
+                    rows = list(reader)
+
+                    def _normalizar_clave_header(k):
+                        if k is None:
+                            return ''
+                        return str(k).replace('\ufeff', '').strip().upper()
+
+                    folio_desde_csv = ''
+                    for row in rows:
+                        for k, v in row.items():
+                            if _normalizar_clave_header(k) == 'FOLIO' and v is not None:
+                                s = str(v).strip()
+                                if s:
+                                    folio_desde_csv = s
+                                    break
+                        if folio_desde_csv:
+                            break
+
+                    for row in rows:
                         clave = row.get('CLAVE')
                         cantidad = row.get('CANTIDAD SOLICITADA')
                         
@@ -355,8 +372,14 @@ def crear_solicitud(request):
                     
                     ItemSolicitudFormSet = inlineformset_factory(SolicitudPedido, ItemSolicitud, form=ItemSolicitudForm, extra=len(items_data), can_delete=True)
                     formset = ItemSolicitudFormSet(initial=items_data)
-                    form = SolicitudPedidoForm(user=request.user)
-                    messages.success(request, f"{len(items_data)} items cargados desde el CSV. Revise «Cantidad aprobada»: vacío = se aprueba lo solicitado; 0 = no surtir.")
+                    form_initial = {}
+                    if folio_desde_csv:
+                        form_initial['observaciones_solicitud'] = folio_desde_csv
+                    form = SolicitudPedidoForm(user=request.user, initial=form_initial)
+                    msg_csv = f"{len(items_data)} items cargados desde el CSV. Revise «Cantidad aprobada»: vacío = se aprueba lo solicitado; 0 = no surtir."
+                    if folio_desde_csv:
+                        msg_csv += f" Folio de pedido tomado de la columna FOLIO: «{folio_desde_csv}»."
+                    messages.success(request, msg_csv)
                     
                 except Exception as e:
                     messages.error(request, f"Error al procesar el archivo CSV: {e}")
