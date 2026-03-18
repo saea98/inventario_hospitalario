@@ -15,6 +15,7 @@ from decimal import Decimal
 import pandas as pd
 
 from .models import Lote, MovimientoInventario, Producto, LoteUbicacion, Almacen, Institucion, UbicacionAlmacen
+from .llegada_models import ItemLlegada
 from .forms_entrada_salida import ItemEntradaForm, ItemSalidaForm
 
 
@@ -484,6 +485,33 @@ def corregir_fecha_recepcion_lote(request, lote_id):
     })
 
 
+def _remisiones_distintas_lote(lote):
+    """
+    Todas las remisiones distintas asociadas al lote: campo del lote, llegada que lo creó
+    y cada movimiento de ENTRADA (p. ej. recepciones adicionales con otra remisión).
+    """
+    out = []
+    seen = set()
+
+    def agregar(txt):
+        s = (txt or "").strip()
+        if s and s not in seen:
+            seen.add(s)
+            out.append(s)
+
+    agregar(lote.remision)
+    item = ItemLlegada.objects.filter(lote_creado=lote).select_related("llegada").first()
+    if item and item.llegada_id:
+        agregar(item.llegada.remision)
+    for mov in (
+        lote.movimientos.filter(anulado=False, tipo_movimiento="ENTRADA")
+        .exclude(Q(remision__isnull=True) | Q(remision__exact=""))
+        .order_by("fecha_movimiento", "id")
+    ):
+        agregar(mov.remision)
+    return out
+
+
 @login_required
 def detalle_lote(request, lote_id):
     """Detalle de un lote específico"""
@@ -498,6 +526,7 @@ def detalle_lote(request, lote_id):
 
     # Movimientos del lote
     movimientos = lote.movimientos.all().order_by('-fecha_movimiento')
+    remisiones_lote = _remisiones_distintas_lote(lote)
     
     # Información adicional
     dias_para_caducidad = lote.dias_para_caducidad
@@ -520,6 +549,7 @@ def detalle_lote(request, lote_id):
         'esta_proximo_caducar': esta_proximo_caducar,
         'esta_caducado': esta_caducado,
         'puede_editar_cantidad_almacen': puede_editar_cantidad_almacen,
+        'remisiones_lote': remisiones_lote,
     }
     
     return render(request, 'inventario/detalle_lote.html', context)

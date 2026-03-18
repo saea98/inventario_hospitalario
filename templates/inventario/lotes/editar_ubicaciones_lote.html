@@ -65,8 +65,9 @@
                                             <input type="number" 
                                                    name="ubicacion_{{ ubicacion.id }}_cantidad" 
                                                    value="{{ ubicacion.cantidad }}" 
-                                                   min="1" 
-                                                   class="form-control form-control-sm"
+                                                   min="0" 
+                                                   data-cantidad-input
+                                                   class="form-control form-control-sm input-cantidad-ubicacion"
                                                    style="max-width: 100px;">
                                         </td>
                                         <td>
@@ -74,7 +75,7 @@
                                                 <input type="checkbox" 
                                                        name="eliminar_ubicacion" 
                                                        value="{{ ubicacion.id }}" 
-                                                       class="custom-control-input">
+                                                       class="custom-control-input chk-eliminar-ubicacion">
                                                 <span class="custom-control-label">
                                                     <i class="fas fa-trash text-danger"></i> Eliminar
                                                 </span>
@@ -87,6 +88,7 @@
                     </div>
                     <div class="alert alert-info mt-3">
                         <strong>Total Asignado:</strong> {{ total_cantidad }} unidades
+                        <p class="small mb-0 mt-2 text-muted">Puede marcar <strong>Eliminar</strong> aunque la cantidad sea 0 (p. ej. ubicación vacía que desea quitar del lote).</p>
                     </div>
                 {% else %}
                     <div class="alert alert-warning">
@@ -258,8 +260,32 @@ document.addEventListener('DOMContentLoaded', function() {
         return total;
     }
 
+    document.querySelectorAll('.chk-eliminar-ubicacion').forEach(function(chk) {
+        chk.addEventListener('change', function() {
+            var tr = chk.closest('tr');
+            if (!tr) return;
+            var inp = tr.querySelector('.input-cantidad-ubicacion');
+            if (inp) {
+                if (chk.checked) {
+                    inp.setAttribute('min', '0');
+                    inp.removeAttribute('required');
+                }
+            }
+        });
+    });
+
     if (form) {
         form.addEventListener('submit', function(e) {
+            document.querySelectorAll('.chk-eliminar-ubicacion:checked').forEach(function(chk) {
+                var tr = chk.closest('tr');
+                if (tr) {
+                    var inp = tr.querySelector('.input-cantidad-ubicacion');
+                    if (inp) {
+                        inp.setCustomValidity('');
+                        if (inp.value === '' || inp.value === null) inp.value = '0';
+                    }
+                }
+            });
             var suma = sumarCantidades();
             if (suma > totalLote) {
                 e.preventDefault();

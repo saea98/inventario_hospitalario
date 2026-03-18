@@ -150,8 +150,16 @@
                             <p class="fs-5"><strong>{{ lote.fecha_recepcion|date:"d/m/Y" }}</strong></p>
                         </div>
                         <div class="col-md-3">
-                            <label class="form-label text-muted">Remisión</label>
-                            <p class="fs-5"><strong>{{ lote.remision|default:"-" }}</strong></p>
+                            <label class="form-label text-muted">Remisión{% if remisiones_lote|length > 1 %}es{% endif %}</label>
+                            {% if remisiones_lote %}
+                            <ul class="fs-5 mb-0 ps-3">
+                                {% for r in remisiones_lote %}
+                                <li><strong>{{ r }}</strong></li>
+                                {% endfor %}
+                            </ul>
+                            {% else %}
+                            <p class="fs-5 mb-0"><strong>-</strong></p>
+                            {% endif %}
                         </div>
                     </div>
                 </div>

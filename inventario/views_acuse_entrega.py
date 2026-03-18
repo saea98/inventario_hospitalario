@@ -169,7 +169,7 @@ def crear_header_compacto(folio, fecha, folio_pedido, institucion, styles):
     )
     
     info_text = f'''#FOLIO: {folio}<br/>
-TRANSFERENCIA: prueba<br/>
+TRANSFERENCIA: <br/>
 FOLIO DE PEDIDO: {folio_pedido}<br/>
 INSTITUCIÓN: {institucion}<br/>
 FECHA: {fecha}<br/>

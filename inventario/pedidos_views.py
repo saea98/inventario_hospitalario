@@ -9,7 +9,7 @@ from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.db import transaction
 from django.utils import timezone
-from datetime import date, datetime, time
+from datetime import date, datetime, time, timedelta
 from django.forms import inlineformset_factory
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.http import HttpResponse, JsonResponse
@@ -1175,7 +1175,6 @@ def editar_propuesta(request, propuesta_id):
         # "Guardar y terminar": no aplicar reservas (ya se guardó por renglón). Solo validar cambios sin guardar y cambiar estado.
         if request.POST.get('guardar_cambios'):
             from .models import Producto, Lote, LoteUbicacion, Institucion, Almacen
-            from datetime import date, timedelta
 
             propuesta.refresh_from_db()
             cambios_sin_guardar = []
@@ -1559,7 +1558,6 @@ def editar_propuesta(request, propuesta_id):
                 estado__in=ESTADOS_EDITABLES,
             )
             from .models import Producto, Lote, LoteUbicacion, Institucion, Almacen
-            from datetime import date, timedelta
             productos_disponibles = Producto.objects.filter(activo=True).order_by('clave_cnis')
             fecha_minima_edicion = date.today()
             ubicaciones_por_item = {}
@@ -1603,7 +1601,6 @@ def editar_propuesta(request, propuesta_id):
     
     # Obtener todos los productos disponibles para el selector
     from .models import Producto, Lote, LoteUbicacion, Institucion, Almacen
-    from datetime import date, timedelta
 
     productos_disponibles = Producto.objects.filter(activo=True).order_by('clave_cnis')
 

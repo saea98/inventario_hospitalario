@@ -1973,11 +1973,13 @@ def editar_ubicaciones_lote(request, pk):
                 }
                 return render(request, 'inventario/lotes/editar_ubicaciones_lote.html', context)
 
-            # Actualizar ubicaciones existentes
+            # Actualizar ubicaciones existentes (omitir las marcadas para eliminar)
             for ubicacion_id, data in ubicaciones_data.items():
+                if ubicacion_id in eliminar_ids:
+                    continue
                 try:
                     ubicacion = LoteUbicacion.objects.get(id=ubicacion_id, lote=lote)
-                    if 'cantidad' in data and data['cantidad']:
+                    if 'cantidad' in data and data['cantidad'] != '':
                         cantidad_anterior = ubicacion.cantidad
                         cantidad_nueva = int(data['cantidad'])
                         
