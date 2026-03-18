@@ -400,6 +400,13 @@ def exportar_llegadas_excel(request):
         top=Side(style='thin'),
         bottom=Side(style='thin')
     )
+
+    def _nombre_usuario(u):
+        """Nombre para Excel: get_full_name() o username si no hay nombre completo."""
+        if not u:
+            return ''
+        name = (getattr(u, 'get_full_name', lambda: '')() or '').strip()
+        return name or (getattr(u, 'username', '') or '')
     
     # Encabezados - Campos de Cita, Llegada y detalle por ítem (una fila por ítem)
     headers = [
@@ -414,7 +421,7 @@ def exportar_llegadas_excel(request):
         # Control de Calidad
         'Estado Calidad', 'Observaciones Calidad', 'Usuario Calidad', 'Fecha Validación Calidad',
         # Facturación
-        'Número Factura', 'Usuario Facturación', 'Fecha Facturación',
+        'Fecha Facturación',
         # Supervisión
         'Estado Supervisión', 'Observaciones Supervisión', 'Usuario Supervisión', 'Fecha Supervisión',
         # Ubicación
@@ -425,7 +432,8 @@ def exportar_llegadas_excel(request):
         'Proveedor', 'RFC Proveedor',
         # Detalle por ítem (nuevos campos solicitados)
         'FECHA REAL DE LA ENTREGA',
-        'DESCRIPCION CON UNIDAD DE MEDIDA',
+        'DESCRIPCION',
+        'UNIDAD DE MEDIDA',
         'LOTE',
         'CADUCIDAD',
         'PRECIO UNITARIO SIN IVA',
@@ -478,7 +486,7 @@ def exportar_llegadas_excel(request):
             col += 1
             ws.cell(row=row_num, column=col).value = llegada.cita.clave_medicamento if llegada.cita else ''
             col += 1
-            ws.cell(row=row_num, column=col).value = f"{llegada.cita.usuario_autorizacion.first_name} {llegada.cita.usuario_autorizacion.last_name}".strip() if llegada.cita and llegada.cita.usuario_autorizacion else ''
+            ws.cell(row=row_num, column=col).value = _nombre_usuario(llegada.cita.usuario_autorizacion if (llegada.cita and llegada.cita.usuario_autorizacion) else None)
             col += 1
 
             # Campos de Llegada
@@ -512,31 +520,27 @@ def exportar_llegadas_excel(request):
             col += 1
             ws.cell(row=row_num, column=col).value = llegada.observaciones_calidad or ''
             col += 1
-            ws.cell(row=row_num, column=col).value = f"{llegada.usuario_calidad.first_name} {llegada.usuario_calidad.last_name}".strip() if llegada.usuario_calidad else ''
+            ws.cell(row=row_num, column=col).value = _nombre_usuario(llegada.usuario_calidad)
             col += 1
             ws.cell(row=row_num, column=col).value = llegada.fecha_validacion_calidad.strftime('%d/%m/%Y %H:%M') if llegada.fecha_validacion_calidad else ''
             col += 1
 
             # Facturación
-            ws.cell(row=row_num, column=col).value = llegada.numero_factura or ''
-            col += 1
-            ws.cell(row=row_num, column=col).value = f"{llegada.usuario_facturacion.first_name} {llegada.usuario_facturacion.last_name}".strip() if llegada.usuario_facturacion else ''
-            col += 1
             ws.cell(row=row_num, column=col).value = llegada.fecha_facturacion.strftime('%d/%m/%Y %H:%M') if llegada.fecha_facturacion else ''
             col += 1
 
-            # Supervisión
-            ws.cell(row=row_num, column=col).value = dict([('VALIDADO', 'Validado'), ('RECHAZADO', 'Rechazado')]).get(llegada.estado_supervision, llegada.estado_supervision or '')
+            # Estado de la llegada (y datos supervisión)
+            ws.cell(row=row_num, column=col).value = dict(LlegadaProveedor.ESTADO_CHOICES).get(llegada.estado, llegada.estado or '')
             col += 1
             ws.cell(row=row_num, column=col).value = llegada.observaciones_supervision or ''
             col += 1
-            ws.cell(row=row_num, column=col).value = f"{llegada.usuario_supervision.first_name} {llegada.usuario_supervision.last_name}".strip() if llegada.usuario_supervision else ''
+            ws.cell(row=row_num, column=col).value = _nombre_usuario(llegada.usuario_supervision)
             col += 1
-            ws.cell(row=row_num, column=col).value = llegada.fecha_supervision.strftime('%d/%m/%Y %H:%M') if llegada.fecha_supervision else ''
+            ws.cell(row=row_num, column=col).value = llegada.fecha_actualizacion.strftime('%d/%m/%Y %H:%M') if getattr(llegada, 'fecha_actualizacion', None) else ''
             col += 1
 
             # Ubicación
-            ws.cell(row=row_num, column=col).value = f"{llegada.usuario_ubicacion.first_name} {llegada.usuario_ubicacion.last_name}".strip() if llegada.usuario_ubicacion else ''
+            ws.cell(row=row_num, column=col).value = _nombre_usuario(llegada.usuario_ubicacion)
             col += 1
             ws.cell(row=row_num, column=col).value = llegada.fecha_ubicacion.strftime('%d/%m/%Y %H:%M') if llegada.fecha_ubicacion else ''
             col += 1
@@ -552,19 +556,23 @@ def exportar_llegadas_excel(request):
             col += 1
 
             # --- Nuevos campos (detalle por ítem) ---
-            # FECHA REAL DE LA ENTREGA (fecha de la cita para lo ingresado en el mes; fecha_llegada_real disponible también)
-            if llegada.fecha_llegada_real:
-                ws.cell(row=row_num, column=col).value = llegada.fecha_llegada_real.strftime('%d/%m/%Y %H:%M')
-            elif llegada.cita and llegada.cita.fecha_cita:
+            # FECHA REAL DE LA ENTREGA (por petición del usuario: se muestra la fecha de la cita)
+            if llegada.cita and llegada.cita.fecha_cita:
                 ws.cell(row=row_num, column=col).value = llegada.cita.fecha_cita.strftime('%d/%m/%Y %H:%M')
             else:
                 ws.cell(row=row_num, column=col).value = ''
             col += 1
-            # DESCRIPCION CON UNIDAD DE MEDIDA
+            # DESCRIPCION (solo descripción)
             if item:
                 desc = (item.descripcion or (item.producto.descripcion if item.producto else '') or '').strip()
+                ws.cell(row=row_num, column=col).value = desc
+            else:
+                ws.cell(row=row_num, column=col).value = ''
+            col += 1
+            # UNIDAD DE MEDIDA (solo unidad de medida)
+            if item:
                 um = (item.unidad_medida or 'Pieza').strip()
-                ws.cell(row=row_num, column=col).value = f"{desc} ({um})" if desc else um
+                ws.cell(row=row_num, column=col).value = um
             else:
                 ws.cell(row=row_num, column=col).value = ''
             col += 1
@@ -602,10 +610,11 @@ def exportar_llegadas_excel(request):
             ws.cell(row=row_num, column=col).value = llegada.observaciones_recepcion or ''
             col += 1
             # NOMBRE DE LA PERSONA QUE CAPTURO
-            ws.cell(row=row_num, column=col).value = f"{llegada.creado_por.first_name} {llegada.creado_por.last_name}".strip() if llegada.creado_por else ''
+            ws.cell(row=row_num, column=col).value = _nombre_usuario(llegada.creado_por)
             col += 1
-            # NOMBRE DE LA PERSONA QUE REVISO
-            ws.cell(row=row_num, column=col).value = f"{llegada.usuario_calidad.first_name} {llegada.usuario_calidad.last_name}".strip() if llegada.usuario_calidad else ''
+            # NOMBRE DE LA PERSONA QUE REVISO (calidad; si no hay, supervisión como revisor)
+            revisor = llegada.usuario_calidad or llegada.usuario_supervision
+            ws.cell(row=row_num, column=col).value = _nombre_usuario(revisor)
             col += 1
             # FECHA DE CAPTURA
             ws.cell(row=row_num, column=col).value = llegada.fecha_creacion.strftime('%d/%m/%Y %H:%M') if llegada.fecha_creacion else ''
@@ -895,23 +904,22 @@ class DetalleLlegadaView(LoginRequiredMixin, View):
     """Muestra el detalle de una llegada"""
     
     def get(self, request, pk):
-        from .models import Lote
-
-        llegada = get_object_or_404(LlegadaProveedor, pk=pk)
+        llegada = get_object_or_404(
+            LlegadaProveedor.objects.prefetch_related(
+                'items__producto',
+                'items__lote_creado__almacen',
+                'items__lote_creado__ubicaciones_detalle__ubicacion',
+            ),
+            pk=pk,
+        )
 
         items_with_lotes = []
         tiene_lote_sin_ubicacion = False
 
         for item in llegada.items.all():
-            # Preferir el lote_creado si existe
+            # Solo el lote vinculado a este ítem de llegada. No buscar por número de lote + producto:
+            # podía coincidir con otro lote (recepción anterior) y mostrar ubicaciones incorrectas.
             lote = getattr(item, 'lote_creado', None)
-
-            # Si no hay lote_creado, intentar localizar un lote existente por número de lote y producto
-            if not lote and item.numero_lote and item.producto_id:
-                lote = Lote.objects.filter(
-                    numero_lote=item.numero_lote,
-                    producto=item.producto,
-                ).order_by('-fecha_recepcion').first()
 
             if lote and not lote.ubicaciones_detalle.exists():
                 tiene_lote_sin_ubicacion = True
