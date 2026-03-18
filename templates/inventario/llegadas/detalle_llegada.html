@@ -74,6 +74,7 @@
                         <tr>
                             <th>Clave</th>
                             <th>Producto</th>
+                            <th>Unidad de medida</th>
                             <th>Lote</th>
                             <th>Caducidad</th>
                             <th>Cantidad Recibida</th>
@@ -95,6 +96,7 @@
                                 {% endif %}
                             </td>
                             <td>{{ item.producto.descripcion }}</td>
+                            <td>{{ item.unidad_medida|default:"—" }}</td>
                             <td>{{ item.numero_lote }}</td>
                             <td>{{ item.fecha_caducidad|date:"d/m/Y" }}</td>
                             <td>{{ item.cantidad_recibida }}</td>
@@ -139,7 +141,15 @@
     </div>
 
     <!-- Acciones -->
-    <div class="d-flex justify-content-end">
+    <div class="d-flex justify-content-end flex-wrap gap-2">
+        {% if puede_cancelar_por_cita %}
+            <form method="post" action="{% url 'logistica:llegadas:cancelar_llegada_por_cita' pk=llegada.pk %}" class="d-inline" onsubmit="return confirm('La cita asociada está cancelada. ¿Marcar esta llegada como cancelada?');">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-secondary mr-2">
+                    <i class="fas fa-times-circle"></i> Cancelar llegada (cita cancelada)
+                </button>
+            </form>
+        {% endif %}
         {% if puede_editar_llegada %}
             <a href="{% url 'logistica:llegadas:editar_llegada' pk=llegada.pk %}" class="btn btn-primary mr-2">Editar</a>
             {% if llegada.items.all %}

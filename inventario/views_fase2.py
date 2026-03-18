@@ -506,13 +506,11 @@ def cancelar_cita(request, pk):
         try:
             with transaction.atomic():
                 # Cancelar llegada de proveedor asociada (rollback lógico)
-                try:
-                    llegada = cita.llegada_proveedor
-                    if llegada.estado != 'CANCELADA':
-                        llegada.estado = 'CANCELADA'
-                        llegada.save(update_fields=['estado'])
-                except LlegadaProveedor.DoesNotExist:
-                    pass
+                # Buscar por cita de forma explícita para asegurar que se actualice aunque la relación inversa falle
+                llegada = LlegadaProveedor.objects.filter(cita=cita).first()
+                if llegada and llegada.estado != 'CANCELADA':
+                    llegada.estado = 'CANCELADA'
+                    llegada.save(update_fields=['estado'])
                 # Cancelar la cita
                 cita.estado = 'cancelada'
                 cita.save(update_fields=['estado'])
@@ -524,12 +522,7 @@ def cancelar_cita(request, pk):
             return redirect('logistica:detalle_cita', pk=pk)
         return redirect('logistica:lista_citas')
     
-    tiene_llegada = False
-    try:
-        cita.llegada_proveedor
-        tiene_llegada = True
-    except LlegadaProveedor.DoesNotExist:
-        pass
+    tiene_llegada = LlegadaProveedor.objects.filter(cita=cita).exists()
     return render(request, 'inventario/citas/cancelar.html', {'cita': cita, 'tiene_llegada': tiene_llegada})
 
 

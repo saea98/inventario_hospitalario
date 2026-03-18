@@ -924,14 +924,44 @@ class DetalleLlegadaView(LoginRequiredMixin, View):
         # Regla combinada: regla normal + caso especial
         puede_ubicar_o_lote_sin_ubicacion = llegada.puede_ubicar() or tiene_lote_sin_ubicacion
 
+        # Mostrar botón "Cancelar llegada (cita cancelada)" si la cita está cancelada pero la llegada no
+        puede_cancelar_por_cita = (
+            getattr(llegada, 'cita', None)
+            and getattr(llegada.cita, 'estado', None) == 'cancelada'
+            and llegada.estado != 'CANCELADA'
+        )
+
         context = {
             "llegada": llegada,
             "items_with_lotes": items_with_lotes,
             "tiene_lote_sin_ubicacion": tiene_lote_sin_ubicacion,
             "puede_ubicar_o_lote_sin_ubicacion": puede_ubicar_o_lote_sin_ubicacion,
             "puede_editar_llegada": puede_editar_llegada(llegada, request.user),
+            "puede_cancelar_por_cita": puede_cancelar_por_cita,
         }
         return render(request, "inventario/llegadas/detalle_llegada.html", context)
+
+
+class CancelarLlegadaPorCitaCanceladaView(LoginRequiredMixin, View):
+    """
+    Acción del usuario: marcar la llegada como CANCELADA cuando la cita asociada ya está cancelada.
+    Solo aplica si llegada tiene cita, cita.estado == 'cancelada' y llegada.estado != 'CANCELADA'.
+    """
+    def post(self, request, pk):
+        llegada = get_object_or_404(LlegadaProveedor.objects.select_related('cita'), pk=pk)
+        if not getattr(llegada, 'cita', None):
+            messages.warning(request, 'Esta llegada no tiene cita asociada.')
+            return redirect('logistica:llegadas:detalle_llegada', pk=pk)
+        if getattr(llegada.cita, 'estado', None) != 'cancelada':
+            messages.warning(request, 'Solo se puede usar esta acción cuando la cita asociada está cancelada.')
+            return redirect('logistica:llegadas:detalle_llegada', pk=pk)
+        if llegada.estado == 'CANCELADA':
+            messages.info(request, 'Esta llegada ya está cancelada.')
+            return redirect('logistica:llegadas:detalle_llegada', pk=pk)
+        llegada.estado = 'CANCELADA'
+        llegada.save(update_fields=['estado'])
+        messages.success(request, 'Llegada marcada como cancelada (cita cancelada).')
+        return redirect('logistica:llegadas:detalle_llegada', pk=pk)
 
 
 class ControlCalidadView(LoginRequiredMixin, PermissionRequiredMixin, View):
