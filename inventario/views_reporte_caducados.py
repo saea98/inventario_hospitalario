@@ -10,7 +10,10 @@ from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
 from django.db.models import Q
 from django.utils import timezone
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, date
+
+# No listar lotes con caducidad el 01/10/2025 o anterior (petición de negocio).
+FECHA_MIN_CADUCIDAD_REPORTE = date(2025, 10, 2)  # solo aparecen fechas >= 2 oct 2025
 from decimal import Decimal
 from openpyxl import Workbook
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -184,6 +187,7 @@ def reporte_caducados(request):
 
     lotes = Lote.objects.filter(
         fecha_caducidad__isnull=False,
+        fecha_caducidad__gte=FECHA_MIN_CADUCIDAD_REPORTE,
         fecha_caducidad__lte=limite_90,
         cantidad_disponible__gt=0,
     ).select_related(
@@ -254,6 +258,7 @@ def reporte_caducados(request):
     # Conteos por rango para tarjetas
     lotes_sin_filtro_rango = Lote.objects.filter(
         fecha_caducidad__isnull=False,
+        fecha_caducidad__gte=FECHA_MIN_CADUCIDAD_REPORTE,
         fecha_caducidad__lte=limite_90,
         cantidad_disponible__gt=0,
     )
@@ -306,6 +311,7 @@ def exportar_caducados_excel(request):
 
     lotes = Lote.objects.filter(
         fecha_caducidad__isnull=False,
+        fecha_caducidad__gte=FECHA_MIN_CADUCIDAD_REPORTE,
         fecha_caducidad__lte=limite_90,
         cantidad_disponible__gt=0,
     ).select_related(
