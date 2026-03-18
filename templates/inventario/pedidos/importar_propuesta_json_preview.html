@@ -1,0 +1,82 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container-fluid py-4">
+    <h1 class="h4 mb-3">{{ page_title }}</h1>
+
+    {% if not validacion.ok %}
+    <div class="alert alert-danger">
+        <strong>No se puede importar.</strong> Corrija los errores o capture el pedido manualmente en productivo.
+        <ul class="mb-0 mt-2">
+            {% for e in validacion.errores %}
+            <li>{{ e }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% else %}
+    <div class="alert alert-success">
+        <strong>Validación correcta.</strong> Revise las filas y las advertencias antes de confirmar.
+        {% if folio_origen %}<br>Folio origen (calidad): <code>{{ folio_origen }}</code>{% endif %}
+    </div>
+    {% endif %}
+
+    {% if validacion.advertencias %}
+    <div class="alert alert-warning">
+        <strong>Advertencias (no bloquean):</strong>
+        <ul class="mb-0 mt-2">
+            {% for a in validacion.advertencias %}
+            <li>{{ a }}</li>
+            {% endfor %}
+        </ul>
+    </div>
+    {% endif %}
+
+    {% if validacion.resumen_filas %}
+    <div class="table-responsive mb-4">
+        <table class="table table-sm table-bordered">
+            <thead class="thead-light">
+                <tr>
+                    <th>Clave</th>
+                    <th>Lote</th>
+                    <th>Ubicación</th>
+                    <th>Cantidad</th>
+                    <th>Estado</th>
+                    <th>Detalle</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for r in validacion.resumen_filas %}
+                <tr class="{% if not r.ok %}table-danger{% else %}table-success{% endif %}">
+                    <td>{{ r.clave_cnis }}</td>
+                    <td>{{ r.numero_lote }}</td>
+                    <td>{{ r.ubicacion }}</td>
+                    <td>{{ r.cantidad }}</td>
+                    <td>{% if r.ok %}OK{% else %}Error{% endif %}</td>
+                    <td><small>{{ r.detalle }}</small></td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+    {% endif %}
+
+    {% if puede_confirmar %}
+    <div class="card border-danger">
+        <div class="card-body">
+            <p class="text-danger font-weight-bold">Al confirmar se creará una nueva solicitud y propuesta SURTIDA y se descontará inventario (movimientos de salida). Esta acción no se puede deshacer desde esta pantalla.</p>
+            <p class="small text-muted">Debe volver a adjuntar el <strong>mismo archivo JSON</strong> para ejecutar (así se valida de nuevo contra el inventario actual).</p>
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <input type="hidden" name="confirmar" value="1">
+                <div class="form-group">
+                    <input type="file" name="archivo_json" class="form-control-file" accept=".json,application/json" required>
+                </div>
+                <button type="submit" class="btn btn-danger" onclick="return confirm('¿Confirmar importación y surtimiento en inventario?');">Confirmar importación</button>
+                <a href="{% url 'logistica:importar_propuesta_json' %}" class="btn btn-outline-secondary">Cancelar</a>
+            </form>
+        </div>
+    </div>
+    {% else %}
+    <a href="{% url 'logistica:importar_propuesta_json' %}" class="btn btn-secondary">Volver a cargar otro archivo</a>
+    {% endif %}
+</div>
+{% endblock %}

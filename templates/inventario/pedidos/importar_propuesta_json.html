@@ -1,0 +1,24 @@
+{% extends 'base.html' %}
+{% block content %}
+<div class="container-fluid py-4">
+    <h1 class="h4 mb-3">{{ page_title }}</h1>
+    <div class="alert alert-info">
+        <strong>Uso en productivo:</strong> cargue el archivo JSON generado en el ambiente de calidad
+        desde el detalle de la propuesta. El sistema validará CLUE, almacén, productos, lotes y existencias
+        por ubicación antes de permitir confirmar.
+    </div>
+    <div class="card shadow">
+        <div class="card-body">
+            <form method="post" enctype="multipart/form-data">
+                {% csrf_token %}
+                <div class="form-group">
+                    <label for="archivo_json">Archivo JSON</label>
+                    <input type="file" name="archivo_json" id="archivo_json" class="form-control-file" accept=".json,application/json" required>
+                </div>
+                <button type="submit" class="btn btn-primary">Validar y ver vista previa</button>
+                <a href="{% url 'logistica:lista_propuestas' %}" class="btn btn-link">Volver a propuestas</a>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

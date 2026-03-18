@@ -2046,3 +2046,136 @@ def cancelar_solicitud(request, solicitud_id):
         'page_title': f"Cancelar Solicitud {solicitud.folio}"
     }
     return render(request, 'inventario/pedidos/cancelar_solicitud.html', context)
+
+
+# ============================================================================
+# EXPORTAR / IMPORTAR PROPUESTA (CALIDAD → PRODUCTIVO)
+# ============================================================================
+
+def _puede_exportar_importar_pedido_migracion(user):
+    from .access_control import usuario_tiene_rol
+    if not user.is_authenticated:
+        return False
+    if user.is_superuser:
+        return True
+    return usuario_tiene_rol(
+        user, 'administrador_local', 'Supervisión', 'Almacenero', 'Administrador', 'Gestor de Inventario'
+    )
+
+
+def _puede_importar_pedido_json_prod(user):
+    from .access_control import usuario_tiene_rol
+    if not user.is_authenticated:
+        return False
+    if user.is_superuser:
+        return True
+    return usuario_tiene_rol(user, 'administrador_local', 'Supervisión', 'Administrador')
+
+
+@login_required
+def exportar_propuesta_json_calidad(request, propuesta_id):
+    """Descarga JSON para replicar el pedido en productivo (claves de negocio, no UUIDs de calidad)."""
+    if not _puede_exportar_importar_pedido_migracion(request.user):
+        messages.error(request, 'No tiene permiso para exportar este formato.')
+        return redirect('logistica:detalle_propuesta', propuesta_id=propuesta_id)
+    from .pedidos_migracion_calidad import serializar_propuesta_para_export, EXPORT_VERSION
+    import json as _json
+
+    propuesta = get_object_or_404(PropuestaPedido, id=propuesta_id)
+    try:
+        data = serializar_propuesta_para_export(propuesta_id)
+    except Exception as e:
+        messages.error(request, f'No se pudo exportar: {e}')
+        return redirect('logistica:detalle_propuesta', propuesta_id=propuesta_id)
+
+    sin_lotes = all(
+        not list(ip.lotes_asignados.all()) for ip in propuesta.items.all()
+    )
+    if sin_lotes:
+        messages.warning(
+            request,
+            'Esta propuesta no tiene lotes asignados en el JSON; en productivo no se podrá importar surtimiento hasta tener asignaciones.',
+        )
+
+    folio = (propuesta.solicitud.folio or 'pedido').replace('/', '-')
+    response = HttpResponse(
+        _json.dumps(data, indent=2, ensure_ascii=False, default=str),
+        content_type='application/json; charset=utf-8',
+    )
+    response['Content-Disposition'] = (
+        f'attachment; filename="pedido_export_v{EXPORT_VERSION}_{folio}.json"'
+    )
+    return response
+
+
+@login_required
+def importar_propuesta_desde_json(request):
+    """
+    Solo productivo (o quien tenga permiso): sube JSON, valida y opcionalmente
+    crea solicitud + propuesta SURTIDA + movimientos de inventario.
+    La confirmación vuelve a subir el mismo archivo (no depende de caché entre workers).
+    """
+    import json as _json
+    from .pedidos_migracion_calidad import validar_payload_importacion, ejecutar_importacion
+
+    if not _puede_importar_pedido_json_prod(request.user):
+        messages.error(
+            request,
+            'Solo perfiles de supervisión o administración pueden importar pedidos desde JSON en productivo.',
+        )
+        return redirect('dashboard')
+
+    if request.method == 'POST' and request.POST.get('confirmar') == '1' and request.FILES.get('archivo_json'):
+        f = request.FILES['archivo_json']
+        try:
+            raw = f.read()
+            if len(raw) > 2_000_000:
+                messages.error(request, 'El archivo supera 2 MB.')
+                return redirect('logistica:importar_propuesta_json')
+            data = _json.loads(raw.decode('utf-8'))
+        except Exception as e:
+            messages.error(request, f'JSON inválido en confirmación: {e}')
+            return redirect('logistica:importar_propuesta_json')
+        val = validar_payload_importacion(data)
+        if not val['ok']:
+            messages.error(
+                request,
+                'La validación falló al confirmar (¿cambió el inventario?). ' + '; '.join(val['errores'][:3]),
+            )
+            return redirect('logistica:importar_propuesta_json')
+        res = ejecutar_importacion(data, request.user)
+        if res.get('exito'):
+            messages.success(
+                request,
+                f"Pedido importado. Folio nuevo: {res.get('folio')}. {res.get('mensaje', '')}",
+            )
+            return redirect('logistica:detalle_propuesta', propuesta_id=res['propuesta_id'])
+        messages.error(request, res.get('mensaje', 'Error al importar.'))
+        return redirect('logistica:importar_propuesta_json')
+
+    if request.method == 'POST' and request.FILES.get('archivo_json'):
+        f = request.FILES['archivo_json']
+        try:
+            raw = f.read()
+            if len(raw) > 2_000_000:
+                messages.error(request, 'El archivo supera 2 MB.')
+                return redirect('logistica:importar_propuesta_json')
+            data = _json.loads(raw.decode('utf-8'))
+        except Exception as e:
+            messages.error(request, f'JSON inválido: {e}')
+            return redirect('logistica:importar_propuesta_json')
+
+        val = validar_payload_importacion(data)
+        context = {
+            'page_title': 'Importar pedido desde JSON (calidad → productivo)',
+            'validacion': val,
+            'puede_confirmar': val['ok'],
+            'folio_origen': (data.get('origen') or {}).get('folio_solicitud', ''),
+        }
+        return render(request, 'inventario/pedidos/importar_propuesta_json_preview.html', context)
+
+    return render(
+        request,
+        'inventario/pedidos/importar_propuesta_json.html',
+        {'page_title': 'Importar pedido desde JSON'},
+    )

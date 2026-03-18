@@ -83,6 +83,22 @@
         </div>
     </div>
 
+    <div class="card shadow mb-4">
+        <div class="card-header py-3 bg-secondary text-white">
+            <h6 class="m-0 font-weight-bold">Exportar para productivo (JSON)</h6>
+        </div>
+        <div class="card-body">
+            <p class="small text-muted mb-2">
+                Si este pedido se capturó en calidad, descargue el JSON y en <strong>productivo</strong> use
+                <a href="{% url 'logistica:importar_propuesta_json' %}">Importar pedido desde JSON</a>
+                (solo supervisión/administración). El archivo no contiene UUIDs de calidad; en productivo se localizan lotes por número de lote, ubicación y almacén.
+            </p>
+            <a href="{% url 'logistica:exportar_propuesta_json_calidad' propuesta.id %}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-download"></i> Descargar JSON (migración calidad → productivo)
+            </a>
+        </div>
+    </div>
+
     <!-- Acciones de Descarga -->
     {% if propuesta.estado == 'SURTIDA' %}
     <div class="card shadow mb-4">

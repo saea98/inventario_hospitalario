@@ -19,6 +19,7 @@ Manual de usuario para el módulo de **Pedidos** del sistema de inventario hospi
 11. [Cancelaciones](#11-cancelaciones)
 12. [Estados y flujo resumido](#12-estados-y-flujo-resumido)
 13. [Reportes y auditoría](#13-reportes-y-auditoría)
+14. [Exportar / importar pedido (calidad → productivo)](#14-exportar--importar-pedido-calidad--productivo)
 
 ---
 
@@ -401,6 +402,20 @@ El módulo de pedidos suele incluir (según instalación):
 - **Auditoría de propuestas / surtido**: trazabilidad de quién generó, revisó y surtió cada propuesta.
 
 Las rutas exactas dependen de la configuración de reportes (por ejemplo bajo **Reportes** o **Logística**).
+
+---
+
+## 14. Exportar / importar pedido (calidad → productivo)
+
+Cuando un pedido se capturó por error en **calidad** y se desea reflejar el mismo surtimiento en **productivo**:
+
+1. **En calidad:** abra el detalle de la propuesta (`/logistica/propuestas/<id>/`) y use **Descargar JSON (migración calidad → productivo)**. El archivo incluye CLUE, almacén, claves CNIS, números de lote, códigos de ubicación y cantidades (no UUIDs internos de calidad).
+
+2. **En productivo:** vaya a **Propuestas** → enlace **Importar pedido desde JSON** (`/logistica/propuestas/importar-json/`), suba el archivo y revise la **vista previa**. Si hay errores (producto inexistente, lote no encontrado, cantidad insuficiente en ubicación, etc.), puede corregir datos en productivo o capturar el pedido a mano.
+
+3. **Confirmación:** debe volver a adjuntar el **mismo JSON**; el sistema valida otra vez contra el inventario actual y, si todo pasa, crea solicitud + propuesta **SURTIDA** y los **movimientos de salida** (igual que un surtimiento normal).
+
+**Permisos:** exportar pueden usuarios con rol de almacén/supervisión/administración; **importar** solo **supervisión** o **administración** (y superusuario).
 
 ---
 
