@@ -64,7 +64,7 @@ urlpatterns = [
     path('reporte-sin-ubicacion/exportar/', views_reporte_sin_ubicacion.exportar_sin_ubicacion_excel, name='exportar_sin_ubicacion_excel'),
 
     # Inventario desglosado por ubicación (LoteUbicacion)
-    path('reporte-por-ubicacion/', views_reporte_por_ubicacion.reporte_por_ubicacion, name='reporte_por_ubicacion'),
+    path('reporte-por-ubicacion/', views_reporte_por_ubicacion.reporte_por_ubicacion, name='reporte_por_ubicacion'), 
     path('reporte-por-ubicacion/exportar/', views_reporte_por_ubicacion.exportar_por_ubicacion_excel, name='exportar_por_ubicacion_excel'),
     
     # Reporte de conteo de almacén
