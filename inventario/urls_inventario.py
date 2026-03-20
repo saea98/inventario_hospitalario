@@ -11,6 +11,7 @@ from . import views_reporte_caducados
 from . import views_reporte_sin_ubicacion
 from . import views_reporte_conteo_almacen
 from . import views_reporte_salidas
+from . import views_reporte_por_ubicacion
 
 urlpatterns = [
     # Dashboard
@@ -61,6 +62,10 @@ urlpatterns = [
     # Reporte de productos sin ubicación asignada
     path('reporte-sin-ubicacion/', views_reporte_sin_ubicacion.reporte_sin_ubicacion, name='reporte_sin_ubicacion'),
     path('reporte-sin-ubicacion/exportar/', views_reporte_sin_ubicacion.exportar_sin_ubicacion_excel, name='exportar_sin_ubicacion_excel'),
+
+    # Inventario desglosado por ubicación (LoteUbicacion)
+    path('reporte-por-ubicacion/', views_reporte_por_ubicacion.reporte_por_ubicacion, name='reporte_por_ubicacion'),
+    path('reporte-por-ubicacion/exportar/', views_reporte_por_ubicacion.exportar_por_ubicacion_excel, name='exportar_por_ubicacion_excel'),
     
     # Reporte de conteo de almacén
     path('reporte-conteo-almacen/', views_reporte_conteo_almacen.reporte_conteo_almacen, name='reporte_conteo_almacen'),

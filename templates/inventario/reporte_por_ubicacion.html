@@ -1,0 +1,209 @@
+{% extends "base.html" %}
+{% load humanize %}
+
+{% block title %}Inventario por ubicación{% endblock %}
+
+{% block page_title %}
+<i class="fas fa-warehouse me-2"></i>Inventario por ubicación
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="alert alert-info mb-4">
+        <h5 class="alert-heading"><i class="fas fa-info-circle me-2"></i>¿Qué muestra este reporte?</h5>
+        <p class="mb-0">
+            Existencias <strong>desglosadas por ubicación física</strong> (pasillo, rack, código de ubicación dentro del almacén).
+            Puede filtrar por almacén, ubicación, institución, estado del lote, <strong>rango de precio unitario del lote</strong> o <strong>precio mayor a</strong>, y buscar por clave, producto, lote o código de ubicación.
+            Los lotes sin precio se consideran precio 0 en los filtros de precio.
+        </p>
+    </div>
+
+    <div class="row mb-4">
+        <div class="col-md-4">
+            <div class="card border-primary">
+                <div class="card-body">
+                    <h6 class="text-muted">Renglones</h6>
+                    <h3 class="mb-0">{{ total_registros|intcomma }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-success">
+                <div class="card-body">
+                    <h6 class="text-muted">Suma de cantidades (en pantalla filtrada)</h6>
+                    <h3 class="mb-0">{{ suma_cantidad|intcomma }}</h3>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="card border-warning">
+                <div class="card-body">
+                    <h6 class="text-muted">Valor estimado total</h6>
+                    <h3 class="mb-0">${{ valor_total|intcomma }}</h3>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="card mb-4 shadow-sm">
+        <div class="card-header bg-light">
+            <h5 class="mb-0"><i class="fas fa-filter me-2"></i>Filtros</h5>
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label">Almacén</label>
+                    <select name="almacen_id" class="form-select">
+                        <option value="">Todos</option>
+                        {% for a in almacenes %}
+                        <option value="{{ a.id }}" {% if filtro_almacen_id == a.id|stringformat:"d" %}selected{% endif %}>{{ a.nombre }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Ubicación</label>
+                    <select name="ubicacion_id" class="form-select">
+                        <option value="">Todas</option>
+                        {% for u in ubicaciones %}
+                        <option value="{{ u.id }}" {% if filtro_ubicacion_id == u.id|stringformat:"d" %}selected{% endif %}>
+                            {{ u.almacen.nombre }} — {{ u.codigo }}{% if u.descripcion %} ({{ u.descripcion|truncatechars:40 }}){% endif %}
+                        </option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Institución (lote)</label>
+                    <select name="institucion_id" class="form-select">
+                        <option value="">Todas</option>
+                        {% for ins in instituciones %}
+                        <option value="{{ ins.id }}" {% if filtro_institucion_id == ins.id|stringformat:"d" %}selected{% endif %}>{{ ins.clue }} — {{ ins.denominacion|truncatechars:35 }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Estado del lote</label>
+                    <select name="estado_lote" class="form-select">
+                        <option value="">Todos</option>
+                        {% for val, label in estados_lote %}
+                        <option value="{{ val }}" {% if filtro_estado_lote == val|stringformat:"d" %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-6">
+                    <label class="form-label">Búsqueda</label>
+                    <input type="text" name="q" class="form-control" value="{{ filtro_q }}"
+                           placeholder="Clave CNIS, descripción, número de lote, código o descripción de ubicación…">
+                </div>
+                <div class="col-12"><hr class="my-1 text-muted"><small class="text-muted">Precio unitario del lote ($)</small></div>
+                <div class="col-md-2">
+                    <label class="form-label">Precio desde</label>
+                    <input type="text" name="precio_min" class="form-control" inputmode="decimal"
+                           value="{{ filtro_precio_min }}" placeholder="Mín." title="Incluye este valor">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label">Precio hasta</label>
+                    <input type="text" name="precio_max" class="form-control" inputmode="decimal"
+                           value="{{ filtro_precio_max }}" placeholder="Máx." title="Incluye este valor">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">O precio mayor a</label>
+                    <input type="text" name="precio_mayor_que" class="form-control" inputmode="decimal"
+                           value="{{ filtro_precio_mayor_que }}" placeholder="Ej: 500 — solo &gt; este valor"
+                           title="Estrictamente mayor que este valor (se combina con desde/hasta si también los llena)">
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="incluir_cero" value="1" id="incluir_cero"
+                               {% if filtro_incluir_cero %}checked{% endif %}>
+                        <label class="form-check-label" for="incluir_cero">Incluir cantidad 0</label>
+                    </div>
+                </div>
+                <div class="col-md-2 d-flex align-items-end gap-2">
+                    <button type="submit" class="btn btn-primary flex-grow-1"><i class="fas fa-search me-1"></i> Aplicar</button>
+                    <a href="{% url 'reporte_por_ubicacion' %}" class="btn btn-outline-secondary">Limpiar</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    <div class="card shadow-sm">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center flex-wrap gap-2">
+            <h5 class="mb-0">
+                <i class="fas fa-table me-2"></i>Resultados ({{ page_obj.paginator.count|intcomma }} filas)
+            </h5>
+            <a href="{% url 'exportar_por_ubicacion_excel' %}{% if querystring %}?{{ querystring }}{% endif %}" class="btn btn-success btn-sm">
+                <i class="fas fa-file-excel me-1"></i>Exportar Excel (mismos filtros)
+            </a>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover table-sm mb-0 align-middle">
+                <thead class="table-light">
+                    <tr>
+                        <th>Almacén</th>
+                        <th>Ubicación</th>
+                        <th>Institución</th>
+                        <th>Clave</th>
+                        <th>Producto</th>
+                        <th>Lote</th>
+                        <th class="text-end">Cantidad</th>
+                        <th class="text-end">Reserv.</th>
+                        <th>Estado lote</th>
+                        <th>Caducidad</th>
+                        <th>Remisión</th>
+                        <th class="text-end">Valor línea</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in filas %}
+                    <tr>
+                        <td><small>{{ row.almacen }}</small></td>
+                        <td>
+                            <strong>{{ row.ubicacion_codigo }}</strong>
+                            {% if row.ubicacion_desc %}<br><small class="text-muted">{{ row.ubicacion_desc|truncatechars:40 }}</small>{% endif %}
+                        </td>
+                        <td><small>{{ row.institucion_clue }}</small></td>
+                        <td><code>{{ row.clave_cnis }}</code></td>
+                        <td><small>{{ row.producto|truncatechars:42 }}</small></td>
+                        <td>
+                            <a href="{% url 'detalle_lote' row.lote_id %}">{{ row.numero_lote }}</a>
+                        </td>
+                        <td class="text-end">{{ row.cantidad|intcomma }}</td>
+                        <td class="text-end">{{ row.cantidad_reservada|intcomma }}</td>
+                        <td><small>{{ row.estado_lote }}</small></td>
+                        <td><small>{{ row.fecha_caducidad }}</small></td>
+                        <td><small>{% if row.remision != "—" %}{{ row.remision }}{% else %}—{% endif %}</small></td>
+                        <td class="text-end"><small>${{ row.valor_linea|floatformat:2|intcomma }}</small></td>
+                    </tr>
+                    {% empty %}
+                    <tr>
+                        <td colspan="12" class="text-center text-muted py-4">
+                            <i class="fas fa-inbox me-2"></i>No hay registros con los filtros seleccionados.
+                        </td>
+                    </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+
+        {% if page_obj.has_other_pages %}
+        <div class="card-footer">
+            <nav aria-label="Paginación">
+                <ul class="pagination justify-content-center mb-0 flex-wrap">
+                    {% if page_obj.has_previous %}
+                    <li class="page-item">
+                        <a class="page-link" href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.previous_page_number }}">Anterior</a>
+                    </li>
+                    {% endif %}
+                    <li class="page-item disabled"><span class="page-link">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span></li>
+                    {% if page_obj.has_next %}
+                    <li class="page-item">
+                        <a class="page-link" href="?{% if querystring %}{{ querystring }}&{% endif %}page={{ page_obj.next_page_number }}">Siguiente</a>
+                    </li>
+                    {% endif %}
+                </ul>
+            </nav>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

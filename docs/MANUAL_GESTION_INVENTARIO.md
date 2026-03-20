@@ -747,6 +747,21 @@ graph TD
 
 ---
 
+### Caso 6: Reporte de inventario por ubicación
+
+**Objetivo:** Ver o exportar las existencias **desglosadas por ubicación física** (código de ubicación dentro del almacén: pasillo, rack, etc.).
+
+**Pasos:**
+1. Accede a **Gestión de Inventario → Dashboard** y pulsa **«Por ubicación»**, o abre directamente  
+   `/gestion-inventario/reporte-por-ubicacion/`
+2. Opcionalmente filtra por **almacén**, **ubicación concreta**, **institución**, **estado del lote**, **precio unitario del lote** (**desde / hasta** para un rango, y opcionalmente **«precio mayor a»** para exigir un mínimo estricto), o usa el campo de **búsqueda** (clave, producto, número de lote, código de ubicación). Si el lote no tiene precio, se trata como 0 en estos filtros.
+3. Por defecto se ocultan filas con cantidad 0; marca **«Incluir cantidad 0»** si necesitas verlas.
+4. Usa **«Exportar Excel»** para descargar el mismo criterio (todas las filas, no solo la página visible).
+
+**Resultado:** Listado y archivo Excel con almacén, ubicación, producto, lote, cantidades, caducidad y remisión del lote.
+
+---
+
 ## Preguntas Frecuentes
 
 ### ¿Qué pasa si intento registrar una salida mayor a la cantidad disponible?
