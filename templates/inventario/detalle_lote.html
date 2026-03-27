@@ -271,6 +271,7 @@
                                     <th>Cantidad Anterior</th>
                                     <th>Cantidad Nueva</th>
                                     <th>Motivo</th>
+                                    <th>Remisión</th>
                                     <th>Usuario</th>
                                 </tr>
                             </thead>
@@ -284,6 +285,7 @@
                                     <td>{{ movimiento.cantidad_anterior }}</td>
                                     <td>{{ movimiento.cantidad_nueva }}</td>
                                     <td>{{ movimiento.motivo }}</td>
+                                    <td>{{ movimiento.remision|default:"—" }}</td>
                                     <td>{{ movimiento.usuario.username }}</td>
                                 </tr>
                                 {% endfor %}

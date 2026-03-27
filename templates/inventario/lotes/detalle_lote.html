@@ -104,6 +104,7 @@
                         <th>Tipo</th>
                         <th>Cantidad</th>
                         <th>Motivo</th>
+                        <th>Remisión</th>
                         <th>Documento</th>
                         <th>Usuario</th>
                     </tr>
@@ -119,6 +120,7 @@
                         </td>
                         <td>{{ mov.cantidad|intcomma }}</td>
                         <td>{{ mov.motivo|truncatechars:50 }}</td>
+                        <td>{{ mov.remision|default:"—" }}</td>
                         <td>{{ mov.documento_referencia|default:"-" }}</td>
                         <td>{{ mov.usuario.username|default:"-" }}</td>
                     </tr>
