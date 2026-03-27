@@ -285,7 +285,15 @@
                                     <td>{{ movimiento.cantidad_anterior }}</td>
                                     <td>{{ movimiento.cantidad_nueva }}</td>
                                     <td>{{ movimiento.motivo }}</td>
-                                    <td>{{ movimiento.remision|default:"—" }}</td>
+                                    <td>
+                                        {% if movimiento.remision %}
+                                            {{ movimiento.remision }}
+                                        {% elif remisiones_lote %}
+                                            {{ remisiones_lote|join:", " }}
+                                        {% else %}
+                                            —
+                                        {% endif %}
+                                    </td>
                                     <td>{{ movimiento.usuario.username }}</td>
                                 </tr>
                                 {% endfor %}

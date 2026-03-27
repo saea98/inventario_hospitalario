@@ -120,7 +120,15 @@
                         </td>
                         <td>{{ mov.cantidad|intcomma }}</td>
                         <td>{{ mov.motivo|truncatechars:50 }}</td>
-                        <td>{{ mov.remision|default:"—" }}</td>
+                        <td>
+                            {% if mov.remision %}
+                                {{ mov.remision }}
+                            {% elif remisiones_lote %}
+                                {{ remisiones_lote|join:", " }}
+                            {% else %}
+                                —
+                            {% endif %}
+                        </td>
                         <td>{{ mov.documento_referencia|default:"-" }}</td>
                         <td>{{ mov.usuario.username|default:"-" }}</td>
                     </tr>

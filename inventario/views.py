@@ -607,6 +607,7 @@ def lista_lotes(request):
 from django.shortcuts import get_object_or_404
 from django.db.models import Sum, Q
 from .models import Lote, MovimientoInventario
+from .views_inventario import _remisiones_distintas_lote
 
 @login_required
 def detalle_lote(request, pk):
@@ -622,6 +623,8 @@ def detalle_lote(request, pk):
         .filter(lote=lote)
         .order_by('-fecha_movimiento')
     )
+
+    remisiones_lote = _remisiones_distintas_lote(lote)
 
     # Resumen de totales del lote
     resumen = {
@@ -640,6 +643,7 @@ def detalle_lote(request, pk):
         'resumen': resumen,
         'saldo_actual': saldo_actual,
         'total_movimientos': total_movimientos,
+        'remisiones_lote': remisiones_lote,
     }
     return render(request, 'inventario/lotes/detalle_lote.html', context)
 
