@@ -132,6 +132,11 @@
                                 </a>
                             </th>
                             <th>
+                                <a href="?{{ sort_base_query }}{% if sort_base_query %}&{% endif %}sort=proveedor&order={% if sort_column == 'proveedor' and sort_order == 'asc' %}desc{% else %}asc{% endif %}" class="text-white text-decoration-none sortable-header">
+                                    PROVEEDOR {% if sort_column == 'proveedor' %}<i class="fas fa-caret-{% if sort_order == 'asc' %}up{% else %}down{% endif %} ms-1"></i>{% endif %}
+                                </a>
+                            </th>
+                            <th>
                                 <a href="?{{ sort_base_query }}{% if sort_base_query %}&{% endif %}sort=clave&order={% if sort_column == 'clave' and sort_order == 'asc' %}desc{% else %}asc{% endif %}" class="text-white text-decoration-none sortable-header">
                                     CLAVE {% if sort_column == 'clave' %}<i class="fas fa-caret-{% if sort_order == 'asc' %}up{% else %}down{% endif %} ms-1"></i>{% endif %}
                                 </a>
@@ -180,6 +185,7 @@
                             <td>{{ dato.clues }}</td>
                             <td>{{ dato.orden_suministro }}</td>
                             <td>{{ dato.rfc }}</td>
+                            <td><small>{{ dato.proveedor|truncatewords:12 }}</small></td>
                             <td>{{ dato.clave }}</td>
                             <td><small>{{ dato.descripcion|truncatewords:15 }}</small></td>
                             <td>
@@ -203,7 +209,7 @@
                         </tr>
                         {% empty %}
                         <tr>
-                            <td colspan="11" class="text-center text-muted py-4">
+                            <td colspan="13" class="text-center text-muted py-4">
                                 <i class="fas fa-inbox fa-2x mb-2"></i><br>
                                 No se encontraron registros con los filtros aplicados
                             </td>

@@ -1,13 +1,17 @@
 """
 Vista para reporte detallado de inventario con las columnas:
-ENTIDAD, CLUES, ORDEN DE SUMINISTRO, RFC, CLAVE, ESTADO DEL INSUMO,
+ENTIDAD, CLUES, ORDEN DE SUMINISTRO, RFC, PROVEEDOR, CLAVE, ESTADO DEL INSUMO,
 INVENTARIO DISPONIBLE, LOTE, F_CAD, F_FAB, F_REC
+
+Orden y proveedor se resuelven con la FK OrdenSuministro cuando existe; si no,
+con los campos del lote (pedido, licitación, folio, proveedor, rfc_proveedor, etc.).
 """
 
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
-from django.db.models import Q, Sum, Avg, Max
+from django.db.models import Q, Sum, Avg, Max, Value, CharField
+from django.db.models.functions import Coalesce
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.contrib import messages
 from datetime import date, datetime
@@ -16,6 +20,30 @@ from .models import Lote, Producto, Institucion, OrdenSuministro, Proveedor, Mov
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
+
+
+def _texto_orden_suministro_lote(lote):
+    """
+    Número de orden: FK OrdenSuministro si existe; si no, datos guardados en el lote (carga masiva / CSV).
+    """
+    if getattr(lote, 'orden_suministro_id', None) and lote.orden_suministro:
+        num = (lote.orden_suministro.numero_orden or '').strip()
+        if num:
+            return num
+    for attr in ('pedido', 'licitacion', 'folio', 'remision'):
+        v = (getattr(lote, attr, None) or '').strip()
+        if v:
+            return v
+    return ''
+
+
+def _texto_proveedor_lote(lote):
+    """Razón social: proveedor de la orden vinculada o campo texto en el lote."""
+    if getattr(lote, 'orden_suministro_id', None) and lote.orden_suministro:
+        prov = getattr(lote.orden_suministro, 'proveedor', None)
+        if prov and (getattr(prov, 'razon_social', None) or '').strip():
+            return prov.razon_social.strip()
+    return (getattr(lote, 'proveedor', None) or '').strip()
 
 
 @login_required
@@ -41,9 +69,15 @@ def reporte_inventario_detallado(request):
         'orden_suministro__proveedor'
     ).all()
 
-    # Excluir lotes sin orden de suministro (opción del usuario)
+    # Excluir lotes sin ningún dato de orden (FK o campos en el lote)
     if excluir_sin_orden:
-        lotes = lotes.exclude(orden_suministro__isnull=True)
+        lotes = lotes.filter(
+            Q(orden_suministro__isnull=False)
+            | Q(pedido__isnull=False, pedido__gt='')
+            | Q(licitacion__isnull=False, licitacion__gt='')
+            | Q(folio__isnull=False, folio__gt='')
+            | Q(remision__isnull=False, remision__gt='')
+        )
 
     # Aplicar filtros
     if filtro_entidad:
@@ -53,7 +87,13 @@ def reporte_inventario_detallado(request):
         lotes = lotes.filter(institucion__clue__icontains=filtro_clues)
     
     if filtro_orden:
-        lotes = lotes.filter(orden_suministro__numero_orden__icontains=filtro_orden)
+        lotes = lotes.filter(
+            Q(orden_suministro__numero_orden__icontains=filtro_orden)
+            | Q(pedido__icontains=filtro_orden)
+            | Q(licitacion__icontains=filtro_orden)
+            | Q(folio__icontains=filtro_orden)
+            | Q(remision__icontains=filtro_orden)
+        )
     
     if filtro_rfc:
         lotes = lotes.filter(
@@ -89,11 +129,46 @@ def reporte_inventario_detallado(request):
         'f_cad': 'fecha_caducidad',
         'f_fab': 'fecha_fabricacion',
         'f_rec': 'fecha_recepcion',
+        'proveedor': 'proveedor',
     }
     if sort_column and sort_column in sort_map:
-        order_field = sort_map[sort_column]
-        if sort_order == 'desc':
-            order_field = f'-{order_field}'
+        if sort_column == 'orden':
+            lotes = lotes.annotate(
+                _sort_orden=Coalesce(
+                    'orden_suministro__numero_orden',
+                    'pedido',
+                    'licitacion',
+                    'folio',
+                    'remision',
+                    Value(''),
+                    output_field=CharField(max_length=255),
+                )
+            )
+            order_field = '_sort_orden' if sort_order == 'asc' else '-_sort_orden'
+        elif sort_column == 'proveedor':
+            lotes = lotes.annotate(
+                _sort_proveedor=Coalesce(
+                    'orden_suministro__proveedor__razon_social',
+                    'proveedor',
+                    Value(''),
+                    output_field=CharField(max_length=255),
+                )
+            )
+            order_field = '_sort_proveedor' if sort_order == 'asc' else '-_sort_proveedor'
+        elif sort_column == 'rfc':
+            lotes = lotes.annotate(
+                _sort_rfc=Coalesce(
+                    'orden_suministro__proveedor__rfc',
+                    'rfc_proveedor',
+                    Value(''),
+                    output_field=CharField(max_length=50),
+                )
+            )
+            order_field = '_sort_rfc' if sort_order == 'asc' else '-_sort_rfc'
+        else:
+            order_field = sort_map[sort_column]
+            if sort_order == 'desc':
+                order_field = f'-{order_field}'
         lotes = lotes.order_by(order_field)
     else:
         # Orden por defecto
@@ -110,46 +185,8 @@ def reporte_inventario_detallado(request):
     except EmptyPage:
         lotes_paginados = paginator.page(paginator.num_pages)
     
-    # Preparar datos para el template (f_cad = fecha caducidad, f_rec = fecha recepción; campos distintos del modelo)
-    datos_reporte = []
-    for lote in lotes_paginados:
-        # Estado del insumo: leyenda (get_estado_display), no el dígito
-        estado_texto = lote.get_estado_display() if lote.estado is not None else ''
-        if not estado_texto and lote.estado is not None:
-            estado_texto = str(lote.estado)
-
-        # Fechas: usar explícitamente el campo correcto para cada columna
-        fecha_caducidad_str = lote.fecha_caducidad.strftime('%d/%m/%Y') if getattr(lote, 'fecha_caducidad', None) else ''
-        fecha_fabricacion_str = lote.fecha_fabricacion.strftime('%d/%m/%Y') if getattr(lote, 'fecha_fabricacion', None) else ''
-        fecha_recepcion_str = lote.fecha_recepcion.strftime('%d/%m/%Y') if getattr(lote, 'fecha_recepcion', None) else ''
-
-        # RFC: prioridad orden/proveedor; si no hay, usar el guardado en el lote (carga masiva)
-        rfc_display = ''
-        if lote.orden_suministro and lote.orden_suministro.proveedor:
-            rfc_display = (lote.orden_suministro.proveedor.rfc or '').strip()
-        if not rfc_display:
-            rfc_display = (getattr(lote, 'rfc_proveedor', None) or '').strip()
-
-        # Descripción: lote.descripcion_saica o producto.descripcion
-        descripcion_val = (getattr(lote, 'descripcion_saica', None) or '').strip()
-        if not descripcion_val and lote.producto:
-            descripcion_val = (getattr(lote.producto, 'descripcion', None) or '').strip()
-        descripcion_val = descripcion_val or ''
-
-        datos_reporte.append({
-            'entidad': 'CIUDAD DE MÉXICO',  # Leyenda fija (no almacén/institucion)
-            'clues': lote.institucion.clue if lote.institucion else '',
-            'orden_suministro': lote.orden_suministro.numero_orden if lote.orden_suministro else '',
-            'rfc': rfc_display,
-            'clave': lote.producto.clave_cnis if lote.producto else '',
-            'descripcion': descripcion_val,
-            'estado_insumo': estado_texto,
-            'inventario_disponible': lote.cantidad_disponible,
-            'lote': lote.numero_lote,
-            'f_cad': fecha_caducidad_str,
-            'f_fab': fecha_fabricacion_str,
-            'f_rec': fecha_recepcion_str,
-        })
+    # Preparar datos para el template (misma lógica que exportación Excel)
+    datos_reporte = [_fila_lote_a_dict(lote) for lote in lotes_paginados]
     
     # Query string base para enlaces de ordenación (conserva filtros, quita sort/order/page)
     get_copy = request.GET.copy()
@@ -167,6 +204,7 @@ def reporte_inventario_detallado(request):
         {'value': 'clues', 'label': 'CLUES'},
         {'value': 'orden_suministro', 'label': 'ORDEN DE SUMINISTRO'},
         {'value': 'rfc', 'label': 'RFC'},
+        {'value': 'proveedor', 'label': 'PROVEEDOR'},
         {'value': 'clave', 'label': 'CLAVE'},
         {'value': 'descripcion', 'label': 'DESCRIPCIÓN'},
         {'value': 'estado_insumo', 'label': 'ESTADO DEL INSUMO'},
@@ -209,6 +247,7 @@ COLUMNAS_EXCEL_LABELS = {
     'clues': 'CLUES',
     'orden_suministro': 'ORDEN DE SUMINISTRO',
     'rfc': 'RFC',
+    'proveedor': 'PROVEEDOR',
     'clave': 'CLAVE',
     'descripcion': 'DESCRIPCIÓN',
     'estado_insumo': 'ESTADO DEL INSUMO',
@@ -249,13 +288,25 @@ def _obtener_lotes_filtrados(request, from_post=False):
     ).all()
 
     if excluir_sin_orden:
-        lotes = lotes.exclude(orden_suministro__isnull=True)
+        lotes = lotes.filter(
+            Q(orden_suministro__isnull=False)
+            | Q(pedido__isnull=False, pedido__gt='')
+            | Q(licitacion__isnull=False, licitacion__gt='')
+            | Q(folio__isnull=False, folio__gt='')
+            | Q(remision__isnull=False, remision__gt='')
+        )
     if filtro_entidad:
         lotes = lotes.filter(institucion__denominacion__icontains=filtro_entidad)
     if filtro_clues:
         lotes = lotes.filter(institucion__clue__icontains=filtro_clues)
     if filtro_orden:
-        lotes = lotes.filter(orden_suministro__numero_orden__icontains=filtro_orden)
+        lotes = lotes.filter(
+            Q(orden_suministro__numero_orden__icontains=filtro_orden)
+            | Q(pedido__icontains=filtro_orden)
+            | Q(licitacion__icontains=filtro_orden)
+            | Q(folio__icontains=filtro_orden)
+            | Q(remision__icontains=filtro_orden)
+        )
     if filtro_rfc:
         lotes = lotes.filter(
             Q(orden_suministro__proveedor__rfc__icontains=filtro_rfc) |
@@ -314,7 +365,7 @@ def _fila_lote_a_dict(lote):
     if not estado_texto and lote.estado is not None:
         estado_texto = str(lote.estado)
     rfc_val = ''
-    if lote.orden_suministro and lote.orden_suministro.proveedor:
+    if getattr(lote, 'orden_suministro_id', None) and lote.orden_suministro and lote.orden_suministro.proveedor:
         rfc_val = (lote.orden_suministro.proveedor.rfc or '').strip()
     if not rfc_val:
         rfc_val = (getattr(lote, 'rfc_proveedor', None) or '').strip()
@@ -322,8 +373,9 @@ def _fila_lote_a_dict(lote):
     return {
         'entidad': 'CIUDAD DE MÉXICO',
         'clues': lote.institucion.clue if lote.institucion else '',
-        'orden_suministro': lote.orden_suministro.numero_orden if lote.orden_suministro else '',
+        'orden_suministro': _texto_orden_suministro_lote(lote),
         'rfc': rfc_val,
+        'proveedor': _texto_proveedor_lote(lote),
         'clave': lote.producto.clave_cnis if lote.producto else '',
         'descripcion': descripcion_val,
         'estado_insumo': estado_texto,
@@ -754,7 +806,14 @@ def exportar_inventario_detallado_excel(request):
 
     for col_num in range(1, len(columnas) + 1):
         col_letter = get_column_letter(col_num)
-        ws.column_dimensions[col_letter].width = 18 if columnas[col_num - 1] != 'descripcion' else 40
+        c = columnas[col_num - 1]
+        if c == 'descripcion':
+            w = 40
+        elif c == 'proveedor':
+            w = 32
+        else:
+            w = 18
+        ws.column_dimensions[col_letter].width = w
 
     response = HttpResponse(
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
