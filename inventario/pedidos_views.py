@@ -28,7 +28,14 @@ from .pedidos_forms import (
     verificar_folio_pedido_duplicado,
 )
 from .propuesta_generator import PropuestaGenerator
-from .propuesta_utils import cancelar_propuesta, eliminar_propuesta, validar_disponibilidad_para_propuesta, validar_disponibilidad_solicitud
+from .propuesta_utils import (
+    cancelar_propuesta,
+    eliminar_propuesta,
+    validar_disponibilidad_para_propuesta,
+    validar_disponibilidad_solicitud,
+    cantidad_surtida_registrada_item,
+    sincronizar_cantidades_surtidas_items_propuesta,
+)
 from .pedidos_utils import registrar_error_pedido
 from .pedidos_forms import _usuario_puede_duplicar_folio
 from django.db import models
@@ -645,7 +652,7 @@ def lista_propuestas(request):
         'solicitud__institucion_solicitante',
         'solicitud__almacen_destino',
         'solicitud__usuario_solicitante'
-    ).prefetch_related('items').order_by('-fecha_generacion')
+    ).prefetch_related('items', 'items__lotes_asignados').order_by('-fecha_generacion')
 
     # Filtros
     estado = request.GET.get('estado')
@@ -700,6 +707,13 @@ def lista_propuestas(request):
         total_surtido = propuesta.items.aggregate(
             total=Sum('cantidad_surtida')
         )['total'] or 0
+        # Propuestas cerradas: si cantidad_surtida no se sincronizó antes, usar suma de LoteAsignado (histórico).
+        if propuesta.estado in ('SURTIDA', 'PARCIAL') and total_surtido == 0:
+            total_surtido = sum(
+                la.cantidad_asignada
+                for it in propuesta.items.all()
+                for la in it.lotes_asignados.all()
+            )
 
         porcentaje_surtido = 0
         if total_solicitado > 0:
@@ -757,6 +771,27 @@ def detalle_propuesta(request, propuesta_id):
         ).prefetch_related('items__lotes_asignados__lote_ubicacion__lote', 'items__lotes_asignados__lote_ubicacion__ubicacion__almacen'),
         id=propuesta_id
     )
+
+    # Autocorregir ítems antiguos sin cantidad_surtida persistida (no toca inventario).
+    if propuesta.estado in ('SURTIDA', 'PARCIAL'):
+        need_sync = False
+        for it in propuesta.items.all():
+            esperado = sum(la.cantidad_asignada for la in it.lotes_asignados.all())
+            if esperado != it.cantidad_surtida:
+                need_sync = True
+                break
+        if need_sync:
+            sincronizar_cantidades_surtidas_items_propuesta(propuesta)
+            propuesta = get_object_or_404(
+                PropuestaPedido.objects.select_related(
+                    'solicitud__institucion_solicitante',
+                    'solicitud__almacen_destino'
+                ).prefetch_related(
+                    'items__lotes_asignados__lote_ubicacion__lote',
+                    'items__lotes_asignados__lote_ubicacion__ubicacion__almacen',
+                ),
+                id=propuesta_id,
+            )
     
     context = {
         'propuesta': propuesta,
@@ -801,8 +836,8 @@ def auditar_surtido_documento(request):
     propuestas_recientes = list(qs_propuestas)
 
     def _cantidad_surtida_real(item):
-        """Cantidad realmente surtida: suma de LoteAsignado.cantidad_asignada donde surtido=True (igual que propuesta de surtimiento/dashboard)."""
-        return sum(la.cantidad_asignada for la in item.lotes_asignados.all() if la.surtido)
+        """Cantidad registrada: propuesta cerrada = suma de LoteAsignado; si no, solo líneas con surtido=True."""
+        return cantidad_surtida_registrada_item(item)
 
     def _orden_surtido(item):
         """Orden: 0=completo, 1=parcial, 2=no surtido (para cuadrar con lo físico)."""
@@ -890,7 +925,7 @@ def auditar_surtido_documento(request):
 def _build_items_con_doc_auditoria(propuesta, post_data):
     """Construye la lista items_con_doc igual que en auditar_surtido_documento (para export Excel)."""
     def _cantidad_surtida_real(item):
-        return sum(la.cantidad_asignada for la in item.lotes_asignados.all() if la.surtido)
+        return cantidad_surtida_registrada_item(item)
 
     def _orden_surtido(item):
         sur, sol = _cantidad_surtida_real(item), item.cantidad_solicitada
@@ -1075,6 +1110,9 @@ def surtir_propuesta(request, propuesta_id):
 
         propuesta.estado = 'SURTIDA'
         propuesta.save()
+
+        # Persistir en cada ítem la cantidad surtida y estado (fuente: LoteAsignado), para listas/acuses/reimpresión.
+        sincronizar_cantidades_surtidas_items_propuesta(propuesta)
 
         messages.success(
             request,

@@ -40,6 +40,14 @@
                         <div class="col-md-3"><strong>Cantidad Propuesta:</strong> {{ item.cantidad_propuesta }}</div>
                         <div class="col-md-3"><strong>Estado:</strong> <span class="badge badge-{{ item.get_estado_display|lower|slugify }}">{{ item.get_estado_display }}</span></div>
                     </div>
+                    {% if propuesta.estado == 'SURTIDA' or propuesta.estado == 'PARCIAL' %}
+                    <div class="row mt-1">
+                        <div class="col-md-12">
+                            <strong>Cantidad surtida registrada (suma de lotes en esta propuesta):</strong>
+                            {{ item.cantidad_surtida }}
+                        </div>
+                    </div>
+                    {% endif %}
                     {% if item.observaciones %}
                         <p class="mt-2"><strong>Observaciones:</strong> {{ item.observaciones }}</p>
                     {% endif %}
@@ -51,9 +59,9 @@
                             <thead>
                                 <tr>
                                     <th>Lote</th>
-                                    <th>Ubicacion</th>
+                                    <th>Ubicación</th>
                                     <th>Fecha de Caducidad</th>
-                                    <th>Cantidad Asignada</th>
+                                    <th>Cantidad surtida (esta propuesta)</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -62,9 +70,11 @@
                                         <td>{{ lote_asignado.lote_ubicacion.lote.numero_lote }}</td>
                                         <td>
                                             <div>
-                                                <span class="badge bg-secondary">{{ lote_asignado.lote_ubicacion.cantidad }}</span>
                                                 <strong>{{ lote_asignado.lote_ubicacion.ubicacion.codigo }}</strong>
                                                 <small class="text-muted">({{ lote_asignado.lote_ubicacion.ubicacion.almacen.nombre }})</small>
+                                                {% if propuesta.estado == 'SURTIDA' or propuesta.estado == 'PARCIAL' %}
+                                                <br><small class="text-muted">Existencia actual en ubicación (puede cambiar después del surtimiento): {{ lote_asignado.lote_ubicacion.cantidad }} u</small>
+                                                {% endif %}
                                             </div>
                                         </td>
                                         <td>{{ lote_asignado.lote_ubicacion.lote.fecha_caducidad|date:"d/m/Y" }}</td>

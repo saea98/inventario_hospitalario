@@ -25,6 +25,7 @@ from .pedidos_models import (
     LoteAsignado,
 )
 from .fase5_utils import generar_movimientos_suministro
+from .propuesta_utils import sincronizar_cantidades_surtidas_items_propuesta
 
 logger = logging.getLogger(__name__)
 
@@ -465,6 +466,8 @@ def ejecutar_importacion(data: dict[str, Any], usuario) -> dict[str, Any]:
         propuesta.fecha_surtimiento = now
         propuesta.usuario_surtimiento = usuario
         propuesta.save()
+
+        sincronizar_cantidades_surtidas_items_propuesta(propuesta)
 
         return {
             'exito': True,

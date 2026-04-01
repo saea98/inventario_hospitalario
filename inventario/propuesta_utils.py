@@ -29,6 +29,37 @@ def _reserva_real_lote(lote):
     ).aggregate(total=Sum('cantidad_asignada'))['total'] or 0
 
 
+def sincronizar_cantidades_surtidas_items_propuesta(propuesta):
+    """
+    Persiste en cada ItemPropuesta la cantidad surtida según LoteAsignado (documento de verdad).
+    Marca estado SURTIDO o PARCIAL. Debe llamarse al cerrar el surtimiento para que listas,
+    acuses y reportes no dependan de campos desactualizados.
+    """
+    for item in propuesta.items.all():
+        total = sum(la.cantidad_asignada for la in item.lotes_asignados.all())
+        item.cantidad_surtida = total
+        if total <= 0:
+            pass
+        elif total >= item.cantidad_propuesta:
+            item.estado = 'SURTIDO'
+        else:
+            item.estado = 'PARCIAL'
+        item.save(update_fields=['cantidad_surtida', 'estado'])
+
+
+def cantidad_surtida_registrada_item(item):
+    """
+    Cantidad surtida a mostrar o auditar. Si la propuesta ya está cerrada (SURTIDA/PARCIAL),
+    la fuente de verdad es la suma de LoteAsignado (histórico), no el flag surtido en cada fila.
+    """
+    propuesta = item.propuesta
+    if propuesta.estado in ('SURTIDA', 'PARCIAL'):
+        return sum(la.cantidad_asignada for la in item.lotes_asignados.all())
+    return sum(
+        la.cantidad_asignada for la in item.lotes_asignados.all() if la.surtido
+    )
+
+
 def reservar_cantidad_lote(lote_ubicacion, cantidad):
     """
     Reserva una cantidad en un lote sin afectar cantidad_disponible.
