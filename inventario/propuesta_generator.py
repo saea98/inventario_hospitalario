@@ -9,6 +9,8 @@ Este módulo contiene las funciones necesarias para:
 
 from datetime import date, timedelta
 from django.db import transaction
+from django.db.models import IntegerField, Q, Sum, Value
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 
 from .pedidos_models import (
@@ -132,9 +134,10 @@ class PropuestaGenerator:
         Considera la cantidad reservada en otros lotes.
         Regla de asignación por clave (producto): 1) caducidad (primero a vencer),
         2) lote (numero_lote), 3) ubicación (código de ubicación).
+
+        Disponibilidad neta: misma regla que editar propuesta / selects AJAX — reserva real =
+        suma de LoteAsignado.cantidad_asignada con surtido=False (no el campo cantidad_reservada).
         """
-        from .propuesta_utils import reservar_cantidad_lote
-        
         cantidad_requerida = item_solicitud.cantidad_aprobada
         producto = item_solicitud.producto
         
@@ -153,25 +156,50 @@ class PropuestaGenerator:
         
         fecha_minima = date.today() + timedelta(days=60)
         # Regla de asignación: 1) caducidad, 2) lote, 3) ubicación por clave (por producto)
-        lotes_disponibles = Lote.objects.filter(
-            producto=producto,
-            fecha_caducidad__gte=fecha_minima,
-            estado=1  # Solo lotes disponibles
-        ).select_related('producto').order_by(
-            'fecha_caducidad',   # 1) Primero los que caducan antes
-            'numero_lote'        # 2) Luego por número de lote
+        # Reserva real a nivel lote = suma LoteAsignado (surtido=False), igual que pedidos_views / reportes.
+        lotes_disponibles = list(
+            Lote.objects.filter(
+                producto=producto,
+                fecha_caducidad__gte=fecha_minima,
+                estado=1  # Solo lotes disponibles
+            )
+            .annotate(
+                reserva_real_lote=Coalesce(
+                    Sum(
+                        'ubicaciones_detalle__asignaciones_propuesta__cantidad_asignada',
+                        filter=Q(
+                            ubicaciones_detalle__asignaciones_propuesta__surtido=False
+                        ),
+                    ),
+                    Value(0),
+                    output_field=IntegerField(),
+                )
+            )
+            .select_related('producto')
+            .order_by(
+                'fecha_caducidad',  # 1) Primero los que caducan antes
+                'numero_lote',  # 2) Luego por número de lote
+            )
         )
 
-        # Calcular cantidad total disponible (considerando reservas)
+        # Calcular cantidad total disponible (considerando reservas reales)
         cantidad_total_disponible = sum(
-            max(0, lote.cantidad_disponible - lote.cantidad_reservada) 
+            max(0, lote.cantidad_disponible - (getattr(lote, 'reserva_real_lote', 0) or 0))
             for lote in lotes_disponibles
         )
-        
-        logger.warning(f"[GENERAR_PROPUESTA] Clave: {producto.clave_cnis} | Requerido: {cantidad_requerida} | Fecha minima: {fecha_minima} | Lotes encontrados: {lotes_disponibles.count()} | Total disponible: {cantidad_total_disponible}")
+
+        logger.warning(
+            f"[GENERAR_PROPUESTA] Clave: {producto.clave_cnis} | Requerido: {cantidad_requerida} | "
+            f"Fecha minima: {fecha_minima} | Lotes encontrados: {len(lotes_disponibles)} | "
+            f"Total disponible: {cantidad_total_disponible}"
+        )
         for lote in lotes_disponibles:
-            disp = lote.cantidad_disponible - lote.cantidad_reservada
-            logger.warning(f"  - Lote {lote.numero_lote}: Disponible={lote.cantidad_disponible}, Reservado={lote.cantidad_reservada}, Neto={disp}, Caducidad={lote.fecha_caducidad}")
+            res = getattr(lote, 'reserva_real_lote', 0) or 0
+            disp = lote.cantidad_disponible - res
+            logger.warning(
+                f"  - Lote {lote.numero_lote}: Disponible={lote.cantidad_disponible}, "
+                f"Reservado(suma LoteAsignado)={res}, Neto={disp}, Caducidad={lote.fecha_caducidad}"
+            )
 
         item_propuesta.cantidad_disponible = cantidad_total_disponible
 
@@ -182,7 +210,8 @@ class PropuestaGenerator:
                 break
 
             # Calcular cantidad real disponible (sin reservas) a nivel de lote
-            cantidad_real_disponible_lote = max(0, lote.cantidad_disponible - lote.cantidad_reservada)
+            reserva_lote = getattr(lote, 'reserva_real_lote', 0) or 0
+            cantidad_real_disponible_lote = max(0, lote.cantidad_disponible - reserva_lote)
             
             if cantidad_real_disponible_lote <= 0:
                 continue
@@ -201,13 +230,25 @@ class PropuestaGenerator:
 
             # Distribuir la reserva entre las ubicaciones del lote (todos los almacenes/subalmacenes)
             # 3) Dentro del lote: por ubicación (código de ubicación)
-            ubicaciones_disponibles = lote.ubicaciones_detalle.filter(
-                cantidad__gt=0
-            ).select_related('ubicacion').order_by('ubicacion__codigo')
-            
+            ubicaciones_disponibles = list(
+                lote.ubicaciones_detalle.filter(cantidad__gt=0)
+                .annotate(
+                    reservado_real=Coalesce(
+                        Sum(
+                            'asignaciones_propuesta__cantidad_asignada',
+                            filter=Q(asignaciones_propuesta__surtido=False),
+                        ),
+                        Value(0),
+                        output_field=IntegerField(),
+                    )
+                )
+                .select_related('ubicacion')
+                .order_by('ubicacion__codigo')
+            )
+
             # Calcular la cantidad total disponible en todas las ubicaciones del lote
             cantidad_total_disponible_ubicaciones = sum(
-                max(0, lu.cantidad - lu.cantidad_reservada) 
+                max(0, lu.cantidad - (getattr(lu, 'reservado_real', 0) or 0))
                 for lu in ubicaciones_disponibles
             )
             
@@ -231,8 +272,9 @@ class PropuestaGenerator:
                     break
                 
                 # Calcular cuánto podemos reservar de esta ubicación
-                # Considerar: cantidad en ubicación - cantidad ya reservada en ubicación
-                cantidad_disponible_ubicacion = max(0, lote_ubicacion.cantidad - lote_ubicacion.cantidad_reservada)
+                # Reserva real = suma LoteAsignado (surtido=False), igual que en selects de propuesta
+                res_u = getattr(lote_ubicacion, 'reservado_real', 0) or 0
+                cantidad_disponible_ubicacion = max(0, lote_ubicacion.cantidad - res_u)
                 
                 if cantidad_disponible_ubicacion <= 0:
                     continue
