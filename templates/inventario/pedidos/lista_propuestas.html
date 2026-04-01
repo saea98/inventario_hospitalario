@@ -103,7 +103,7 @@
                             <select name="institucion" id="id_institucion" class="form-control">
                                 <option value="">Todas</option>
                                 {% for institucion in instituciones %}
-                                    <option value="{{ institucion.id }}" {% if request.GET.institucion == institucion.id|stringformat:"s" %}selected{% endif %}>
+                                    <option value="{{ institucion.id }}" {% if filtro_institucion == institucion.id|stringformat:"s" %}selected{% endif %}>
                                         {{ institucion.denominacion }}
                                     </option>
                                 {% endfor %}
