@@ -91,7 +91,8 @@ TEMPLATES = [
         'APP_DIRS': True,
         'OPTIONS': {
             'context_processors': [
-                'django.template.context_processors.debug',
+                # Opcional: solo útil con INTERNAL_IPS; quita ruido y evita datos extra en contexto
+                # 'django.template.context_processors.debug',
                 'django.template.context_processors.request',
                 'django.contrib.auth.context_processors.auth',
                 'django.contrib.messages.context_processors.messages',
@@ -247,6 +248,12 @@ LOGGING = {
         'django': {
             'handlers': ['console'],
             'level': 'DEBUG' if DEBUG else 'INFO',
+            'propagate': False,
+        },
+        # Cada query SQL en consola (muy verboso y lento). Subir a INFO si necesitas ver SQL.
+        'django.db.backends': {
+            'handlers': ['console'],
+            'level': 'WARNING',
             'propagate': False,
         },
         'inventario': {
