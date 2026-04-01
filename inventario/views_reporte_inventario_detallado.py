@@ -15,6 +15,7 @@ from django.db.models.functions import Coalesce
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.contrib import messages
 from datetime import date, datetime
+from io import BytesIO
 
 from .models import Lote, Producto, Institucion, OrdenSuministro, Proveedor, MovimientoInventario
 from openpyxl import Workbook, load_workbook
@@ -746,6 +747,7 @@ def exportar_inventario_detallado_excel(request):
     Exporta el reporte de inventario detallado a Excel.
     GET: exporta con todas las columnas (incluye DESCRIPCIÓN).
     POST: exporta solo las columnas seleccionadas (columnas, orden_columnas y filtros en POST).
+    Usa hoja write_only + iterator() para velocidad; sin estilos ni anchos de columna en el XLSX.
     """
     from_post = request.method == 'POST'
     lotes = _obtener_lotes_filtrados(request, from_post=from_post)
@@ -765,61 +767,25 @@ def exportar_inventario_detallado_excel(request):
 
     headers = [COLUMNAS_EXCEL_LABELS.get(c, c.upper()) for c in columnas]
 
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Inventario Detallado"
+    wb = Workbook(write_only=True)
+    ws = wb.create_sheet(title="Inventario Detallado")
+    ws.append(headers)
 
-    header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
-    header_font = Font(bold=True, color="FFFFFF", size=11)
-    header_alignment = Alignment(horizontal="center", vertical="center", wrap_text=True)
-    border = Border(
-        left=Side(style='thin'),
-        right=Side(style='thin'),
-        top=Side(style='thin'),
-        bottom=Side(style='thin')
-    )
-
-    for col_num, header in enumerate(headers, 1):
-        col_letter = get_column_letter(col_num)
-        cell = ws[f"{col_letter}1"]
-        cell.value = header
-        cell.fill = header_fill
-        cell.font = header_font
-        cell.alignment = header_alignment
-        cell.border = border
-
-    for row_num, lote in enumerate(lotes, 2):
+    for lote in lotes.iterator(chunk_size=500):
         fila = _fila_lote_a_dict(lote)
-        row_data = [fila.get(c, '') for c in columnas]
+        ws.append([fila.get(c, '') for c in columnas])
 
-        for col_num, value in enumerate(row_data, 1):
-            col_letter = get_column_letter(col_num)
-            cell = ws[f"{col_letter}{row_num}"]
-            cell.value = value
-            cell.border = border
-            if columnas[col_num - 1] == 'rfc':
-                cell.number_format = '@'
-            if columnas[col_num - 1] == 'inventario_disponible':
-                cell.alignment = Alignment(horizontal="right", vertical="center")
-            else:
-                cell.alignment = Alignment(horizontal="left", vertical="center")
-
-    for col_num in range(1, len(columnas) + 1):
-        col_letter = get_column_letter(col_num)
-        c = columnas[col_num - 1]
-        if c == 'descripcion':
-            w = 40
-        elif c == 'proveedor':
-            w = 32
-        else:
-            w = 18
-        ws.column_dimensions[col_letter].width = w
+    buffer = BytesIO()
+    wb.save(buffer)
+    buffer.seek(0)
 
     response = HttpResponse(
-        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+        buffer.getvalue(),
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     )
-    response['Content-Disposition'] = f'attachment; filename="reporte_inventario_detallado_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx"'
-    wb.save(response)
+    response['Content-Disposition'] = (
+        f'attachment; filename="reporte_inventario_detallado_{datetime.now().strftime("%Y%m%d_%H%M%S")}.xlsx"'
+    )
     return response
 
 
