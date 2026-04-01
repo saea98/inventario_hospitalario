@@ -181,8 +181,10 @@
     <!-- CSS de Select2 -->
     <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
 
-    <!-- Carga de scripts y CSS de Django-Select2 -->
+    <!-- Carga de scripts y CSS de widgets Django (p. ej. django-select2); solo si la vista pasó un ModelForm -->
+    {% if form %}
     {{ form.media }}
+    {% endif %}
 
 {% endblock %}
 
