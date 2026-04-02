@@ -222,7 +222,7 @@
                         <th>Almacén</th>
                         <th>Ubicación</th>
                         <th>Cantidad</th>
-                        <th>Cant. Reservada</th>
+                        <th title="Total del lote: suma de LoteAsignado activos. El desglose por ubicación está en el icono de capas (producto+lote+ubicación en propuestas).">Cant. reservada</th>
                         <th>Fecha recepción</th>
                         <th>Fecha Caducidad</th>
                         <th>Caducidad</th>
@@ -247,7 +247,7 @@
                             {% with ubicaciones=lote.ubicaciones_detalle.all %}
                                 {% if ubicaciones %}
                                     {% for ubi in ubicaciones %}
-                                        <span class="badge bg-secondary" title="{{ ubi.ubicacion.descripcion }} - {{ ubi.cantidad }} unidades">
+                                        <span class="badge bg-secondary" title="{{ ubi.ubicacion.codigo }}: {{ ubi.cantidad }} uds en ubicación; {{ ubi.reserva_activa_calculada }} uds reservadas en propuestas (esta ubicación)">
                                             {{ ubi.ubicacion.codigo }}
                                         </span>
                                     {% endfor %}
@@ -260,9 +260,9 @@
                             <span class="badge bg-primary">{{ lote.cantidad_disponible }}</span>
                         </td>
                         <td>
-                            {% if lote.cantidad_reservada|default:0 > 0 %}
-                                <span class="badge bg-info" title="Cantidad reservada en propuestas">
-                                    {{ lote.cantidad_reservada|default:0 }}
+                            {% if lote.reserva_activa_calculada > 0 %}
+                                <span class="badge bg-info" title="Suma de LoteAsignado con surtido=false (reservas activas en propuestas)">
+                                    {{ lote.reserva_activa_calculada }}
                                 </span>
                             {% else %}
                                 <span class="text-muted">-</span>
@@ -320,7 +320,10 @@
                             <a href="{% url 'detalle_lote' lote.id %}" class="btn btn-sm btn-info" title="Ver detalle">
                                 <i class="bi bi-eye"></i>
                             </a>
-                            <a href="{% url 'editar_ubicaciones_lote' lote.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-sm btn-warning" title="Editar ubicaciones">
+                            <button type="button" class="btn btn-sm btn-outline-secondary" data-bs-toggle="modal" data-bs-target="#modalUbiLote{{ lote.id }}" title="Ubicaciones: cantidad física y reservada por ubicación (propuestas)">
+                                <i class="fas fa-layer-group"></i>
+                            </button>
+                            <a href="{% url 'editar_ubicaciones_lote' lote.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-sm btn-warning" title="Editar ubicaciones del lote">
                                 <i class="fas fa-map-marker-alt"></i>
                             </a>
                             {% if lote.estado == 1 %}
@@ -371,6 +374,51 @@
         {% endif %}
     </div>
 
+    {% for lote in page_obj %}
+    <div class="modal fade" id="modalUbiLote{{ lote.id }}" tabindex="-1" aria-labelledby="modalUbiLoteLabel{{ lote.id }}" aria-hidden="true">
+        <div class="modal-dialog modal-lg modal-dialog-scrollable">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <div>
+                        <h5 class="modal-title" id="modalUbiLoteLabel{{ lote.id }}">Ubicaciones del lote</h5>
+                        <p class="mb-0 small text-muted">{{ lote.numero_lote }} · <code>{{ lote.producto.clave_cnis }}</code></p>
+                    </div>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Cerrar"></button>
+                </div>
+                <div class="modal-body">
+                    <p class="small text-muted mb-2">En propuestas de surtimiento la reserva es por <strong>producto + lote + ubicación</strong> (cada fila es un <code>LoteUbicacion</code>). «Reservada» = suma de <code>LoteAsignado</code> con surtido=false.</p>
+                    <div class="table-responsive">
+                        <table class="table table-sm table-bordered mb-0">
+                            <thead class="table-light">
+                                <tr>
+                                    <th>Ubicación</th>
+                                    <th class="text-end">Cantidad física</th>
+                                    <th class="text-end">Reservada (propuestas)</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for ubi in lote.ubicaciones_detalle.all %}
+                                <tr>
+                                    <td>{{ ubi.ubicacion.codigo }}{% if ubi.ubicacion.almacen %} <span class="text-muted small">({{ ubi.ubicacion.almacen.nombre }})</span>{% endif %}</td>
+                                    <td class="text-end">{{ ubi.cantidad }}</td>
+                                    <td class="text-end">{% if ubi.reserva_activa_calculada > 0 %}<span class="badge bg-info">{{ ubi.reserva_activa_calculada }}</span>{% else %}<span class="text-muted">-</span>{% endif %}</td>
+                                </tr>
+                                {% empty %}
+                                <tr><td colspan="3" class="text-muted text-center">Sin ubicaciones registradas para este lote.</td></tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+                <div class="modal-footer">
+                    <a href="{% url 'editar_ubicaciones_lote' lote.id %}?next={{ request.get_full_path|urlencode }}" class="btn btn-warning btn-sm"><i class="fas fa-map-marker-alt"></i> Editar ubicaciones</a>
+                    <button type="button" class="btn btn-secondary btn-sm" data-bs-dismiss="modal">Cerrar</button>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
     <!-- Información Adicional -->
     <div class="row mt-4">
         <div class="col-md-12">
@@ -382,6 +430,7 @@
                     <li>Usa <strong>Buscar por Producto</strong> para encontrar lotes por descripción del producto</li>
                     <li>Combina múltiples filtros para refinar tu búsqueda</li>
                     <li>Los campos de búsqueda no distinguen mayúsculas de minúsculas</li>
+                    <li>El icono <i class="fas fa-layer-group"></i> muestra por <strong>ubicación</strong> la cantidad física y la reservada en propuestas (misma regla que la asignación: producto + lote + ubicación)</li>
                 </ul>
             </div>
         </div>

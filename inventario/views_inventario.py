@@ -15,6 +15,10 @@ from decimal import Decimal
 import pandas as pd
 
 from .models import Lote, MovimientoInventario, Producto, LoteUbicacion, Almacen, Institucion, UbicacionAlmacen
+from .propuesta_utils import (
+    totales_reserva_activa_por_lote_ids,
+    totales_reserva_activa_por_lote_ubicacion_ids,
+)
 from .llegada_models import ItemLlegada
 from .forms_entrada_salida import ItemEntradaForm, ItemSalidaForm
 
@@ -250,12 +254,31 @@ def lista_lotes(request):
     
     # Ordenar
     lotes = lotes.order_by('-fecha_recepcion')
+
+    # Detalle por ubicación (misma fila = un lote; badges = LoteUbicacion)
+    lotes = lotes.prefetch_related('ubicaciones_detalle__ubicacion__almacen')
     
     # Paginación
     from django.core.paginator import Paginator
     paginator = Paginator(lotes, 10)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
+
+    # Reserva real = suma LoteAsignado (surtido=False), no el campo Lote.cantidad_reservada
+    lote_ids_pagina = [l.id for l in page_obj]
+    reservas_reales_map = totales_reserva_activa_por_lote_ids(lote_ids_pagina)
+    for lote in page_obj:
+        lote.reserva_activa_calculada = reservas_reales_map.get(lote.id, 0)
+
+    # Reserva por LoteUbicacion (asignación en propuesta = producto + lote + ubicación)
+    lu_ids_pagina = []
+    for lote in page_obj:
+        for ubi in lote.ubicaciones_detalle.all():
+            lu_ids_pagina.append(ubi.id)
+    reserva_por_lu = totales_reserva_activa_por_lote_ubicacion_ids(lu_ids_pagina)
+    for lote in page_obj:
+        for ubi in lote.ubicaciones_detalle.all():
+            ubi.reserva_activa_calculada = reserva_por_lu.get(ubi.id, 0)
 
     # IDs de lotes en esta página con fecha de recepción incoherente (para marcar en la tabla)
     lotes_fecha_incoherente = set()
@@ -277,7 +300,7 @@ def lista_lotes(request):
         {'value': 'institucion__denominacion', 'label': 'Institución'},
         {'value': 'cantidad_inicial', 'label': 'Cantidad Inicial'},
         {'value': 'cantidad_disponible', 'label': 'Cantidad Disponible'},
-        {'value': 'cantidad_reservada', 'label': 'Cantidad Reservada'},
+        {'value': 'cantidad_reservada', 'label': 'Cantidad reservada (suma LoteAsignado activo)'},
         {'value': 'precio_unitario', 'label': 'Precio Unitario'},
         {'value': 'valor_total', 'label': 'Valor Total'},
         {'value': 'fecha_fabricacion', 'label': 'Fecha de Fabricación'},
@@ -385,7 +408,7 @@ def reporte_lotes_personalizado(request):
         {'value': 'institucion__denominacion', 'label': 'Institución'},
         {'value': 'cantidad_inicial', 'label': 'Cantidad Inicial'},
         {'value': 'cantidad_disponible', 'label': 'Cantidad Disponible'},
-        {'value': 'cantidad_reservada', 'label': 'Cantidad Reservada'},
+        {'value': 'cantidad_reservada', 'label': 'Cantidad reservada (suma LoteAsignado activo)'},
         {'value': 'precio_unitario', 'label': 'Precio Unitario'},
         {'value': 'valor_total', 'label': 'Valor Total'},
         {'value': 'fecha_fabricacion', 'label': 'Fecha de Fabricación'},
@@ -521,8 +544,14 @@ def detalle_lote(request, lote_id):
         id=lote_id
     )
     
-    # Ubicaciones del lote
-    ubicaciones = LoteUbicacion.objects.filter(lote=lote).select_related('ubicacion', 'ubicacion__almacen')
+    # Ubicaciones del lote (con reserva real por ubicación = LoteAsignado)
+    ubicaciones = list(
+        LoteUbicacion.objects.filter(lote=lote).select_related('ubicacion', 'ubicacion__almacen')
+    )
+    lu_ids = [u.id for u in ubicaciones]
+    reserva_lu = totales_reserva_activa_por_lote_ubicacion_ids(lu_ids)
+    for u in ubicaciones:
+        u.reserva_activa_calculada = reserva_lu.get(u.id, 0)
 
     # Movimientos del lote
     movimientos = lote.movimientos.all().order_by('-fecha_movimiento')
@@ -1063,7 +1092,13 @@ def exportar_lotes_personalizado(request):
                 'orden_suministro': 'orden_suministro_numero',
             }
 
+            reserva_por_lote = totales_reserva_activa_por_lote_ids(
+                list(lotes.values_list('id', flat=True))
+            )
+
             def _valor_para_campo(lote, campo, comp):
+                if campo == 'cantidad_reservada':
+                    return reserva_por_lote.get(lote.id, 0)
                 if campo == 'ubicacion__codigo':
                     return None  # se asigna en el bloque por ubi
                 if campo == 'almacen__nombre':

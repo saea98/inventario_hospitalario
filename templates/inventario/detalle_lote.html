@@ -106,7 +106,8 @@
                                 <tr>
                                     <th>Almacén</th>
                                     <th>Ubicación</th>
-                                    <th class="text-end">Cantidad</th>
+                                    <th class="text-end">Cantidad física</th>
+                                    <th class="text-end" title="Suma LoteAsignado (surtido=false) en esta ubicación">Reservada (propuestas)</th>
                                 </tr>
                             </thead>
                             <tbody>
@@ -115,6 +116,7 @@
                                     <td>{{ item.ubicacion.almacen.nombre }}</td>
                                     <td>{{ item.ubicacion.codigo }}</td>
                                     <td class="text-end">{{ item.cantidad }}</td>
+                                    <td class="text-end">{% if item.reserva_activa_calculada > 0 %}<span class="badge bg-info">{{ item.reserva_activa_calculada }}</span>{% else %}<span class="text-muted">-</span>{% endif %}</td>
                                 </tr>
                                 {% endfor %}
                             </tbody>

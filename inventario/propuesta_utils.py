@@ -29,6 +29,42 @@ def _reserva_real_lote(lote):
     ).aggregate(total=Sum('cantidad_asignada'))['total'] or 0
 
 
+def totales_reserva_activa_por_lote_ids(lote_ids):
+    """
+    Por cada id de Lote, suma de cantidad_asignada en LoteAsignado con surtido=False.
+    Misma regla que reporte de reservas; no usa el campo Lote.cantidad_reservada (puede estar desactualizado).
+    """
+    if not lote_ids:
+        return {}
+    return {
+        pk: (total or 0)
+        for pk, total in LoteAsignado.objects.filter(
+            surtido=False, lote_ubicacion__lote_id__in=lote_ids
+        )
+        .values('lote_ubicacion__lote_id')
+        .annotate(total=Sum('cantidad_asignada'))
+        .values_list('lote_ubicacion__lote_id', 'total')
+    }
+
+
+def totales_reserva_activa_por_lote_ubicacion_ids(lote_ubicacion_ids):
+    """
+    Por cada id de LoteUbicacion, suma de cantidad_asignada (LoteAsignado, surtido=False).
+    La asignación en propuestas es siempre por producto + lote + ubicación (FK lote_ubicacion).
+    """
+    if not lote_ubicacion_ids:
+        return {}
+    return {
+        pk: (total or 0)
+        for pk, total in LoteAsignado.objects.filter(
+            surtido=False, lote_ubicacion_id__in=lote_ubicacion_ids
+        )
+        .values('lote_ubicacion_id')
+        .annotate(total=Sum('cantidad_asignada'))
+        .values_list('lote_ubicacion_id', 'total')
+    }
+
+
 def sincronizar_cantidades_surtidas_items_propuesta(propuesta):
     """
     Persiste en cada ItemPropuesta la cantidad surtida según LoteAsignado (documento de verdad).
