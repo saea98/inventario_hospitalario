@@ -1,4 +1,4 @@
-#!/usr/bin/env bash
+#!/bin/sh
 # Marca lotes caducados vía manage.py, sin Airflow.
 #
 # Por defecto ejecuta DENTRO del contenedor Docker `inventario_dev`
@@ -14,8 +14,10 @@
 #   DOCKER                  — default: docker (puede ser podman)
 #   LOG                     — default: /var/log/inventario_lotes_caducados.log
 #   PROJECT_ROOT / PYTHON   — solo si RUN_INSIDE_DOCKER=0
+#
+# Compatible con /bin/sh (dash). Ejecutar: sh scripts/... o ./scripts/... (chmod +x).
 
-set -euo pipefail
+set -eu
 
 LOG="${LOG:-/var/log/inventario_lotes_caducados.log}"
 RUN_INSIDE_DOCKER="${RUN_INSIDE_DOCKER:-1}"
@@ -27,7 +29,7 @@ PROJECT_ROOT="${PROJECT_ROOT:-/var/www/inventario_hospitalario}"
 PYTHON="${PYTHON:-python3}"
 
 exec >>"$LOG" 2>&1
-echo "===== $(date -Iseconds) actualizar_lotes_caducados ====="
+echo "===== $(date '+%Y-%m-%dT%H:%M:%S') actualizar_lotes_caducados ====="
 
 if [ "$RUN_INSIDE_DOCKER" = "1" ]; then
   if ! "$DOCKER" inspect -f '{{.State.Running}}' "$CONTAINER_NAME" 2>/dev/null | grep -q true; then
