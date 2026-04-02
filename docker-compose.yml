@@ -6,6 +6,7 @@ services:
       context: .
       dockerfile: Dockerfile
     platform: linux/amd64  # Forzar arquitectura x86 para compatibilidad con producción (solo desarrollo)
+    # Mismo nombre que usa scripts/cron_actualizar_lotes_caducados.sh (docker exec)
     container_name: inventario_dev
     restart: always
     ports:

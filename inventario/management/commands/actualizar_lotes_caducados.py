@@ -1,7 +1,13 @@
 """
 Marca lotes vencidos como caducados (equivalente al DAG Airflow actualizar_lotes_caducados).
 
-Uso en cron (misma hora que el DAG: 2:00):
+En el host con Docker (contenedor inventario_dev, WORKDIR /app), vía script:
+  0 2 * * * /ruta/al/repo/scripts/cron_actualizar_lotes_caducados.sh
+
+O una línea:
+  0 2 * * * docker exec inventario_dev sh -c 'cd /app && python manage.py actualizar_lotes_caducados' >>/var/log/lotes_caducados.log 2>&1
+
+Sin Docker (venv en el servidor):
   0 2 * * * cd /ruta/al/proyecto && /ruta/venv/bin/python manage.py actualizar_lotes_caducados >>/var/log/lotes_caducados.log 2>&1
 
 Variables .env (opcional, para Telegram): TELEGRAM_BOT_TOKEN y TELEGRAM_CHAT_ID o TELEGRAM_CHAT_ID_ALERTAS

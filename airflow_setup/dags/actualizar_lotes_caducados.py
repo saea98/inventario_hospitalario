@@ -4,9 +4,9 @@ DAG para revisar y actualizar lotes caducados en el inventario hospitalario.
 NOTA (recursos): la misma lógica está en Django como comando de gestión para
 ejecutarla con cron sin Airflow:
 
-    python manage.py actualizar_lotes_caducados
+    docker exec inventario_dev sh -c 'cd /app && python manage.py actualizar_lotes_caducados'
 
-Ver scripts/cron_actualizar_lotes_caducados.sh
+Ver scripts/cron_actualizar_lotes_caducados.sh (contenedor inventario_dev por defecto).
 
 ---
 
