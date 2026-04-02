@@ -12,14 +12,25 @@
 #   CONTAINER_NAME          — default: inventario_dev
 #   CONTAINER_WORKDIR       — default: /app
 #   DOCKER                  — default: docker (puede ser podman)
-#   LOG                     — default: /var/log/inventario_lotes_caducados.log
+#   LOG                     — default: $HOME/logs/inventario_lotes_caducados.log (sin permisos root)
+#                             Para /var/log (una vez, como root):
+#                               sudo touch /var/log/inventario_lotes_caducados.log
+#                               sudo chown USUARIO_CRON:USUARIO_CRON /var/log/inventario_lotes_caducados.log
+#                             Luego en crontab: LOG=/var/log/inventario_lotes_caducados.log
 #   PROJECT_ROOT / PYTHON   — solo si RUN_INSIDE_DOCKER=0
 #
 # Compatible con /bin/sh (dash). Ejecutar: sh scripts/... o ./scripts/... (chmod +x).
 
 set -eu
 
-LOG="${LOG:-/var/log/inventario_lotes_caducados.log}"
+# Log por defecto: $HOME/logs/... (sin root). Solo entonces, si no se puede crear ~/logs, usar /tmp.
+if [ -z "${LOG:-}" ]; then
+  LOG="${HOME:-/tmp}/logs/inventario_lotes_caducados.log"
+  if ! mkdir -p "$(dirname "$LOG")" 2>/dev/null; then
+    LOG="/tmp/inventario_lotes_caducados.log"
+  fi
+fi
+
 RUN_INSIDE_DOCKER="${RUN_INSIDE_DOCKER:-1}"
 CONTAINER_NAME="${CONTAINER_NAME:-inventario_dev}"
 CONTAINER_WORKDIR="${CONTAINER_WORKDIR:-/app}"
