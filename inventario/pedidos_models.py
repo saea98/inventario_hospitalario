@@ -301,6 +301,12 @@ class LoteAsignado(models.Model):
         verbose_name = "Lote Asignado"
         verbose_name_plural = "Lotes Asignados"
         ordering = ['lote_ubicacion__lote__fecha_caducidad']
+        indexes = [
+            models.Index(
+                fields=['surtido', 'fecha_asignacion'],
+                name='loteasignado_surtido_fecha',
+            ),
+        ]
 
     def __str__(self):
         return f"{self.lote_ubicacion.lote.numero_lote} - {self.cantidad_asignada} Unidades"

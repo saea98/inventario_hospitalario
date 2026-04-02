@@ -930,6 +930,34 @@ def _mapas_totales_reservas_activas():
     return por_lote, por_lu
 
 
+def _totales_reservas_para_ids(lote_ids, lu_ids):
+    """
+    Mismos totales globales por lote / LoteUbicacion, pero solo para los IDs indicados.
+    Dos consultas acotadas (ideal para la página HTML con ~50 filas).
+    """
+    totales_lote = {}
+    if lote_ids:
+        totales_lote = {
+            pk: (total or 0)
+            for pk, total in LoteAsignado.objects.filter(
+                surtido=False, lote_ubicacion__lote_id__in=lote_ids
+            ).values('lote_ubicacion__lote_id').annotate(
+                total=Sum('cantidad_asignada')
+            ).values_list('lote_ubicacion__lote_id', 'total')
+        }
+    totales_lu = {}
+    if lu_ids:
+        totales_lu = {
+            pk: (total or 0)
+            for pk, total in LoteAsignado.objects.filter(
+                surtido=False, lote_ubicacion_id__in=lu_ids
+            ).values('lote_ubicacion_id').annotate(
+                total=Sum('cantidad_asignada')
+            ).values_list('lote_ubicacion_id', 'total')
+        }
+    return totales_lote, totales_lu
+
+
 @login_required
 @requiere_rol('Administrador', 'Gestor de Inventario', 'Analista', 'Supervisor')
 def reporte_reservas(request):
@@ -955,6 +983,7 @@ def reporte_reservas(request):
         'item_propuesta__propuesta__solicitud',
         'item_propuesta__propuesta__solicitud__institucion_solicitante',
         'item_propuesta__propuesta__solicitud__almacen_destino',
+        'item_propuesta__propuesta__solicitud__almacen_destino__institucion',
         'item_propuesta__producto',
         'lote_ubicacion__lote',
         'lote_ubicacion__lote__producto',
@@ -1001,9 +1030,6 @@ def reporte_reservas(request):
 
     reservas = reservas.order_by('-fecha_asignacion', 'item_propuesta__propuesta__solicitud__folio')
 
-    # Totales lote/ubicación: 2 consultas globales (evita miles de agregados por fila).
-    totales_lote, totales_lu = _mapas_totales_reservas_activas()
-
     # Paginación en BD: solo se materializan 50 filas por petición.
     paginator = Paginator(reservas, 50)
     page = request.GET.get('page', 1)
@@ -1014,9 +1040,14 @@ def reporte_reservas(request):
     except EmptyPage:
         datos_paginados = paginator.page(paginator.num_pages)
 
+    rows = list(datos_paginados.object_list)
+    lote_ids = {r.lote_ubicacion.lote_id for r in rows}
+    lu_ids = {r.lote_ubicacion_id for r in rows}
+    totales_lote, totales_lu = _totales_reservas_para_ids(lote_ids, lu_ids)
+
     offset = (datos_paginados.number - 1) * paginator.per_page
     datos_reporte = []
-    for idx, reserva in enumerate(datos_paginados.object_list):
+    for idx, reserva in enumerate(rows):
         propuesta = reserva.item_propuesta.propuesta
         solicitud = propuesta.solicitud
         producto = reserva.item_propuesta.producto
@@ -1210,6 +1241,7 @@ def exportar_reservas_excel(request):
         'item_propuesta__propuesta__solicitud',
         'item_propuesta__propuesta__solicitud__institucion_solicitante',
         'item_propuesta__propuesta__solicitud__almacen_destino',
+        'item_propuesta__propuesta__solicitud__almacen_destino__institucion',
         'item_propuesta__producto',
         'lote_ubicacion__lote',
         'lote_ubicacion__lote__producto',
@@ -1257,49 +1289,33 @@ def exportar_reservas_excel(request):
     reservas = reservas.order_by('-fecha_asignacion', 'item_propuesta__propuesta__solicitud__folio')
     totales_lote, totales_lu = _mapas_totales_reservas_activas()
 
-    # Crear workbook
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Reservas"
-    
-    # Estilos
-    header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
-    header_font = Font(bold=True, color="FFFFFF", size=11)
-    border = Border(
-        left=Side(style='thin'),
-        right=Side(style='thin'),
-        top=Side(style='thin'),
-        bottom=Side(style='thin')
-    )
-    
-    # Encabezados
     headers = [
         'PARTIDA', 'CLAVE CNIS', 'DESCRIPCIÓN', 'UNIDAD DE MEDIDA', 'LOTE', 'CADUCIDAD',
         'ASIGNADA (LÍNEA)', 'RESERVA TOTAL (LOTE)', 'RESERVA TOTAL (UBICACIÓN)',
         'CANTIDAD SOLICITADA', 'OBSERVACIONES', 'RECURSO', 'DESTINO',
         'UBICACIÓN', 'FECHA RESERVA', 'FOLIO', 'FECHA ENTREGA PROGRAMADA', 'ESTADO PROPUESTA'
     ]
-    
-    for col_num, header in enumerate(headers, 1):
-        cell = ws.cell(row=1, column=col_num)
-        cell.value = header
-        cell.fill = header_fill
-        cell.font = header_font
-        cell.alignment = Alignment(horizontal='center', vertical='center')
-        cell.border = border
-    
-    # Datos
+
+    # write_only + append: evita miles de objetos Cell/Style (lo que disparaba CPU y memoria).
+    wb = Workbook(write_only=True)
+    ws = wb.create_sheet(title='Reservas', index=0)
+    ws.append(headers)
+
     partida_counter = 1
-    for reserva in reservas:
+    for reserva in reservas.iterator(chunk_size=500):
         propuesta = reserva.item_propuesta.propuesta
         solicitud = propuesta.solicitud
         producto = reserva.item_propuesta.producto
         lote_ubicacion = reserva.lote_ubicacion
         lote = lote_ubicacion.lote
         ubicacion = lote_ubicacion.ubicacion
-        
-        row_num = partida_counter + 1
-        data = [
+
+        destino = ''
+        if solicitud.almacen_destino and solicitud.almacen_destino.institucion:
+            inst = solicitud.almacen_destino.institucion
+            destino = inst.nombre or inst.denominacion or ''
+
+        ws.append([
             partida_counter,
             producto.clave_cnis,
             producto.descripcion,
@@ -1312,36 +1328,20 @@ def exportar_reservas_excel(request):
             reserva.item_propuesta.cantidad_solicitada,
             solicitud.observaciones_solicitud or '',
             solicitud.institucion_solicitante.nombre if solicitud.institucion_solicitante else '',
-            (solicitud.almacen_destino.institucion.nombre or solicitud.almacen_destino.institucion.denominacion) if solicitud.almacen_destino and solicitud.almacen_destino.institucion else '',
+            destino,
             ubicacion.codigo if ubicacion else '',
             reserva.fecha_asignacion.strftime('%d/%m/%Y %H:%M') if reserva.fecha_asignacion else '',
             solicitud.observaciones_solicitud or solicitud.folio,
             solicitud.fecha_entrega_programada.strftime('%d/%m/%Y') if solicitud.fecha_entrega_programada else '',
             propuesta.get_estado_display(),
-        ]
-        
-        for col_num, value in enumerate(data, 1):
-            cell = ws.cell(row=row_num, column=col_num)
-            cell.value = value
-            cell.border = border
-            cell.alignment = Alignment(horizontal='left', vertical='top', wrap_text=True)
-        
+        ])
         partida_counter += 1
-    
-    # Ajustar anchos de columna
-    column_widths = [10, 18, 50, 15, 15, 12, 16, 18, 22, 18, 30, 30, 30, 15, 18, 20, 20, 20]
-    for col_num, width in enumerate(column_widths, 1):
-        ws.column_dimensions[get_column_letter(col_num)].width = width
-    
-    # Congelar primera fila
-    ws.freeze_panes = 'A2'
-    
-    # Preparar respuesta
+
     response = HttpResponse(
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
     filename = f"reporte_reservas_{timezone.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
-    
+
     wb.save(response)
     return response
