@@ -17,6 +17,7 @@ import logging
 
 from .models import Lote, Producto, LoteUbicacion
 from .pedidos_models import ItemPropuesta, LoteAsignado, PropuestaPedido, ItemSolicitud
+from .propuesta_utils import _reserva_real_lote
 from openpyxl import Workbook
 from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
@@ -29,6 +30,9 @@ def reporte_lote_pedidos(request):
     """
     Reporte de lotes y pedidos asociados.
     Muestra todos los lotes que están asignados en pedidos, con paginación y filtros.
+
+    Reservado / neto: misma regla que reservas y propuesta_utils — suma de LoteAsignado
+    (surtido=False), no el campo Lote.cantidad_reservada (puede desincronizarse).
     """
     
     # Obtener parámetros de filtro
@@ -103,6 +107,8 @@ def reporte_lote_pedidos(request):
             lote_key = lote.id
             
             if lote_key not in lotes_dict:
+                reserva_real = _reserva_real_lote(lote)
+                disp = lote.cantidad_disponible or 0
                 lotes_dict[lote_key] = {
                     'lote_id': lote.id,
                     'clave': lote.producto.clave_cnis,
@@ -110,8 +116,8 @@ def reporte_lote_pedidos(request):
                     'numero_lote': lote.numero_lote,
                     'institucion': lote.institucion.denominacion if lote.institucion else 'N/A',
                     'cantidad_disponible': lote.cantidad_disponible,
-                    'cantidad_reservada': lote.cantidad_reservada,
-                    'cantidad_neta': max(0, lote.cantidad_disponible - lote.cantidad_reservada),
+                    'cantidad_reservada': reserva_real,
+                    'cantidad_neta': max(0, disp - reserva_real),
                     'fecha_caducidad': lote.fecha_caducidad,
                     'precio_unitario': lote.precio_unitario,
                     'valor_total': lote.valor_total,
@@ -275,6 +281,8 @@ def exportar_lote_pedidos_excel(request):
             lote_key = lote.id
             
             if lote_key not in lotes_dict:
+                reserva_real = _reserva_real_lote(lote)
+                disp = lote.cantidad_disponible or 0
                 lotes_dict[lote_key] = {
                     'lote_id': lote.id,
                     'clave': lote.producto.clave_cnis,
@@ -282,8 +290,8 @@ def exportar_lote_pedidos_excel(request):
                     'numero_lote': lote.numero_lote,
                     'institucion': lote.institucion.denominacion if lote.institucion else 'N/A',
                     'cantidad_disponible': lote.cantidad_disponible,
-                    'cantidad_reservada': lote.cantidad_reservada,
-                    'cantidad_neta': max(0, lote.cantidad_disponible - lote.cantidad_reservada),
+                    'cantidad_reservada': reserva_real,
+                    'cantidad_neta': max(0, disp - reserva_real),
                     'fecha_caducidad': lote.fecha_caducidad,
                     'precio_unitario': lote.precio_unitario,
                     'valor_total': lote.valor_total,

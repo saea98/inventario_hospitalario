@@ -22,7 +22,6 @@ from .views_reporte_usuarios import reporte_usuarios_actividades
 from .views_reporte_logs_propuestas import reporte_logs_propuestas
 
 #from inventario.admin import inventario_admin
-from django.contrib import admin as django_admin
 
 
 urlpatterns = [
@@ -150,7 +149,7 @@ urlpatterns = [
     path('reportes/salidas/', include(urls_reportes_salidas)),  # URLs de FASE 4: Reportes de Salidas
     path('picking/', include(urls_picking)),  # URLs de FASE 6: Optimización de Picking
     path('pedidos/', include(pedidos_urls)),  # URLs de FASE 2.2.1: Gestión de Pedidos
-    path('admin/', django_admin.site.urls),
+    # Admin: solo en inventario_hospitalario/urls.py (evita urls.W005 namespace duplicado).
     path('reportes-disponibilidad/', include(reportes_urls)),
     path('sistema/sql/', include(sql_urls)),
     
