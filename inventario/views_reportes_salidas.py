@@ -958,6 +958,73 @@ def _totales_reservas_para_ids(lote_ids, lu_ids):
     return totales_lote, totales_lu
 
 
+# Ventana por defecto y máxima para reporte de reservas (reduce carga en BD/CPU).
+RESERVAS_REPORTE_DIAS_DEFAULT = 7
+RESERVAS_REPORTE_MAX_DIAS_INCLUSIVOS = 15
+
+
+def _parse_fecha_reservas_ymd(s):
+    if not s:
+        return None
+    try:
+        return datetime.strptime(s.strip(), '%Y-%m-%d').date()
+    except ValueError:
+        return None
+
+
+def _rango_fechas_reporte_reservas(request):
+    """
+    Sin fechas en GET: últimos 7 días (incluye hoy).
+    Con fechas: como máximo 15 días calendario desde la fecha inicial (recorta fecha fin si hace falta).
+    """
+    from datetime import time as dt_time
+
+    today = timezone.localdate()
+    raw_i = request.GET.get('fecha_inicio', '').strip()
+    raw_f = request.GET.get('fecha_fin', '').strip()
+    aviso = None
+    max_delta = RESERVAS_REPORTE_MAX_DIAS_INCLUSIVOS - 1
+
+    if not raw_i and not raw_f:
+        d_fin = today
+        d_ini = today - timedelta(days=RESERVAS_REPORTE_DIAS_DEFAULT - 1)
+    else:
+        d_i = _parse_fecha_reservas_ymd(raw_i) if raw_i else None
+        d_f = _parse_fecha_reservas_ymd(raw_f) if raw_f else None
+        if d_i is None and d_f is None:
+            d_fin = today
+            d_ini = today - timedelta(days=RESERVAS_REPORTE_DIAS_DEFAULT - 1)
+            aviso = 'Las fechas no son válidas. Se aplicaron los últimos 7 días.'
+        elif d_i is not None and d_f is not None:
+            if d_f < d_i:
+                d_i, d_f = d_f, d_i
+            if (d_f - d_i).days > max_delta:
+                d_f = d_i + timedelta(days=max_delta)
+                aviso = (
+                    'El rango máximo es de 15 días desde la fecha inicial. '
+                    'Se ajustó la fecha fin.'
+                )
+            d_ini, d_fin = d_i, d_f
+        elif d_i is not None:
+            d_ini = d_i
+            d_fin = d_i + timedelta(days=max_delta)
+        else:
+            d_fin = d_f
+            d_ini = d_f - timedelta(days=max_delta)
+
+    start_dt = timezone.make_aware(datetime.combine(d_ini, dt_time.min))
+    end_dt = timezone.make_aware(
+        datetime.combine(d_fin, dt_time.max.replace(microsecond=999999))
+    )
+    return {
+        'fecha_inicio_str': d_ini.strftime('%Y-%m-%d'),
+        'fecha_fin_str': d_fin.strftime('%Y-%m-%d'),
+        'start_dt': start_dt,
+        'end_dt': end_dt,
+        'aviso': aviso,
+    }
+
+
 @login_required
 @requiere_rol('Administrador', 'Gestor de Inventario', 'Analista', 'Supervisor')
 def reporte_reservas(request):
@@ -967,10 +1034,15 @@ def reporte_reservas(request):
 
     Cantidades: la columna de línea usa cantidad_asignada (documento de verdad).
     Totales lote/ubicación: suma de LoteAsignado (surtido=False), no Lote.cantidad_reservada.
+
+    Por defecto se listan los últimos 7 días; el rango consultable está acotado a 15 días
+    desde la fecha inicial.
     """
-    # Filtros
-    fecha_inicio = request.GET.get('fecha_inicio')
-    fecha_fin = request.GET.get('fecha_fin')
+    rango = _rango_fechas_reporte_reservas(request)
+    fecha_inicio = rango['fecha_inicio_str']
+    fecha_fin = rango['fecha_fin_str']
+    aviso_fecha = rango['aviso']
+
     folio = request.GET.get('folio', '').strip()
     clave_cnis = request.GET.get('clave_cnis', '').strip()
     institucion_id = request.GET.get('institucion')
@@ -989,24 +1061,12 @@ def reporte_reservas(request):
         'lote_ubicacion__lote__producto',
         'lote_ubicacion__ubicacion'
     )
-    
-    # Aplicar filtros
-    if fecha_inicio:
-        try:
-            fecha_inicio_obj = datetime.strptime(fecha_inicio, '%Y-%m-%d')
-            reservas = reservas.filter(fecha_asignacion__gte=fecha_inicio_obj)
-        except ValueError:
-            pass
-    
-    if fecha_fin:
-        try:
-            fecha_fin_obj = datetime.strptime(fecha_fin, '%Y-%m-%d')
-            from datetime import time as dt_time
-            fecha_fin_obj = datetime.combine(fecha_fin_obj.date(), dt_time.max)
-            reservas = reservas.filter(fecha_asignacion__lte=fecha_fin_obj)
-        except ValueError:
-            pass
-    
+
+    reservas = reservas.filter(
+        fecha_asignacion__gte=rango['start_dt'],
+        fecha_asignacion__lte=rango['end_dt'],
+    )
+
     if folio:
         reservas = reservas.filter(
             Q(item_propuesta__propuesta__solicitud__folio__icontains=folio) |
@@ -1111,6 +1171,7 @@ def reporte_reservas(request):
         'estado_propuesta': estado_propuesta,
         'instituciones': instituciones,
         'estados_propuesta': estados_propuesta,
+        'aviso_fecha': aviso_fecha,
     }
     
     return render(request, 'inventario/reportes_salidas/reporte_reservas.html', context)
@@ -1225,10 +1286,9 @@ def exportar_reservas_excel(request):
     """
     Exporta el reporte de reservas a Excel.
     Misma lógica de cantidades que reporte_reservas (suma LoteAsignado, no campo en lote).
+    Mismo rango de fechas (7 días por defecto, máximo 15 días desde fecha inicial).
     """
-    # Aplicar los mismos filtros que la vista principal
-    fecha_inicio = request.GET.get('fecha_inicio')
-    fecha_fin = request.GET.get('fecha_fin')
+    rango = _rango_fechas_reporte_reservas(request)
     folio = request.GET.get('folio', '').strip()
     clave_cnis = request.GET.get('clave_cnis', '').strip()
     institucion_id = request.GET.get('institucion')
@@ -1247,24 +1307,12 @@ def exportar_reservas_excel(request):
         'lote_ubicacion__lote__producto',
         'lote_ubicacion__ubicacion'
     )
-    
-    # Aplicar filtros (misma lógica que la vista)
-    if fecha_inicio:
-        try:
-            fecha_inicio_obj = datetime.strptime(fecha_inicio, '%Y-%m-%d')
-            reservas = reservas.filter(fecha_asignacion__gte=fecha_inicio_obj)
-        except ValueError:
-            pass
-    
-    if fecha_fin:
-        try:
-            fecha_fin_obj = datetime.strptime(fecha_fin, '%Y-%m-%d')
-            from datetime import time as dt_time
-            fecha_fin_obj = datetime.combine(fecha_fin_obj.date(), dt_time.max)
-            reservas = reservas.filter(fecha_asignacion__lte=fecha_fin_obj)
-        except ValueError:
-            pass
-    
+
+    reservas = reservas.filter(
+        fecha_asignacion__gte=rango['start_dt'],
+        fecha_asignacion__lte=rango['end_dt'],
+    )
+
     if folio:
         reservas = reservas.filter(
             Q(item_propuesta__propuesta__solicitud__folio__icontains=folio) |

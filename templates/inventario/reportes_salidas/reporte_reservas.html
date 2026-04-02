@@ -14,6 +14,11 @@
                     </h4>
                 </div>
                 <div class="card-body">
+                    {% if aviso_fecha %}
+                    <div class="alert alert-info mb-3">
+                        <i class="fas fa-info-circle"></i> {{ aviso_fecha }}
+                    </div>
+                    {% endif %}
                     <!-- Filtros -->
                     <form method="get" action="{% url 'reportes_salidas:reporte_reservas' %}" class="mb-4">
                         <div class="row">
@@ -56,6 +61,10 @@
                                 </select>
                             </div>
                         </div>
+                        <p class="text-muted small mb-0 mt-2">
+                            Sin fechas en la primera visita se aplican los <strong>últimos 7 días</strong> (incluye hoy).
+                            El rango consultable está limitado a <strong>máximo 15 días</strong> desde la fecha inicial.
+                        </p>
                         <div class="row mt-3">
                             <div class="col-12">
                                 <button type="submit" class="btn btn-primary">
@@ -73,7 +82,7 @@
 
                     <!-- Resumen -->
                     <div class="alert alert-warning">
-                        <strong>Total de reservas activas:</strong> {{ total_registros }}
+                        <strong>Total de reservas activas en el período ({{ fecha_inicio }} a {{ fecha_fin }}):</strong> {{ total_registros }}
                         <br><small>Las reservas se pueden liberar si la propuesta está en estado Generada, Revisada o En Surtimiento.</small>
                         <br><small class="text-muted">Las cantidades provienen de <strong>LoteAsignado</strong> (asignada por línea). «Reserva total (lote/ubicación)» es la suma de asignaciones activas (surtido=false), no el campo almacenado en el lote.</small>
                     </div>
