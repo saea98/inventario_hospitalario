@@ -24,7 +24,7 @@ from .models import (
 )
 from .pedidos_models import PropuestaPedido, ItemPropuesta, LoteAsignado, SolicitudPedido
 from .decorators_roles import requiere_rol
-from .propuesta_utils import liberar_cantidad_lote
+from .propuesta_utils import liberar_cantidad_lote, _reserva_real_lote, _reserva_real_lote_ubicacion
 from django.db import transaction
 
 logger = logging.getLogger(__name__)
@@ -915,6 +915,9 @@ def reporte_reservas(request):
     """
     Reporte detallado de todas las reservas activas (LoteAsignado con surtido=False).
     Permite al usuario validar y liberar reservas si es necesario.
+
+    Cantidades: la columna de línea usa cantidad_asignada (documento de verdad).
+    Totales lote/ubicación: suma de LoteAsignado (surtido=False), no Lote.cantidad_reservada.
     """
     # Filtros
     fecha_inicio = request.GET.get('fecha_inicio')
@@ -978,7 +981,21 @@ def reporte_reservas(request):
     # Construir datos del reporte
     datos_reporte = []
     partida_counter = 1
-    
+    cache_reserva_lote = {}
+    cache_reserva_ubicacion = {}
+
+    def reserva_total_lote_cached(lote_obj):
+        lid = lote_obj.id
+        if lid not in cache_reserva_lote:
+            cache_reserva_lote[lid] = _reserva_real_lote(lote_obj)
+        return cache_reserva_lote[lid]
+
+    def reserva_total_ubicacion_cached(lu):
+        uid = lu.id
+        if uid not in cache_reserva_ubicacion:
+            cache_reserva_ubicacion[uid] = _reserva_real_lote_ubicacion(lu)
+        return cache_reserva_ubicacion[uid]
+
     for reserva in reservas.order_by('-fecha_asignacion', 'item_propuesta__propuesta__solicitud__folio'):
         propuesta = reserva.item_propuesta.propuesta
         solicitud = propuesta.solicitud
@@ -1002,7 +1019,11 @@ def reporte_reservas(request):
             'lote': lote.numero_lote,
             'caducidad': lote.fecha_caducidad.strftime('%d/%m/%Y') if lote.fecha_caducidad else '',
             'dias_caducidad': dias_caducidad,
+            # Línea: siempre cantidad_asignada del LoteAsignado (no campos desnormalizados).
+            'cantidad_asignada': reserva.cantidad_asignada,
             'cantidad_reservada': reserva.cantidad_asignada,
+            'reserva_total_lote': reserva_total_lote_cached(lote),
+            'reserva_total_ubicacion': reserva_total_ubicacion_cached(lote_ubicacion),
             'cantidad_solicitada': reserva.item_propuesta.cantidad_solicitada,
             'observaciones': solicitud.observaciones_solicitud or '',
             'recurso': solicitud.institucion_solicitante.nombre if solicitud.institucion_solicitante else '',
@@ -1164,6 +1185,7 @@ def liberar_reserva(request, reserva_id):
 def exportar_reservas_excel(request):
     """
     Exporta el reporte de reservas a Excel.
+    Misma lógica de cantidades que reporte_reservas (suma LoteAsignado, no campo en lote).
     """
     # Aplicar los mismos filtros que la vista principal
     fecha_inicio = request.GET.get('fecha_inicio')
@@ -1224,6 +1246,21 @@ def exportar_reservas_excel(request):
             item_propuesta__propuesta__estado=estado_propuesta
         )
     
+    cache_reserva_lote = {}
+    cache_reserva_ubicacion = {}
+
+    def reserva_total_lote_cached(lote_obj):
+        lid = lote_obj.id
+        if lid not in cache_reserva_lote:
+            cache_reserva_lote[lid] = _reserva_real_lote(lote_obj)
+        return cache_reserva_lote[lid]
+
+    def reserva_total_ubicacion_cached(lu):
+        uid = lu.id
+        if uid not in cache_reserva_ubicacion:
+            cache_reserva_ubicacion[uid] = _reserva_real_lote_ubicacion(lu)
+        return cache_reserva_ubicacion[uid]
+
     # Crear workbook
     wb = Workbook()
     ws = wb.active
@@ -1242,7 +1279,8 @@ def exportar_reservas_excel(request):
     # Encabezados
     headers = [
         'PARTIDA', 'CLAVE CNIS', 'DESCRIPCIÓN', 'UNIDAD DE MEDIDA', 'LOTE', 'CADUCIDAD',
-        'CANTIDAD RESERVADA', 'CANTIDAD SOLICITADA', 'OBSERVACIONES', 'RECURSO', 'DESTINO',
+        'ASIGNADA (LÍNEA)', 'RESERVA TOTAL (LOTE)', 'RESERVA TOTAL (UBICACIÓN)',
+        'CANTIDAD SOLICITADA', 'OBSERVACIONES', 'RECURSO', 'DESTINO',
         'UBICACIÓN', 'FECHA RESERVA', 'FOLIO', 'FECHA ENTREGA PROGRAMADA', 'ESTADO PROPUESTA'
     ]
     
@@ -1260,8 +1298,9 @@ def exportar_reservas_excel(request):
         propuesta = reserva.item_propuesta.propuesta
         solicitud = propuesta.solicitud
         producto = reserva.item_propuesta.producto
-        lote = reserva.lote_ubicacion.lote
-        ubicacion = reserva.lote_ubicacion.ubicacion
+        lote_ubicacion = reserva.lote_ubicacion
+        lote = lote_ubicacion.lote
+        ubicacion = lote_ubicacion.ubicacion
         
         row_num = partida_counter + 1
         data = [
@@ -1272,6 +1311,8 @@ def exportar_reservas_excel(request):
             lote.numero_lote,
             lote.fecha_caducidad.strftime('%d/%m/%Y') if lote.fecha_caducidad else '',
             reserva.cantidad_asignada,
+            reserva_total_lote_cached(lote),
+            reserva_total_ubicacion_cached(lote_ubicacion),
             reserva.item_propuesta.cantidad_solicitada,
             solicitud.observaciones_solicitud or '',
             solicitud.institucion_solicitante.nombre if solicitud.institucion_solicitante else '',
@@ -1292,7 +1333,7 @@ def exportar_reservas_excel(request):
         partida_counter += 1
     
     # Ajustar anchos de columna
-    column_widths = [10, 18, 50, 15, 15, 12, 18, 18, 30, 30, 30, 15, 18, 20, 20, 20]
+    column_widths = [10, 18, 50, 15, 15, 12, 16, 18, 22, 18, 30, 30, 30, 15, 18, 20, 20, 20]
     for col_num, width in enumerate(column_widths, 1):
         ws.column_dimensions[get_column_letter(col_num)].width = width
     

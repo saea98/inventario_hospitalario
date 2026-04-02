@@ -75,6 +75,7 @@
                     <div class="alert alert-warning">
                         <strong>Total de reservas activas:</strong> {{ total_registros }}
                         <br><small>Las reservas se pueden liberar si la propuesta está en estado Generada, Revisada o En Surtimiento.</small>
+                        <br><small class="text-muted">Las cantidades provienen de <strong>LoteAsignado</strong> (asignada por línea). «Reserva total (lote/ubicación)» es la suma de asignaciones activas (surtido=false), no el campo almacenado en el lote.</small>
                     </div>
 
                     <!-- Tabla de resultados -->
@@ -88,7 +89,9 @@
                                     <th>UNIDAD DE MEDIDA</th>
                                     <th>LOTE</th>
                                     <th>CADUCIDAD</th>
-                                    <th>CANTIDAD RESERVADA</th>
+                                    <th class="text-center">Asignada<br><small>(línea)</small></th>
+                                    <th class="text-center">Reserva total<br><small>(lote)</small></th>
+                                    <th class="text-center">Reserva total<br><small>(ubicación)</small></th>
                                     <th>CANTIDAD SOLICITADA</th>
                                     <th>OBSERVACIONES</th>
                                     <th>RECURSO</th>
@@ -111,7 +114,9 @@
                                         <td>{{ dato.unidad_medida }}</td>
                                         <td>{{ dato.lote }}</td>
                                         <td>{{ dato.caducidad }}</td>
-                                        <td class="text-center"><strong class="text-warning">{{ dato.cantidad_reservada }}</strong></td>
+                                        <td class="text-center"><strong class="text-warning">{{ dato.cantidad_asignada }}</strong></td>
+                                        <td class="text-center"><span class="badge bg-secondary">{{ dato.reserva_total_lote }}</span></td>
+                                        <td class="text-center"><span class="badge bg-dark">{{ dato.reserva_total_ubicacion }}</span></td>
                                         <td class="text-center">{{ dato.cantidad_solicitada }}</td>
                                         <td>{{ dato.observaciones|truncatewords:5 }}</td>
                                         <td>{{ dato.recurso }}</td>
@@ -141,7 +146,7 @@
                                                         class="btn btn-sm btn-danger liberar-reserva" 
                                                         data-reserva-id="{{ dato.id }}"
                                                         data-lote="{{ dato.lote }}"
-                                                        data-cantidad="{{ dato.cantidad_reservada }}">
+                                                        data-cantidad="{{ dato.cantidad_asignada }}">
                                                     <i class="fas fa-unlock"></i> Liberar
                                                 </button>
                                             {% else %}
@@ -152,7 +157,7 @@
                                     {% endfor %}
                                 {% else %}
                                     <tr>
-                                        <td colspan="17" class="text-center text-muted">
+                                        <td colspan="19" class="text-center text-muted">
                                             <i class="fas fa-info-circle"></i> No se encontraron reservas con los filtros aplicados.
                                         </td>
                                     </tr>
