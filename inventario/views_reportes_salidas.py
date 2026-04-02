@@ -24,7 +24,7 @@ from .models import (
 )
 from .pedidos_models import PropuestaPedido, ItemPropuesta, LoteAsignado, SolicitudPedido
 from .decorators_roles import requiere_rol
-from .propuesta_utils import liberar_cantidad_lote, _reserva_real_lote, _reserva_real_lote_ubicacion
+from .propuesta_utils import liberar_cantidad_lote
 from django.db import transaction
 
 logger = logging.getLogger(__name__)
@@ -909,6 +909,27 @@ def exportar_salidas_surtidas_excel(request):
 # REPORTE DE RESERVAS
 # ============================================================
 
+def _mapas_totales_reservas_activas():
+    """
+    Totales por lote y por LoteUbicacion (surtido=False) en solo 2 consultas SQL.
+    Mismo criterio que _reserva_real_lote / _reserva_real_lote_ubicacion en propuesta_utils.
+    """
+    qs = LoteAsignado.objects.filter(surtido=False)
+    por_lote = {
+        pk: (total or 0)
+        for pk, total in qs.values('lote_ubicacion__lote_id').annotate(
+            total=Sum('cantidad_asignada')
+        ).values_list('lote_ubicacion__lote_id', 'total')
+    }
+    por_lu = {
+        pk: (total or 0)
+        for pk, total in qs.values('lote_ubicacion_id').annotate(
+            total=Sum('cantidad_asignada')
+        ).values_list('lote_ubicacion_id', 'total')
+    }
+    return por_lote, por_lu
+
+
 @login_required
 @requiere_rol('Administrador', 'Gestor de Inventario', 'Analista', 'Supervisor')
 def reporte_reservas(request):
@@ -977,53 +998,50 @@ def reporte_reservas(request):
         reservas = reservas.filter(
             item_propuesta__propuesta__estado=estado_propuesta
         )
-    
-    # Construir datos del reporte
+
+    reservas = reservas.order_by('-fecha_asignacion', 'item_propuesta__propuesta__solicitud__folio')
+
+    # Totales lote/ubicación: 2 consultas globales (evita miles de agregados por fila).
+    totales_lote, totales_lu = _mapas_totales_reservas_activas()
+
+    # Paginación en BD: solo se materializan 50 filas por petición.
+    paginator = Paginator(reservas, 50)
+    page = request.GET.get('page', 1)
+    try:
+        datos_paginados = paginator.page(page)
+    except PageNotAnInteger:
+        datos_paginados = paginator.page(1)
+    except EmptyPage:
+        datos_paginados = paginator.page(paginator.num_pages)
+
+    offset = (datos_paginados.number - 1) * paginator.per_page
     datos_reporte = []
-    partida_counter = 1
-    cache_reserva_lote = {}
-    cache_reserva_ubicacion = {}
-
-    def reserva_total_lote_cached(lote_obj):
-        lid = lote_obj.id
-        if lid not in cache_reserva_lote:
-            cache_reserva_lote[lid] = _reserva_real_lote(lote_obj)
-        return cache_reserva_lote[lid]
-
-    def reserva_total_ubicacion_cached(lu):
-        uid = lu.id
-        if uid not in cache_reserva_ubicacion:
-            cache_reserva_ubicacion[uid] = _reserva_real_lote_ubicacion(lu)
-        return cache_reserva_ubicacion[uid]
-
-    for reserva in reservas.order_by('-fecha_asignacion', 'item_propuesta__propuesta__solicitud__folio'):
+    for idx, reserva in enumerate(datos_paginados.object_list):
         propuesta = reserva.item_propuesta.propuesta
         solicitud = propuesta.solicitud
         producto = reserva.item_propuesta.producto
         lote_ubicacion = reserva.lote_ubicacion
         lote = lote_ubicacion.lote
         ubicacion = lote_ubicacion.ubicacion
-        
-        # Calcular días para caducidad
+
         if lote.fecha_caducidad:
             dias_caducidad = (lote.fecha_caducidad - timezone.now().date()).days
         else:
             dias_caducidad = None
-        
+
         datos_reporte.append({
             'id': reserva.id,
-            'partida': partida_counter,
+            'partida': offset + idx + 1,
             'clave_cnis': producto.clave_cnis,
             'descripcion': producto.descripcion,
             'unidad_medida': producto.unidad_medida if producto.unidad_medida else '',
             'lote': lote.numero_lote,
             'caducidad': lote.fecha_caducidad.strftime('%d/%m/%Y') if lote.fecha_caducidad else '',
             'dias_caducidad': dias_caducidad,
-            # Línea: siempre cantidad_asignada del LoteAsignado (no campos desnormalizados).
             'cantidad_asignada': reserva.cantidad_asignada,
             'cantidad_reservada': reserva.cantidad_asignada,
-            'reserva_total_lote': reserva_total_lote_cached(lote),
-            'reserva_total_ubicacion': reserva_total_ubicacion_cached(lote_ubicacion),
+            'reserva_total_lote': totales_lote.get(lote.id, 0),
+            'reserva_total_ubicacion': totales_lu.get(lote_ubicacion.id, 0),
             'cantidad_solicitada': reserva.item_propuesta.cantidad_solicitada,
             'observaciones': solicitud.observaciones_solicitud or '',
             'recurso': solicitud.institucion_solicitante.nombre if solicitud.institucion_solicitante else '',
@@ -1036,19 +1054,9 @@ def reporte_reservas(request):
             'estado_propuesta_codigo': propuesta.estado,
             'propuesta_id': propuesta.id,
         })
-        
-        partida_counter += 1
-    
-    # Paginación
-    paginator = Paginator(datos_reporte, 50)
-    page = request.GET.get('page', 1)
-    try:
-        datos_paginados = paginator.page(page)
-    except PageNotAnInteger:
-        datos_paginados = paginator.page(1)
-    except EmptyPage:
-        datos_paginados = paginator.page(paginator.num_pages)
-    
+
+    datos_paginados.object_list = datos_reporte
+
     # Obtener instituciones para el filtro
     instituciones = Institucion.objects.all().order_by('nombre')
     
@@ -1063,7 +1071,7 @@ def reporte_reservas(request):
     
     context = {
         'datos': datos_paginados,
-        'total_registros': len(datos_reporte),
+        'total_registros': paginator.count,
         'fecha_inicio': fecha_inicio,
         'fecha_fin': fecha_fin,
         'folio': folio,
@@ -1245,21 +1253,9 @@ def exportar_reservas_excel(request):
         reservas = reservas.filter(
             item_propuesta__propuesta__estado=estado_propuesta
         )
-    
-    cache_reserva_lote = {}
-    cache_reserva_ubicacion = {}
 
-    def reserva_total_lote_cached(lote_obj):
-        lid = lote_obj.id
-        if lid not in cache_reserva_lote:
-            cache_reserva_lote[lid] = _reserva_real_lote(lote_obj)
-        return cache_reserva_lote[lid]
-
-    def reserva_total_ubicacion_cached(lu):
-        uid = lu.id
-        if uid not in cache_reserva_ubicacion:
-            cache_reserva_ubicacion[uid] = _reserva_real_lote_ubicacion(lu)
-        return cache_reserva_ubicacion[uid]
+    reservas = reservas.order_by('-fecha_asignacion', 'item_propuesta__propuesta__solicitud__folio')
+    totales_lote, totales_lu = _mapas_totales_reservas_activas()
 
     # Crear workbook
     wb = Workbook()
@@ -1294,7 +1290,7 @@ def exportar_reservas_excel(request):
     
     # Datos
     partida_counter = 1
-    for reserva in reservas.order_by('-fecha_asignacion', 'item_propuesta__propuesta__solicitud__folio'):
+    for reserva in reservas:
         propuesta = reserva.item_propuesta.propuesta
         solicitud = propuesta.solicitud
         producto = reserva.item_propuesta.producto
@@ -1311,8 +1307,8 @@ def exportar_reservas_excel(request):
             lote.numero_lote,
             lote.fecha_caducidad.strftime('%d/%m/%Y') if lote.fecha_caducidad else '',
             reserva.cantidad_asignada,
-            reserva_total_lote_cached(lote),
-            reserva_total_ubicacion_cached(lote_ubicacion),
+            totales_lote.get(lote.id, 0),
+            totales_lu.get(lote_ubicacion.id, 0),
             reserva.item_propuesta.cantidad_solicitada,
             solicitud.observaciones_solicitud or '',
             solicitud.institucion_solicitante.nombre if solicitud.institucion_solicitante else '',
