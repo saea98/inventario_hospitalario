@@ -97,7 +97,7 @@ class LoggingMiddleware:
     
     def __init__(self, get_response):
         self.get_response = get_response
-        logger.info("🚀 LoggingMiddleware inicializado")
+        logger.debug("LoggingMiddleware inicializado")
     
     def __call__(self, request):
         # Log de solicitud
@@ -108,7 +108,19 @@ class LoggingMiddleware:
             
             # Log de respuesta exitosa
             if response.status_code >= 400:
-                logger.warning(f"⚠️ {request.method} {request.path} - Status: {response.status_code}")
+                if response.status_code == 404:
+                    logger.debug(
+                        "%s %s - 404 (omitido en consola INFO; típico bots/rutas inexistentes)",
+                        request.method,
+                        request.path,
+                    )
+                else:
+                    logger.warning(
+                        "⚠️ %s %s - Status: %s",
+                        request.method,
+                        request.path,
+                        response.status_code,
+                    )
             else:
                 logger.debug(f"✅ {request.method} {request.path} - Status: {response.status_code}")
             
@@ -175,12 +187,19 @@ class RequestLoggingMiddleware:
             '/health/',
             '/favicon.ico',
         ]
-        
-        # Verificar si la ruta debe ser ignorada
-        debe_loguear = not any(request.path.startswith(ruta) for ruta in rutas_ignoradas)
-        
+        prefijos_ruido = (
+            '/wp-', '/wordpress', '/wp/', '/xmlrpc', 'wp-login', 'wlwmanifest',
+            '/.env', '/.git', '/phpmyadmin', '/administrator',
+        )
+        path = request.path or ''
+        path_lower = path.lower()
+
+        debe_loguear = not any(path.startswith(ruta) for ruta in rutas_ignoradas)
+        if debe_loguear and any(p in path_lower for p in prefijos_ruido):
+            debe_loguear = False
+
         if debe_loguear:
-            logger.info(f"📍 {request.method} {request.path} - IP: {get_client_ip(request)}")
+            logger.debug("%s %s - IP: %s", request.method, path, get_client_ip(request))
         
         response = self.get_response(request)
         

@@ -14,6 +14,13 @@ from pathlib import Path
 from decouple import config
 import os
 
+from django.utils.log import CallbackFilter
+
+
+def _skip_404_status_log(record):
+    """No registrar en consola respuestas 404 (evita mensajes enormes tipo Resolver404 / 'tried')."""
+    return getattr(record, 'status_code', None) != 404
+
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -237,11 +244,18 @@ LOGGING = {
             'datefmt': '%d/%m/%Y %H:%M:%S',
         },
     },
+    'filters': {
+        'skip_404': {
+            '()': CallbackFilter,
+            'callback': _skip_404_status_log,
+        },
+    },
     'handlers': {
         'console': {
             'class': 'logging.StreamHandler',
             'formatter': 'verbose',
             'level': 'DEBUG' if DEBUG else 'INFO',
+            'filters': ['skip_404'],
         },
     },
     'loggers': {

@@ -36,12 +36,12 @@ def requiere_acceso_menuitem(view_func):
         
         # Verificar autenticación
         if not request.user.is_authenticated:
-            logger.info(f"Usuario no autenticado intentando acceder a {view_func.__name__}")
+            logger.debug("Usuario no autenticado intentando acceder a %s", view_func.__name__)
             return redirect('login')
         
         # Si es superusuario, permitir acceso
         if request.user.is_superuser:
-            logger.info(f"Superusuario {request.user.username} accediendo a {view_func.__name__}")
+            logger.debug("Superusuario %s accediendo a %s", request.user.username, view_func.__name__)
             return view_func(request, *args, **kwargs)
         
         # Obtener el nombre de la URL actual
@@ -51,7 +51,7 @@ def requiere_acceso_menuitem(view_func):
             url_name = None
         
         if not url_name:
-            logger.warning(f"No se pudo resolver URL para {request.path_info}")
+            logger.debug("No se pudo resolver nombre de URL para %s", request.path_info)
             return view_func(request, *args, **kwargs)
         
         # Buscar en MenuItemRol (first() evita MultipleObjectsReturned si hay duplicados)
@@ -78,7 +78,7 @@ def requiere_acceso_menuitem(view_func):
                 
                 return redirect('dashboard')
             
-            logger.info(f"Acceso permitido a {request.user.username} en {url_name}")
+            logger.debug("Acceso permitido a %s en %s", request.user.username, url_name)
         else:
             # Si no hay configuración en MenuItemRol, permitir acceso
             logger.debug(f"No hay configuración de MenuItemRol para {url_name}, permitiendo acceso")
@@ -152,7 +152,7 @@ def requiere_rol_menuitem(*roles):
                 else:
                     logger.debug(f"No hay configuración de MenuItemRol para {url_name}")
             
-            logger.info(f"Acceso permitido a {request.user.username}")
+            logger.debug("Acceso permitido a %s", request.user.username)
             return view_func(request, *args, **kwargs)
         
         return wrapper
