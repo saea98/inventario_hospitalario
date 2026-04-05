@@ -270,6 +270,13 @@ LOGGING = {
             'level': 'WARNING',
             'propagate': False,
         },
+        # La plantilla interna technical_404.html hace {% if pat.name %} sobre URLPattern y URLResolver;
+        # los Resolver no tienen .name y Django registra VariableDoesNotExist en DEBUG (ruido, no bug de la app).
+        'django.template': {
+            'handlers': ['console'],
+            'level': 'INFO',
+            'propagate': False,
+        },
         'inventario': {
             'handlers': ['console'],
             'level': 'DEBUG' if DEBUG else 'INFO',
