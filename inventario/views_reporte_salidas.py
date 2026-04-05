@@ -7,7 +7,8 @@ CLUES DEL ALMACÉN, ALMACÉN, P.P., RFC, Proveedor, FOLIO DE SALIDA, FECHA DE EN
 CLUES DESTINO SSA/IMB, CONTRATO, REMISIÓN, ORDEN DE SUMINISTRO, LICITACIÓN, Precio, Importe.
 """
 
-from django.shortcuts import render
+from django.shortcuts import render, redirect
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
 from django.db.models import Q, OuterRef, Subquery, UUIDField
@@ -72,6 +73,21 @@ def _decimal(d, default=''):
     return d
 
 
+def _hay_filtros_reporte_salidas(data):
+    """Al menos un criterio para ejecutar el reporte (evita escanear todas las salidas)."""
+    return any(
+        [
+            (data.get('fecha_desde') or '').strip(),
+            (data.get('fecha_hasta') or '').strip(),
+            (data.get('clave') or '').strip(),
+            (data.get('lote') or '').strip(),
+            (data.get('almacen') or '').strip(),
+            (data.get('destino') or '').strip(),
+            (data.get('folio') or '').strip(),
+        ]
+    )
+
+
 def _construir_fila_salida(m):
     """Construye la fila para un MovimientoInventario SALIDA."""
     lote = m.lote
@@ -124,26 +140,8 @@ def reporte_salidas(request):
     """
     Reporte de salidas al inventario (Inventario de Salidas) para auditorías.
     Layout oficial de 20 columnas.
+    Sin filtros no se consulta la BD (el volumen de salidas lo hace inviable).
     """
-    subq_folio_pedido = PropuestaPedido.objects.filter(
-        id=Cast(OuterRef('folio'), UUIDField())
-    ).values('solicitud__observaciones_solicitud')[:1]
-    salidas = MovimientoInventario.objects.filter(
-        tipo_movimiento='SALIDA', anulado=False
-    ).annotate(
-        folio_pedido_solicitud=Subquery(subq_folio_pedido)
-    ).select_related(
-        'lote',
-        'lote__producto',
-        'lote__institucion',
-        'lote__almacen',
-        'lote__orden_suministro',
-        'lote__orden_suministro__proveedor',
-        'institucion_destino',
-        'usuario'
-    ).order_by('-fecha_movimiento')
-
-    # Filtros
     filtro_fecha_desde = request.GET.get('fecha_desde', '')
     filtro_fecha_hasta = request.GET.get('fecha_hasta', '')
     filtro_clave = request.GET.get('clave', '').strip()
@@ -152,43 +150,63 @@ def reporte_salidas(request):
     filtro_destino = request.GET.get('destino', '').strip()
     filtro_folio = request.GET.get('folio', '').strip()
 
-    if filtro_fecha_desde:
-        try:
-            fecha_desde = datetime.strptime(filtro_fecha_desde, '%Y-%m-%d').date()
-            salidas = salidas.filter(fecha_movimiento__date__gte=fecha_desde)
-        except ValueError:
-            pass
-    if filtro_fecha_hasta:
-        try:
-            fecha_hasta = datetime.strptime(filtro_fecha_hasta, '%Y-%m-%d').date() + timedelta(days=1)
-            salidas = salidas.filter(fecha_movimiento__date__lt=fecha_hasta)
-        except ValueError:
-            pass
-    if filtro_clave:
-        salidas = salidas.filter(lote__producto__clave_cnis__icontains=filtro_clave)
-    if filtro_lote:
-        salidas = salidas.filter(lote__numero_lote__icontains=filtro_lote)
-    if filtro_almacen:
-        salidas = salidas.filter(lote__almacen__nombre=filtro_almacen)
-    if filtro_destino:
-        salidas = salidas.filter(
-            Q(institucion_destino__denominacion__icontains=filtro_destino) |
-            Q(institucion_destino__clue__icontains=filtro_destino)
-        )
-    if filtro_folio:
-        salidas = salidas.filter(folio__icontains=filtro_folio)
+    requiere_filtros = not _hay_filtros_reporte_salidas(request.GET)
 
-    # Construir lista de filas
     salidas_lista = []
     total_cantidad = 0
     total_importe = 0.0
-    for m in salidas:
-        row = _construir_fila_salida(m)
-        salidas_lista.append({'row': row, 'id': m.id})
-        total_cantidad += row[5]  # CANTIDAD SURTIDA
-        total_importe += float(row[22] or 0)  # Importe
 
-    # Paginación
+    if not requiere_filtros:
+        subq_folio_pedido = PropuestaPedido.objects.filter(
+            id=Cast(OuterRef('folio'), UUIDField())
+        ).values('solicitud__observaciones_solicitud')[:1]
+        salidas = MovimientoInventario.objects.filter(
+            tipo_movimiento='SALIDA', anulado=False
+        ).annotate(
+            folio_pedido_solicitud=Subquery(subq_folio_pedido)
+        ).select_related(
+            'lote',
+            'lote__producto',
+            'lote__institucion',
+            'lote__almacen',
+            'lote__orden_suministro',
+            'lote__orden_suministro__proveedor',
+            'institucion_destino',
+            'usuario'
+        ).order_by('-fecha_movimiento')
+
+        if filtro_fecha_desde:
+            try:
+                fecha_desde = datetime.strptime(filtro_fecha_desde, '%Y-%m-%d').date()
+                salidas = salidas.filter(fecha_movimiento__date__gte=fecha_desde)
+            except ValueError:
+                pass
+        if filtro_fecha_hasta:
+            try:
+                fecha_hasta = datetime.strptime(filtro_fecha_hasta, '%Y-%m-%d').date() + timedelta(days=1)
+                salidas = salidas.filter(fecha_movimiento__date__lt=fecha_hasta)
+            except ValueError:
+                pass
+        if filtro_clave:
+            salidas = salidas.filter(lote__producto__clave_cnis__icontains=filtro_clave)
+        if filtro_lote:
+            salidas = salidas.filter(lote__numero_lote__icontains=filtro_lote)
+        if filtro_almacen:
+            salidas = salidas.filter(lote__almacen__nombre=filtro_almacen)
+        if filtro_destino:
+            salidas = salidas.filter(
+                Q(institucion_destino__denominacion__icontains=filtro_destino) |
+                Q(institucion_destino__clue__icontains=filtro_destino)
+            )
+        if filtro_folio:
+            salidas = salidas.filter(folio__icontains=filtro_folio)
+
+        for m in salidas:
+            row = _construir_fila_salida(m)
+            salidas_lista.append({'row': row, 'id': m.id})
+            total_cantidad += row[5]  # CANTIDAD SURTIDA
+            total_importe += float(row[22] or 0)  # Importe
+
     from django.core.paginator import Paginator
     paginator = Paginator(salidas_lista, 25)
     page_number = request.GET.get('page')
@@ -212,6 +230,7 @@ def reporte_salidas(request):
         'filtro_almacen': filtro_almacen,
         'filtro_destino': filtro_destino,
         'filtro_folio': filtro_folio,
+        'requiere_filtros': requiere_filtros,
     }
     return render(request, 'inventario/reporte_salidas.html', context)
 
@@ -219,6 +238,14 @@ def reporte_salidas(request):
 @login_required
 def exportar_salidas_excel(request):
     """Exporta el reporte de salidas a Excel con el layout oficial (incluye RFC y Proveedor)."""
+    if not _hay_filtros_reporte_salidas(request.GET):
+        messages.warning(
+            request,
+            'Para exportar debe indicar al menos un filtro (fechas, clave CNIS, lote, '
+            'almacén origen, destino o folio de salida).',
+        )
+        return redirect('reporte_salidas')
+
     subq_folio_pedido_exp = PropuestaPedido.objects.filter(
         id=Cast(OuterRef('folio'), UUIDField())
     ).values('solicitud__observaciones_solicitud')[:1]

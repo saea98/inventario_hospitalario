@@ -9,16 +9,29 @@
 
 {% block content %}
 <div class="container-fluid py-4">
+    {% if requiere_filtros %}
+    <div class="alert alert-warning mb-4">
+        <h5 class="alert-heading">
+            <i class="fas fa-filter me-2"></i>Indique al menos un filtro
+        </h5>
+        <p class="mb-0">
+            Para no saturar el servidor, el reporte <strong>no carga datos</strong> hasta que elija al menos uno de:
+            <strong>fecha desde</strong> o <strong>hasta</strong>, <strong>clave CNIS</strong>, <strong>lote</strong>,
+            <strong>almacén origen</strong>, <strong>destino</strong> (unidad hospitalaria o CLUES) o <strong>folio de salida</strong>.
+            Luego pulse <strong>Filtrar</strong>.
+        </p>
+    </div>
+    {% endif %}
+
     <!-- Información del reporte -->
     <div class="alert alert-info mb-4">
         <h5 class="alert-heading">
             <i class="fas fa-info-circle me-2"></i>Información del Reporte
         </h5>
         <p class="mb-2">
-            Este reporte muestra todas las <strong>salidas al inventario</strong> registradas en el sistema,
-            con el layout oficial para <strong>auditorías</strong> y control. Incluye clave CNIS,
-            producto, lote, cantidad surtida, almacén origen, RFC, proveedor, folio de salida, unidad hospitalaria destino,
-            CLUES destino, contrato, remisión, orden de suministro, precio e importe.
+            Salidas al inventario con layout para <strong>auditorías</strong>: clave CNIS, producto, lote, cantidad surtida,
+            almacén origen, RFC, proveedor, folio, unidad/CLUES destino, contrato, remisión, orden de suministro, precio e importe.
+            Use filtros acotados (por ejemplo un <strong>rango de fechas</strong>) para consultas rápidas.
         </p>
     </div>
 
@@ -28,7 +41,7 @@
             <div class="card bg-primary text-white">
                 <div class="card-body">
                     <h6 class="card-title">Total de Salidas</h6>
-                    <h2 class="mb-0">{{ total_registros|intcomma }}</h2>
+                    <h2 class="mb-0">{% if requiere_filtros %}—{% else %}{{ total_registros|intcomma }}{% endif %}</h2>
                 </div>
             </div>
         </div>
@@ -36,7 +49,7 @@
             <div class="card text-white" style="background-color: #1565C0;">
                 <div class="card-body">
                     <h6 class="card-title">Cantidad Total Surtida</h6>
-                    <h2 class="mb-0">{{ total_cantidad|intcomma }}</h2>
+                    <h2 class="mb-0">{% if requiere_filtros %}—{% else %}{{ total_cantidad|intcomma }}{% endif %}</h2>
                 </div>
             </div>
         </div>
@@ -44,7 +57,7 @@
             <div class="card text-white" style="background-color: #0D47A1;">
                 <div class="card-body">
                     <h6 class="card-title">Importe Total</h6>
-                    <h2 class="mb-0">${{ total_importe|intcomma }}</h2>
+                    <h2 class="mb-0">{% if requiere_filtros %}—{% else %}${{ total_importe|intcomma }}{% endif %}</h2>
                 </div>
             </div>
         </div>
@@ -106,11 +119,22 @@
     <div class="card shadow-sm">
         <div class="card-header bg-light d-flex justify-content-between align-items-center">
             <h5 class="mb-0">
-                <i class="fas fa-table me-2"></i>Salidas Registradas ({{ page_obj.paginator.count }} total)
+                <i class="fas fa-table me-2"></i>Salidas registradas
+                {% if requiere_filtros %}
+                <span class="text-muted fw-normal">(aplique filtros para ver resultados)</span>
+                {% else %}
+                ({{ page_obj.paginator.count }} total)
+                {% endif %}
             </h5>
-            <a href="{% url 'exportar_salidas_excel' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" class="btn btn-success btn-sm">
+            {% if requiere_filtros %}
+            <button type="button" class="btn btn-success btn-sm" disabled title="Indique al menos un filtro antes de exportar">
+                <i class="fas fa-file-excel me-2"></i>Exportar a Excel
+            </button>
+            {% else %}
+            <a href="{% url 'exportar_salidas_excel' %}?{{ request.GET.urlencode }}" class="btn btn-success btn-sm">
                 <i class="fas fa-file-excel me-2"></i>Exportar a Excel
             </a>
+            {% endif %}
         </div>
         <div class="table-responsive">
             <table class="table table-hover mb-0 align-middle table-sm">
@@ -133,7 +157,11 @@
                     {% empty %}
                     <tr>
                         <td colspan="{{ headers|length }}" class="text-center text-muted py-4">
-                            <i class="fas fa-inbox me-2"></i>No hay registros que coincidan con los filtros
+                            {% if requiere_filtros %}
+                            <i class="fas fa-filter me-2"></i>Seleccione al menos un criterio arriba y pulse <strong>Filtrar</strong>.
+                            {% else %}
+                            <i class="fas fa-inbox me-2"></i>No hay registros que coincidan con los filtros.
+                            {% endif %}
                         </td>
                     </tr>
                     {% endfor %}
