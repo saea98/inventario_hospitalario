@@ -115,6 +115,42 @@
             font-size: 9px;
             line-height: 1.4;
         }
+
+        .observations-capturadas {
+            margin-bottom: 10px;
+        }
+
+        .observations-bloque {
+            margin-bottom: 8px;
+        }
+
+        .observations-etiqueta {
+            font-weight: bold;
+            font-size: 8px;
+            text-transform: uppercase;
+            letter-spacing: 0.02em;
+            margin-bottom: 3px;
+            display: block;
+        }
+
+        .observations-usuario {
+            margin: 0;
+            padding: 6px 8px;
+            font-size: 9px;
+            line-height: 1.45;
+            white-space: pre-wrap;
+            word-wrap: break-word;
+            overflow-wrap: break-word;
+            background: #f5f5f5;
+            border: 1px solid #ccc;
+            border-left: 3px solid #1565C0;
+        }
+
+        .observations-leyenda-fija {
+            margin-top: 10px;
+            padding-top: 8px;
+            border-top: 1px dashed #666;
+        }
         
         .table-section {
             margin: 15px 0;
@@ -464,10 +500,34 @@
             <span class="info-value">{{ total_items }}</span>
         </div>
         
-        <!-- Observaciones: leyenda fija en el campo -->
+        <!-- Observaciones: texto capturado en el sistema + leyenda fiscal fija -->
         <div class="observations">
             <div class="observations-title">OBSERVACIONES</div>
-            <p class="observations-leyenda">LA REMISIÓN NO ESTA COSTEADA, POR LO QUE, SE CONSIDERAN LOS PRECIOS UNITARIOS DE LA PLATAFORMA FEDERAL, HASTA QUE SE REALICE LA CONCILIACIÓN CON LA UNIDAD ADMINISTRATIVA FEDERAL</p>
+            {% if llegada.observaciones_recepcion or llegada.observaciones_calidad or llegada.observaciones_supervision %}
+            <div class="observations-capturadas">
+                {% if llegada.observaciones_recepcion %}
+                <div class="observations-bloque">
+                    <span class="observations-etiqueta">Recepción (almacén)</span>
+                    <div class="observations-usuario">{{ llegada.observaciones_recepcion|linebreaksbr }}</div>
+                </div>
+                {% endif %}
+                {% if llegada.observaciones_calidad %}
+                <div class="observations-bloque">
+                    <span class="observations-etiqueta">Control de calidad</span>
+                    <div class="observations-usuario">{{ llegada.observaciones_calidad|linebreaksbr }}</div>
+                </div>
+                {% endif %}
+                {% if llegada.observaciones_supervision %}
+                <div class="observations-bloque">
+                    <span class="observations-etiqueta">Supervisión</span>
+                    <div class="observations-usuario">{{ llegada.observaciones_supervision|linebreaksbr }}</div>
+                </div>
+                {% endif %}
+            </div>
+            {% endif %}
+            <div class="observations-leyenda-fija">
+                <p class="observations-leyenda">LA REMISIÓN NO ESTA COSTEADA, POR LO QUE, SE CONSIDERAN LOS PRECIOS UNITARIOS DE LA PLATAFORMA FEDERAL, HASTA QUE SE REALICE LA CONCILIACIÓN CON LA UNIDAD ADMINISTRATIVA FEDERAL</p>
+            </div>
         </div>
         
         <!-- Firmas: sin recuadros ni leyendas NOMBRE/FIRMA; título y línea como antes -->

@@ -5,7 +5,8 @@ Muestra todas las entradas (MovimientoInventario con tipo ENTRADA)
 con el layout oficial: RFC, PROVEEDOR, PARTIDA, Clave CNIS, Producto, etc. (32 columnas).
 """
 
-from django.shortcuts import render
+from django.shortcuts import render, redirect
+from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
 from django.db.models import Q, Subquery, OuterRef
@@ -84,31 +85,31 @@ def _decimal(d, default=''):
     return d
 
 
+def _hay_filtros_reporte_entradas(data):
+    """Al menos un criterio antes de consultar entradas (evita escanear todo el histórico)."""
+    con_ubicacion = data.get('con_ubicacion', '') == '1'
+    return any(
+        [
+            (data.get('fecha_desde') or '').strip(),
+            (data.get('fecha_hasta') or '').strip(),
+            (data.get('clave') or '').strip(),
+            (data.get('lote') or '').strip(),
+            (data.get('institucion') or '').strip(),
+            (data.get('almacen') or '').strip(),
+            (data.get('ubicacion') or '').strip(),
+            (data.get('proveedor') or '').strip(),
+            (data.get('estado_llegada') or '').strip(),
+            con_ubicacion,
+        ]
+    )
+
+
 @login_required
 def reporte_entradas(request):
     """
-    Reporte de entradas al inventario con layout oficial (32 columnas).
-    Muestra todos los MovimientoInventario con tipo ENTRADA.
+    Reporte de entradas al inventario con layout oficial (34 columnas).
+    Sin filtros no se consulta la BD.
     """
-    subq_estado = LlegadaProveedor.objects.filter(folio=OuterRef('folio')).values('estado')[:1]
-    subq_ubicacion = LlegadaProveedor.objects.filter(folio=OuterRef('folio')).values('usuario_ubicacion')[:1]
-    entradas = MovimientoInventario.objects.filter(
-        tipo_movimiento='ENTRADA', anulado=False
-    ).annotate(
-        estado_llegada=Subquery(subq_estado),
-        llegada_tiene_ubicacion=Subquery(subq_ubicacion),
-    ).select_related(
-        'lote',
-        'lote__producto',
-        'lote__institucion',
-        'lote__almacen',
-        'lote__ubicacion',
-        'lote__orden_suministro__proveedor',
-        'lote__orden_suministro__fuente_financiamiento',
-        'usuario'
-    ).order_by('-fecha_movimiento')
-    
-    # Filtros
     filtro_fecha_desde = request.GET.get('fecha_desde', '')
     filtro_fecha_hasta = request.GET.get('fecha_hasta', '')
     filtro_clave = request.GET.get('clave', '').strip()
@@ -119,150 +120,155 @@ def reporte_entradas(request):
     filtro_proveedor = request.GET.get('proveedor', '')
     filtro_estado_llegada = request.GET.get('estado_llegada', '').strip()
     filtro_con_ubicacion = request.GET.get('con_ubicacion', '') == '1'
-    
-    # Aplicar filtro de fecha desde
-    if filtro_fecha_desde:
-        try:
-            fecha_desde = datetime.strptime(filtro_fecha_desde, '%Y-%m-%d').date()
-            entradas = entradas.filter(fecha_movimiento__date__gte=fecha_desde)
-        except ValueError:
-            pass
-    
-    # Aplicar filtro de fecha hasta
-    if filtro_fecha_hasta:
-        try:
-            fecha_hasta = datetime.strptime(filtro_fecha_hasta, '%Y-%m-%d').date()
-            # Sumar 1 día para incluir todo el día hasta
-            fecha_hasta = fecha_hasta + timedelta(days=1)
-            entradas = entradas.filter(fecha_movimiento__date__lt=fecha_hasta)
-        except ValueError:
-            pass
-    
-    # Aplicar filtro de clave
-    if filtro_clave:
-        entradas = entradas.filter(lote__producto__clave_cnis__icontains=filtro_clave)
-    
-    # Aplicar filtro de lote
-    if filtro_lote:
-        entradas = entradas.filter(lote__numero_lote__icontains=filtro_lote)
-    
-    # Aplicar filtro de institución
-    if filtro_institucion:
-        entradas = entradas.filter(lote__institucion__denominacion=filtro_institucion)
-    
-    # Aplicar filtro de almacén
-    if filtro_almacen:
-        entradas = entradas.filter(lote__almacen__nombre=filtro_almacen)
-    
-    # Aplicar filtro de ubicación
-    if filtro_ubicacion:
-        entradas = entradas.filter(lote__ubicacion_id=filtro_ubicacion)
-    
-    # Aplicar filtro de proveedor (buscar en documento_referencia o motivo)
-    if filtro_proveedor:
-        entradas = entradas.filter(
-            Q(documento_referencia__icontains=filtro_proveedor) |
-            Q(motivo__icontains=filtro_proveedor)
-        )
-    
-    # Filtros por estado de llegada (solo entradas vinculadas a LlegadaProveedor por folio)
-    if filtro_estado_llegada:
-        entradas = entradas.filter(estado_llegada=filtro_estado_llegada)
-    if filtro_con_ubicacion:
-        entradas = entradas.filter(llegada_tiene_ubicacion__isnull=False)
 
-    # Orden de suministro desde logística/llegadas (misma fuente que esa vista): por folio
-    entradas_list = list(entradas)
-    folios = set()
-    for mov in entradas_list:
-        f = mov.folio or (mov.lote.folio if mov.lote else None)
-        if f:
-            folios.add(f)
-    llegadas_por_folio = {}
-    if folios:
-        for lleg in LlegadaProveedor.objects.filter(folio__in=folios).select_related('cita'):
-            orden = (lleg.numero_orden_suministro or '').strip() or (lleg.cita.numero_orden_suministro if lleg.cita else '') or ''
-            llegadas_por_folio[lleg.folio] = orden or llegadas_por_folio.get(lleg.folio, '')
-    
-    # Construir lista con el layout de 34 columnas
+    requiere_filtros = not _hay_filtros_reporte_entradas(request.GET)
+
     entradas_lista = []
     total_cantidad = 0
     total_valor = 0
 
-    for m in entradas_list:
-        lote = m.lote
-        prod = lote.producto if lote else None
-        os = lote.orden_suministro if lote else None
-        prov = os.proveedor if os else None
+    if not requiere_filtros:
+        subq_estado = LlegadaProveedor.objects.filter(folio=OuterRef('folio')).values('estado')[:1]
+        subq_ubicacion = LlegadaProveedor.objects.filter(folio=OuterRef('folio')).values('usuario_ubicacion')[:1]
+        entradas = MovimientoInventario.objects.filter(
+            tipo_movimiento='ENTRADA', anulado=False
+        ).annotate(
+            estado_llegada=Subquery(subq_estado),
+            llegada_tiene_ubicacion=Subquery(subq_ubicacion),
+        ).select_related(
+            'lote',
+            'lote__producto',
+            'lote__institucion',
+            'lote__almacen',
+            'lote__ubicacion',
+            'lote__orden_suministro__proveedor',
+            'lote__orden_suministro__fuente_financiamiento',
+            'usuario'
+        ).order_by('-fecha_movimiento')
 
-        precio = (lote and lote.precio_unitario) or Decimal('0')
-        subtotal_val = (m.subtotal or (lote and lote.subtotal)) or (m.cantidad * precio)
-        iva_val = (m.iva or (lote and lote.iva)) or Decimal('0')
-        importe_val = (m.importe_total or (lote and lote.importe_total)) or (m.cantidad * precio)
-        total_cantidad += m.cantidad
-        total_valor += float(importe_val) if importe_val else 0
+        if filtro_fecha_desde:
+            try:
+                fecha_desde = datetime.strptime(filtro_fecha_desde, '%Y-%m-%d').date()
+                entradas = entradas.filter(fecha_movimiento__date__gte=fecha_desde)
+            except ValueError:
+                pass
 
-        lugar_entrega = ''
-        if lote:
-            if lote.almacen:
-                lugar_entrega = lote.almacen.nombre
-            if lote.institucion and not lugar_entrega:
-                lugar_entrega = lote.institucion.denominacion or ''
+        if filtro_fecha_hasta:
+            try:
+                fecha_hasta = datetime.strptime(filtro_fecha_hasta, '%Y-%m-%d').date()
+                fecha_hasta = fecha_hasta + timedelta(days=1)
+                entradas = entradas.filter(fecha_movimiento__date__lt=fecha_hasta)
+            except ValueError:
+                pass
 
-        estado_llegada_val = getattr(m, 'estado_llegada', None)
-        ubicacion_asignada = getattr(m, 'llegada_tiene_ubicacion', None)
-        estado_llegada_label = ESTADO_LLEGADA_LABELS.get(estado_llegada_val, '') if estado_llegada_val else ''
-        ubicacion_label = 'Sí' if ubicacion_asignada else ('—' if estado_llegada_val is None else 'No')
+        if filtro_clave:
+            entradas = entradas.filter(lote__producto__clave_cnis__icontains=filtro_clave)
 
-        # Valor que antes iba en col 3 (partida/lote.partida u orden guardada ahí)
-        partida_crudo = _valor(lote and getattr(lote, 'partida', None)) or _valor(os and getattr(os, 'partida_presupuestal', None)) or ''
-        # Columna 10: orden de suministro (misma fuente que logística/llegadas: llegada o cita; luego OS, pedido, partida_crudo)
-        folio_val = m.folio or (lote and getattr(lote, 'folio', None))
-        orden_from_llegada = (llegadas_por_folio.get(folio_val, '') if folio_val else '') or ''
-        orden_suministro_val = orden_from_llegada or (os and os.numero_orden) or (lote and getattr(lote, 'pedido', None)) or partida_crudo or ''
-        # Columna 3: solo partida real; si es el mismo que la orden, vacío
-        partida_val = partida_crudo if (partida_crudo and partida_crudo.strip() != (orden_suministro_val or '').strip()) else ''
+        if filtro_lote:
+            entradas = entradas.filter(lote__numero_lote__icontains=filtro_lote)
 
-        row = [
-            _valor(prov and prov.rfc or (lote and lote.rfc_proveedor)),
-            _valor(prov and prov.razon_social or (lote and lote.proveedor)),
-            _valor(partida_val),                                                                   # col 3 = PARTIDA (vacía si no hay)
-            _valor(prod and prod.clave_cnis),
-            _valor(prod and prod.descripcion),
-            _valor(prod and prod.unidad_medida) or 'PIEZA',
-            m.cantidad,
-            _fecha(lote and lote.fecha_recepcion or (m.fecha_movimiento.date() if m.fecha_movimiento else None)),
-            lugar_entrega,
-            _valor(orden_suministro_val),                                                          # col 10 = ORDEN DE SUMINISTRO
-            _valor(m.contrato or (lote and lote.contrato)),
-            _valor(m.remision or (lote and lote.remision)),
-            _valor(lote and lote.numero_lote),
-            _fecha(lote and lote.fecha_caducidad),
-            _valor(m.folio or (lote and lote.folio)),
-            _valor(estado_llegada_label),
-            _valor(ubicacion_label),
-            _decimal(precio),
-            _decimal(m.subtotal or (lote and lote.subtotal)) if (m.subtotal or (lote and lote.subtotal)) is not None else _decimal(subtotal_val),
-            _decimal(m.iva or (lote and lote.iva)) if (m.iva or (lote and lote.iva)) is not None else _decimal(iva_val),
-            _decimal(m.importe_total or (lote and lote.importe_total)) if (m.importe_total or (lote and lote.importe_total)) is not None else _decimal(importe_val),
-            _valor(prod and prod.marca),
-            _valor(prod and prod.fabricante),
-            _fecha(lote and lote.fecha_fabricacion),
-            _fecha(lote and lote.fecha_caducidad),
-            _valor(m.tipo_entrega or (lote and lote.tipo_entrega)),
-            _valor(m.licitacion or (lote and lote.licitacion)),
-            _valor(m.responsable or (lote and lote.responsable)),
-            _valor(m.reviso or (lote and lote.reviso)),
-            _valor(m.tipo_red or (lote and lote.tipo_red)),
-            _fecha(m.fecha_movimiento, '%d/%m/%Y %H:%M') if m.fecha_movimiento else '',
-            _valor(lote and lote.observaciones),
-            _fecha(os and os.fecha_orden) or _fecha(lote and lote.fecha_recepcion),
-            _valor((os and os.fuente_financiamiento and os.fuente_financiamiento.nombre) or (lote and lote.fuente_datos)),
-            _valor((m.usuario.get_full_name() or m.usuario.username) if getattr(m, 'usuario', None) else ''),
-        ]
-        entradas_lista.append({'row': row, 'id': m.id})
-    
-    # Paginación
+        if filtro_institucion:
+            entradas = entradas.filter(lote__institucion__denominacion=filtro_institucion)
+
+        if filtro_almacen:
+            entradas = entradas.filter(lote__almacen__nombre=filtro_almacen)
+
+        if filtro_ubicacion:
+            entradas = entradas.filter(lote__ubicacion_id=filtro_ubicacion)
+
+        if filtro_proveedor:
+            entradas = entradas.filter(
+                Q(documento_referencia__icontains=filtro_proveedor) |
+                Q(motivo__icontains=filtro_proveedor)
+            )
+
+        if filtro_estado_llegada:
+            entradas = entradas.filter(estado_llegada=filtro_estado_llegada)
+        if filtro_con_ubicacion:
+            entradas = entradas.filter(llegada_tiene_ubicacion__isnull=False)
+
+        entradas_list = list(entradas)
+        folios = set()
+        for mov in entradas_list:
+            f = mov.folio or (mov.lote.folio if mov.lote else None)
+            if f:
+                folios.add(f)
+        llegadas_por_folio = {}
+        if folios:
+            for lleg in LlegadaProveedor.objects.filter(folio__in=folios).select_related('cita'):
+                orden = (lleg.numero_orden_suministro or '').strip() or (lleg.cita.numero_orden_suministro if lleg.cita else '') or ''
+                llegadas_por_folio[lleg.folio] = orden or llegadas_por_folio.get(lleg.folio, '')
+
+        for m in entradas_list:
+            lote = m.lote
+            prod = lote.producto if lote else None
+            os = lote.orden_suministro if lote else None
+            prov = os.proveedor if os else None
+
+            precio = (lote and lote.precio_unitario) or Decimal('0')
+            subtotal_val = (m.subtotal or (lote and lote.subtotal)) or (m.cantidad * precio)
+            iva_val = (m.iva or (lote and lote.iva)) or Decimal('0')
+            importe_val = (m.importe_total or (lote and lote.importe_total)) or (m.cantidad * precio)
+            total_cantidad += m.cantidad
+            total_valor += float(importe_val) if importe_val else 0
+
+            lugar_entrega = ''
+            if lote:
+                if lote.almacen:
+                    lugar_entrega = lote.almacen.nombre
+                if lote.institucion and not lugar_entrega:
+                    lugar_entrega = lote.institucion.denominacion or ''
+
+            estado_llegada_val = getattr(m, 'estado_llegada', None)
+            ubicacion_asignada = getattr(m, 'llegada_tiene_ubicacion', None)
+            estado_llegada_label = ESTADO_LLEGADA_LABELS.get(estado_llegada_val, '') if estado_llegada_val else ''
+            ubicacion_label = 'Sí' if ubicacion_asignada else ('—' if estado_llegada_val is None else 'No')
+
+            partida_crudo = _valor(lote and getattr(lote, 'partida', None)) or _valor(os and getattr(os, 'partida_presupuestal', None)) or ''
+            folio_val = m.folio or (lote and getattr(lote, 'folio', None))
+            orden_from_llegada = (llegadas_por_folio.get(folio_val, '') if folio_val else '') or ''
+            orden_suministro_val = orden_from_llegada or (os and os.numero_orden) or (lote and getattr(lote, 'pedido', None)) or partida_crudo or ''
+            partida_val = partida_crudo if (partida_crudo and partida_crudo.strip() != (orden_suministro_val or '').strip()) else ''
+
+            row = [
+                _valor(prov and prov.rfc or (lote and lote.rfc_proveedor)),
+                _valor(prov and prov.razon_social or (lote and lote.proveedor)),
+                _valor(partida_val),
+                _valor(prod and prod.clave_cnis),
+                _valor(prod and prod.descripcion),
+                _valor(prod and prod.unidad_medida) or 'PIEZA',
+                m.cantidad,
+                _fecha(lote and lote.fecha_recepcion or (m.fecha_movimiento.date() if m.fecha_movimiento else None)),
+                lugar_entrega,
+                _valor(orden_suministro_val),
+                _valor(m.contrato or (lote and lote.contrato)),
+                _valor(m.remision or (lote and lote.remision)),
+                _valor(lote and lote.numero_lote),
+                _fecha(lote and lote.fecha_caducidad),
+                _valor(m.folio or (lote and lote.folio)),
+                _valor(estado_llegada_label),
+                _valor(ubicacion_label),
+                _decimal(precio),
+                _decimal(m.subtotal or (lote and lote.subtotal)) if (m.subtotal or (lote and lote.subtotal)) is not None else _decimal(subtotal_val),
+                _decimal(m.iva or (lote and lote.iva)) if (m.iva or (lote and lote.iva)) is not None else _decimal(iva_val),
+                _decimal(m.importe_total or (lote and lote.importe_total)) if (m.importe_total or (lote and lote.importe_total)) is not None else _decimal(importe_val),
+                _valor(prod and prod.marca),
+                _valor(prod and prod.fabricante),
+                _fecha(lote and lote.fecha_fabricacion),
+                _fecha(lote and lote.fecha_caducidad),
+                _valor(m.tipo_entrega or (lote and lote.tipo_entrega)),
+                _valor(m.licitacion or (lote and lote.licitacion)),
+                _valor(m.responsable or (lote and lote.responsable)),
+                _valor(m.reviso or (lote and lote.reviso)),
+                _valor(m.tipo_red or (lote and lote.tipo_red)),
+                _fecha(m.fecha_movimiento, '%d/%m/%Y %H:%M') if m.fecha_movimiento else '',
+                _valor(lote and lote.observaciones),
+                _fecha(os and os.fecha_orden) or _fecha(lote and lote.fecha_recepcion),
+                _valor((os and os.fuente_financiamiento and os.fuente_financiamiento.nombre) or (lote and lote.fuente_datos)),
+                _valor((m.usuario.get_full_name() or m.usuario.username) if getattr(m, 'usuario', None) else ''),
+            ]
+            entradas_lista.append({'row': row, 'id': m.id})
+
     from django.core.paginator import Paginator
     paginator = Paginator(entradas_lista, 25)
     page_number = request.GET.get('page')
@@ -293,6 +299,7 @@ def reporte_entradas(request):
         'filtro_estado_llegada': filtro_estado_llegada,
         'filtro_con_ubicacion': filtro_con_ubicacion,
         'estado_llegada_choices': LlegadaProveedor.ESTADO_CHOICES,
+        'requiere_filtros': requiere_filtros,
     }
     return render(request, 'inventario/reporte_entradas.html', context)
 
@@ -364,6 +371,14 @@ def _construir_fila_entrada(m, llegadas_por_folio=None):
 @login_required
 def exportar_entradas_excel(request):
     """Exporta el reporte de entradas a Excel con el layout oficial (34 columnas)."""
+    if not _hay_filtros_reporte_entradas(request.GET):
+        messages.warning(
+            request,
+            'Para exportar debe indicar al menos un filtro (fechas, clave CNIS, lote, institución, '
+            'almacén, ubicación, proveedor, estado de llegada o “solo con ubicación asignada”).',
+        )
+        return redirect('reporte_entradas')
+
     subq_estado = LlegadaProveedor.objects.filter(folio=OuterRef('folio')).values('estado')[:1]
     subq_ubicacion = LlegadaProveedor.objects.filter(folio=OuterRef('folio')).values('usuario_ubicacion')[:1]
     entradas = MovimientoInventario.objects.filter(
