@@ -406,10 +406,11 @@ def validar_entrada(request, pk):
         for item in lista_revision.items.all():
             resultado_key = f'item_{item.id}_resultado'
             observaciones_key = f'item_{item.id}_observaciones'
-            
             if resultado_key in request.POST:
                 item.resultado = request.POST[resultado_key]
+            if observaciones_key in request.POST:
                 item.observaciones = request.POST.get(observaciones_key, '')
+            if resultado_key in request.POST or observaciones_key in request.POST:
                 item.save()
         
         # Determinar si es aprobación o rechazo
@@ -475,15 +476,22 @@ def validar_entrada(request, pk):
     
     # Determinar si es modo solo lectura (cita autorizada)
     es_solo_lectura = cita.estado == 'autorizada'
-    
+
+    items_list = list(lista_revision.items.all()) if lista_revision else []
+    tiene_observaciones_registradas = bool(
+        (lista_revision and (lista_revision.observaciones or '').strip())
+        or any((getattr(i, 'observaciones', None) or '').strip() for i in items_list)
+    )
+
     # Preparar contexto
     context = {
         'cita': cita,
         'lista_revision': lista_revision,
-        'items': lista_revision.items.all() if lista_revision else [],
+        'items': items_list,
         'form_validar': ValidarEntradaForm(initial=form_validar_initial),
         'form_rechazar': RechazarEntradaForm(),
         'es_solo_lectura': es_solo_lectura,
+        'tiene_observaciones_registradas': tiene_observaciones_registradas,
     }
     
     return render(request, 'inventario/citas/validar_entrada.html', context)
