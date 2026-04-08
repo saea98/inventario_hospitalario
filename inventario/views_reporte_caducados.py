@@ -185,11 +185,14 @@ def reporte_caducados(request):
     hoy = timezone.now().date()
     limite_90 = hoy + timedelta(days=90)
 
+    # Caducados ya procesados por cron/Airflow quedan con cantidad_disponible=0; deben seguir
+    # visibles. Próximos a caducar: solo con existencia > 0.
     lotes = Lote.objects.filter(
         fecha_caducidad__isnull=False,
         fecha_caducidad__gte=FECHA_MIN_CADUCIDAD_REPORTE,
         fecha_caducidad__lte=limite_90,
-        cantidad_disponible__gt=0,
+    ).filter(
+        Q(fecha_caducidad__lt=hoy) | Q(cantidad_disponible__gt=0),
     ).select_related(
         'producto',
         'institucion',
@@ -260,7 +263,8 @@ def reporte_caducados(request):
         fecha_caducidad__isnull=False,
         fecha_caducidad__gte=FECHA_MIN_CADUCIDAD_REPORTE,
         fecha_caducidad__lte=limite_90,
-        cantidad_disponible__gt=0,
+    ).filter(
+        Q(fecha_caducidad__lt=hoy) | Q(cantidad_disponible__gt=0),
     )
     if filtro_clave:
         lotes_sin_filtro_rango = lotes_sin_filtro_rango.filter(producto__clave_cnis__icontains=filtro_clave)
@@ -313,7 +317,8 @@ def exportar_caducados_excel(request):
         fecha_caducidad__isnull=False,
         fecha_caducidad__gte=FECHA_MIN_CADUCIDAD_REPORTE,
         fecha_caducidad__lte=limite_90,
-        cantidad_disponible__gt=0,
+    ).filter(
+        Q(fecha_caducidad__lt=hoy) | Q(cantidad_disponible__gt=0),
     ).select_related(
         'producto',
         'institucion',
