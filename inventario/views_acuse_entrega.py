@@ -125,15 +125,22 @@ def detalle_propuesta_surtimiento(request, propuesta_id):
     else:
         porcentaje_surtimiento = 0
     
+    user_almacen = getattr(request.user, 'almacen', None)
+    acuse_filtra_por_almacen = bool(
+        user_almacen and not es_administrador(request.user)
+    )
+
     context = {
         'propuesta': propuesta,
         'total_items': total_items,
         'items_surtidos': items_surtidos,
         'items_disponibles': items_disponibles,
         'porcentaje_surtimiento': porcentaje_surtimiento,
-        'puede_generar_acuse': porcentaje_surtimiento == 100
+        'puede_generar_acuse': porcentaje_surtimiento == 100,
+        'acuse_filtra_por_almacen': acuse_filtra_por_almacen,
+        'almacen_acuse_usuario': user_almacen,
     }
-    
+
     return render(request, 'inventario/detalle_propuesta_surtimiento.html', context)
 
 

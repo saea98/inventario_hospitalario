@@ -344,7 +344,32 @@ class PropuestaGenerator:
         
         if cantidad_asignada_total == 0:
             item_propuesta.estado = 'NO_DISPONIBLE'
-            item_propuesta.observaciones = "No hay lotes disponibles que cumplan con las reglas de caducidad."
+            # El texto anterior culpaba siempre a caducidad; la causa suele ser existencia neta 0
+            # (p. ej. cantidad reservada en propuestas ≥ cantidad en lote/ubicación).
+            n_lotes_activos = Lote.objects.filter(producto=producto, estado=1).count()
+            n_lotes_caducidad_ok = Lote.objects.filter(
+                producto=producto, estado=1, fecha_caducidad__gte=fecha_minima
+            ).count()
+            if n_lotes_activos == 0:
+                item_propuesta.observaciones = (
+                    "No hay lotes en estado disponible para este producto."
+                )
+            elif n_lotes_caducidad_ok == 0:
+                item_propuesta.observaciones = (
+                    "No hay lotes que cumplan la regla mínima de caducidad "
+                    "(fecha de caducidad al menos 60 días posterior a la fecha actual)."
+                )
+            elif cantidad_total_disponible == 0:
+                item_propuesta.observaciones = (
+                    "No hay existencia neta disponible para asignar: el inventario visible "
+                    "puede estar totalmente reservado en otras propuestas pendientes de surtir, "
+                    "o las cantidades por ubicación no dejan saldo utilizable."
+                )
+            else:
+                item_propuesta.observaciones = (
+                    "Hay existencia a nivel lote, pero no se pudo reservar por ubicación "
+                    "(revisar distribución en ubicaciones o reservas por ubicación)."
+                )
         elif cantidad_asignada_total < cantidad_requerida:
             item_propuesta.estado = 'PARCIAL'
             item_propuesta.observaciones = f"Solo se encontraron {cantidad_asignada_total} de {cantidad_requerida} unidades."

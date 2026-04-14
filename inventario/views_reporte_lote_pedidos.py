@@ -9,20 +9,118 @@ Relaciones:
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
-from django.db.models import Q, Sum, F, DecimalField, Case, When, Value
-from django.db.models.functions import Coalesce
+from django.db.models import Q
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from datetime import date, datetime
 import logging
 
-from .models import Lote, Producto, LoteUbicacion
-from .pedidos_models import ItemPropuesta, LoteAsignado, PropuestaPedido, ItemSolicitud
-from .propuesta_utils import _reserva_real_lote
+from .pedidos_models import LoteAsignado, PropuestaPedido
+from .propuesta_utils import totales_reserva_activa_por_lote_ids
 from openpyxl import Workbook
 from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
-from openpyxl.utils import get_column_letter
-
 logger = logging.getLogger(__name__)
+
+
+def _cantidad_fisica_lote(lote):
+    """
+    Existencia física alineada con existencias por ubicación: suma de LoteUbicacion.cantidad.
+    Si el lote no tiene filas en ubicaciones, se usa Lote.cantidad_disponible.
+    """
+    ubs = lote.ubicaciones_detalle.all()
+    if ubs:
+        return sum(lu.cantidad for lu in ubs)
+    return int(lote.cantidad_disponible or 0)
+
+
+def _agrupar_lotes_pedidos(lotes_asignados_query):
+    """
+    Agrupa asignaciones por lote y por propuesta/pedido.
+
+    Reserva del lote: suma de LoteAsignado con surtido=False (misma regla que
+    editar propuesta / reportes de reservas), vía totales_reserva_activa_por_lote_ids.
+    No usa el campo Lote.cantidad_reservada.
+    """
+    lote_ids = list(
+        lotes_asignados_query.values_list('lote_ubicacion__lote_id', flat=True).distinct()
+    )
+    reservas_por_lote = totales_reserva_activa_por_lote_ids(lote_ids)
+    lotes_dict = {}
+
+    for lote_asignado in lotes_asignados_query:
+        try:
+            lote = lote_asignado.lote_ubicacion.lote
+            item_prop = lote_asignado.item_propuesta
+            propuesta = item_prop.propuesta
+            solicitud = propuesta.solicitud
+
+            lote_key = lote.id
+
+            if lote_key not in lotes_dict:
+                reserva_desde_pedidos = reservas_por_lote.get(lote.id, 0)
+                disp = _cantidad_fisica_lote(lote)
+                cantidad_neta = max(0, disp - reserva_desde_pedidos)
+                lotes_dict[lote_key] = {
+                    'lote_id': lote.id,
+                    'clave': lote.producto.clave_cnis,
+                    'descripcion': lote.producto.descripcion,
+                    'numero_lote': lote.numero_lote,
+                    'institucion': lote.institucion.denominacion if lote.institucion else 'N/A',
+                    'cantidad_disponible': disp,
+                    'cantidad_reservada': reserva_desde_pedidos,
+                    'cantidad_neta': cantidad_neta,
+                    'sobre_reserva': reserva_desde_pedidos > disp,
+                    'deficit_unidades': max(0, reserva_desde_pedidos - disp),
+                    'fecha_caducidad': lote.fecha_caducidad,
+                    'precio_unitario': lote.precio_unitario,
+                    'valor_total': lote.valor_total,
+                    'pedidos': {},
+                }
+
+            pedido_key = propuesta.id
+
+            if pedido_key not in lotes_dict[lote_key]['pedidos']:
+                lotes_dict[lote_key]['pedidos'][pedido_key] = {
+                    'propuesta_id': propuesta.id,
+                    'solicitud_folio': solicitud.observaciones_solicitud or solicitud.folio,
+                    'institucion_solicitante': solicitud.institucion_solicitante.denominacion,
+                    'estado_propuesta': propuesta.get_estado_display(),
+                    'fecha_generacion': propuesta.fecha_generacion,
+                    'cantidad_total_asignada': 0,
+                    'cantidad_total_surtida': 0,
+                    'cantidad_pendiente_surtir': 0,
+                }
+
+            lotes_dict[lote_key]['pedidos'][pedido_key]['cantidad_total_asignada'] += (
+                lote_asignado.cantidad_asignada
+            )
+            if lote_asignado.surtido:
+                lotes_dict[lote_key]['pedidos'][pedido_key]['cantidad_total_surtida'] += (
+                    lote_asignado.cantidad_asignada
+                )
+
+            lotes_dict[lote_key]['pedidos'][pedido_key]['cantidad_pendiente_surtir'] = max(
+                0,
+                lotes_dict[lote_key]['pedidos'][pedido_key]['cantidad_total_asignada']
+                - lotes_dict[lote_key]['pedidos'][pedido_key]['cantidad_total_surtida'],
+            )
+
+        except Exception as e:
+            logger.error(f"Error procesando lote asignado: {str(e)}")
+
+    datos_lotes = []
+    for lote_key, lote_data in lotes_dict.items():
+        lote_data['pedidos'] = list(lote_data['pedidos'].values())
+        lote_data['total_pedidos'] = len(lote_data['pedidos'])
+        lote_data['total_cantidad_asignada'] = sum(
+            p['cantidad_total_asignada'] for p in lote_data['pedidos']
+        )
+        lote_data['total_cantidad_surtida'] = sum(
+            p['cantidad_total_surtida'] for p in lote_data['pedidos']
+        )
+        datos_lotes.append(lote_data)
+
+    datos_lotes.sort(key=lambda x: x['numero_lote'])
+    return datos_lotes
 
 
 @login_required
@@ -31,8 +129,10 @@ def reporte_lote_pedidos(request):
     Reporte de lotes y pedidos asociados.
     Muestra todos los lotes que están asignados en pedidos, con paginación y filtros.
 
-    Reservado / neto: misma regla que reservas y propuesta_utils — suma de LoteAsignado
-    (surtido=False), no el campo Lote.cantidad_reservada (puede desincronizarse).
+    Reservado / neto inventario: suma de LoteAsignado (surtido=False), no el campo
+    Lote.cantidad_reservada. Disponible: suma por ubicación (misma base que existencias).
+
+    En la tabla de pedidos, «Pendiente de surtir» = asignado − surtido (no es saldo neto de stock).
     """
     
     # Obtener parámetros de filtro
@@ -50,7 +150,9 @@ def reporte_lote_pedidos(request):
         'item_propuesta__propuesta__solicitud',
         'item_propuesta__propuesta',
         'item_propuesta__producto'
-    ).filter(surtido=False)  # Excluir lotes asignados que ya fueron surtidos
+    ).filter(surtido=False).prefetch_related(
+        'lote_ubicacion__lote__ubicaciones_detalle',
+    )  # Excluir lotes asignados que ya fueron surtidos
     
     # Aplicar filtros
     if filtro_clave:
@@ -92,83 +194,9 @@ def reporte_lote_pedidos(request):
         lotes_asignados_query = lotes_asignados_query.filter(
             item_propuesta__propuesta__estado=filtro_estado
         )
-    
-    # Agrupar por lote y preparar datos
-    lotes_dict = {}
-    
-    for lote_asignado in lotes_asignados_query:
-        try:
-            lote = lote_asignado.lote_ubicacion.lote
-            item_prop = lote_asignado.item_propuesta
-            propuesta = item_prop.propuesta
-            solicitud = propuesta.solicitud
-            
-            # Clave única del lote
-            lote_key = lote.id
-            
-            if lote_key not in lotes_dict:
-                reserva_real = _reserva_real_lote(lote)
-                disp = lote.cantidad_disponible or 0
-                lotes_dict[lote_key] = {
-                    'lote_id': lote.id,
-                    'clave': lote.producto.clave_cnis,
-                    'descripcion': lote.producto.descripcion,
-                    'numero_lote': lote.numero_lote,
-                    'institucion': lote.institucion.denominacion if lote.institucion else 'N/A',
-                    'cantidad_disponible': lote.cantidad_disponible,
-                    'cantidad_reservada': reserva_real,
-                    'cantidad_neta': max(0, disp - reserva_real),
-                    'fecha_caducidad': lote.fecha_caducidad,
-                    'precio_unitario': lote.precio_unitario,
-                    'valor_total': lote.valor_total,
-                    'pedidos': {}
-                }
-            
-            # Agrupar por pedido
-            pedido_key = propuesta.id
-            
-            if pedido_key not in lotes_dict[lote_key]['pedidos']:
-                lotes_dict[lote_key]['pedidos'][pedido_key] = {
-                    'propuesta_id': propuesta.id,
-                    'solicitud_folio': solicitud.observaciones_solicitud or solicitud.folio,
-                    'institucion_solicitante': solicitud.institucion_solicitante.denominacion,
-                    'estado_propuesta': propuesta.get_estado_display(),
-                    'fecha_generacion': propuesta.fecha_generacion,
-                    'cantidad_total_asignada': 0,
-                    'cantidad_total_surtida': 0,
-                    'cantidad_neto': 0,
-                }
-            
-            # Acumular cantidades
-            lotes_dict[lote_key]['pedidos'][pedido_key]['cantidad_total_asignada'] += lote_asignado.cantidad_asignada
-            if lote_asignado.surtido:
-                lotes_dict[lote_key]['pedidos'][pedido_key]['cantidad_total_surtida'] += lote_asignado.cantidad_asignada
-            
-            # Calcular neto (asignada - surtida)
-            lotes_dict[lote_key]['pedidos'][pedido_key]['cantidad_neto'] = max(0, 
-                lotes_dict[lote_key]['pedidos'][pedido_key]['cantidad_total_asignada'] - 
-                lotes_dict[lote_key]['pedidos'][pedido_key]['cantidad_total_surtida']
-            )
-            
-        except Exception as e:
-            logger.error(f"Error procesando lote asignado: {str(e)}")
-    
-    # Convertir a lista y ordenar
-    datos_lotes = []
-    for lote_key, lote_data in lotes_dict.items():
-        lote_data['pedidos'] = list(lote_data['pedidos'].values())
-        lote_data['total_pedidos'] = len(lote_data['pedidos'])
-        lote_data['total_cantidad_asignada'] = sum(
-            p['cantidad_total_asignada'] for p in lote_data['pedidos']
-        )
-        lote_data['total_cantidad_surtida'] = sum(
-            p['cantidad_total_surtida'] for p in lote_data['pedidos']
-        )
-        datos_lotes.append(lote_data)
-    
-    # Ordenar por número de lote
-    datos_lotes.sort(key=lambda x: x['numero_lote'])
-    
+
+    datos_lotes = _agrupar_lotes_pedidos(lotes_asignados_query)
+
     # Paginación
     paginator = Paginator(datos_lotes, 20)  # 20 lotes por página
     page = request.GET.get('page')
@@ -224,7 +252,9 @@ def exportar_lote_pedidos_excel(request):
         'item_propuesta__propuesta__solicitud',
         'item_propuesta__propuesta',
         'item_propuesta__producto'
-    ).filter(surtido=False)  # Excluir lotes asignados que ya fueron surtidos
+    ).filter(surtido=False).prefetch_related(
+        'lote_ubicacion__lote__ubicaciones_detalle',
+    )  # Excluir lotes asignados que ya fueron surtidos
     
     # Aplicar filtros (misma lógica que la vista)
     if filtro_clave:
@@ -266,83 +296,9 @@ def exportar_lote_pedidos_excel(request):
         lotes_asignados_query = lotes_asignados_query.filter(
             item_propuesta__propuesta__estado=filtro_estado
         )
-    
-    # Agrupar por lote y preparar datos (misma lógica que la vista)
-    lotes_dict = {}
-    
-    for lote_asignado in lotes_asignados_query:
-        try:
-            lote = lote_asignado.lote_ubicacion.lote
-            item_prop = lote_asignado.item_propuesta
-            propuesta = item_prop.propuesta
-            solicitud = propuesta.solicitud
-            
-            # Clave única del lote
-            lote_key = lote.id
-            
-            if lote_key not in lotes_dict:
-                reserva_real = _reserva_real_lote(lote)
-                disp = lote.cantidad_disponible or 0
-                lotes_dict[lote_key] = {
-                    'lote_id': lote.id,
-                    'clave': lote.producto.clave_cnis,
-                    'descripcion': lote.producto.descripcion,
-                    'numero_lote': lote.numero_lote,
-                    'institucion': lote.institucion.denominacion if lote.institucion else 'N/A',
-                    'cantidad_disponible': lote.cantidad_disponible,
-                    'cantidad_reservada': reserva_real,
-                    'cantidad_neta': max(0, disp - reserva_real),
-                    'fecha_caducidad': lote.fecha_caducidad,
-                    'precio_unitario': lote.precio_unitario,
-                    'valor_total': lote.valor_total,
-                    'pedidos': {}
-                }
-            
-            # Agrupar por pedido
-            pedido_key = propuesta.id
-            
-            if pedido_key not in lotes_dict[lote_key]['pedidos']:
-                lotes_dict[lote_key]['pedidos'][pedido_key] = {
-                    'propuesta_id': propuesta.id,
-                    'solicitud_folio': solicitud.observaciones_solicitud or solicitud.folio,
-                    'institucion_solicitante': solicitud.institucion_solicitante.denominacion,
-                    'estado_propuesta': propuesta.get_estado_display(),
-                    'fecha_generacion': propuesta.fecha_generacion,
-                    'cantidad_total_asignada': 0,
-                    'cantidad_total_surtida': 0,
-                    'cantidad_neto': 0,
-                }
-            
-            # Acumular cantidades
-            lotes_dict[lote_key]['pedidos'][pedido_key]['cantidad_total_asignada'] += lote_asignado.cantidad_asignada
-            if lote_asignado.surtido:
-                lotes_dict[lote_key]['pedidos'][pedido_key]['cantidad_total_surtida'] += lote_asignado.cantidad_asignada
-            
-            # Calcular neto (asignada - surtida)
-            lotes_dict[lote_key]['pedidos'][pedido_key]['cantidad_neto'] = max(0, 
-                lotes_dict[lote_key]['pedidos'][pedido_key]['cantidad_total_asignada'] - 
-                lotes_dict[lote_key]['pedidos'][pedido_key]['cantidad_total_surtida']
-            )
-            
-        except Exception as e:
-            logger.error(f"Error procesando lote asignado: {str(e)}")
-    
-    # Convertir a lista y ordenar
-    datos_lotes = []
-    for lote_key, lote_data in lotes_dict.items():
-        lote_data['pedidos'] = list(lote_data['pedidos'].values())
-        lote_data['total_pedidos'] = len(lote_data['pedidos'])
-        lote_data['total_cantidad_asignada'] = sum(
-            p['cantidad_total_asignada'] for p in lote_data['pedidos']
-        )
-        lote_data['total_cantidad_surtida'] = sum(
-            p['cantidad_total_surtida'] for p in lote_data['pedidos']
-        )
-        datos_lotes.append(lote_data)
-    
-    # Ordenar por número de lote
-    datos_lotes.sort(key=lambda x: x['numero_lote'])
-    
+
+    datos_lotes = _agrupar_lotes_pedidos(lotes_asignados_query)
+
     # Crear workbook
     wb = Workbook()
     ws = wb.active
@@ -366,14 +322,14 @@ def exportar_lote_pedidos_excel(request):
     row_num = 1
     
     # Título del reporte
-    ws.merge_cells(f'A{row_num}:K{row_num}')
+    ws.merge_cells(f'A{row_num}:L{row_num}')
     ws[f'A{row_num}'] = 'REPORTE DE LOTES Y PEDIDOS ASOCIADOS'
     ws[f'A{row_num}'].font = Font(bold=True, size=14)
     ws[f'A{row_num}'].alignment = Alignment(horizontal="center", vertical="center")
     row_num += 2
     
     # Resumen general
-    ws.merge_cells(f'A{row_num}:K{row_num}')
+    ws.merge_cells(f'A{row_num}:L{row_num}')
     ws[f'A{row_num}'] = f'RESUMEN: {len(datos_lotes)} lotes encontrados'
     ws[f'A{row_num}'].font = info_font
     ws[f'A{row_num}'].fill = info_fill
@@ -386,9 +342,10 @@ def exportar_lote_pedidos_excel(request):
         'Descripción',
         'Número Lote',
         'Institución',
-        'Cantidad Disponible',
-        'Cantidad Reservada',
-        'Cantidad Neta',
+        'Cantidad Disponible (suma ubicaciones)',
+        'Cantidad Reservada (LoteAsignado activo)',
+        'Cantidad Neta inventario',
+        'Exceso reserva vs físico (uds)',
         'Total Pedidos',
         'Cantidad Asignada',
         'Cantidad Surtida',
@@ -417,6 +374,7 @@ def exportar_lote_pedidos_excel(request):
             lote['cantidad_disponible'],
             lote['cantidad_reservada'],
             lote['cantidad_neta'],
+            lote['deficit_unidades'],
             lote['total_pedidos'],
             lote['total_cantidad_asignada'],
             lote['total_cantidad_surtida'],
@@ -436,7 +394,7 @@ def exportar_lote_pedidos_excel(request):
         # Agregar detalles de pedidos del lote
         if lote['pedidos']:
             # Encabezados de pedidos
-            ws.merge_cells(f'A{row_num}:K{row_num}')
+            ws.merge_cells(f'A{row_num}:L{row_num}')
             ws[f'A{row_num}'] = f'  Pedidos del Lote {lote["numero_lote"]} ({lote["clave"]})'
             ws[f'A{row_num}'].font = Font(bold=True, italic=True, size=10)
             ws[f'A{row_num}'].fill = PatternFill(start_color="E7E6E6", end_color="E7E6E6", fill_type="solid")
@@ -449,7 +407,7 @@ def exportar_lote_pedidos_excel(request):
                 'Fecha Generación',
                 'Cantidad Asignada',
                 'Cantidad Surtida',
-                'Neto',
+                'Pendiente de surtir (no es saldo de inventario)',
             ]
             
             ws.append(headers_pedidos)
@@ -473,7 +431,7 @@ def exportar_lote_pedidos_excel(request):
                     pedido['fecha_generacion'].strftime('%d/%m/%Y %H:%M') if pedido['fecha_generacion'] else 'N/A',
                     pedido['cantidad_total_asignada'],
                     pedido['cantidad_total_surtida'],
-                    pedido['cantidad_neto'],
+                    pedido['cantidad_pendiente_surtir'],
                 ]
                 
                 ws.append(row)
@@ -500,6 +458,7 @@ def exportar_lote_pedidos_excel(request):
     ws.column_dimensions['I'].width = 18
     ws.column_dimensions['J'].width = 18
     ws.column_dimensions['K'].width = 15
+    ws.column_dimensions['L'].width = 14
     
     # Crear respuesta HTTP
     response = HttpResponse(

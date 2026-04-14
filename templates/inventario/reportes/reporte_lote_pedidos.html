@@ -9,7 +9,7 @@
     <div class="row mb-4">
         <div class="col-md-8">
             <h2><i class="fas fa-boxes text-primary"></i> Reporte de Lotes y Pedidos Asociados</h2>
-            <p class="text-muted">Visualiza todos los lotes asignados en pedidos con sus detalles. <span class="text-muted small">Reservado y neto se calculan con la suma de asignaciones activas (igual que en reservas), no con el campo almacenado en el lote.</span></p>
+            <p class="text-muted">Visualiza lotes con líneas en propuestas pendientes de surtir. <span class="text-muted small"><strong>Disponible</strong> = suma de cantidades por ubicación (como en existencias). <strong>Reservado</strong> = suma de <code>LoteAsignado</code> con surtido pendiente. <strong>Neto inventario</strong> = disponible − reservado (0 si hay sobre-reserva). En pedidos, <strong>Pendiente de surtir</strong> = asignado − surtido (no es saldo de stock).</span></p>
         </div>
         <div class="col-md-4 text-end d-flex align-items-end justify-content-end">
             {% if page_obj %}
@@ -113,9 +113,9 @@
                             <th>Descripción</th>
                             <th>Número Lote</th>
                             <th>Institución</th>
-                            <th class="text-center">Disponible</th>
-                            <th class="text-center">Reservado</th>
-                            <th class="text-center">Neto</th>
+                            <th class="text-center" title="Suma LoteUbicacion.cantidad">Disponible</th>
+                            <th class="text-center" title="Suma LoteAsignado (no surtido)">Reservado</th>
+                            <th class="text-center" title="Inventario neto; 0 si reserva ≥ físico">Neto inv.</th>
                             <th class="text-center">Pedidos</th>
                             <th class="text-center">Cant. Asignada</th>
                             <th class="text-center">Cant. Surtida</th>
@@ -136,7 +136,13 @@
                                 <span class="badge bg-warning">{{ lote.cantidad_reservada }}</span>
                             </td>
                             <td class="text-center">
+                                {% if lote.sobre_reserva %}
+                                <span class="badge bg-danger" title="Reserva mayor que existencia física">{{ lote.cantidad_neta }}</span>
+                                {% elif lote.cantidad_neta == 0 %}
+                                <span class="badge bg-secondary">{{ lote.cantidad_neta }}</span>
+                                {% else %}
                                 <span class="badge bg-success">{{ lote.cantidad_neta }}</span>
+                                {% endif %}
                             </td>
                             <td class="text-center">
                                 <span class="badge bg-primary">{{ lote.total_pedidos }}</span>
@@ -173,7 +179,16 @@
                                             <p><strong>Cantidad Reservada:</strong> <span class="badge bg-warning">{{ lote.cantidad_reservada }}</span></p>
                                         </div>
                                         <div class="col-md-3">
-                                            <p><strong>Cantidad Neta:</strong> <span class="badge bg-success">{{ lote.cantidad_neta }}</span></p>
+                                            <p><strong>Cantidad Neta (inventario):</strong>
+                                                {% if lote.sobre_reserva %}
+                                                <span class="badge bg-danger">{{ lote.cantidad_neta }}</span>
+                                                <span class="text-danger small d-block mt-1">Sobre-reserva: {{ lote.deficit_unidades }} uds. reservadas de más respecto al físico.</span>
+                                                {% elif lote.cantidad_neta == 0 %}
+                                                <span class="badge bg-secondary">{{ lote.cantidad_neta }}</span>
+                                                {% else %}
+                                                <span class="badge bg-success">{{ lote.cantidad_neta }}</span>
+                                                {% endif %}
+                                            </p>
                                             {% if lote.fecha_caducidad %}
                                                 <p><strong>Fecha Caducidad:</strong> {{ lote.fecha_caducidad|date:"d/m/Y" }}</p>
                                             {% endif %}
@@ -191,7 +206,7 @@
                                                     <th>Fecha Generación</th>
                                                     <th class="text-center">Cantidad Asignada</th>
                                                     <th class="text-center">Cantidad Surtida</th>
-                                                    <th class="text-center">Neto</th>
+                                                    <th class="text-center" title="Cantidad aún no surtida en este pedido">Pendiente surtir</th>
                                                 </tr>
                                             </thead>
                                             <tbody>
@@ -212,7 +227,7 @@
                                                         <span class="badge bg-success">{{ pedido.cantidad_total_surtida }}</span>
                                                     </td>
                                                     <td class="text-center">
-                                                        <span class="badge bg-info">{{ pedido.cantidad_neto }}</span>
+                                                        <span class="badge bg-secondary">{{ pedido.cantidad_pendiente_surtir }}</span>
                                                     </td>
                                                 </tr>
                                                 {% endfor %}

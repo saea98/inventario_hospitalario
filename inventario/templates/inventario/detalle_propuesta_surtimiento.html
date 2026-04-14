@@ -29,6 +29,16 @@
         </div>
     </div>
 
+    {% if acuse_filtra_por_almacen %}
+    <div class="alert alert-info" role="alert">
+        <strong><i class="fas fa-info-circle"></i> Acuse de entrega</strong><br>
+        Su usuario está asociado al almacén <strong>{{ almacen_acuse_usuario.nombre }}</strong>.
+        El PDF incluye <strong>solo las líneas surtidas desde ese almacén</strong>. En el detalle de la propuesta
+        puede ver todos los ítems; los surtidos desde otro almacén no saldrán en su acuse. Un usuario con perfil
+        de administrador puede generar el acuse completo.
+    </div>
+    {% endif %}
+
     <!-- Información General -->
     <div class="row mb-4">
         <div class="col-md-6">

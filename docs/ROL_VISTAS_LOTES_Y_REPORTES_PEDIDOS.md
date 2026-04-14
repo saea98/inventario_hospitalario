@@ -1,5 +1,7 @@
 # Rol con acceso a Lotes y Reportes de Pedidos
 
+> **Mapeo general del sistema:** [MAPEO_VISTAS_ROLES.md](./MAPEO_VISTAS_ROLES.md) (todas las vistas con `@requiere_rol`, menú y ejemplos como disponibilidad vs pedidos).
+
 Para que un rol tenga permiso a estas tres vistas:
 
 | Vista (URL) | Nombre de URL (para permisos) |

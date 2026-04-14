@@ -45,12 +45,15 @@ def generar_acuse_excel(propuesta, almacen_id=None):
     """
     Genera un archivo Excel con el acuse de entrega usando un template como base.
 
-    Si almacen_id está definido (usuario no administrador con almacén asignado),
-    solo se incluyen los insumos cuyos lotes pertenecen a ese almacén.
+    Cada fila del acuse proviene de un LoteAsignado con cantidad_asignada > 0. Si almacen_id
+    está definido (usuario sin perfil de administrador pero con almacén asignado en su cuenta),
+    solo se incluyen asignaciones cuya ubicación pertenece a ese almacén. Eso puede hacer que
+    el PDF/Excel muestre menos líneas que el detalle web de la propuesta (donde se listan todos
+    los ítems y lotes). Sin almacen_id, se incluyen todas las asignaciones de la propuesta.
 
     Args:
         propuesta: Objeto PropuestaPedido
-        almacen_id: Opcional. Si se indica, solo se incluyen items del almacén dado.
+        almacen_id: Opcional. Filtra por lote_ubicacion__ubicacion__almacen_id.
 
     Returns:
         BytesIO: Buffer con el archivo Excel

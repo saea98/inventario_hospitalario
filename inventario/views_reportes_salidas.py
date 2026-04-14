@@ -1130,7 +1130,6 @@ def reporte_reservas(request):
             'caducidad': lote.fecha_caducidad.strftime('%d/%m/%Y') if lote.fecha_caducidad else '',
             'dias_caducidad': dias_caducidad,
             'cantidad_asignada': reserva.cantidad_asignada,
-            'cantidad_reservada': reserva.cantidad_asignada,
             'reserva_total_lote': totales_lote.get(lote.id, 0),
             'reserva_total_ubicacion': totales_lu.get(lote_ubicacion.id, 0),
             'cantidad_solicitada': reserva.item_propuesta.cantidad_solicitada,

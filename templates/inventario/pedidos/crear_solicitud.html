@@ -5,33 +5,10 @@
 <div class="container-fluid">
     <h1 class="h3 mb-4 text-gray-800">{{ page_title|default:'Crear Nueva Solicitud de Pedido' }}</h1>
 
-    <!-- Formulario de Carga Masiva -->
-    <div class="card shadow mb-4">
-        <div class="card-header py-3">
-            <h6 class="m-0 font-weight-bold text-primary">Carga Masiva de Items (CSV)</h6>
-        </div>
-        <div class="card-body">
-            <form method="post" enctype="multipart/form-data">
-                {% csrf_token %}
-                <div class="form-group">
-                    <label for="id_csv_file">Selecciona un archivo CSV</label>
-                    {{ upload_form.csv_file }}
-                    <small class="form-text text-muted">
-                        Columnas requeridas: <strong>CLAVE</strong> y <strong>CANTIDAD SOLICITADA</strong>.
-                        Opcional: columna <strong>FOLIO</strong> (mismo valor en las filas); al cargar el CSV se copia al campo «Folio del pedido».
-                    </small>
-                </div>
-                <button type="submit" name="upload_csv" class="btn btn-info">
-                    <i class="fas fa-upload"></i> Cargar Items desde CSV
-                </button>
-            </form>
-        </div>
-    </div>
-
-    <form method="post" id="solicitud-form">
+    <form method="post" enctype="multipart/form-data" id="solicitud-form">
         {% csrf_token %}
         
-        <!-- Datos de la Solicitud -->
+        <!-- Datos de la Solicitud (primero: necesarios antes del CSV) -->
         <div class="card shadow mb-4">
             <div class="card-header py-3">
                 <h6 class="m-0 font-weight-bold text-primary">Datos de la Solicitud</h6>
@@ -39,6 +16,31 @@
             <div class="card-body">
                 {{ form.as_p }}
                 <div id="folio-pedido-aviso" class="mt-2" style="display: none;" aria-live="polite"></div>
+            </div>
+        </div>
+
+        <!-- Carga masiva: mismo POST que los datos del pedido -->
+        <div class="card shadow mb-4">
+            <div class="card-header py-3">
+                <h6 class="m-0 font-weight-bold text-primary">Carga Masiva de Items (CSV)</h6>
+            </div>
+            <div class="card-body">
+                <div class="alert alert-info small mb-3" id="csv-requisito-aviso" role="status">
+                    <i class="fas fa-info-circle"></i>
+                    Seleccione primero <strong>institución</strong>, <strong>almacén destino</strong> y <strong>fecha de entrega programada</strong>;
+                    así el pedido queda alineado con el almacén y las validaciones de folio antes de procesar el archivo.
+                </div>
+                <div class="form-group">
+                    <label for="id_csv_file">Selecciona un archivo CSV</label>
+                    {{ upload_form.csv_file }}
+                    <small class="form-text text-muted">
+                        Columnas requeridas: <strong>CLAVE</strong> y <strong>CANTIDAD SOLICITADA</strong>.
+                        Opcional: columna <strong>FOLIO</strong>; si no indicó folio arriba, se puede tomar del CSV.
+                    </small>
+                </div>
+                <button type="submit" name="upload_csv" id="btn-upload-csv" class="btn btn-info" disabled title="Complete primero institución, almacén y fecha">
+                    <i class="fas fa-upload"></i> Cargar Items desde CSV
+                </button>
             </div>
         </div>
 
@@ -92,6 +94,7 @@
         </div>
     </form>
 </div>
+{% endblock %}
 
 {% block extra_js %}
 <link href="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/css/select2.min.css" rel="stylesheet" />
@@ -112,6 +115,42 @@
         const container = document.getElementById('item-forms-container');
         const addButton = document.getElementById('add-item-form');
         const totalFormsInput = document.getElementById('id_items-TOTAL_FORMS');
+        const csvFileInput = document.getElementById('id_csv_file');
+        const btnUploadCsv = document.getElementById('btn-upload-csv');
+        const avisoCsv = document.getElementById('csv-requisito-aviso');
+
+        function pedidoDatosListosParaCsv() {
+            var inst = document.getElementById('id_institucion_solicitante');
+            var alm = document.getElementById('id_almacen_destino');
+            var fecha = document.getElementById('id_fecha_entrega_programada');
+            var vi = inst && inst.value;
+            var va = alm && alm.value;
+            var vf = fecha && fecha.value;
+            return !!(vi && va && vf);
+        }
+
+        function actualizarEstadoCargaCsv() {
+            var ok = pedidoDatosListosParaCsv();
+            if (btnUploadCsv) {
+                btnUploadCsv.disabled = !ok;
+                btnUploadCsv.title = ok ? '' : 'Complete institución, almacén destino y fecha de entrega programada';
+            }
+            if (csvFileInput) {
+                csvFileInput.disabled = !ok;
+            }
+            if (avisoCsv) {
+                avisoCsv.classList.toggle('alert-warning', !ok);
+                avisoCsv.classList.toggle('alert-info', ok);
+            }
+        }
+
+        actualizarEstadoCargaCsv();
+        $('#id_institucion_solicitante, #id_almacen_destino').on('change select2:select select2:clear', actualizarEstadoCargaCsv);
+        var fechaEntrega = document.getElementById('id_fecha_entrega_programada');
+        if (fechaEntrega) {
+            fechaEntrega.addEventListener('change', actualizarEstadoCargaCsv);
+            fechaEntrega.addEventListener('input', actualizarEstadoCargaCsv);
+        }
         
         // Quitar renglón: marcar DELETE y ocultar la fila. Al guardar, ese renglón no se crea (no hace falta poner cantidad).
         container.addEventListener('click', function(e) {
@@ -158,7 +197,7 @@
             if (!almacenesData[{{ almacen.institucion.id }}]) {
                 almacenesData[{{ almacen.institucion.id }}] = [];
             }
-            almacenesData[{{ almacen.institucion.id }}].push({ id: {{ almacen.id }}, text: '{{ almacen.nombre }}' });
+            almacenesData[{{ almacen.institucion.id }}].push({ id: {{ almacen.id }}, text: '{{ almacen.nombre|escapejs }}' });
         {% endfor %}
 
         institucionSelect.on('change', function() {
@@ -173,6 +212,7 @@
                 placeholder: '-- Selecciona un almacén --',
                 dropdownParent: $('body')
             });
+            actualizarEstadoCargaCsv();
         });
 
         // Aviso en tiempo real por folio de pedido duplicado
@@ -231,5 +271,4 @@
         }
     });
 </script>
-{% endblock %}
 {% endblock %}

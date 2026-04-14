@@ -9,7 +9,7 @@
     <div class="row mb-4">
         <div class="col-md-8">
             <h2><i class="fas fa-chart-bar text-primary"></i> Reporte de Disponibilidad vs Reservas</h2>
-            <p class="text-muted">Análisis de cantidad disponible contra cantidad reservada por clave y lote</p>
+            <p class="text-muted">Disponible = suma por ubicación (como existencias). Reservado = suma de asignaciones en pedidos activos (<code>LoteAsignado</code>, no el campo del lote). Neto = disponible − reservado.</p>
         </div>
         <div class="col-md-4 text-end">
             <form method="POST" action="{% url 'reportes:exportar_disponibilidad_excel' %}" style="display: inline;">
@@ -132,8 +132,8 @@
                                 <th>Descripción</th>
                                 <th>Número Lote</th>
                                 <th>Institución</th>
-                                <th class="text-center">Disponible</th>
-                                <th class="text-center">Reservado</th>
+                                <th class="text-center" title="Suma LoteUbicacion.cantidad">Disponible</th>
+                                <th class="text-center" title="Suma LoteAsignado (surtido pendiente)">Reservado</th>
                                 <th class="text-center">Neto</th>
                                 <th class="text-center">% Reserva</th>
                                 <th class="text-center">Caducidad</th>

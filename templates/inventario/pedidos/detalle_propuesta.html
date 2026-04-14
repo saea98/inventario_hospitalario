@@ -4,6 +4,17 @@
 <div class="container-fluid">
     <h1 class="h3 mb-4 text-gray-800">{{ page_title }}</h1>
 
+    {% if acuse_filtra_por_almacen %}
+    <div class="alert alert-info" role="alert">
+        <strong><i class="fas fa-info-circle"></i> Acuse de entrega (PDF / Excel)</strong><br>
+        Su usuario está asociado al almacén <strong>{{ almacen_acuse_usuario.nombre }}</strong>.
+        El acuse <strong>solo incluye las líneas surtidas desde ese almacén</strong> (según la ubicación del lote).
+        En esta pantalla se muestran <strong>todos</strong> los ítems de la propuesta; si surtieron desde otro almacén,
+        no aparecerán en su acuse. Para un documento con el surtido completo, quien tenga perfil de administrador
+        puede generar el acuse sin ese filtro.
+    </div>
+    {% endif %}
+
     <!-- Resumen de la Propuesta -->
     <div class="card shadow mb-4">
         <div class="card-header py-3">
@@ -116,6 +127,11 @@
             <h6 class="m-0 font-weight-bold text-white">Descargar Acuse de Entrega</h6>
         </div>
         <div class="card-body">
+            {% if acuse_filtra_por_almacen %}
+            <p class="small text-muted mb-3">
+                El archivo refleja únicamente lotes del almacén <strong>{{ almacen_acuse_usuario.nombre }}</strong>.
+            </p>
+            {% endif %}
             <a href="{% url 'logistica:generar_acuse_pdf' propuesta.id %}" class="btn btn-primary" target="_blank">
                 <i class="fas fa-file-pdf"></i> Descargar PDF
             </a>

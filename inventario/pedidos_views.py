@@ -38,6 +38,7 @@ from .propuesta_utils import (
 )
 from .pedidos_utils import registrar_error_pedido
 from .pedidos_forms import _usuario_puede_duplicar_folio
+from .decorators_roles import es_administrador
 from django.db import models
 from django.db.models import Q, Sum, Value, IntegerField
 from django.db.models.functions import Coalesce
@@ -275,8 +276,23 @@ def crear_solicitud(request):
 
     if request.method == 'POST':
         if 'upload_csv' in request.POST:
+            # Los datos del pedido (institución, almacén, fecha) deben estar definidos antes del CSV
+            # para correlacionar correctamente con almacén destino y validaciones de folio.
+            header_form = SolicitudPedidoForm(request.POST, user=request.user)
             upload_form = BulkUploadForm(request.POST, request.FILES)
-            if upload_form.is_valid():
+            if not header_form.is_valid():
+                messages.error(
+                    request,
+                    'Indique primero la institución, el almacén destino y la fecha de entrega programada; '
+                    'luego cargue el archivo CSV.',
+                )
+                form = header_form
+                formset = ItemSolicitudFormSet(request.POST, instance=SolicitudPedido())
+            elif not upload_form.is_valid():
+                messages.error(request, 'Seleccione un archivo CSV válido para cargar.')
+                form = SolicitudPedidoForm(request.POST, user=request.user)
+                formset = ItemSolicitudFormSet(request.POST, instance=SolicitudPedido())
+            else:
                 csv_file = request.FILES['csv_file']
                 try:
                     items_data = []
@@ -377,25 +393,35 @@ def crear_solicitud(request):
                                 'cantidad_aprobada': None,
                             })
                     
-                    ItemSolicitudFormSet = inlineformset_factory(SolicitudPedido, ItemSolicitud, form=ItemSolicitudForm, extra=len(items_data), can_delete=True)
+                    extra_forms = len(items_data) if items_data else 1
+                    ItemSolicitudFormSet = inlineformset_factory(
+                        SolicitudPedido, ItemSolicitud, form=ItemSolicitudForm, extra=extra_forms, can_delete=True
+                    )
                     formset = ItemSolicitudFormSet(initial=items_data)
-                    form_initial = {}
+                    # Conservar datos del pedido ya validados; el folio capturado en pantalla prevalece sobre el CSV.
+                    user_obs = (header_form.cleaned_data.get('observaciones_solicitud') or '').strip()
+                    post_datos = request.POST.copy()
+                    if folio_desde_csv and not user_obs:
+                        post_datos['observaciones_solicitud'] = folio_desde_csv
+                    form = SolicitudPedidoForm(post_datos, user=request.user)
+                    msg_csv = (
+                        f"{len(items_data)} items cargados desde el CSV. Revise «Cantidad aprobada»: "
+                        f"vacío = se aprueba lo solicitado; 0 = no surtir."
+                    )
                     if folio_desde_csv:
-                        form_initial['observaciones_solicitud'] = folio_desde_csv
-                    form = SolicitudPedidoForm(user=request.user, initial=form_initial)
-                    msg_csv = f"{len(items_data)} items cargados desde el CSV. Revise «Cantidad aprobada»: vacío = se aprueba lo solicitado; 0 = no surtir."
-                    if folio_desde_csv:
-                        msg_csv += f" Folio de pedido tomado de la columna FOLIO: «{folio_desde_csv}»."
+                        if user_obs:
+                            msg_csv += (
+                                f" Folio en el formulario: «{user_obs}». "
+                                f"(La columna FOLIO del CSV «{folio_desde_csv}» no sustituye al folio ya capturado.)"
+                            )
+                        else:
+                            msg_csv += f" Folio de pedido tomado de la columna FOLIO del CSV: «{folio_desde_csv}»."
                     messages.success(request, msg_csv)
                     
                 except Exception as e:
                     messages.error(request, f"Error al procesar el archivo CSV: {e}")
-                    form = SolicitudPedidoForm(user=request.user)
+                    form = SolicitudPedidoForm(request.POST, user=request.user)
                     formset = ItemSolicitudFormSet(instance=SolicitudPedido())
-            else:
-                messages.error(request, "Error en el formulario de carga de archivo.")
-                form = SolicitudPedidoForm(user=request.user)
-                formset = ItemSolicitudFormSet(instance=SolicitudPedido())
         
         else:
             form = SolicitudPedidoForm(request.POST, user=request.user)
@@ -792,10 +818,17 @@ def detalle_propuesta(request, propuesta_id):
                 ),
                 id=propuesta_id,
             )
-    
+
+    user_almacen = getattr(request.user, 'almacen', None)
+    acuse_filtra_por_almacen = bool(
+        user_almacen and not es_administrador(request.user)
+    )
+
     context = {
         'propuesta': propuesta,
-        'page_title': f"Propuesta {propuesta.solicitud.folio}"
+        'page_title': f"Propuesta {propuesta.solicitud.folio}",
+        'acuse_filtra_por_almacen': acuse_filtra_por_almacen,
+        'almacen_acuse_usuario': user_almacen,
     }
     return render(request, 'inventario/pedidos/detalle_propuesta.html', context)
 

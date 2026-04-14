@@ -1,96 +1,105 @@
 """
 Vistas para reporte de disponibilidad vs reservas por clave y lote.
 Permite tomar decisiones sobre el inventario considerando las reservas en propuestas.
+
+Misma base que lote-pedidos / edición de propuesta:
+- Existencia: suma de LoteUbicacion.cantidad (si no hay filas, Lote.cantidad_disponible).
+- Reserva: suma de LoteAsignado con surtido=False (totales_reserva_activa_por_lote_ids),
+  no el campo Lote.cantidad_reservada (puede estar desactualizado).
 """
 
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
-from django.db.models import Q, Sum, F, DecimalField
-from django.db.models.functions import Coalesce
+from django.db.models import Q
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from datetime import date
 import logging
 
-from .models import Lote, Producto
+from .models import Lote, Institucion
+from .propuesta_utils import totales_reserva_activa_por_lote_ids
 from openpyxl import Workbook
 from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
-from openpyxl.utils import get_column_letter
 
 logger = logging.getLogger(__name__)
+
+
+def _cantidad_fisica_lote(lote):
+    """Suma LoteUbicacion.cantidad; si no hay ubicaciones, Lote.cantidad_disponible (como existencias)."""
+    ubs = lote.ubicaciones_detalle.all()
+    if ubs:
+        return sum(lu.cantidad for lu in ubs)
+    return int(lote.cantidad_disponible or 0)
 
 
 @login_required
 def reporte_disponibilidad_lotes(request):
     """
     Reporte de disponibilidad vs reservas por clave y lote.
-    Muestra cantidad disponible y cantidad reservada para tomar decisiones.
+    Existencia y reserva alineadas con LoteUbicacion + LoteAsignado (no campos denormalizados del lote).
     """
-    
-    # Obtener parámetros de filtro
+
     filtro_clave = request.GET.get('clave', '').strip()
     filtro_lote = request.GET.get('lote', '').strip()
     filtro_institucion = request.GET.get('institucion', '')
     filtro_estado = request.GET.get('estado', '')
-    
-    # Query base
+
     lotes = Lote.objects.select_related(
         'producto',
         'institucion',
-        'almacen'
-    ).filter(
-        estado=1  # Solo lotes disponibles
-    )
-    
-    # Aplicar filtros
+        'almacen',
+    ).filter(estado=1)
+
     if filtro_clave:
         lotes = lotes.filter(
-            Q(producto__clave_cnis__icontains=filtro_clave) |
-            Q(producto__descripcion__icontains=filtro_clave)
+            Q(producto__clave_cnis__icontains=filtro_clave)
+            | Q(producto__descripcion__icontains=filtro_clave)
         )
-    
+
     if filtro_lote:
         lotes = lotes.filter(numero_lote__icontains=filtro_lote)
-    
+
     if filtro_institucion:
         lotes = lotes.filter(institucion_id=filtro_institucion)
-    
+
     if filtro_estado:
         lotes = lotes.filter(estado=int(filtro_estado))
-    
-    # Ordenar por clave de producto y fecha de caducidad
-    lotes = lotes.order_by(
-        'producto__clave_cnis',
-        'fecha_caducidad'
-    )
-    
-    # Calcular totales ANTES de paginar
-    total_disponible = sum(lote.cantidad_disponible for lote in lotes)
-    total_reservado = sum(lote.cantidad_reservada for lote in lotes)
-    total_neto = sum(max(0, lote.cantidad_disponible - lote.cantidad_reservada) for lote in lotes)
-    
-    # Paginación
-    paginator = Paginator(lotes, 20)  # 20 lotes por página
+
+    lotes = lotes.order_by('producto__clave_cnis', 'fecha_caducidad')
+    lotes_list = list(lotes.prefetch_related('ubicaciones_detalle'))
+    lote_ids = [lo.id for lo in lotes_list]
+    reservas_map = totales_reserva_activa_por_lote_ids(lote_ids)
+
+    total_disponible = 0
+    total_reservado = 0
+    total_neto = 0
+    for lote in lotes_list:
+        disp = _cantidad_fisica_lote(lote)
+        res = reservas_map.get(lote.id, 0)
+        total_disponible += disp
+        total_reservado += res
+        total_neto += max(0, disp - res)
+
+    paginator = Paginator(lotes_list, 20)
     page = request.GET.get('page')
-    
+
     try:
         lotes_pagina = paginator.page(page)
     except PageNotAnInteger:
         lotes_pagina = paginator.page(1)
     except EmptyPage:
         lotes_pagina = paginator.page(paginator.num_pages)
-    
-    # Preparar datos para la tabla
+
     datos_reporte = []
-    
+
     for lote in lotes_pagina:
-        cantidad_neta = max(0, lote.cantidad_disponible - lote.cantidad_reservada)
+        cantidad_disponible = _cantidad_fisica_lote(lote)
+        cantidad_reservada = reservas_map.get(lote.id, 0)
+        cantidad_neta = max(0, cantidad_disponible - cantidad_reservada)
         porcentaje_reserva = (
-            (lote.cantidad_reservada / lote.cantidad_disponible * 100)
-            if lote.cantidad_disponible > 0 else 0
+            (cantidad_reservada / cantidad_disponible * 100) if cantidad_disponible > 0 else 0
         )
-        
-        # Determinar estado de reserva
+
         if cantidad_neta <= 0:
             estado_reserva = 'AGOTADO'
             clase_alerta = 'danger'
@@ -103,20 +112,19 @@ def reporte_disponibilidad_lotes(request):
         else:
             estado_reserva = 'NORMAL'
             clase_alerta = 'success'
-        
-        # Calcular días para caducidad
+
         dias_caducidad = None
         if lote.fecha_caducidad:
             dias_caducidad = (lote.fecha_caducidad - date.today()).days
-        
+
         datos_reporte.append({
             'lote_id': lote.id,
             'clave': lote.producto.clave_cnis,
             'descripcion': lote.producto.descripcion[:60],
             'numero_lote': lote.numero_lote,
             'institucion': lote.institucion.denominacion if lote.institucion else 'N/A',
-            'cantidad_disponible': lote.cantidad_disponible,
-            'cantidad_reservada': lote.cantidad_reservada,
+            'cantidad_disponible': cantidad_disponible,
+            'cantidad_reservada': cantidad_reservada,
             'cantidad_neta': cantidad_neta,
             'porcentaje_reserva': round(porcentaje_reserva, 2),
             'fecha_caducidad': lote.fecha_caducidad,
@@ -126,9 +134,7 @@ def reporte_disponibilidad_lotes(request):
             'precio_unitario': lote.precio_unitario,
             'valor_total': lote.valor_total,
         })
-    
-    # Obtener lista de instituciones para filtro
-    from .models import Institucion
+
     instituciones = Institucion.objects.filter(activo=True).order_by('denominacion')
     
     # Contexto
@@ -197,7 +203,10 @@ def exportar_disponibilidad_excel(request):
         logger.info(f"[EXPORTAR_DISPONIBILIDAD] Filtros: clave={filtro_clave}, lote={filtro_lote}, institucion={filtro_institucion}")
     
     lotes = lotes.order_by('producto__clave_cnis', 'fecha_caducidad')
-    
+    lotes_list = list(lotes.prefetch_related('ubicaciones_detalle'))
+    lote_ids = [lo.id for lo in lotes_list]
+    reservas_map = totales_reserva_activa_por_lote_ids(lote_ids)
+
     # Crear workbook
     wb = Workbook()
     ws = wb.active
@@ -215,14 +224,13 @@ def exportar_disponibilidad_excel(request):
         bottom=Side(style='thin')
     )
     
-    # Encabezados
     headers = [
         'Clave CNIS',
         'Descripción',
         'Número Lote',
         'Institución',
-        'Cantidad Disponible',
-        'Cantidad Reservada',
+        'Cantidad Disponible (Σ ubicaciones)',
+        'Cantidad Reservada (pedidos activos)',
         'Cantidad Neta',
         '% Reserva',
         'Fecha Caducidad',
@@ -259,24 +267,25 @@ def exportar_disponibilidad_excel(request):
     total_reservado = 0
     total_neto = 0
     
-    for lote in lotes:
-        cantidad_neta = max(0, lote.cantidad_disponible - lote.cantidad_reservada)
+    for lote in lotes_list:
+        cantidad_disponible = _cantidad_fisica_lote(lote)
+        cantidad_reservada = reservas_map.get(lote.id, 0)
+        cantidad_neta = max(0, cantidad_disponible - cantidad_reservada)
         porcentaje_reserva = (
-            (lote.cantidad_reservada / lote.cantidad_disponible * 100)
-            if lote.cantidad_disponible > 0 else 0
+            (cantidad_reservada / cantidad_disponible * 100) if cantidad_disponible > 0 else 0
         )
-        
+
         dias_caducidad = None
         if lote.fecha_caducidad:
             dias_caducidad = (lote.fecha_caducidad - date.today()).days
-        
+
         row = [
             lote.producto.clave_cnis,
             lote.producto.descripcion[:60],
             lote.numero_lote,
             lote.institucion.denominacion if lote.institucion else 'N/A',
-            lote.cantidad_disponible,
-            lote.cantidad_reservada,
+            cantidad_disponible,
+            cantidad_reservada,
             cantidad_neta,
             f"{porcentaje_reserva:.2f}%",
             lote.fecha_caducidad.strftime('%d/%m/%Y') if lote.fecha_caducidad else 'N/A',
@@ -305,8 +314,8 @@ def exportar_disponibilidad_excel(request):
         for cell in ws[ws.max_row]:
             cell.fill = PatternFill(start_color=color, end_color=color, fill_type="solid")
         
-        total_disponible += lote.cantidad_disponible
-        total_reservado += lote.cantidad_reservada
+        total_disponible += cantidad_disponible
+        total_reservado += cantidad_reservada
         total_neto += cantidad_neta
     
     # Agregar fila de totales
