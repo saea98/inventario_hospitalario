@@ -15,7 +15,7 @@
     <div class="row mb-4">
         <div class="col-md-8">
             <h2><i class="fas fa-clipboard-list text-primary"></i> Reporte de Inventario Detallado</h2>
-            <p class="text-muted">Visualiza el inventario con información completa de entidades, órdenes de suministro y lotes</p>
+            <p class="text-muted">Inventario disponible por lote = existencia en ubicaciones (o cantidad del lote si no hay detalle) menos reserva activa en pedidos (<code>LoteAsignado</code> pendiente de surtir).</p>
         </div>
         <div class="col-md-4 text-end d-flex align-items-end justify-content-end gap-2">
             <a href="{% url 'reportes:carga_masiva_inventario_detallado' %}" class="btn btn-outline-primary">

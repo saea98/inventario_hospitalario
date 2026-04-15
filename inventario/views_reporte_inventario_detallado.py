@@ -5,19 +5,38 @@ INVENTARIO DISPONIBLE, LOTE, F_CAD, F_FAB, F_REC
 
 Orden y proveedor se resuelven con la FK OrdenSuministro cuando existe; si no,
 con los campos del lote (pedido, licitación, folio, proveedor, rfc_proveedor, etc.).
+
+INVENTARIO DISPONIBLE (columna): existencia física del lote menos reserva activa en pedidos.
+  Existencia = suma de LoteUbicacion.cantidad; si no hay ubicaciones, Lote.cantidad_disponible.
+  Reserva = suma de LoteAsignado.cantidad_asignada con surtido=False (misma regla que disponibilidad / pedidos).
 """
 
 from django.shortcuts import render, redirect
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
-from django.db.models import Q, Sum, Avg, Max, Value, CharField
+from django.db.models import (
+    Q,
+    Sum,
+    Avg,
+    Max,
+    Value,
+    CharField,
+    IntegerField,
+    Case,
+    When,
+    F,
+    OuterRef,
+    Subquery,
+)
 from django.db.models.functions import Coalesce
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
 from django.contrib import messages
 from datetime import date, datetime
 from io import BytesIO
 
-from .models import Lote, Producto, Institucion, OrdenSuministro, Proveedor, MovimientoInventario
+from .models import Lote, LoteUbicacion, Producto, Institucion, OrdenSuministro, Proveedor, MovimientoInventario
+from .pedidos_models import LoteAsignado
+from .propuesta_utils import totales_reserva_activa_por_lote_ids
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
@@ -45,6 +64,51 @@ def _texto_proveedor_lote(lote):
         if prov and (getattr(prov, 'razon_social', None) or '').strip():
             return prov.razon_social.strip()
     return (getattr(lote, 'proveedor', None) or '').strip()
+
+
+def _annotate_inventario_disponible_real(queryset):
+    """
+    Por cada Lote: inventario neto = existencia física − reserva en pedidos (LoteAsignado activo).
+    Expone _inventario_disponible_neto para ordenar y para _fila_lote_a_dict.
+    """
+    lu_total = (
+        LoteUbicacion.objects.filter(lote_id=OuterRef('pk'))
+        .order_by()
+        .values('lote_id')
+        .annotate(t=Sum('cantidad'))
+        .values('t')[:1]
+    )
+    la_total = (
+        LoteAsignado.objects.filter(lote_ubicacion__lote_id=OuterRef('pk'), surtido=False)
+        .order_by()
+        .values('lote_ubicacion__lote_id')
+        .annotate(t=Sum('cantidad_asignada'))
+        .values('t')[:1]
+    )
+    return (
+        queryset.annotate(
+            _sum_lu=Subquery(lu_total, output_field=IntegerField()),
+            _sum_res=Coalesce(Subquery(la_total, output_field=IntegerField()), Value(0)),
+        )
+        .annotate(
+            _fisico_lote=Coalesce(F('_sum_lu'), F('cantidad_disponible'), output_field=IntegerField()),
+        )
+        .annotate(
+            _inventario_disponible_neto=Case(
+                When(_fisico_lote__lte=F('_sum_res'), then=Value(0)),
+                default=F('_fisico_lote') - F('_sum_res'),
+                output_field=IntegerField(),
+            ),
+        )
+    )
+
+
+def _cantidad_fisica_lote_obj(lote):
+    """Suma LoteUbicacion.cantidad; si no hay filas, Lote.cantidad_disponible."""
+    ubs = lote.ubicaciones_detalle.all()
+    if ubs:
+        return sum(lu.cantidad for lu in ubs)
+    return int(lote.cantidad_disponible or 0)
 
 
 @login_required
@@ -111,6 +175,8 @@ def reporte_inventario_detallado(request):
     if filtro_lote:
         lotes = lotes.filter(numero_lote__icontains=filtro_lote)
 
+    lotes = _annotate_inventario_disponible_real(lotes)
+
     # Ordenación por clic en encabezado (sort=columna&order=asc|desc)
     sort_column = request.GET.get('sort', '').strip()
     sort_order = request.GET.get('order', 'asc').strip().lower()
@@ -125,7 +191,7 @@ def reporte_inventario_detallado(request):
         'clave': 'producto__clave_cnis',
         'descripcion': 'producto__descripcion',
         'estado': 'estado',
-        'inventario': 'cantidad_disponible',
+        'inventario': '_inventario_disponible_neto',
         'lote': 'numero_lote',
         'f_cad': 'fecha_caducidad',
         'f_fab': 'fecha_fabricacion',
@@ -380,7 +446,15 @@ def _fila_lote_a_dict(lote):
         'clave': lote.producto.clave_cnis if lote.producto else '',
         'descripcion': descripcion_val,
         'estado_insumo': estado_texto,
-        'inventario_disponible': lote.cantidad_disponible,
+        'inventario_disponible': (
+            int(lote._inventario_disponible_neto)
+            if hasattr(lote, '_inventario_disponible_neto')
+            else max(
+                0,
+                _cantidad_fisica_lote_obj(lote)
+                - totales_reserva_activa_por_lote_ids([lote.id]).get(lote.id, 0),
+            )
+        ),
         'lote': lote.numero_lote,
         'f_cad': lote.fecha_caducidad.strftime('%d/%m/%Y') if getattr(lote, 'fecha_caducidad', None) else '',
         'f_fab': lote.fecha_fabricacion.strftime('%d/%m/%Y') if getattr(lote, 'fecha_fabricacion', None) else '',
@@ -750,7 +824,7 @@ def exportar_inventario_detallado_excel(request):
     Usa hoja write_only + iterator() para velocidad; sin estilos ni anchos de columna en el XLSX.
     """
     from_post = request.method == 'POST'
-    lotes = _obtener_lotes_filtrados(request, from_post=from_post)
+    lotes = _annotate_inventario_disponible_real(_obtener_lotes_filtrados(request, from_post=from_post))
 
     # Columnas a exportar: desde POST (selector) o por defecto todas
     if from_post:
