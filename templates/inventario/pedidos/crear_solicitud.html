@@ -4,6 +4,7 @@
 {% block content %}
 <div class="container-fluid">
     <h1 class="h3 mb-4 text-gray-800">{{ page_title|default:'Crear Nueva Solicitud de Pedido' }}</h1>
+    <p class="text-muted mb-3">Puede <strong>capturar los ítems a mano</strong> abajo y pulsar «Guardar Solicitud», o bien <strong>importar un CSV</strong> con el botón de carga masiva. El archivo CSV no es obligatorio para guardar.</p>
 
     <form method="post" enctype="multipart/form-data" id="solicitud-form">
         {% csrf_token %}
@@ -22,13 +23,12 @@
         <!-- Carga masiva: mismo POST que los datos del pedido -->
         <div class="card shadow mb-4">
             <div class="card-header py-3">
-                <h6 class="m-0 font-weight-bold text-primary">Carga Masiva de Items (CSV)</h6>
+                <h6 class="m-0 font-weight-bold text-primary">Opcional — Carga masiva desde CSV</h6>
             </div>
             <div class="card-body">
                 <div class="alert alert-info small mb-3" id="csv-requisito-aviso" role="status">
                     <i class="fas fa-info-circle"></i>
-                    Seleccione primero <strong>institución</strong>, <strong>almacén destino</strong> y <strong>fecha de entrega programada</strong>;
-                    así el pedido queda alineado con el almacén y las validaciones de folio antes de procesar el archivo.
+                    Solo si va a usar CSV: indique primero <strong>institución</strong>, <strong>almacén destino</strong> y <strong>fecha de entrega programada</strong>, elija el archivo y pulse «Cargar Items desde CSV». Después puede revisar cantidades y usar «Guardar Solicitud» (no hace falta volver a adjuntar el archivo).
                 </div>
                 <div class="form-group">
                     <label for="id_csv_file">Selecciona un archivo CSV</label>

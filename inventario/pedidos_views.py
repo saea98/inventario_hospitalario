@@ -288,8 +288,12 @@ def crear_solicitud(request):
                 )
                 form = header_form
                 formset = ItemSolicitudFormSet(request.POST, instance=SolicitudPedido())
+            elif not request.FILES.get('csv_file'):
+                messages.error(request, 'Seleccione un archivo CSV para cargar (o use solo los renglones manuales y «Guardar Solicitud»).')
+                form = SolicitudPedidoForm(request.POST, user=request.user)
+                formset = ItemSolicitudFormSet(request.POST, instance=SolicitudPedido())
             elif not upload_form.is_valid():
-                messages.error(request, 'Seleccione un archivo CSV válido para cargar.')
+                messages.error(request, 'El archivo CSV no es válido.')
                 form = SolicitudPedidoForm(request.POST, user=request.user)
                 formset = ItemSolicitudFormSet(request.POST, instance=SolicitudPedido())
             else:
@@ -331,10 +335,12 @@ def crear_solicitud(request):
                         if folio_desde_csv:
                             break
 
+                    # Acumular por producto: el modelo exige unique (solicitud, producto)
+                    cantidad_por_producto_id = {}
                     for row in rows:
                         clave = row.get('CLAVE')
                         cantidad = row.get('CANTIDAD SOLICITADA')
-                        
+
                         if clave and cantidad:
                             try:
                                 cantidad_int = int(cantidad)
@@ -349,7 +355,7 @@ def crear_solicitud(request):
                                 )
                                 messages.warning(request, f"Cantidad invalida para clave {clave}")
                                 continue
-                            
+
                             try:
                                 producto = Producto.objects.get(clave_cnis=clave)
                             except Producto.DoesNotExist:
@@ -363,35 +369,18 @@ def crear_solicitud(request):
                                 )
                                 messages.warning(request, f"Clave {clave} no existe")
                                 continue
-                            
-                            # NO validar disponibilidad aquí - la validación real se hace al generar la propuesta
-                            # Esto permite crear el pedido y luego en la propuesta se valida correctamente
-                            # con el algoritmo completo que busca en múltiples lotes y ubicaciones
-                            # resultado_validacion = validar_disponibilidad_para_propuesta(
-                            #     producto.id,
-                            #     cantidad_int,
-                            #     None
-                            # )
-                            # existencia = resultado_validacion['cantidad_disponible']
-                            # 
-                            # if not resultado_validacion['disponible']:
-                            #     registrar_error_pedido(
-                            #         usuario=request.user,
-                            #         tipo_error='SIN_EXISTENCIA',
-                            #         clave_solicitada=clave,
-                            #         cantidad_solicitada=cantidad_int,
-                            #         descripcion_error=f"Insuficiente: {cantidad_int} solicitado, {existencia} disponible",
-                            #         enviar_alerta=True
-                            #     )
-                            #     messages.warning(request, f"Sin existencia para {clave}")
-                            #     continue
-                            
-                            # cantidad_aprobada vacía: al guardar se usará cantidad_solicitada; el usuario puede poner 0 en las que no quiera surtir
-                            items_data.append({
-                                'producto': producto.id,
-                                'cantidad_solicitada': cantidad_int,
-                                'cantidad_aprobada': None,
-                            })
+
+                            pid = producto.id
+                            cantidad_por_producto_id[pid] = (
+                                cantidad_por_producto_id.get(pid, 0) + cantidad_int
+                            )
+
+                    for pid, cantidad_total in cantidad_por_producto_id.items():
+                        items_data.append({
+                            'producto': pid,
+                            'cantidad_solicitada': cantidad_total,
+                            'cantidad_aprobada': None,
+                        })
                     
                     extra_forms = len(items_data) if items_data else 1
                     ItemSolicitudFormSet = inlineformset_factory(
@@ -417,7 +406,8 @@ def crear_solicitud(request):
                         else:
                             msg_csv += f" Folio de pedido tomado de la columna FOLIO del CSV: «{folio_desde_csv}»."
                     messages.success(request, msg_csv)
-                    
+                    upload_form = BulkUploadForm()
+
                 except Exception as e:
                     messages.error(request, f"Error al procesar el archivo CSV: {e}")
                     form = SolicitudPedidoForm(request.POST, user=request.user)

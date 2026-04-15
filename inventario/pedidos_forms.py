@@ -620,4 +620,13 @@ class SolicitudPedidoEdicionForm(forms.ModelForm):
 
 
 class BulkUploadForm(forms.Form):
-    csv_file = forms.FileField(label='Archivo CSV para carga masiva')
+    """
+    CSV opcional: solo se exige archivo al pulsar «Cargar Items desde CSV».
+    Si el campo fuera required=True, el navegador bloquearía también «Guardar Solicitud»
+    (mismo formulario) y tras importar CSV el input queda vacío al reenviar.
+    """
+    csv_file = forms.FileField(
+        label='Archivo CSV para carga masiva',
+        required=False,
+        widget=forms.FileInput(attrs={'accept': '.csv'}),
+    )
