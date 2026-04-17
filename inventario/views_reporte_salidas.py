@@ -88,6 +88,36 @@ def _hay_filtros_reporte_salidas(data):
     )
 
 
+def _deduplicar_movimientos_salida(salidas_qs):
+    """
+    Evita filas repetidas en el reporte cuando en BD existen dos MovimientoInventario
+    equivalentes (mismo lote, folio de propuesta, cantidades, fecha y motivo).
+    Conserva el registro de menor id (creación original).
+
+    El queryset puede venir ordenado de cualquier forma; se devuelve una lista ordenada
+    por fecha_movimiento descendente.
+    """
+    rows = list(salidas_qs.order_by('id'))
+    seen = set()
+    out = []
+    for m in rows:
+        fp = (
+            m.lote_id,
+            (m.folio or '').strip(),
+            int(m.cantidad),
+            int(m.cantidad_anterior),
+            int(m.cantidad_nueva),
+            str(m.fecha_movimiento),
+            (m.motivo or '')[:500],
+        )
+        if fp in seen:
+            continue
+        seen.add(fp)
+        out.append(m)
+    out.sort(key=lambda x: x.fecha_movimiento, reverse=True)
+    return out
+
+
 def _construir_fila_salida(m):
     """Construye la fila para un MovimientoInventario SALIDA."""
     lote = m.lote
@@ -201,7 +231,8 @@ def reporte_salidas(request):
         if filtro_folio:
             salidas = salidas.filter(folio__icontains=filtro_folio)
 
-        for m in salidas:
+        movimientos_unicos = _deduplicar_movimientos_salida(salidas)
+        for m in movimientos_unicos:
             row = _construir_fila_salida(m)
             salidas_lista.append({'row': row, 'id': m.id})
             total_cantidad += row[5]  # CANTIDAD SURTIDA
@@ -298,6 +329,8 @@ def exportar_salidas_excel(request):
     if filtro_folio:
         salidas = salidas.filter(folio__icontains=filtro_folio)
 
+    movimientos_unicos = _deduplicar_movimientos_salida(salidas)
+
     wb = Workbook()
     ws = wb.active
     ws.title = "Salidas"
@@ -318,7 +351,7 @@ def exportar_salidas_excel(request):
     total_cantidad = 0
     total_importe_val = 0.0
     listado = []
-    for m in salidas:
+    for m in movimientos_unicos:
         fila = _construir_fila_salida(m)
         listado.append(fila)
         total_cantidad += fila[5] or 0
