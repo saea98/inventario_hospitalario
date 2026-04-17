@@ -882,23 +882,23 @@ def registrar_ajuste(request):
     return render(request, 'inventario/registrar_ajuste.html', context)
 
 
-@login_required
-def lista_movimientos(request):
-    """Lista de movimientos de inventario"""
-    
-    # Obtener institución del usuario
+def _movimientos_filtrados_desde_request(request):
+    """
+    Queryset de movimientos con los mismos criterios GET que la lista (sin paginar).
+    Parámetros: tipo, fecha_desde, fecha_hasta, busqueda_lote, busqueda_clave,
+    busqueda_producto, busqueda_motivo. Ignora 'page'.
+    """
     institucion = request.user.institucion if hasattr(request.user, 'institucion') else None
-    
-    # Filtro base: movimientos de la institución (destino o lote perteneciente a la institución)
-    # Muchos movimientos tienen institucion_destino=null y solo tienen lote.institucion
+
     if institucion:
         movimientos = MovimientoInventario.objects.filter(
             Q(institucion_destino=institucion) | Q(lote__institucion=institucion)
-        ).select_related('lote', 'lote__producto', 'usuario')
+        ).select_related('lote', 'lote__producto', 'lote__institucion', 'usuario')
     else:
-        movimientos = MovimientoInventario.objects.all().select_related('lote', 'lote__producto', 'usuario')
-    
-    # Filtros
+        movimientos = MovimientoInventario.objects.all().select_related(
+            'lote', 'lote__producto', 'lote__institucion', 'usuario'
+        )
+
     filtro_tipo = request.GET.get('tipo', '')
     filtro_fecha_desde = request.GET.get('fecha_desde', '')
     filtro_fecha_hasta = request.GET.get('fecha_hasta', '')
@@ -906,50 +906,60 @@ def lista_movimientos(request):
     busqueda_clave = request.GET.get('busqueda_clave', '').strip()
     busqueda_producto = request.GET.get('busqueda_producto', '').strip()
     busqueda_motivo = request.GET.get('busqueda_motivo', '').strip()
-    
-    # Aplicar filtros
+
     if filtro_tipo:
         movimientos = movimientos.filter(tipo_movimiento=filtro_tipo)
-    
+
     if filtro_fecha_desde:
         try:
             fecha = datetime.strptime(filtro_fecha_desde, '%Y-%m-%d').date()
             movimientos = movimientos.filter(fecha_movimiento__date__gte=fecha)
         except ValueError:
             pass
-    
+
     if filtro_fecha_hasta:
         try:
             fecha = datetime.strptime(filtro_fecha_hasta, '%Y-%m-%d').date()
             movimientos = movimientos.filter(fecha_movimiento__date__lte=fecha)
         except ValueError:
             pass
-    
-    # Búsquedas separadas
+
     if busqueda_lote:
         movimientos = movimientos.filter(lote__numero_lote__icontains=busqueda_lote)
-    
+
     if busqueda_clave:
         movimientos = movimientos.filter(lote__producto__clave_cnis__icontains=busqueda_clave)
-    
+
     if busqueda_producto:
         movimientos = movimientos.filter(lote__producto__descripcion__icontains=busqueda_producto)
-    
+
     if busqueda_motivo:
         movimientos = movimientos.filter(motivo__icontains=busqueda_motivo)
-    
-    # Ordenar
-    movimientos = movimientos.order_by('-fecha_movimiento')
-    
-    # Paginación
+
+    return movimientos.order_by('-fecha_movimiento')
+
+
+@login_required
+def lista_movimientos(request):
+    """Lista de movimientos de inventario"""
+    movimientos = _movimientos_filtrados_desde_request(request)
+
+    filtro_tipo = request.GET.get('tipo', '')
+    filtro_fecha_desde = request.GET.get('fecha_desde', '')
+    filtro_fecha_hasta = request.GET.get('fecha_hasta', '')
+    busqueda_lote = request.GET.get('busqueda_lote', '').strip()
+    busqueda_clave = request.GET.get('busqueda_clave', '').strip()
+    busqueda_producto = request.GET.get('busqueda_producto', '').strip()
+    busqueda_motivo = request.GET.get('busqueda_motivo', '').strip()
+
     from django.core.paginator import Paginator
+
     paginator = Paginator(movimientos, 25)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
-    
-    # Opciones para filtros
+
     tipos_movimiento = MovimientoInventario.TIPOS_MOVIMIENTO
-    
+
     context = {
         'page_obj': page_obj,
         'tipos_movimiento': tipos_movimiento,
@@ -961,8 +971,81 @@ def lista_movimientos(request):
         'busqueda_producto': busqueda_producto,
         'busqueda_motivo': busqueda_motivo,
     }
-    
+
     return render(request, 'inventario/lista_movimientos.html', context)
+
+
+@login_required
+def exportar_movimientos_excel(request):
+    """Exporta a Excel los movimientos con los mismos filtros GET que la lista (sin límite de página)."""
+    from openpyxl import Workbook
+    from openpyxl.styles import Font, Alignment
+    from openpyxl.utils import get_column_letter
+
+    movimientos = _movimientos_filtrados_desde_request(request)
+
+    wb = Workbook()
+    ws = wb.active
+    ws.title = 'Movimientos'
+
+    headers = [
+        'Fecha y hora',
+        'Tipo',
+        'Clave CNIS',
+        'Número de lote',
+        'Producto',
+        'CLUES',
+        'Institución',
+        'Cant. anterior',
+        'Cant. nueva',
+        'Cantidad movimiento',
+        'Remisión',
+        'Motivo',
+        'Usuario',
+        'Anulado',
+    ]
+    ws.append(headers)
+    for cell in ws[1]:
+        cell.font = Font(bold=True)
+        cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
+
+    for m in movimientos.iterator(chunk_size=500):
+        lote = m.lote
+        prod = lote.producto if lote else None
+        inst = lote.institucion if lote else None
+        inst_clue = getattr(inst, 'clue', '') or ''
+        inst_nom = getattr(inst, 'denominacion', '') or ''
+        remision = m.remision or (getattr(lote, 'remision', None) or '') or ''
+        ws.append(
+            [
+                m.fecha_movimiento.strftime('%d/%m/%Y %H:%M') if m.fecha_movimiento else '',
+                m.get_tipo_movimiento_display(),
+                (prod.clave_cnis or '') if prod else '',
+                lote.numero_lote if lote else '',
+                (prod.descripcion or '') if prod else '',
+                inst_clue,
+                inst_nom,
+                m.cantidad_anterior,
+                m.cantidad_nueva,
+                m.cantidad,
+                str(remision) if remision else '',
+                (m.motivo or '')[:5000],
+                m.usuario.username if m.usuario_id else '',
+                'Sí' if m.anulado else 'No',
+            ]
+        )
+
+    widths = [18, 16, 14, 14, 36, 12, 28, 12, 12, 14, 14, 40, 16, 8]
+    for i, w in enumerate(widths, start=1):
+        ws.column_dimensions[get_column_letter(i)].width = w
+
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
+    fname = f"movimientos_{timezone.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
+    response['Content-Disposition'] = f'attachment; filename="{fname}"'
+    wb.save(response)
+    return response
 
 
 # ============================================================

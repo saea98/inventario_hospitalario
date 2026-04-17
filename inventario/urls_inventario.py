@@ -25,6 +25,7 @@ urlpatterns = [
     
     # Movimientos
     path('movimientos/', views_inventario.lista_movimientos, name='lista_movimientos'),
+    path('movimientos/exportar-excel/', views_inventario.exportar_movimientos_excel, name='exportar_movimientos_excel'),
     path('salida/', views_inventario.registrar_salida, name='registrar_salida'),
     path('ajuste/', views_inventario.registrar_ajuste, name='registrar_ajuste'),
     
