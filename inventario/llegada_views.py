@@ -313,6 +313,23 @@ class ListaLlegadasView(LoginRequiredMixin, View):
         return render(request, "inventario/llegadas/lista_llegadas.html", context)
 
 
+def _totales_piezas_emitidas_recibidas_reporte(llegada):
+    """
+    Totales para columnas «Piezas emitidas» / «Piezas recibidas» en exportación.
+
+    La fuente fiable cuando hay detalle por ítem es la suma de ItemLlegada.cantidad_emitida
+    y cantidad_recibida (lo que el proveedor envió vs lo recibido por línea). Los campos
+    de cabecera LlegadaProveedor.numero_piezas_* a veces coinciden por error (p. ej. el
+    front solo recalcula recibidas desde ítems y no emitidas).
+    """
+    items = list(llegada.items.all())
+    if not items:
+        return llegada.numero_piezas_emitidas, llegada.numero_piezas_recibidas
+    total_emitidas = sum(int(i.cantidad_emitida or 0) for i in items)
+    total_recibidas = sum(int(i.cantidad_recibida or 0) for i in items)
+    return total_emitidas, total_recibidas
+
+
 def exportar_llegadas_excel(request):
     """Exporta la lista de llegadas a Excel con campos de cita y llegada"""
     
@@ -496,9 +513,10 @@ def exportar_llegadas_excel(request):
             col += 1
             ws.cell(row=row_num, column=col).value = llegada.remision
             col += 1
-            ws.cell(row=row_num, column=col).value = llegada.numero_piezas_emitidas
+            piezas_em, piezas_rec = _totales_piezas_emitidas_recibidas_reporte(llegada)
+            ws.cell(row=row_num, column=col).value = piezas_em
             col += 1
-            ws.cell(row=row_num, column=col).value = llegada.numero_piezas_recibidas
+            ws.cell(row=row_num, column=col).value = piezas_rec
             col += 1
             if llegada.tipo_red:
                 tipo_red_display = dict([('FRIA', 'Red Fría'), ('SECA', 'Red Seca')]).get(llegada.tipo_red, llegada.tipo_red)
