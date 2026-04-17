@@ -7,7 +7,10 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse, HttpResponse
-from django.db.models import Q, Sum, Count, F
+from django.urls import reverse
+from django.db import transaction
+from django.db.models import Q, Sum, Count, F, IntegerField
+from django.db.models.functions import Coalesce
 from django.views.decorators.http import require_http_methods
 from django.utils import timezone
 from datetime import datetime, timedelta, date
@@ -656,61 +659,162 @@ def ajustar_cantidad_lote(request, lote_id):
 # MOVIMIENTOS DE INVENTARIO
 # ============================================================
 
+def _cantidad_fisica_lote_ubicaciones(lote):
+    """Suma LoteUbicacion.cantidad; si no hay filas, Lote.cantidad_disponible (misma regla que reportes)."""
+    ubs = lote.ubicaciones_detalle.all()
+    if ubs:
+        return sum(lu.cantidad for lu in ubs)
+    return int(lote.cantidad_disponible or 0)
+
+
+def _registrar_salida_lote_con_movimiento(lote, cantidad_salida, usuario, motivo, observaciones_extra):
+    """
+    Descuenta existencias: por ubicaciones si existen (FIFO por id), alineado con surtimiento;
+    si no hay ubicaciones, descuenta solo el lote. Actualiza cantidad_disponible/reservada del lote
+    y crea MovimientoInventario tipo SALIDA.
+    """
+    obs = (observaciones_extra or '').strip()
+    motivo_txt = motivo
+    if obs:
+        motivo_txt = f'{motivo}. Obs.: {obs}'
+
+    with transaction.atomic():
+        lote = Lote.objects.select_for_update().select_related('producto').get(pk=lote.pk)
+        ubs = list(
+            LoteUbicacion.objects.filter(lote=lote).select_for_update().order_by('pk')
+        )
+
+        if ubs:
+            cantidad_anterior = sum(u.cantidad for u in ubs)
+            if cantidad_salida > cantidad_anterior:
+                raise ValueError(
+                    f'Cantidad solicitada ({cantidad_salida}) mayor que la existencia física ({cantidad_anterior}).'
+                )
+            remaining = cantidad_salida
+            for lu in ubs:
+                if remaining <= 0:
+                    break
+                take = min(lu.cantidad, remaining)
+                if take <= 0:
+                    continue
+                lu.cantidad = lu.cantidad - take
+                lu.cantidad_reservada = max(0, lu.cantidad_reservada - take)
+                lu.save(update_fields=['cantidad', 'cantidad_reservada'])
+                remaining -= take
+
+            tot_cant = (
+                LoteUbicacion.objects.filter(lote=lote).aggregate(t=Sum('cantidad'))['t'] or 0
+            )
+            tot_res = (
+                LoteUbicacion.objects.filter(lote=lote).aggregate(t=Sum('cantidad_reservada'))['t']
+                or 0
+            )
+            Lote.objects.filter(pk=lote.pk).update(
+                cantidad_disponible=tot_cant, cantidad_reservada=tot_res
+            )
+            cantidad_nueva = tot_cant
+        else:
+            cantidad_anterior = int(lote.cantidad_disponible or 0)
+            if cantidad_salida > cantidad_anterior:
+                raise ValueError(
+                    f'Cantidad solicitada ({cantidad_salida}) mayor que disponible ({cantidad_anterior}).'
+                )
+            cantidad_nueva = cantidad_anterior - cantidad_salida
+            Lote.objects.filter(pk=lote.pk).update(cantidad_disponible=cantidad_nueva)
+
+        movimiento = MovimientoInventario.objects.create(
+            lote=lote,
+            tipo_movimiento='SALIDA',
+            cantidad=cantidad_salida,
+            cantidad_anterior=cantidad_anterior,
+            cantidad_nueva=cantidad_nueva,
+            motivo=motivo_txt,
+            usuario=usuario,
+            institucion_destino=lote.institucion,
+        )
+        return movimiento
+
+
 @login_required
 def registrar_salida(request):
-    """Registrar salida de inventario"""
-    
+    """Registrar salida de inventario (lista desde /lotes/ puede pasar ?lote=<id> para preseleccionar)."""
+
     if request.method == 'POST':
         form = ItemSalidaForm(request.POST)
         if form.is_valid():
             try:
                 lote = Lote.objects.get(id=form.cleaned_data['lote_id'])
+                if lote.estado != 1:
+                    messages.error(request, 'El lote no está disponible para salida.')
+                    return redirect(f"{reverse('registrar_salida')}?lote={lote.pk}")
+
                 cantidad_salida = form.cleaned_data['cantidad_salida']
-                
-                # Validar cantidad disponible
-                if cantidad_salida > lote.cantidad_disponible:
+                fisico = _cantidad_fisica_lote_ubicaciones(lote)
+                if cantidad_salida > fisico:
                     messages.error(
                         request,
-                        f'Cantidad solicitada ({cantidad_salida}) mayor que disponible ({lote.cantidad_disponible})'
+                        f'Cantidad solicitada ({cantidad_salida}) mayor que la existencia disponible ({fisico}).'
                     )
-                    return redirect('registrar_salida')
-                
-                # Crear movimiento
-                movimiento = MovimientoInventario.objects.create(
-                    lote=lote,
-                    tipo_movimiento='SALIDA',
-                    cantidad=cantidad_salida,
-                    cantidad_anterior=lote.cantidad_disponible,
-                    cantidad_nueva=lote.cantidad_disponible - cantidad_salida,
-                    motivo=form.cleaned_data['motivo_salida'],
-                    observaciones=form.cleaned_data.get('observaciones', ''),
-                    usuario=request.user,
-                    institucion_destino=lote.institucion,
+                    return redirect(f"{reverse('registrar_salida')}?lote={lote.pk}")
+
+                movimiento = _registrar_salida_lote_con_movimiento(
+                    lote,
+                    cantidad_salida,
+                    request.user,
+                    form.cleaned_data['motivo_salida'],
+                    form.cleaned_data.get('observaciones', ''),
                 )
-                
-                # Actualizar lote
-                lote.cantidad_disponible -= cantidad_salida
-                lote.save()
-                
-                messages.success(request, f'Salida registrada correctamente. Movimiento ID: {movimiento.id}')
+
+                messages.success(
+                    request,
+                    f'Salida registrada correctamente. Movimiento ID: {movimiento.id}. '
+                    f'Quedó reflejada en movimientos de inventario.',
+                )
                 return redirect('lista_lotes')
-                
+
             except Lote.DoesNotExist:
                 messages.error(request, 'Lote no encontrado')
+            except ValueError as e:
+                messages.error(request, str(e))
             except Exception as e:
                 messages.error(request, f'Error al registrar salida: {str(e)}')
     else:
         form = ItemSalidaForm()
-    
-    # Obtener lotes disponibles
-    lotes = Lote.objects.filter(estado=1, cantidad_disponible__gt=0).select_related('producto')
-    
+
+    lote_preseleccionado_id = None
+    raw_lote = (request.GET.get('lote') or '').strip()
+    if raw_lote.isdigit():
+        lote_preseleccionado_id = int(raw_lote)
+    if request.method == 'POST':
+        raw_post = (request.POST.get('lote_id') or '').strip()
+        if raw_post.isdigit():
+            lote_preseleccionado_id = int(raw_post)
+
+    # Lotes con existencia física > 0; siempre incluir el preseleccionado por ?lote= (p. ej. bordes de sincronización)
+    lotes_base = (
+        Lote.objects.filter(estado=1)
+        .select_related('producto')
+        .annotate(sum_ubic=Sum('ubicaciones_detalle__cantidad'))
+        .annotate(
+            fisico=Coalesce(
+                F('sum_ubic'),
+                F('cantidad_disponible'),
+                output_field=IntegerField(),
+            )
+        )
+    )
+    q_disponible = Q(fisico__gt=0)
+    if lote_preseleccionado_id:
+        q_disponible |= Q(pk=lote_preseleccionado_id)
+    lotes = lotes_base.filter(q_disponible).order_by('producto__clave_cnis', 'numero_lote')
+
     context = {
         'form': form,
         'lotes': lotes,
-        'titulo': 'Registrar Salida de Inventario'
+        'titulo': 'Registrar Salida de Inventario',
+        'lote_preseleccionado_id': lote_preseleccionado_id,
     }
-    
+
     return render(request, 'inventario/registrar_salida.html', context)
 
 

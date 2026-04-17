@@ -34,10 +34,12 @@
                             <select name="lote_id" class="form-select" id="loteSelect" required>
                                 <option value="">Selecciona un lote</option>
                                 {% for lote in lotes %}
-                                <option value="{{ lote.id }}" 
-                                        data-cantidad="{{ lote.cantidad_disponible }}"
+                                <option value="{{ lote.id }}"
+                                        {% if lote_preseleccionado_id and lote.id == lote_preseleccionado_id %}selected{% endif %}
+                                        data-cantidad="{{ lote.fisico }}"
+                                        data-clave="{{ lote.producto.clave_cnis|default:'' }}"
                                         data-producto="{{ lote.producto.descripcion }}">
-                                    {{ lote.numero_lote }} - {{ lote.producto.descripcion }} ({{ lote.cantidad_disponible }} disponibles)
+                                    {{ lote.producto.clave_cnis|default:"—" }} — {{ lote.numero_lote }} — {{ lote.producto.descripcion }} ({{ lote.fisico }} disponibles)
                                 </option>
                                 {% endfor %}
                             </select>
@@ -108,6 +110,10 @@
                 </div>
                 <div class="card-body">
                     <div class="mb-3">
+                        <label class="form-label text-muted">Clave CNIS</label>
+                        <p id="claveInfo" class="fs-6 font-monospace">-</p>
+                    </div>
+                    <div class="mb-3">
                         <label class="form-label text-muted">Producto</label>
                         <p id="productoInfo" class="fs-6">-</p>
                     </div>
@@ -145,16 +151,29 @@
 </div>
 
 <script>
-document.getElementById('loteSelect').addEventListener('change', function() {
-    const option = this.options[this.selectedIndex];
+function actualizarPanelLote(select) {
+    const option = select.options[select.selectedIndex];
     const cantidad = option.dataset.cantidad || 0;
     const producto = option.dataset.producto || '-';
-    
+    const clave = option.dataset.clave || '-';
+
     document.getElementById('cantidadDisponible').value = cantidad;
+    document.getElementById('claveInfo').textContent = clave;
     document.getElementById('productoInfo').textContent = producto;
     document.getElementById('disponibleInfo').textContent = cantidad;
     document.getElementById('salidaInfo').textContent = '-';
     document.getElementById('quedariaInfo').textContent = '-';
+}
+
+document.getElementById('loteSelect').addEventListener('change', function() {
+    actualizarPanelLote(this);
+});
+
+document.addEventListener('DOMContentLoaded', function() {
+    const sel = document.getElementById('loteSelect');
+    if (sel && sel.value) {
+        actualizarPanelLote(sel);
+    }
 });
 
 document.getElementById('cantidadSalida').addEventListener('input', function() {
