@@ -7,7 +7,7 @@ from django.views import View
 from django.contrib import messages
 from django.contrib.auth.mixins import LoginRequiredMixin, PermissionRequiredMixin
 from django.db import transaction, models
-from django.db.models import Q
+from django.db.models import Q, Prefetch
 from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.http import JsonResponse, HttpResponse
@@ -313,6 +313,70 @@ class ListaLlegadasView(LoginRequiredMixin, View):
         return render(request, "inventario/llegadas/lista_llegadas.html", context)
 
 
+def _cantidad_recibida_inferida_desde_facturacion(item):
+    """
+    Cantidad implícita por línea: subtotal / precio unitario sin IVA (captura facturación).
+    Sirve cuando cantidad_recibida en BD repitió el total de la llegada en cada fila.
+    """
+    if not item:
+        return None
+    try:
+        p = item.precio_unitario_sin_iva
+        s = item.subtotal
+        if p is None or s is None:
+            return None
+        pf = float(p)
+        sf = float(s)
+        if pf <= 0:
+            return None
+        q = int(round(sf / pf))
+        return q if q >= 0 else None
+    except (TypeError, ValueError, ZeroDivisionError):
+        return None
+
+
+def _piezas_emitidas_recibidas_fila_excel(item, llegada, items_misma_llegada):
+    """
+    Cantidades por partida para el Excel.
+
+    - Por defecto: cantidad_emitida / cantidad_recibida del ItemLlegada.
+    - Si hay varias partidas y cada ítem guardó el *mismo* número igual al total de cabecera
+      (error típico) pero existe cantidad coherente desde subtotal/precio, usa esa para
+      «Piezas recibidas» (alineado con EPA cuando la facturación por línea es correcta).
+    """
+    if item is None:
+        return _totales_piezas_emitidas_recibidas_reporte(llegada)
+    ce = int(item.cantidad_emitida or 0)
+    cr = int(item.cantidad_recibida or 0)
+    if len(items_misma_llegada) < 2:
+        return ce, cr
+    qi = _cantidad_recibida_inferida_desde_facturacion(item)
+    hdr_r = int(llegada.numero_piezas_recibidas or 0)
+    hdr_e = int(llegada.numero_piezas_emitidas or 0)
+    rec_vals = [int(x.cantidad_recibida or 0) for x in items_misma_llegada]
+    emit_vals = [int(x.cantidad_emitida or 0) for x in items_misma_llegada]
+    # Varias partidas pero cada fila repitió el total de cabecera: recuperar desde facturación
+    if (
+        qi is not None
+        and qi > 0
+        and hdr_r > 0
+        and len(set(rec_vals)) == 1
+        and rec_vals[0] == hdr_r
+        and rec_vals[0] != qi
+    ):
+        cr = qi
+    if (
+        qi is not None
+        and qi > 0
+        and hdr_e > 0
+        and len(set(emit_vals)) == 1
+        and emit_vals[0] == hdr_e
+        and emit_vals[0] != qi
+    ):
+        ce = qi
+    return ce, cr
+
+
 def _totales_piezas_emitidas_recibidas_reporte(llegada):
     """
     Totales de cabecera cuando una llegada no tiene ítems en BD: usa numero_piezas_*.
@@ -336,7 +400,14 @@ def exportar_llegadas_excel(request):
         'usuario_calidad', 'usuario_facturacion',
         'usuario_supervision', 'usuario_ubicacion', 'creado_por',
         'cita__usuario_autorizacion'
-    ).prefetch_related('items__producto').all()
+    ).prefetch_related(
+        Prefetch(
+            'items',
+            queryset=ItemLlegada.objects.select_related('producto').order_by(
+                'fecha_creacion', 'numero_lote'
+            ),
+        )
+    ).all()
     
     # Aplicar los mismos filtros que la vista de lista
     folio = request.GET.get('folio', '').strip()
@@ -510,12 +581,11 @@ def exportar_llegadas_excel(request):
             col += 1
             ws.cell(row=row_num, column=col).value = llegada.remision
             col += 1
-            # Una fila por ítem: mismas cantidades que en EPA por partida (no repetir el total de la llegada).
-            if item is not None:
-                piezas_em = int(item.cantidad_emitida or 0)
-                piezas_rec = int(item.cantidad_recibida or 0)
-            else:
-                piezas_em, piezas_rec = _totales_piezas_emitidas_recibidas_reporte(llegada)
+            # Una fila por ítem: cantidades por partida; si en BD se repitió el total en cada fila,
+            # intentar corregir recibidas desde subtotal/precio (ver _piezas_emitidas_recibidas_fila_excel).
+            piezas_em, piezas_rec = _piezas_emitidas_recibidas_fila_excel(
+                item, llegada, items_list
+            )
             ws.cell(row=row_num, column=col).value = piezas_em
             col += 1
             ws.cell(row=row_num, column=col).value = piezas_rec
@@ -665,6 +735,8 @@ def exportar_llegadas_excel(request):
     )
     filename = f"llegadas_proveedores_{timezone.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
+    response['Cache-Control'] = 'no-store, no-cache, must-revalidate, max-age=0'
+    response['Pragma'] = 'no-cache'
     wb.save(response)
     return response
 
