@@ -337,19 +337,29 @@ def _cantidad_recibida_inferida_desde_facturacion(item):
 
 def _piezas_emitidas_recibidas_fila_excel(item, llegada, items_misma_llegada):
     """
-    Cantidades por partida para el Excel.
+    Cantidades para el Excel.
 
-    - Piezas emitidas: siempre la captura en ítem (cantidad_emitida), sin sustituir por la
-      inferencia de recibidas.
-    - Piezas recibidas: cantidad_recibida del ítem; solo si hay varias partidas y cada fila
-      repitió el total de cabecera, se puede corregir con subtotal/precio (facturación).
+    - Una sola partida: emitidas y recibidas desde el ítem (captura).
+    - Varias partidas (mismo folio, varios lotes/í­tems): en cada fila las **recibidas** son
+      las del ítem; las **emitidas** repiten el total de cabecera (`numero_piezas_emitidas`),
+      que es lo capturado a nivel llegada (p. ej. 14 841 en cada fila mientras las recibidas
+      van 10 912 y 3 929).
     """
     if item is None:
         return _totales_piezas_emitidas_recibidas_reporte(llegada)
-    ce = int(item.cantidad_emitida or 0)
+
+    n = len(items_misma_llegada)
+    if n >= 2:
+        ce = int(llegada.numero_piezas_emitidas or 0)
+        if ce <= 0:
+            ce = int(item.cantidad_emitida or 0)
+    else:
+        ce = int(item.cantidad_emitida or 0)
+
     cr = int(item.cantidad_recibida or 0)
-    if len(items_misma_llegada) < 2:
+    if n < 2:
         return ce, cr
+
     qi = _cantidad_recibida_inferida_desde_facturacion(item)
     hdr_r = int(llegada.numero_piezas_recibidas or 0)
     rec_vals = [int(x.cantidad_recibida or 0) for x in items_misma_llegada]
@@ -489,7 +499,7 @@ def exportar_llegadas_excel(request):
         'Usuario Autorización Cita',
         # Campos de Llegada
         'Folio Llegada', 'Estado Llegada', 'Remisión',
-        'Piezas Emitidas (partida)', 'Piezas Recibidas (partida)', 'Tipo Red', 'Almacén',
+        'Piezas Emitidas (total llegada)', 'Piezas Recibidas (por partida)', 'Tipo Red', 'Almacén',
         'Orden Suministro (Llegada)', 'Contrato (Llegada)', 'Procedimiento',
         # Control de Calidad
         'Estado Calidad', 'Observaciones Calidad', 'Usuario Calidad', 'Fecha Validación Calidad',
