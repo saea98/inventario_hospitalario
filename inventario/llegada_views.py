@@ -315,12 +315,9 @@ class ListaLlegadasView(LoginRequiredMixin, View):
 
 def _totales_piezas_emitidas_recibidas_reporte(llegada):
     """
-    Totales para columnas «Piezas emitidas» / «Piezas recibidas» en exportación.
-
-    La fuente fiable cuando hay detalle por ítem es la suma de ItemLlegada.cantidad_emitida
-    y cantidad_recibida (lo que el proveedor envió vs lo recibido por línea). Los campos
-    de cabecera LlegadaProveedor.numero_piezas_* a veces coinciden por error (p. ej. el
-    front solo recalcula recibidas desde ítems y no emitidas).
+    Totales de cabecera cuando una llegada no tiene ítems en BD: usa numero_piezas_*.
+    Cuando hay ítems, el Excel debe mostrar por fila las cantidades del ítem (partida),
+    no estos totales; ver exportar_llegadas_excel.
     """
     items = list(llegada.items.all())
     if not items:
@@ -433,7 +430,7 @@ def exportar_llegadas_excel(request):
         'Usuario Autorización Cita',
         # Campos de Llegada
         'Folio Llegada', 'Estado Llegada', 'Remisión',
-        'Piezas Emitidas', 'Piezas Recibidas', 'Tipo Red', 'Almacén',
+        'Piezas Emitidas (partida)', 'Piezas Recibidas (partida)', 'Tipo Red', 'Almacén',
         'Orden Suministro (Llegada)', 'Contrato (Llegada)', 'Procedimiento',
         # Control de Calidad
         'Estado Calidad', 'Observaciones Calidad', 'Usuario Calidad', 'Fecha Validación Calidad',
@@ -513,7 +510,12 @@ def exportar_llegadas_excel(request):
             col += 1
             ws.cell(row=row_num, column=col).value = llegada.remision
             col += 1
-            piezas_em, piezas_rec = _totales_piezas_emitidas_recibidas_reporte(llegada)
+            # Una fila por ítem: mismas cantidades que en EPA por partida (no repetir el total de la llegada).
+            if item is not None:
+                piezas_em = int(item.cantidad_emitida or 0)
+                piezas_rec = int(item.cantidad_recibida or 0)
+            else:
+                piezas_em, piezas_rec = _totales_piezas_emitidas_recibidas_reporte(llegada)
             ws.cell(row=row_num, column=col).value = piezas_em
             col += 1
             ws.cell(row=row_num, column=col).value = piezas_rec
