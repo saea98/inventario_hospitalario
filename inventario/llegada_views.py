@@ -339,10 +339,10 @@ def _piezas_emitidas_recibidas_fila_excel(item, llegada, items_misma_llegada):
     """
     Cantidades por partida para el Excel.
 
-    - Por defecto: cantidad_emitida / cantidad_recibida del ItemLlegada.
-    - Si hay varias partidas y cada ítem guardó el *mismo* número igual al total de cabecera
-      (error típico) pero existe cantidad coherente desde subtotal/precio, usa esa para
-      «Piezas recibidas» (alineado con EPA cuando la facturación por línea es correcta).
+    - Piezas emitidas: siempre la captura en ítem (cantidad_emitida), sin sustituir por la
+      inferencia de recibidas.
+    - Piezas recibidas: cantidad_recibida del ítem; solo si hay varias partidas y cada fila
+      repitió el total de cabecera, se puede corregir con subtotal/precio (facturación).
     """
     if item is None:
         return _totales_piezas_emitidas_recibidas_reporte(llegada)
@@ -352,10 +352,7 @@ def _piezas_emitidas_recibidas_fila_excel(item, llegada, items_misma_llegada):
         return ce, cr
     qi = _cantidad_recibida_inferida_desde_facturacion(item)
     hdr_r = int(llegada.numero_piezas_recibidas or 0)
-    hdr_e = int(llegada.numero_piezas_emitidas or 0)
     rec_vals = [int(x.cantidad_recibida or 0) for x in items_misma_llegada]
-    emit_vals = [int(x.cantidad_emitida or 0) for x in items_misma_llegada]
-    # Varias partidas pero cada fila repitió el total de cabecera: recuperar desde facturación
     if (
         qi is not None
         and qi > 0
@@ -365,15 +362,6 @@ def _piezas_emitidas_recibidas_fila_excel(item, llegada, items_misma_llegada):
         and rec_vals[0] != qi
     ):
         cr = qi
-    if (
-        qi is not None
-        and qi > 0
-        and hdr_e > 0
-        and len(set(emit_vals)) == 1
-        and emit_vals[0] == hdr_e
-        and emit_vals[0] != qi
-    ):
-        ce = qi
     return ce, cr
 
 
