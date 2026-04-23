@@ -1321,6 +1321,10 @@ def exportar_lotes_personalizado(request):
                         for campo in campos:
                             if campo == 'ubicacion__codigo':
                                 registro[campo] = ubi.ubicacion.codigo if ubi.ubicacion else ""
+                            elif campo == 'cantidad_disponible':
+                                # En exporte por ubicación, reflejar la existencia de esa ubicación
+                                # para evitar repetir el total global del lote en cada renglón.
+                                registro[campo] = int(ubi.cantidad or 0)
                             else:
                                 registro[campo] = _valor_para_campo(lote, campo, comp)
                         datos_lista.append(registro)
