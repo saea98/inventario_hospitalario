@@ -196,16 +196,16 @@
                             <small>{% firstof movimiento.remision movimiento.lote.remision "—" %}</small>
                         </td>
                         <td>
-                            <small>{% firstof movimiento.pedido movimiento.folio movimiento.documento_referencia "—" %}</small>
+                            <small class="text-muted">{{ movimiento.folio_pedido_lista_movimientos }}</small>
                         </td>
                         <td>
                             <small>
-                                {% if movimiento.institucion_destino %}
+                                {% if movimiento.mostrar_bloque_destino_pedido_lista %}
                                     <span class="text-nowrap">{{ movimiento.institucion_destino.clue }}</span>
                                     <br>
                                     <span class="text-muted">{{ movimiento.institucion_destino.denominacion }}</span>
                                 {% else %}
-                                    <span class="text-muted">—</span>
+                                    <span class="text-muted">-</span>
                                 {% endif %}
                             </small>
                         </td>

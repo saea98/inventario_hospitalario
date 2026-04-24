@@ -4,6 +4,7 @@ from django.core.validators import MinValueValidator
 from decimal import Decimal
 import uuid
 from datetime import date, timedelta
+import re
 from django.utils import timezone
 
 from django.shortcuts import render, redirect
@@ -602,7 +603,36 @@ class MovimientoInventario(models.Model):
     def estado_display(self):
         return "Anulado" if self.anulado else "Vigente"
 
+    @property
+    def es_salida_surtimiento_pedido(self):
+        """
+        Salida originada al surtir propuesta (folio comercial en observaciones de la solicitud).
+        """
+        if self.tipo_movimiento != 'SALIDA':
+            return False
+        return 'Suministro de Pedido' in (self.motivo or '')
 
+    @property
+    def folio_pedido_lista_movimientos(self):
+        """
+        Valor de la columna «Folio del pedido»: proviene de ``pedido`` (poblado desde
+        ``SolicitudPedido.observaciones_solicitud`` al generar el surtimiento). Solo
+        aplica a salidas por surtimiento; en cualquier otro movimiento, '-'.
+        """
+        if not self.es_salida_surtimiento_pedido:
+            return '-'
+        t = (self.pedido or '').strip()
+        if t:
+            return t
+        m = re.search(r'Pedido:\s*([^\.\n|]+)', self.motivo or '', re.IGNORECASE)
+        if m:
+            return m.group(1).strip()
+        return '-'
+
+    @property
+    def mostrar_bloque_destino_pedido_lista(self):
+        """Surtimiento: se muestran CLUE e institución destino del pedido; si no aplica, solo '-'."""
+        return self.es_salida_surtimiento_pedido and self.institucion_destino_id is not None
 
 
 class AlertaCaducidad(models.Model):

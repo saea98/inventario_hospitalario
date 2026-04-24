@@ -1022,9 +1022,13 @@ def exportar_movimientos_excel(request):
         inst_nom = getattr(inst, 'denominacion', '') or ''
         remision = m.remision or (getattr(lote, 'remision', None) or '') or ''
         inst_dest = m.institucion_destino
-        dest_clue = (getattr(inst_dest, 'clue', None) or '') if inst_dest else ''
-        dest_nom = (getattr(inst_dest, 'denominacion', None) or '') if inst_dest else ''
-        folio_pedido = (m.pedido or m.folio or m.documento_referencia or '') or ''
+        if m.mostrar_bloque_destino_pedido_lista and inst_dest:
+            dest_clue = (getattr(inst_dest, 'clue', None) or '')
+            dest_nom = (getattr(inst_dest, 'denominacion', None) or '')
+        else:
+            dest_clue = '-'
+            dest_nom = '-'
+        folio_pedido = m.folio_pedido_lista_movimientos
         ws.append(
             [
                 m.fecha_movimiento.strftime('%d/%m/%Y %H:%M') if m.fecha_movimiento else '',
@@ -1038,7 +1042,7 @@ def exportar_movimientos_excel(request):
                 m.cantidad_nueva,
                 m.cantidad,
                 str(remision) if remision else '',
-                str(folio_pedido),
+                folio_pedido,
                 dest_clue,
                 dest_nom,
                 (m.motivo or '')[:5000],
