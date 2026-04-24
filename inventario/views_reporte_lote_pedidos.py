@@ -15,21 +15,13 @@ from datetime import date, datetime
 import logging
 
 from .pedidos_models import LoteAsignado, PropuestaPedido
-from .propuesta_utils import totales_reserva_activa_por_lote_ids
+from .propuesta_utils import (
+    cantidad_existencia_fisica_lote_como_reporte_existencias,
+    totales_reserva_activa_por_lote_ids,
+)
 from openpyxl import Workbook
 from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
 logger = logging.getLogger(__name__)
-
-
-def _cantidad_fisica_lote(lote):
-    """
-    Existencia física alineada con existencias por ubicación: suma de LoteUbicacion.cantidad.
-    Si el lote no tiene filas en ubicaciones, se usa Lote.cantidad_disponible.
-    """
-    ubs = lote.ubicaciones_detalle.all()
-    if ubs:
-        return sum(lu.cantidad for lu in ubs)
-    return int(lote.cantidad_disponible or 0)
 
 
 def _agrupar_lotes_pedidos(lotes_asignados_query):
@@ -38,7 +30,8 @@ def _agrupar_lotes_pedidos(lotes_asignados_query):
 
     Reserva del lote: suma de LoteAsignado con surtido=False (misma regla que
     editar propuesta / reportes de reservas), vía totales_reserva_activa_por_lote_ids.
-    No usa el campo Lote.cantidad_reservada.
+    No usa el campo Lote.cantidad_reservada. Existencia física: Lote.cantidad_disponible
+    (mismo criterio que el reporte de existencias, no la suma directa de ubicaciones).
     """
     lote_ids = list(
         lotes_asignados_query.values_list('lote_ubicacion__lote_id', flat=True).distinct()
@@ -57,7 +50,7 @@ def _agrupar_lotes_pedidos(lotes_asignados_query):
 
             if lote_key not in lotes_dict:
                 reserva_desde_pedidos = reservas_por_lote.get(lote.id, 0)
-                disp = _cantidad_fisica_lote(lote)
+                disp = cantidad_existencia_fisica_lote_como_reporte_existencias(lote)
                 cantidad_neta = max(0, disp - reserva_desde_pedidos)
                 lotes_dict[lote_key] = {
                     'lote_id': lote.id,
@@ -130,7 +123,7 @@ def reporte_lote_pedidos(request):
     Muestra todos los lotes que están asignados en pedidos, con paginación y filtros.
 
     Reservado / neto inventario: suma de LoteAsignado (surtido=False), no el campo
-    Lote.cantidad_reservada. Disponible: suma por ubicación (misma base que existencias).
+    Lote.cantidad_reservada. Disponible: Lote.cantidad_disponible (misma base que el reporte de existencias).
 
     En la tabla de pedidos, «Pendiente de surtir» = asignado − surtido (no es saldo neto de stock).
     """
@@ -150,9 +143,7 @@ def reporte_lote_pedidos(request):
         'item_propuesta__propuesta__solicitud',
         'item_propuesta__propuesta',
         'item_propuesta__producto'
-    ).filter(surtido=False).prefetch_related(
-        'lote_ubicacion__lote__ubicaciones_detalle',
-    )  # Excluir lotes asignados que ya fueron surtidos
+    ).filter(surtido=False)  # Excluir asignaciones ya surtidas
     
     # Aplicar filtros
     if filtro_clave:
@@ -252,9 +243,7 @@ def exportar_lote_pedidos_excel(request):
         'item_propuesta__propuesta__solicitud',
         'item_propuesta__propuesta',
         'item_propuesta__producto'
-    ).filter(surtido=False).prefetch_related(
-        'lote_ubicacion__lote__ubicaciones_detalle',
-    )  # Excluir lotes asignados que ya fueron surtidos
+    ).filter(surtido=False)  # Excluir asignaciones ya surtidas
     
     # Aplicar filtros (misma lógica que la vista)
     if filtro_clave:
@@ -342,7 +331,7 @@ def exportar_lote_pedidos_excel(request):
         'Descripción',
         'Número Lote',
         'Institución',
-        'Cantidad Disponible (suma ubicaciones)',
+        'Cantidad Disponible (Lote, como Existencias)',
         'Cantidad Reservada (LoteAsignado activo)',
         'Cantidad Neta inventario',
         'Exceso reserva vs físico (uds)',

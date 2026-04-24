@@ -9,7 +9,7 @@
     <div class="row mb-4">
         <div class="col-md-8">
             <h2><i class="fas fa-boxes text-primary"></i> Reporte de Lotes y Pedidos Asociados</h2>
-            <p class="text-muted">Visualiza lotes con líneas en propuestas pendientes de surtir. <span class="text-muted small"><strong>Disponible</strong> = suma de cantidades por ubicación (como en existencias). <strong>Reservado</strong> = suma de <code>LoteAsignado</code> con surtido pendiente. <strong>Neto inventario</strong> = disponible − reservado (0 si hay sobre-reserva). En pedidos, <strong>Pendiente de surtir</strong> = asignado − surtido (no es saldo de stock).</span></p>
+            <p class="text-muted">Visualiza lotes con líneas en propuestas pendientes de surtir. <span class="text-muted small"><strong>Disponible</strong> = <code>Lote.cantidad_disponible</code> (mismo criterio que el reporte de Existencias). <strong>Reservado</strong> = suma de <code>LoteAsignado</code> con surtido pendiente. <strong>Neto inventario</strong> = disponible − reservado (0 si hay sobre-reserva). En pedidos, <strong>Pendiente de surtir</strong> = asignado − surtido (no es saldo de stock).</span></p>
         </div>
         <div class="col-md-4 text-end d-flex align-items-end justify-content-end">
             {% if page_obj %}
@@ -113,7 +113,7 @@
                             <th>Descripción</th>
                             <th>Número Lote</th>
                             <th>Institución</th>
-                            <th class="text-center" title="Suma LoteUbicacion.cantidad">Disponible</th>
+                            <th class="text-center" title="Lote.cantidad_disponible (como reporte Existencias)">Disponible</th>
                             <th class="text-center" title="Suma LoteAsignado (no surtido)">Reservado</th>
                             <th class="text-center" title="Inventario neto; 0 si reserva ≥ físico">Neto inv.</th>
                             <th class="text-center">Pedidos</th>

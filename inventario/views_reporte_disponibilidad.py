@@ -2,8 +2,8 @@
 Vistas para reporte de disponibilidad vs reservas por clave y lote.
 Permite tomar decisiones sobre el inventario considerando las reservas en propuestas.
 
-Misma base que lote-pedidos / edición de propuesta:
-- Existencia: suma de LoteUbicacion.cantidad (si no hay filas, Lote.cantidad_disponible).
+Misma base que lote-pedidos y reporte de existencias:
+- Existencia: Lote.cantidad_disponible (alineado con reportes/existencias).
 - Reserva: suma de LoteAsignado con surtido=False (totales_reserva_activa_por_lote_ids),
   no el campo Lote.cantidad_reservada (puede estar desactualizado).
 """
@@ -17,26 +17,21 @@ from datetime import date
 import logging
 
 from .models import Lote, Institucion
-from .propuesta_utils import totales_reserva_activa_por_lote_ids
+from .propuesta_utils import (
+    cantidad_existencia_fisica_lote_como_reporte_existencias,
+    totales_reserva_activa_por_lote_ids,
+)
 from openpyxl import Workbook
 from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
 
 logger = logging.getLogger(__name__)
 
 
-def _cantidad_fisica_lote(lote):
-    """Suma LoteUbicacion.cantidad; si no hay ubicaciones, Lote.cantidad_disponible (como existencias)."""
-    ubs = lote.ubicaciones_detalle.all()
-    if ubs:
-        return sum(lu.cantidad for lu in ubs)
-    return int(lote.cantidad_disponible or 0)
-
-
 @login_required
 def reporte_disponibilidad_lotes(request):
     """
     Reporte de disponibilidad vs reservas por clave y lote.
-    Existencia y reserva alineadas con LoteUbicacion + LoteAsignado (no campos denormalizados del lote).
+    Existencia = Lote.cantidad_disponible; reserva = suma LoteAsignado (surtido=False).
     """
 
     filtro_clave = request.GET.get('clave', '').strip()
@@ -74,7 +69,7 @@ def reporte_disponibilidad_lotes(request):
     total_reservado = 0
     total_neto = 0
     for lote in lotes_list:
-        disp = _cantidad_fisica_lote(lote)
+        disp = cantidad_existencia_fisica_lote_como_reporte_existencias(lote)
         res = reservas_map.get(lote.id, 0)
         total_disponible += disp
         total_reservado += res
@@ -93,7 +88,7 @@ def reporte_disponibilidad_lotes(request):
     datos_reporte = []
 
     for lote in lotes_pagina:
-        cantidad_disponible = _cantidad_fisica_lote(lote)
+        cantidad_disponible = cantidad_existencia_fisica_lote_como_reporte_existencias(lote)
         cantidad_reservada = reservas_map.get(lote.id, 0)
         cantidad_neta = max(0, cantidad_disponible - cantidad_reservada)
         porcentaje_reserva = (
@@ -268,7 +263,7 @@ def exportar_disponibilidad_excel(request):
     total_neto = 0
     
     for lote in lotes_list:
-        cantidad_disponible = _cantidad_fisica_lote(lote)
+        cantidad_disponible = cantidad_existencia_fisica_lote_como_reporte_existencias(lote)
         cantidad_reservada = reservas_map.get(lote.id, 0)
         cantidad_neta = max(0, cantidad_disponible - cantidad_reservada)
         porcentaje_reserva = (

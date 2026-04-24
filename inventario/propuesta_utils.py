@@ -65,6 +65,16 @@ def totales_reserva_activa_por_lote_ubicacion_ids(lote_ubicacion_ids):
     }
 
 
+def cantidad_existencia_fisica_lote_como_reporte_existencias(lote):
+    """
+    Existencia alineada con el reporte «Existencias» (ruta reportes/existencias/):
+    usa ``Lote.cantidad_disponible``, el mismo campo con el que se contrasta el físico.
+    Con ubicaciones, en condiciones normales coincide con la suma de LoteUbicacion;
+    si hubiera un desfase en BD, aquí se evita mostrar cifras distintas a existencias.
+    """
+    return int(lote.cantidad_disponible or 0)
+
+
 def sincronizar_cantidades_surtidas_items_propuesta(propuesta):
     """
     Persiste en cada ItemPropuesta la cantidad surtida según LoteAsignado (documento de verdad).
