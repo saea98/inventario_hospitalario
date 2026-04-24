@@ -40,12 +40,24 @@ from .pedidos_utils import registrar_error_pedido
 from .pedidos_forms import _usuario_puede_duplicar_folio
 from .decorators_roles import es_administrador
 from django.db import models
-from django.db.models import Q, Sum, Value, IntegerField
-from django.db.models.functions import Coalesce
+from django.db.models import Q, Sum
 
 # ============================================================================
 # HELPERS PROPUESTA / UBICACIONES
 # ============================================================================
+
+def _disponible_neta_lote_ubicacion(lu):
+    """
+    Misma fórmula que el filtro template `disponible_real` y el texto
+    «Disponible (restando otras reservas)»: cantidad − cantidad_reservada.
+    Debe usarse para el select de «agregar ubicación de lote» para no listar
+    filas que el usuario ya ve como no disponibles.
+    """
+    try:
+        return max(0, int(lu.cantidad) - int(getattr(lu, 'cantidad_reservada', 0) or 0))
+    except (TypeError, ValueError):
+        return 0
+
 
 def _almacen_ids_para_propuesta(solicitud=None, almacen_destino_id=None):
     """
@@ -1160,18 +1172,14 @@ def editar_propuesta(request, propuesta_id):
     from .pedidos_models import LoteAsignado
     from .models import LoteUbicacion
     from .propuesta_utils import reservar_cantidad_lote, liberar_cantidad_lote
-    from django.db.models import Sum, Value, IntegerField
-    from django.db.models.functions import Coalesce
+    from django.db.models import Sum
 
     ESTADOS_EDITABLES = ['GENERADA', 'REVISADA', 'EN_SURTIMIENTO', 'SURTIDA']
     propuesta = get_object_or_404(PropuestaPedido, id=propuesta_id, estado__in=ESTADOS_EDITABLES)
 
     def _disponible_lu(lu):
-        """Disponible = cantidad - reserva real (suma de LoteAsignado con surtido=False), igual que el reporte de reservas y el select."""
-        reservado_real = LoteAsignado.objects.filter(
-            lote_ubicacion=lu, surtido=False
-        ).aggregate(total=Sum('cantidad_asignada'))['total'] or 0
-        return max(0, lu.cantidad - reservado_real)
+        """Mismo criterio que el filtro `disponible_real` y el select (cantidad − cantidad_reservada en LoteUbicacion)."""
+        return _disponible_neta_lote_ubicacion(lu)
 
     if request.method == 'POST':
         solo_item_id = request.POST.get('solo_item_id', '').strip()
@@ -1293,17 +1301,10 @@ def editar_propuesta(request, propuesta_id):
                         lote__fecha_caducidad__gte=fecha_minima_edicion,
                         lote__estado=1,
                         cantidad__gt=0,
-                    ).annotate(
-                        reservado_real=Coalesce(
-                            Sum('asignaciones_propuesta__cantidad_asignada', filter=Q(asignaciones_propuesta__surtido=False)),
-                            Value(0),
-                            output_field=IntegerField()
-                        )
                     ).select_related('lote', 'ubicacion').order_by('lote__fecha_caducidad', 'lote__numero_lote', 'ubicacion__codigo')
                     lista = []
                     for lu in todas_lu:
-                        reservado = getattr(lu, 'reservado_real', 0) or 0
-                        disp = lu.cantidad - reservado
+                        disp = _disponible_neta_lote_ubicacion(lu)
                         if disp <= 0:
                             continue
                         lista.append({'lote': lu.lote, 'ubicacion': lu, 'disponible_real': disp})
@@ -1628,17 +1629,10 @@ def editar_propuesta(request, propuesta_id):
                     lote__fecha_caducidad__gte=fecha_minima_edicion,
                     lote__estado=1,
                     cantidad__gt=0,
-                ).annotate(
-                    reservado_real=Coalesce(
-                        Sum('asignaciones_propuesta__cantidad_asignada', filter=Q(asignaciones_propuesta__surtido=False)),
-                        Value(0),
-                        output_field=IntegerField()
-                    )
                 ).select_related('lote', 'ubicacion').order_by('lote__fecha_caducidad', 'lote__numero_lote', 'ubicacion__codigo')
                 lista = []
                 for lu in todas_lu:
-                    reservado = getattr(lu, 'reservado_real', 0) or 0
-                    disp = lu.cantidad - reservado
+                    disp = _disponible_neta_lote_ubicacion(lu)
                     if disp <= 0:
                         continue
                     lista.append({'lote': lu.lote, 'ubicacion': lu, 'disponible_real': disp})
@@ -1665,8 +1659,8 @@ def editar_propuesta(request, propuesta_id):
 
     productos_disponibles = Producto.objects.filter(activo=True).order_by('clave_cnis')
 
-    # Ubicaciones para cada ítem: una opción por cada (lote, ubicación) con disp. > 0.
-    # Reserva real = suma de LoteAsignado.cantidad_asignada (surtido=False), igual que el reporte de reservas.
+    # Ubicaciones para cada ítem: una opción por (lote, ubicación) con disp. neta > 0.
+    # Misma fórmula que el filtro `disponible_real` (cantidad − cantidad_reservada en LoteUbicacion).
     import logging
     _log = logging.getLogger(__name__)
     fecha_minima_edicion = date.today()
@@ -1677,17 +1671,10 @@ def editar_propuesta(request, propuesta_id):
             lote__fecha_caducidad__gte=fecha_minima_edicion,
             lote__estado=1,
             cantidad__gt=0,
-        ).annotate(
-            reservado_real=Coalesce(
-                Sum('asignaciones_propuesta__cantidad_asignada', filter=Q(asignaciones_propuesta__surtido=False)),
-                Value(0),
-                output_field=IntegerField()
-            )
         ).select_related('lote', 'ubicacion').order_by('lote__fecha_caducidad', 'lote__numero_lote', 'ubicacion__codigo')
         lista = []
         for lu in todas_lu:
-            reservado = getattr(lu, 'reservado_real', 0) or 0
-            disp = lu.cantidad - reservado
+            disp = _disponible_neta_lote_ubicacion(lu)
             if disp <= 0:
                 continue
             lista.append({'lote': lu.lote, 'ubicacion': lu, 'disponible_real': disp})
@@ -1735,26 +1722,17 @@ def obtener_ubicaciones_producto(request):
         from .models import Producto
         producto = Producto.objects.get(id=producto_id, activo=True)
         
-        # Reserva real = suma LoteAsignado (surtido=False), igual que reporte de reservas
-        from django.db.models import Sum, Value, IntegerField
-        from django.db.models.functions import Coalesce
+        # Misma fórmula que `disponible_real` en edición de propuesta (LoteUbicacion).
         fecha_minima_edicion = date.today()
         todas_lu = LoteUbicacion.objects.filter(
             lote__producto=producto,
             lote__fecha_caducidad__gte=fecha_minima_edicion,
             lote__estado=1,
             cantidad__gt=0,
-        ).annotate(
-            reservado_real=Coalesce(
-                Sum('asignaciones_propuesta__cantidad_asignada', filter=Q(asignaciones_propuesta__surtido=False)),
-                Value(0),
-                output_field=IntegerField()
-            )
         ).select_related('lote', 'ubicacion').order_by('lote__fecha_caducidad', 'lote__numero_lote', 'ubicacion__codigo')
         ubicaciones = []
         for lu in todas_lu:
-            reservado = getattr(lu, 'reservado_real', 0) or 0
-            disp = int(lu.cantidad - reservado)
+            disp = _disponible_neta_lote_ubicacion(lu)
             if disp <= 0:
                 continue
             ubicaciones.append({
