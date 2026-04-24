@@ -19,6 +19,7 @@ import pandas as pd
 
 from .models import Lote, MovimientoInventario, Producto, LoteUbicacion, Almacen, Institucion, UbicacionAlmacen
 from .propuesta_utils import (
+    enriquecer_movimientos_folio_observaciones_surtimiento,
     totales_reserva_activa_por_lote_ids,
     totales_reserva_activa_por_lote_ubicacion_ids,
 )
@@ -959,6 +960,7 @@ def lista_movimientos(request):
     paginator = Paginator(movimientos, 25)
     page_number = request.GET.get('page')
     page_obj = paginator.get_page(page_number)
+    enriquecer_movimientos_folio_observaciones_surtimiento(list(page_obj.object_list))
 
     tipos_movimiento = MovimientoInventario.TIPOS_MOVIMIENTO
 
@@ -985,6 +987,8 @@ def exportar_movimientos_excel(request):
     from openpyxl.utils import get_column_letter
 
     movimientos = _movimientos_filtrados_desde_request(request)
+    movs = list(movimientos)
+    enriquecer_movimientos_folio_observaciones_surtimiento(movs)
 
     wb = Workbook()
     ws = wb.active
@@ -1014,7 +1018,7 @@ def exportar_movimientos_excel(request):
         cell.font = Font(bold=True)
         cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
 
-    for m in movimientos.iterator(chunk_size=500):
+    for m in movs:
         lote = m.lote
         prod = lote.producto if lote else None
         inst = lote.institucion if lote else None

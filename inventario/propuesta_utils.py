@@ -8,6 +8,8 @@ Este módulo proporciona funciones para:
 4. Actualizar cantidades al completar el surtimiento
 """
 
+from uuid import UUID
+
 from django.db import transaction
 from django.db.models import F, Sum
 from django.utils import timezone
@@ -73,6 +75,53 @@ def cantidad_existencia_fisica_lote_como_reporte_existencias(lote):
     si hubiera un desfase en BD, aquí se evita mostrar cifras distintas a existencias.
     """
     return int(lote.cantidad_disponible or 0)
+
+
+def enriquecer_movimientos_folio_observaciones_surtimiento(movimientos):
+    """
+    En batch: para salidas con motivo «Ajuste por sistema» (reporte salidas surtidas) el
+    folio comercial vive en ``SolicitudPedido.observaciones_solicitud``; se resuelve vía
+    ``MovimientoInventario.folio`` (UUID de propuesta). Fija ``_folio_obs_solicitud`` en
+    cada movimiento (texto a mostrar o None si no aplica / no se encontró).
+    """
+    if not movimientos:
+        return
+    for m in movimientos:
+        m._folio_obs_solicitud = None
+    uuids = []
+    for m in movimientos:
+        if m.tipo_movimiento != "SALIDA":
+            continue
+        if not (m.motivo or "").strip().lower().startswith("ajuste por sistema"):
+            continue
+        if not m.institucion_destino_id:
+            continue
+        fx = (m.folio or "").strip()
+        if not fx:
+            continue
+        try:
+            uuids.append(UUID(fx))
+        except ValueError:
+            continue
+    if not uuids:
+        return
+    props = PropuestaPedido.objects.filter(id__in=uuids).select_related("solicitud")
+    by_id = {p.id: p for p in props}
+    for m in movimientos:
+        if m.tipo_movimiento != "SALIDA" or not (m.motivo or "").strip().lower().startswith("ajuste por sistema"):
+            continue
+        if not m.institucion_destino_id:
+            continue
+        try:
+            uid = UUID((m.folio or "").strip())
+        except (ValueError, TypeError, AttributeError):
+            continue
+        p = by_id.get(uid)
+        if not p or not p.solicitud:
+            continue
+        sol = p.solicitud
+        o = (sol.observaciones_solicitud or "").strip().split("\n", 1)[0].strip()
+        m._folio_obs_solicitud = o or (sol.folio or "").strip() or None
 
 
 def sincronizar_cantidades_surtidas_items_propuesta(propuesta):

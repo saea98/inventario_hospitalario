@@ -606,21 +606,30 @@ class MovimientoInventario(models.Model):
     @property
     def es_salida_surtimiento_pedido(self):
         """
-        Salida originada al surtir propuesta (folio comercial en observaciones de la solicitud).
+        Salida por surtido de propuesta: flujo fase5 (motivo con «Suministro de Pedido») o
+        flujo reporte salidas surtidas (motivo «Ajuste por sistema…» con destino de pedido).
         """
         if self.tipo_movimiento != 'SALIDA':
             return False
-        return 'Suministro de Pedido' in (self.motivo or '')
+        mot = (self.motivo or '')
+        if 'Suministro de Pedido' in mot:
+            return True
+        if (mot or '').strip().lower().startswith('ajuste por sistema') and self.institucion_destino_id:
+            return True
+        return False
 
     @property
     def folio_pedido_lista_movimientos(self):
         """
-        Valor de la columna «Folio del pedido»: proviene de ``pedido`` (poblado desde
-        ``SolicitudPedido.observaciones_solicitud`` al generar el surtimiento). Solo
-        aplica a salidas por surtimiento; en cualquier otro movimiento, '-'.
+        Valor de la columna «Folio del pedido»: observaciones de la solicitud cuando aplica;
+        vía ``pedido`` o, para «Ajuste por sistema», enriquecido en la vista
+        (``_folio_obs_solicitud``). Cualquier otro movimiento: '-'.
         """
         if not self.es_salida_surtimiento_pedido:
             return '-'
+        obs = getattr(self, '_folio_obs_solicitud', None)
+        if obs:
+            return obs
         t = (self.pedido or '').strip()
         if t:
             return t
