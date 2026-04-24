@@ -20,6 +20,7 @@ import pandas as pd
 from .models import Lote, MovimientoInventario, Producto, LoteUbicacion, Almacen, Institucion, UbicacionAlmacen
 from .propuesta_utils import (
     enriquecer_movimientos_folio_observaciones_surtimiento,
+    cantidad_existencia_fisica_lote_como_reporte_existencias,
     totales_reserva_activa_por_lote_ids,
     totales_reserva_activa_por_lote_ubicacion_ids,
 )
@@ -586,6 +587,68 @@ def detalle_lote(request, lote_id):
     }
     
     return render(request, 'inventario/detalle_lote.html', context)
+
+
+@login_required
+def pedidos_asociados_lote(request, lote_id):
+    """
+    Pedidos (propuestas) donde participa el lote, misma lógica que
+    reportes-disponibilidad/lote-pedidos/ (LoteAsignado con surtido=False).
+    ?embed=1 devuelve solo el HTML del cuerpo para el modal en lista de lotes.
+    """
+    from .pedidos_models import LoteAsignado
+    from .views_reporte_lote_pedidos import _agrupar_lotes_pedidos
+
+    institucion = request.user.institucion if hasattr(request.user, 'institucion') else None
+    lotes_qs = Lote.objects.select_related('producto', 'institucion')
+    if institucion:
+        lotes_qs = lotes_qs.filter(institucion=institucion)
+    lote = get_object_or_404(lotes_qs, id=lote_id)
+
+    lotes_asignados_query = (
+        LoteAsignado.objects.filter(lote_ubicacion__lote_id=lote_id, surtido=False)
+        .select_related(
+            'lote_ubicacion__lote__producto',
+            'lote_ubicacion__lote__institucion',
+            'item_propuesta__propuesta__solicitud',
+            'item_propuesta__propuesta',
+            'item_propuesta__producto',
+        )
+    )
+    datos = _agrupar_lotes_pedidos(lotes_asignados_query)
+    if datos:
+        lote_info = datos[0]
+    else:
+        reservas = totales_reserva_activa_por_lote_ids([lote_id])
+        r = reservas.get(lote_id, 0)
+        disp = cantidad_existencia_fisica_lote_como_reporte_existencias(lote)
+        neta = max(0, disp - r)
+        lote_info = {
+            'lote_id': lote.id,
+            'clave': lote.producto.clave_cnis,
+            'descripcion': lote.producto.descripcion,
+            'numero_lote': lote.numero_lote,
+            'institucion': lote.institucion.denominacion if lote.institucion else 'N/A',
+            'cantidad_disponible': disp,
+            'cantidad_reservada': r,
+            'cantidad_neta': neta,
+            'sobre_reserva': r > disp,
+            'deficit_unidades': max(0, r - disp),
+            'fecha_caducidad': lote.fecha_caducidad,
+            'pedidos': [],
+            'total_pedidos': 0,
+            'total_cantidad_asignada': 0,
+            'total_cantidad_surtida': 0,
+        }
+
+    context = {
+        'lote': lote,
+        'lote_info': lote_info,
+    }
+    embed = request.GET.get('embed') == '1' or request.GET.get('modal') == '1'
+    if embed:
+        return render(request, 'inventario/lotes/_pedidos_asociados_lote_body.html', context)
+    return render(request, 'inventario/lotes/pedidos_asociados_lote.html', context)
 
 
 @login_required

@@ -1,0 +1,69 @@
+{% load static %}
+<div class="pedidos-asociados-lote-fragment">
+    <p class="small text-muted mb-3">
+        Misma regla que el reporte <strong>Lotes y pedidos</strong>: líneas de <code>LoteAsignado</code> con <code>surtido=False</code>. El desglose por ubicación sigue en el icono de capas en la lista de lotes.
+    </p>
+    <h6 class="mb-3">Información del lote</h6>
+    <div class="row mb-3">
+        <div class="col-md-6">
+            <p class="mb-1"><strong>Clave CNIS:</strong> {{ lote_info.clave }}</p>
+            <p class="mb-1"><strong>Descripción:</strong> {{ lote_info.descripcion }}</p>
+            <p class="mb-1"><strong>Número de lote:</strong> {{ lote_info.numero_lote }}</p>
+            <p class="mb-0"><strong>Institución:</strong> {{ lote_info.institucion }}</p>
+        </div>
+        <div class="col-md-6">
+            <p class="mb-1"><strong>Cantidad disponible:</strong> <span class="badge bg-info">{{ lote_info.cantidad_disponible }}</span></p>
+            <p class="mb-1"><strong>Cantidad reservada:</strong> <span class="badge bg-warning text-dark">{{ lote_info.cantidad_reservada }}</span></p>
+            <p class="mb-1"><strong>Cantidad neta (inventario):</strong>
+                {% if lote_info.sobre_reserva %}
+                <span class="badge bg-danger">{{ lote_info.cantidad_neta }}</span>
+                {% elif lote_info.cantidad_neta == 0 %}
+                <span class="badge bg-secondary">{{ lote_info.cantidad_neta }}</span>
+                {% else %}
+                <span class="badge bg-success">{{ lote_info.cantidad_neta }}</span>
+                {% endif %}
+            </p>
+            {% if lote_info.fecha_caducidad %}
+            <p class="mb-0"><strong>Fecha caducidad:</strong> {{ lote_info.fecha_caducidad|date:"d/m/Y" }}</p>
+            {% endif %}
+        </div>
+    </div>
+
+    <h6 class="mb-2">Pedidos asociados ({{ lote_info.total_pedidos }})</h6>
+    <div class="table-responsive" style="max-height: 360px; overflow-y: auto;">
+        <table class="table table-sm table-bordered mb-0">
+            <thead class="table-light">
+                <tr>
+                    <th>Folio solicitud</th>
+                    <th>Institución</th>
+                    <th>Estado propuesta</th>
+                    <th>Fecha generación</th>
+                    <th class="text-center">Cant. asignada</th>
+                    <th class="text-center">Cant. surtida</th>
+                    <th class="text-center" title="Cantidad aún no surtida en este pedido">Pendiente surtir</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for pedido in lote_info.pedidos %}
+                <tr>
+                    <td><strong>{{ pedido.solicitud_folio }}</strong></td>
+                    <td>{{ pedido.institucion_solicitante }}</td>
+                    <td>
+                        <span class="badge bg-{% if pedido.estado_propuesta == 'GENERADA' or pedido.estado_propuesta == 'Propuesta Generada' %}secondary{% elif pedido.estado_propuesta == 'SURTIDA' or pedido.estado_propuesta == 'Completamente Surtida' %}success{% elif pedido.estado_propuesta == 'CANCELADA' or pedido.estado_propuesta == 'Cancelada' %}danger{% else %}info{% endif %}">
+                            {{ pedido.estado_propuesta }}
+                        </span>
+                    </td>
+                    <td>{% if pedido.fecha_generacion %}{{ pedido.fecha_generacion|date:"d/m/Y H:i" }}{% else %}—{% endif %}</td>
+                    <td class="text-center"><span class="badge bg-warning text-dark">{{ pedido.cantidad_total_asignada }}</span></td>
+                    <td class="text-center"><span class="badge bg-success">{{ pedido.cantidad_total_surtida }}</span></td>
+                    <td class="text-center"><span class="badge bg-secondary">{{ pedido.cantidad_pendiente_surtir }}</span></td>
+                </tr>
+                {% empty %}
+                <tr>
+                    <td colspan="7" class="text-muted text-center py-3">No hay asignaciones activas en propuestas para este lote (o ya fueron surtidas).</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+    </div>
+</div>

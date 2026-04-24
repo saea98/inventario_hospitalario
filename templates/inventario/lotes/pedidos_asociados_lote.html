@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+{% load static %}
+
+{% block title %}Pedidos asociados — {{ lote_info.numero_lote }}{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-3">
+        <div class="col">
+            <h1 class="h3"><i class="fas fa-clipboard-list text-primary"></i> Pedidos asociados al lote</h1>
+            <p class="text-muted mb-0"><code>{{ lote_info.clave }}</code> · {{ lote_info.numero_lote }}</p>
+        </div>
+        <div class="col-auto d-flex flex-wrap gap-2 align-items-start">
+            <a href="{% url 'lista_lotes' %}" class="btn btn-outline-secondary"><i class="bi bi-arrow-left"></i> Volver a lotes</a>
+            <a href="{% url 'detalle_lote' lote.id %}" class="btn btn-outline-info"><i class="bi bi-eye"></i> Detalle del lote</a>
+            <a href="{% url 'reportes:reporte_lote_pedidos' %}?lote={{ lote_info.numero_lote|urlencode }}" class="btn btn-outline-primary"><i class="fas fa-external-link-alt"></i> Reporte lote–pedidos</a>
+        </div>
+    </div>
+    <div class="card shadow">
+        <div class="card-body">
+            {% include "inventario/lotes/_pedidos_asociados_lote_body.html" %}
+        </div>
+    </div>
+</div>
+{% endblock %}
