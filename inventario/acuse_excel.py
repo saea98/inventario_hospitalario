@@ -7,6 +7,7 @@ from openpyxl.styles import Font, Border, PatternFill, Alignment, numbers
 from copy import copy
 from datetime import datetime
 import os
+import textwrap
 from django.conf import settings
 from io import BytesIO
 
@@ -69,6 +70,52 @@ def _acuse_texto_blanco_en_rellenos_guinda(ws, max_row=40, max_col=11):
                 italic=bool(f and f.italic),
                 color='FFFFFF',
             )
+
+
+def _acuse_ancho_columna_c(ws):
+    """Ancho de columna C en unidades Excel (plantilla ~25)."""
+    dim = ws.column_dimensions.get('C')
+    try:
+        return float(dim.width) if dim and dim.width is not None else 25.0
+    except (TypeError, ValueError):
+        return 25.0
+
+
+def _acuse_lineas_descripcion_wrapped(texto, ancho_columna_excel):
+    """
+    Estima cuántas líneas ocupará la descripción con ajuste de texto,
+    según el ancho actual de la columna C (sin cambiar el ancho).
+    """
+    if texto is None:
+        return 1
+    s = str(texto).replace('\r\n', '\n').strip()
+    if not s:
+        return 1
+    try:
+        w = float(ancho_columna_excel)
+    except (TypeError, ValueError):
+        w = 25.0
+    # ~1.15 caracteres por unidad de ancho para texto pequeño en tabla (similar a Excel)
+    max_chars = max(6, int(w * 1.15))
+    total = 0
+    for bloque in s.split('\n'):
+        if not bloque:
+            total += 1
+            continue
+        envueltas = textwrap.wrap(
+            bloque,
+            width=max_chars,
+            break_long_words=True,
+            replace_whitespace=False,
+        )
+        total += len(envueltas) if envueltas else 1
+    return max(1, total)
+
+
+def _acuse_altura_fila_por_lineas_descripcion(num_lineas):
+    """Altura de fila en puntos para que quepa el texto ajustado en columna C."""
+    # Base + líneas × alto aproximado por línea (cuerpo ~8–9 pt en plantilla)
+    return min(409.0, max(15.0, 6.0 + float(num_lineas) * 13.75))
 
 
 def agregar_bordes_celda(celda):
@@ -282,7 +329,20 @@ def generar_acuse_excel(propuesta, almacen_id=None, for_pdf=False):
             copiar_estilo_celda(celda_referencia, celda_destino)
             # Agregar bordes
             agregar_bordes_celda(celda_destino)
-        
+
+        # Columna C: ver descripción completa (mismo ancho; más alto de fila + ajuste de texto)
+        celda_c = ws.cell(row=row_num, column=3)
+        al_prev = celda_c.alignment
+        h_align = getattr(al_prev, 'horizontal', None) if al_prev else None
+        celda_c.alignment = Alignment(
+            horizontal=h_align if h_align is not None else 'center',
+            vertical='top',
+            wrap_text=True,
+        )
+        ancho_c = _acuse_ancho_columna_c(ws)
+        lineas = _acuse_lineas_descripcion_wrapped(item_data['descripcion'], ancho_c)
+        ws.row_dimensions[row_num].height = _acuse_altura_fila_por_lineas_descripcion(lineas)
+
         row_num += 1
     
     # ============ ACTUALIZAR ENCABEZADOS DE TABLA DE DETALLE ============
