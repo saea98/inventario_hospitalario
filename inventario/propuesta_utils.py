@@ -8,12 +8,14 @@ Este módulo proporciona funciones para:
 4. Actualizar cantidades al completar el surtimiento
 """
 
+import re
 from uuid import UUID
 
 from django.db import transaction
 from django.db.models import F, Sum
 from django.utils import timezone
-from .pedidos_models import PropuestaPedido, ItemPropuesta, LoteAsignado, LogPropuesta
+
+from .pedidos_models import PropuestaPedido, ItemPropuesta, LoteAsignado, LogPropuesta, SolicitudPedido
 from .models import Lote, LoteUbicacion, MovimientoInventario
 
 
@@ -79,10 +81,13 @@ def cantidad_existencia_fisica_lote_como_reporte_existencias(lote):
 
 def enriquecer_movimientos_folio_observaciones_surtimiento(movimientos):
     """
-    En batch: para salidas con motivo «Ajuste por sistema» (reporte salidas surtidas) el
-    folio comercial vive en ``SolicitudPedido.observaciones_solicitud``; se resuelve vía
-    ``MovimientoInventario.folio`` (UUID de propuesta). Fija ``_folio_obs_solicitud`` en
-    cada movimiento (texto a mostrar o None si no aplica / no se encontró).
+    En batch: fija ``_folio_obs_solicitud`` para mostrar el folio comercial (observaciones
+    de la solicitud) en la columna «Folio del pedido».
+
+    1) «Ajuste por sistema» (reporte salidas surtidas): ``folio`` = UUID de propuesta.
+    2) «Suministro de Pedido» (fase 5, etc.): en BD a menudo quedó ``pedido``/``folio`` =
+       folio interno SOL-...; se rehidrata desde ``documento_referencia`` (folio de solicitud)
+       o, si falta, desde un SOL-... en el motivo.
     """
     if not movimientos:
         return
@@ -103,25 +108,56 @@ def enriquecer_movimientos_folio_observaciones_surtimiento(movimientos):
             uuids.append(UUID(fx))
         except ValueError:
             continue
-    if not uuids:
-        return
-    props = PropuestaPedido.objects.filter(id__in=uuids).select_related("solicitud")
-    by_id = {p.id: p for p in props}
+    if uuids:
+        props = PropuestaPedido.objects.filter(id__in=uuids).select_related("solicitud")
+        by_id = {p.id: p for p in props}
+        for m in movimientos:
+            if m.tipo_movimiento != "SALIDA" or not (m.motivo or "").strip().lower().startswith("ajuste por sistema"):
+                continue
+            if not m.institucion_destino_id:
+                continue
+            try:
+                uid = UUID((m.folio or "").strip())
+            except (ValueError, TypeError, AttributeError):
+                continue
+            p = by_id.get(uid)
+            if not p or not p.solicitud:
+                continue
+            sol = p.solicitud
+            o = (sol.observaciones_solicitud or "").strip().split("\n", 1)[0].strip()
+            m._folio_obs_solicitud = o or (sol.folio or "").strip() or None
+
+    # Suministro de pedido: pedido/folio en el movimiento pueden ser SOL-; folio de hospital en solicitud
+    to_resolve = []
     for m in movimientos:
-        if m.tipo_movimiento != "SALIDA" or not (m.motivo or "").strip().lower().startswith("ajuste por sistema"):
+        if m.tipo_movimiento != "SALIDA":
+            continue
+        if getattr(m, "_folio_obs_solicitud", None):
+            continue
+        if "Suministro de Pedido" not in (m.motivo or ""):
             continue
         if not m.institucion_destino_id:
             continue
-        try:
-            uid = UUID((m.folio or "").strip())
-        except (ValueError, TypeError, AttributeError):
-            continue
-        p = by_id.get(uid)
-        if not p or not p.solicitud:
-            continue
-        sol = p.solicitud
-        o = (sol.observaciones_solicitud or "").strip().split("\n", 1)[0].strip()
-        m._folio_obs_solicitud = o or (sol.folio or "").strip() or None
+        dr = (m.documento_referencia or "").strip()
+        if not dr:
+            mo = re.search(r"\b(SOL-[\w-]+)\b", m.motivo or "", re.IGNORECASE)
+            if mo:
+                dr = mo.group(1)
+        if dr:
+            to_resolve.append((m, dr))
+    if to_resolve:
+        folios_unicos = {dr for _, dr in to_resolve}
+        sol_por_folio = {
+            s.folio: s
+            for s in SolicitudPedido.objects.filter(folio__in=folios_unicos).only("folio", "observaciones_solicitud")
+        }
+        for m, dr in to_resolve:
+            sol = sol_por_folio.get(dr)
+            if not sol:
+                continue
+            o = (sol.observaciones_solicitud or "").strip().split("\n", 1)[0].strip()
+            if o:
+                m._folio_obs_solicitud = o
 
 
 def sincronizar_cantidades_surtidas_items_propuesta(propuesta):
