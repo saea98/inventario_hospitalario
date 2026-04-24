@@ -27,6 +27,25 @@ def copiar_estilo_celda(celda_origen, celda_destino):
         celda_destino.alignment = copy(celda_origen.alignment)
 
 
+def _acuse_filas_encabezado_texto_blanco(ws, filas):
+    """
+    Fuerza texto blanco en encabezados del template (p. ej. fondo guinda).
+    Preserva nombre, tamaño y negrita de la fuente existente.
+    """
+    for fila in filas:
+        for col in range(1, 12):
+            celda = ws.cell(row=fila, column=col)
+            if celda.font:
+                celda.font = Font(
+                    name=celda.font.name or 'Calibri',
+                    size=celda.font.size or 8,
+                    bold=celda.font.bold or False,
+                    color='FFFFFF',
+                )
+            else:
+                celda.font = Font(name='Calibri', size=8, bold=True, color='FFFFFF')
+
+
 def agregar_bordes_celda(celda):
     """
     Agrega bordes a una celda
@@ -41,7 +60,7 @@ def agregar_bordes_celda(celda):
     celda.border = thin_border
 
 
-def generar_acuse_excel(propuesta, almacen_id=None):
+def generar_acuse_excel(propuesta, almacen_id=None, for_pdf=False):
     """
     Genera un archivo Excel con el acuse de entrega usando un template como base.
 
@@ -54,6 +73,8 @@ def generar_acuse_excel(propuesta, almacen_id=None):
     Args:
         propuesta: Objeto PropuestaPedido
         almacen_id: Opcional. Filtra por lote_ubicacion__ubicacion__almacen_id.
+        for_pdf: Si True, no altera la configuración de impresión del libro (el PDF
+            se genera a partir del mismo Excel y ya luce bien en horizontal allí).
 
     Returns:
         BytesIO: Buffer con el archivo Excel
@@ -251,19 +272,15 @@ def generar_acuse_excel(propuesta, almacen_id=None):
     # Columna 11: FOLIO PEDIDO (movido de columna 10)
     ws.cell(row=17, column=11).value = 'FOLIO PEDIDO'
     
-    # Cambiar color de texto a blanco en fila 17 (encabezados de tabla de detalle)
-    for col in range(1, 12):  # Ajustado a 11 columnas
-        celda = ws.cell(row=17, column=col)
-        if celda.font:
-            celda.font = Font(
-                name=celda.font.name or 'Calibri',
-                size=celda.font.size or 8,
-                bold=celda.font.bold or False,
-                color='FFFFFF'
-            )
-        else:
-            celda.font = Font(name='Calibri', size=8, bold=True, color='FFFFFF')
-    
+    # Encabezados con fondo guinda / oscuro: texto blanco (fila 8 del template y fila 17 del detalle)
+    _acuse_filas_encabezado_texto_blanco(ws, (8, 17))
+
+    # Solo descarga Excel: orientación horizontal al imprimir / vista previa
+    if not for_pdf:
+        ws.page_setup.orientation = 'landscape'
+        # 1 = carta (US Letter), estándar openpyxl / OOXML
+        ws.page_setup.paperSize = 1
+
     # Guardar en buffer
     buffer = BytesIO()
     wb.save(buffer)

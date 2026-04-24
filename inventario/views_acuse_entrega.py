@@ -222,7 +222,7 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
 
     try:
         # Generar Excel (con filtro de almacén si aplica)
-        excel_buffer = generar_acuse_excel(propuesta, almacen_id=almacen_id)
+        excel_buffer = generar_acuse_excel(propuesta, almacen_id=almacen_id, for_pdf=True)
         
         # Convertir Excel a PDF
         pdf_buffer = convertir_acuse_excel_a_pdf(excel_buffer)
