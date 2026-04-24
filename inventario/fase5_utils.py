@@ -16,6 +16,31 @@ from .pedidos_models import PropuestaPedido
 logger = logging.getLogger(__name__)
 
 
+def _folio_pedido_desde_solicitud(solicitud):
+    """
+    Folio comercial capturado en el pedido (SolicitudPedido.observaciones_solicitud,
+    label «Folio del Pedido»). Si viene vacío, se usa el folio interno SOL-...
+    """
+    if not solicitud:
+        return ''
+    raw = (solicitud.observaciones_solicitud or '').strip()
+    if raw:
+        return raw.split('\n', 1)[0].strip()[:255]
+    return (solicitud.folio or '')[:255]
+
+
+def _texto_destino_solicitud(solicitud):
+    """CLUE y denominación de la institución a la que va el pedido (solicitante)."""
+    inst = getattr(solicitud, 'institucion_solicitante', None) if solicitud else None
+    if not inst:
+        return 'N/D'
+    clue = (getattr(inst, 'clue', None) or '').strip()
+    den = (getattr(inst, 'denominacion', None) or getattr(inst, 'nombre', None) or '').strip()
+    if clue and den:
+        return f'{clue} — {den}'
+    return den or clue or 'N/D'
+
+
 def _mensaje_cantidad_insuficiente(lote, lote_ubicacion, cantidad_anterior_ubicacion, cantidad_surtida):
     """Mensaje de error incluyendo nota sobre fecha de recepción si está en el futuro."""
     msg = (
@@ -49,8 +74,16 @@ def generar_movimientos_suministro(propuesta_id, usuario):
     """
     try:
         logger.info(f"Iniciando generación de movimientos para propuesta {propuesta_id}")
-        propuesta = PropuestaPedido.objects.get(id=propuesta_id)
+        propuesta = PropuestaPedido.objects.select_related(
+            'solicitud__institucion_solicitante',
+        ).get(id=propuesta_id)
         movimientos_creados = 0
+        sol = propuesta.solicitud
+        folio_pedido = _folio_pedido_desde_solicitud(sol) or (sol.folio or '')
+        destino_txt = _texto_destino_solicitud(sol)
+        motivo_salida = (
+            f'Suministro de Pedido — Pedido: {folio_pedido}. Destino: {destino_txt}.'
+        )
 
         with transaction.atomic():
             # Detectar asignaciones duplicadas (mismo item + misma lote_ubicacion): provocan doble descuento
@@ -118,11 +151,11 @@ def generar_movimientos_suministro(propuesta_id, usuario):
                     cantidad=cantidad_surtida,
                     cantidad_anterior=cantidad_anterior_lote,
                     cantidad_nueva=cantidad_nueva_lote,
-                    motivo=f"Suministro de Pedido - Propuesta {propuesta.solicitud.folio}",
-                    documento_referencia=str(propuesta.solicitud.folio),
-                    pedido=str(propuesta.solicitud.folio),
-                    folio=str(propuesta.id),
-                    institucion_destino=propuesta.solicitud.institucion_solicitante,
+                    motivo=motivo_salida,
+                    documento_referencia=(sol.folio or '')[:100],
+                    pedido=folio_pedido[:255],
+                    folio=folio_pedido[:255],
+                    institucion_destino=sol.institucion_solicitante,
                     usuario=usuario,
                 )
 
@@ -179,8 +212,17 @@ def revertir_movimientos_suministro(propuesta_id, usuario):
     from .pedidos_models import LoteAsignado
     try:
         logger.info(f"Revirtiendo movimientos de suministro para propuesta {propuesta_id}")
-        propuesta = PropuestaPedido.objects.get(id=propuesta_id)
+        propuesta = PropuestaPedido.objects.select_related(
+            'solicitud__institucion_solicitante',
+        ).get(id=propuesta_id)
         movimientos_revertidos = 0
+        sol = propuesta.solicitud
+        folio_pedido = _folio_pedido_desde_solicitud(sol) or (sol.folio or '')
+        destino_txt = _texto_destino_solicitud(sol)
+        motivo_reversion = (
+            f'Reversión suministro — Pedido: {folio_pedido}. Destino: {destino_txt}. '
+            f'Ref. solicitud: {sol.folio}.'
+        )
 
         with transaction.atomic():
             for item in propuesta.items.select_related('producto').prefetch_related(
@@ -204,11 +246,11 @@ def revertir_movimientos_suministro(propuesta_id, usuario):
                         cantidad=cantidad,
                         cantidad_anterior=cantidad_anterior_lote,
                         cantidad_nueva=cantidad_nueva_lote,
-                        motivo=f"Reversión suministro - corrección propuesta {propuesta.solicitud.folio}",
-                        documento_referencia=str(propuesta.solicitud.folio),
-                        pedido=str(propuesta.solicitud.folio),
-                        folio=str(propuesta.id),
-                        institucion_destino=propuesta.solicitud.institucion_solicitante,
+                        motivo=motivo_reversion,
+                        documento_referencia=(sol.folio or '')[:100],
+                        pedido=folio_pedido[:255],
+                        folio=folio_pedido[:255],
+                        institucion_destino=sol.institucion_solicitante,
                         usuario=usuario
                     )
                     lu = LoteUbicacion.objects.select_for_update().get(pk=lu.pk)

@@ -125,6 +125,8 @@
                         <th>Cambio</th>
                         <th>Cant. Surtida</th>
                         <th>Remisión</th>
+                        <th>Folio del pedido</th>
+                        <th>Destino (pedido)</th>
                         <th>Motivo</th>
                         <th>Usuario</th>
                     </tr>
@@ -194,6 +196,20 @@
                             <small>{% firstof movimiento.remision movimiento.lote.remision "—" %}</small>
                         </td>
                         <td>
+                            <small>{% firstof movimiento.pedido movimiento.folio movimiento.documento_referencia "—" %}</small>
+                        </td>
+                        <td>
+                            <small>
+                                {% if movimiento.institucion_destino %}
+                                    <span class="text-nowrap">{{ movimiento.institucion_destino.clue }}</span>
+                                    <br>
+                                    <span class="text-muted">{{ movimiento.institucion_destino.denominacion }}</span>
+                                {% else %}
+                                    <span class="text-muted">—</span>
+                                {% endif %}
+                            </small>
+                        </td>
+                        <td>
                             <small>{{ movimiento.motivo }}</small>
                         </td>
                         <td>
@@ -202,7 +218,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="11" class="text-center text-muted py-4">
+                        <td colspan="13" class="text-center text-muted py-4">
                             <i class="bi bi-inbox"></i> No se encontraron movimientos con los criterios de búsqueda
                         </td>
                     </tr>

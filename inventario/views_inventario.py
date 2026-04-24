@@ -893,10 +893,12 @@ def _movimientos_filtrados_desde_request(request):
     if institucion:
         movimientos = MovimientoInventario.objects.filter(
             Q(institucion_destino=institucion) | Q(lote__institucion=institucion)
-        ).select_related('lote', 'lote__producto', 'lote__institucion', 'usuario')
+        ).select_related(
+            'lote', 'lote__producto', 'lote__institucion', 'institucion_destino', 'usuario'
+        )
     else:
         movimientos = MovimientoInventario.objects.all().select_related(
-            'lote', 'lote__producto', 'lote__institucion', 'usuario'
+            'lote', 'lote__producto', 'lote__institucion', 'institucion_destino', 'usuario'
         )
 
     filtro_tipo = request.GET.get('tipo', '')
@@ -1000,6 +1002,9 @@ def exportar_movimientos_excel(request):
         'Cant. nueva',
         'Cantidad movimiento',
         'Remisión',
+        'Folio del pedido',
+        'CLUES destino (pedido)',
+        'Institución destino (pedido)',
         'Motivo',
         'Usuario',
         'Anulado',
@@ -1016,6 +1021,10 @@ def exportar_movimientos_excel(request):
         inst_clue = getattr(inst, 'clue', '') or ''
         inst_nom = getattr(inst, 'denominacion', '') or ''
         remision = m.remision or (getattr(lote, 'remision', None) or '') or ''
+        inst_dest = m.institucion_destino
+        dest_clue = (getattr(inst_dest, 'clue', None) or '') if inst_dest else ''
+        dest_nom = (getattr(inst_dest, 'denominacion', None) or '') if inst_dest else ''
+        folio_pedido = (m.pedido or m.folio or m.documento_referencia or '') or ''
         ws.append(
             [
                 m.fecha_movimiento.strftime('%d/%m/%Y %H:%M') if m.fecha_movimiento else '',
@@ -1029,13 +1038,16 @@ def exportar_movimientos_excel(request):
                 m.cantidad_nueva,
                 m.cantidad,
                 str(remision) if remision else '',
+                str(folio_pedido),
+                dest_clue,
+                dest_nom,
                 (m.motivo or '')[:5000],
                 m.usuario.username if m.usuario_id else '',
                 'Sí' if m.anulado else 'No',
             ]
         )
 
-    widths = [18, 16, 14, 14, 36, 12, 28, 12, 12, 14, 14, 40, 16, 8]
+    widths = [18, 16, 14, 14, 36, 12, 28, 12, 12, 14, 14, 24, 14, 32, 40, 16, 8]
     for i, w in enumerate(widths, start=1):
         ws.column_dimensions[get_column_letter(i)].width = w
 
