@@ -27,23 +27,48 @@ def copiar_estilo_celda(celda_origen, celda_destino):
         celda_destino.alignment = copy(celda_origen.alignment)
 
 
-def _acuse_filas_encabezado_texto_blanco(ws, filas):
+def _acuse_rgb_relleno_solido(celda):
+    """Devuelve el RGB del fg en relleno sólido (ej. 'FF8B1538') o None."""
+    fill = celda.fill
+    if fill is None or getattr(fill, 'patternType', None) != 'solid':
+        return None
+    fg = getattr(fill, 'fgColor', None)
+    if fg is None or not getattr(fg, 'rgb', None):
+        return None
+    return str(fg.rgb).upper()
+
+
+def _acuse_es_relleno_guinda(rgb_upper):
+    """Colores guinda del template (xl/styles.xml: 8B1538 y variante 8A1538)."""
+    if not rgb_upper:
+        return False
+    core = rgb_upper[-6:] if len(rgb_upper) >= 6 else rgb_upper
+    return core in ('8B1538', '8A1538')
+
+
+def _acuse_texto_blanco_en_rellenos_guinda(ws, max_row=40, max_col=11):
     """
-    Fuerza texto blanco en encabezados del template (p. ej. fondo guinda).
-    Preserva nombre, tamaño y negrita de la fuente existente.
+    Fuerza texto blanco en cualquier celda con fondo guinda del acuse.
+    En la plantilla, la banda con letra negra suele ser la fila 9 (no la 8:
+    la 8 solo tiene A8 con fondo blanco); así cubrimos todas las variantes.
     """
-    for fila in filas:
-        for col in range(1, 12):
+    last = min(max_row, ws.max_row or max_row)
+    for fila in range(1, last + 1):
+        for col in range(1, max_col + 1):
             celda = ws.cell(row=fila, column=col)
-            if celda.font:
-                celda.font = Font(
-                    name=celda.font.name or 'Calibri',
-                    size=celda.font.size or 8,
-                    bold=celda.font.bold or False,
-                    color='FFFFFF',
-                )
-            else:
-                celda.font = Font(name='Calibri', size=8, bold=True, color='FFFFFF')
+            if type(celda).__name__ == 'MergedCell':
+                continue
+            rgb = _acuse_rgb_relleno_solido(celda)
+            if not rgb or not _acuse_es_relleno_guinda(rgb):
+                continue
+            f = celda.font
+            celda.font = Font(
+                name=(f.name if f and f.name else 'Calibri'),
+                size=(f.size if f and f.size else 9),
+                bold=bool(f and f.bold),
+                italic=bool(f and f.italic),
+                color='FFFFFF',
+            )
 
 
 def agregar_bordes_celda(celda):
@@ -272,8 +297,8 @@ def generar_acuse_excel(propuesta, almacen_id=None, for_pdf=False):
     # Columna 11: FOLIO PEDIDO (movido de columna 10)
     ws.cell(row=17, column=11).value = 'FOLIO PEDIDO'
     
-    # Encabezados con fondo guinda / oscuro: texto blanco (fila 8 del template y fila 17 del detalle)
-    _acuse_filas_encabezado_texto_blanco(ws, (8, 17))
+    # Celdas con fondo guinda (p. ej. fila de encabezados de firmas / detalle): texto blanco
+    _acuse_texto_blanco_en_rellenos_guinda(ws)
 
     # Solo descarga Excel: orientación horizontal al imprimir / vista previa
     if not for_pdf:
