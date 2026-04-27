@@ -37,6 +37,7 @@ urlpatterns = [
     path('lotes/exportar-personalizado/', views_inventario.exportar_lotes_personalizado, name='exportar_lotes_personalizado'),
     # Reporte independiente de lotes para exportación (solo lectura)
     path('lotes/reporte-personalizado/', views_inventario.reporte_lotes_personalizado, name='reporte_lotes_personalizado'),
+    path('reportes/comparador-archivos/', views_inventario.comparar_reportes_archivos, name='comparar_reportes_archivos'),
     
     # Reporte de registros no afectados
     path('reporte-no-afectados/', views_reporte_no_afectados.reporte_no_afectados, name='reporte_no_afectados'),

@@ -123,6 +123,31 @@ def dashboard_inventario(request):
 FECHA_RECEPCION_MIN = date(2010, 1, 1)
 
 
+def _normalizar_columna(nombre):
+    return "".join(ch.lower() for ch in str(nombre or "").strip() if ch.isalnum())
+
+
+def _resolver_columna(df, valor_usuario, candidatos_normalizados):
+    columnas_map = {_normalizar_columna(c): c for c in df.columns}
+    if valor_usuario:
+        objetivo = _normalizar_columna(valor_usuario)
+        if objetivo in columnas_map:
+            return columnas_map[objetivo]
+    for candidato in candidatos_normalizados:
+        if candidato in columnas_map:
+            return columnas_map[candidato]
+    return None
+
+
+def _leer_dataframe_reporte(uploaded_file):
+    nombre = (uploaded_file.name or "").lower()
+    if nombre.endswith((".xlsx", ".xlsm", ".xls")):
+        return pd.read_excel(uploaded_file)
+    if nombre.endswith(".csv"):
+        return pd.read_csv(uploaded_file)
+    raise ValueError(f"Formato no soportado: {uploaded_file.name}")
+
+
 def _fecha_recepcion_es_coherente(fecha_recepcion, hoy=None):
     """True si la fecha de recepción es coherente: no futura y no anterior a FECHA_RECEPCION_MIN."""
     if fecha_recepcion is None:
@@ -369,6 +394,143 @@ def lista_lotes(request):
     }
     
     return render(request, 'inventario/lista_lotes.html', context)
+
+
+@login_required
+def comparar_reportes_archivos(request):
+    """
+    Utilería para comparar 2 o más reportes (Excel/CSV) y detectar:
+    - diferencias de existencias entre archivos
+    - claves con poco movimiento o sin movimiento
+    """
+    resultados = []
+    resumen = {}
+
+    if request.method == "POST":
+        archivos = request.FILES.getlist("archivos")
+        columna_clave_usuario = (request.POST.get("columna_clave") or "").strip()
+        columna_cantidad_usuario = (request.POST.get("columna_cantidad") or "").strip()
+        try:
+            umbral_poco_movimiento = float(request.POST.get("umbral_poco_movimiento") or 5)
+        except ValueError:
+            umbral_poco_movimiento = 5
+
+        if len(archivos) < 2:
+            messages.error(request, "Debes subir al menos 2 archivos para comparar.")
+            return render(request, "inventario/reportes/comparador_reportes_archivos.html", {})
+
+        candidatos_clave = [
+            "clavecnis",
+            "clave",
+            "cnis",
+            "claveproducto",
+            "producto",
+            "codigoproducto",
+            "codigo",
+        ]
+        candidatos_cantidad = [
+            "cantidaddisponible",
+            "disponible",
+            "cantidad",
+            "existencia",
+            "existencias",
+            "cantidadneta",
+            "netoinv",
+            "netoinventario",
+            "cantidaddesurtida",
+            "movimiento",
+            "salidas",
+        ]
+
+        series_por_archivo = {}
+        errores_archivos = []
+
+        for archivo in archivos:
+            try:
+                df = _leer_dataframe_reporte(archivo)
+                if df.empty:
+                    errores_archivos.append(f"{archivo.name}: archivo vacío.")
+                    continue
+
+                col_clave = _resolver_columna(df, columna_clave_usuario, candidatos_clave)
+                col_cantidad = _resolver_columna(df, columna_cantidad_usuario, candidatos_cantidad)
+
+                if not col_clave or not col_cantidad:
+                    errores_archivos.append(
+                        f"{archivo.name}: no se encontró columna de clave/cantidad. "
+                        "Puedes especificarlas manualmente en el formulario."
+                    )
+                    continue
+
+                trabajo = df[[col_clave, col_cantidad]].copy()
+                trabajo[col_clave] = trabajo[col_clave].astype(str).str.strip()
+                trabajo[col_cantidad] = pd.to_numeric(trabajo[col_cantidad], errors="coerce").fillna(0)
+                trabajo = trabajo[trabajo[col_clave] != ""]
+                agregado = trabajo.groupby(col_clave, dropna=False)[col_cantidad].sum()
+                series_por_archivo[archivo.name] = agregado
+            except Exception as e:
+                errores_archivos.append(f"{archivo.name}: {str(e)}")
+
+        if errores_archivos:
+            for err in errores_archivos:
+                messages.warning(request, err)
+
+        if len(series_por_archivo) < 2:
+            messages.error(
+                request,
+                "No se pudieron procesar al menos 2 archivos válidos con columnas comparables.",
+            )
+            return render(request, "inventario/reportes/comparador_reportes_archivos.html", {})
+
+        comparativo = pd.concat(series_por_archivo, axis=1).fillna(0)
+        comparativo["minimo"] = comparativo.min(axis=1)
+        comparativo["maximo"] = comparativo.max(axis=1)
+        comparativo["diferencia_abs"] = (comparativo["maximo"] - comparativo["minimo"]).abs()
+        comparativo["estado_movimiento"] = comparativo["diferencia_abs"].apply(
+            lambda x: "Sin movimiento"
+            if x == 0
+            else ("Poco movimiento" if x <= umbral_poco_movimiento else "Con diferencia")
+        )
+        comparativo = comparativo.sort_values("diferencia_abs", ascending=False)
+        comparativo = comparativo.reset_index().rename(columns={"index": "clave"})
+
+        # Limitar vista para no saturar la interfaz; se priorizan diferencias.
+        visibles = comparativo.head(1500).to_dict(orient="records")
+        nombres_archivos = list(series_por_archivo.keys())
+        resultados = []
+        for row in visibles:
+            resultados.append(
+                {
+                    "clave": row.get("clave"),
+                    "valores_archivos": [row.get(nombre, 0) for nombre in nombres_archivos],
+                    "minimo": row.get("minimo", 0),
+                    "maximo": row.get("maximo", 0),
+                    "diferencia_abs": row.get("diferencia_abs", 0),
+                    "estado_movimiento": row.get("estado_movimiento", ""),
+                }
+            )
+        total_registros = len(comparativo)
+        sin_movimiento = int((comparativo["estado_movimiento"] == "Sin movimiento").sum())
+        poco_mov = int((comparativo["estado_movimiento"] == "Poco movimiento").sum())
+        con_dif = int((comparativo["estado_movimiento"] == "Con diferencia").sum())
+
+        resumen = {
+            "total_archivos": len(series_por_archivo),
+            "nombres_archivos": nombres_archivos,
+            "total_claves": total_registros,
+            "sin_movimiento": sin_movimiento,
+            "poco_movimiento": poco_mov,
+            "con_diferencia": con_dif,
+            "umbral_poco_movimiento": umbral_poco_movimiento,
+            "columnas_archivos": nombres_archivos,
+            "truncado": total_registros > len(resultados),
+        }
+
+    context = {
+        "resultados": resultados,
+        "resumen": resumen,
+    }
+    return render(request, "inventario/reportes/comparador_reportes_archivos.html", context)
 
 
 @login_required

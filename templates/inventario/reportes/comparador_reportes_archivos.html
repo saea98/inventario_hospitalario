@@ -1,0 +1,111 @@
+{% extends "base.html" %}
+
+{% block title %}Comparador de Reportes{% endblock %}
+
+{% block content %}
+<div class="container-fluid py-4">
+    <div class="row mb-3">
+        <div class="col-md-8">
+            <h1 class="h3 mb-1">Comparador de reportes de existencias</h1>
+            <p class="text-muted mb-0">Sube dos o más archivos (Excel/CSV) para comparar diferencias por clave y detectar poco o nulo movimiento.</p>
+        </div>
+    </div>
+
+    <div class="card mb-4">
+        <div class="card-header bg-light">
+            <strong>Cargar archivos</strong>
+        </div>
+        <div class="card-body">
+            <form method="post" enctype="multipart/form-data" class="row g-3">
+                {% csrf_token %}
+                <div class="col-md-6">
+                    <label class="form-label">Archivos de reporte (2 o más)</label>
+                    <input class="form-control" type="file" name="archivos" multiple accept=".xlsx,.xls,.xlsm,.csv" required>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Columna de clave (opcional)</label>
+                    <input class="form-control" type="text" name="columna_clave" placeholder="Ej: Clave CNIS">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Columna de cantidad (opcional)</label>
+                    <input class="form-control" type="text" name="columna_cantidad" placeholder="Ej: Cantidad Disponible">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label">Umbral poco movimiento</label>
+                    <input class="form-control" type="number" min="0" step="0.01" name="umbral_poco_movimiento" value="5">
+                </div>
+                <div class="col-md-12">
+                    <button class="btn btn-primary" type="submit">
+                        <i class="fas fa-search"></i> Comparar archivos
+                    </button>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% if resumen %}
+    <div class="row g-3 mb-4">
+        <div class="col-md-2"><div class="card"><div class="card-body py-2"><small>Total archivos</small><div class="h5 mb-0">{{ resumen.total_archivos }}</div></div></div></div>
+        <div class="col-md-2"><div class="card"><div class="card-body py-2"><small>Total claves</small><div class="h5 mb-0">{{ resumen.total_claves }}</div></div></div></div>
+        <div class="col-md-2"><div class="card border-success"><div class="card-body py-2"><small>Sin movimiento</small><div class="h5 mb-0 text-success">{{ resumen.sin_movimiento }}</div></div></div></div>
+        <div class="col-md-2"><div class="card border-warning"><div class="card-body py-2"><small>Poco movimiento</small><div class="h5 mb-0 text-warning">{{ resumen.poco_movimiento }}</div></div></div></div>
+        <div class="col-md-2"><div class="card border-danger"><div class="card-body py-2"><small>Con diferencia</small><div class="h5 mb-0 text-danger">{{ resumen.con_diferencia }}</div></div></div></div>
+        <div class="col-md-2"><div class="card"><div class="card-body py-2"><small>Umbral</small><div class="h5 mb-0">{{ resumen.umbral_poco_movimiento }}</div></div></div></div>
+    </div>
+    <div class="alert alert-light">
+        <strong>Archivos comparados:</strong> {{ resumen.nombres_archivos|join:", " }}
+        {% if resumen.truncado %}
+        <div class="small text-muted mt-1">Se muestran los primeros 1500 registros ordenados por mayor diferencia.</div>
+        {% endif %}
+    </div>
+    {% endif %}
+
+    {% if resultados %}
+    <div class="card">
+        <div class="card-header bg-light">
+            <strong>Resultado comparativo por clave</strong>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive" style="max-height: 70vh;">
+                <table class="table table-sm table-striped table-hover mb-0">
+                    <thead class="table-dark" style="position: sticky; top: 0;">
+                        <tr>
+                            <th>Clave</th>
+                            {% for col in resumen.columnas_archivos %}
+                            <th class="text-end">{{ col }}</th>
+                            {% endfor %}
+                            <th class="text-end">Mínimo</th>
+                            <th class="text-end">Máximo</th>
+                            <th class="text-end">Dif. abs.</th>
+                            <th>Estado</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for row in resultados %}
+                        <tr>
+                            <td><code>{{ row.clave }}</code></td>
+                            {% for valor in row.valores_archivos %}
+                            <td class="text-end">{{ valor }}</td>
+                            {% endfor %}
+                            <td class="text-end">{{ row.minimo }}</td>
+                            <td class="text-end">{{ row.maximo }}</td>
+                            <td class="text-end fw-bold">{{ row.diferencia_abs }}</td>
+                            <td>
+                                {% if row.estado_movimiento == "Sin movimiento" %}
+                                    <span class="badge bg-success">{{ row.estado_movimiento }}</span>
+                                {% elif row.estado_movimiento == "Poco movimiento" %}
+                                    <span class="badge bg-warning text-dark">{{ row.estado_movimiento }}</span>
+                                {% else %}
+                                    <span class="badge bg-danger">{{ row.estado_movimiento }}</span>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}
