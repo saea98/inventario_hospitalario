@@ -48,13 +48,22 @@ from django.db.models import Q, Sum
 
 def _disponible_neta_lote_ubicacion(lu):
     """
-    Misma fórmula que el filtro template `disponible_real` y el texto
-    «Disponible (restando otras reservas)»: cantidad − cantidad_reservada.
-    Debe usarse para el select de «agregar ubicación de lote» para no listar
-    filas que el usuario ya ve como no disponibles.
+    Disponible real por ubicación:
+    cantidad física de la ubicación − suma de LoteAsignado activos (surtido=False).
+
+    Nota: no usar `cantidad_reservada` persistida, porque puede desfasarse
+    respecto al estado real de las asignaciones.
     """
     try:
-        return max(0, int(lu.cantidad) - int(getattr(lu, 'cantidad_reservada', 0) or 0))
+        from .pedidos_models import LoteAsignado
+
+        reservada_activa = (
+            LoteAsignado.objects.filter(lote_ubicacion=lu, surtido=False)
+            .aggregate(total=Sum('cantidad_asignada'))
+            .get('total')
+            or 0
+        )
+        return max(0, int(lu.cantidad) - int(reservada_activa))
     except (TypeError, ValueError):
         return 0
 
