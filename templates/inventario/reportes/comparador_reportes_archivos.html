@@ -24,15 +24,15 @@
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Columna de clave (opcional)</label>
-                    <input class="form-control" type="text" name="columna_clave" placeholder="Ej: Clave CNIS">
+                    <input class="form-control" type="text" name="columna_clave" placeholder="Ej: Clave CNIS" value="{{ form_data.columna_clave|default:'' }}">
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Columna de cantidad (opcional)</label>
-                    <input class="form-control" type="text" name="columna_cantidad" placeholder="Ej: Cantidad Disponible">
+                    <input class="form-control" type="text" name="columna_cantidad" placeholder="Ej: Cantidad Disponible" value="{{ form_data.columna_cantidad|default:'' }}">
                 </div>
                 <div class="col-md-3">
                     <label class="form-label">Umbral poco movimiento</label>
-                    <input class="form-control" type="number" min="0" step="0.01" name="umbral_poco_movimiento" value="5">
+                    <input class="form-control" type="number" min="0" step="0.01" name="umbral_poco_movimiento" value="{{ form_data.umbral_poco_movimiento|default:'5' }}">
                 </div>
                 <div class="col-md-12">
                     <button class="btn btn-primary" type="submit">
@@ -64,6 +64,11 @@
     <div class="card">
         <div class="card-header bg-light">
             <strong>Resultado comparativo por clave</strong>
+            {% if token %}
+            <a class="btn btn-sm btn-success float-end" href="?token={{ token }}&export=1">
+                <i class="fas fa-file-excel"></i> Exportar Excel
+            </a>
+            {% endif %}
         </div>
         <div class="card-body p-0">
             <div class="table-responsive" style="max-height: 70vh;">
@@ -106,6 +111,27 @@
             </div>
         </div>
     </div>
+    {% if page_obj and page_obj.has_other_pages %}
+    <nav aria-label="Paginación comparador" class="mt-3">
+        <ul class="pagination justify-content-center">
+            {% if page_obj.has_previous %}
+            <li class="page-item"><a class="page-link" href="?token={{ token }}&page=1">Primera</a></li>
+            <li class="page-item"><a class="page-link" href="?token={{ token }}&page={{ page_obj.previous_page_number }}">Anterior</a></li>
+            {% else %}
+            <li class="page-item disabled"><span class="page-link">Primera</span></li>
+            <li class="page-item disabled"><span class="page-link">Anterior</span></li>
+            {% endif %}
+            <li class="page-item active"><span class="page-link">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span></li>
+            {% if page_obj.has_next %}
+            <li class="page-item"><a class="page-link" href="?token={{ token }}&page={{ page_obj.next_page_number }}">Siguiente</a></li>
+            <li class="page-item"><a class="page-link" href="?token={{ token }}&page={{ page_obj.paginator.num_pages }}">Última</a></li>
+            {% else %}
+            <li class="page-item disabled"><span class="page-link">Siguiente</span></li>
+            <li class="page-item disabled"><span class="page-link">Última</span></li>
+            {% endif %}
+        </ul>
+    </nav>
+    {% endif %}
     {% endif %}
 </div>
 {% endblock %}

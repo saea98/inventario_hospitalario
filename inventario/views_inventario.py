@@ -8,6 +8,7 @@ from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse, HttpResponse
 from django.urls import reverse
+from django.core.paginator import Paginator
 from django.db import transaction
 from django.db.models import Q, Sum, Count, F, IntegerField
 from django.db.models.functions import Coalesce
@@ -16,6 +17,7 @@ from django.utils import timezone
 from datetime import datetime, timedelta, date
 from decimal import Decimal
 import pandas as pd
+from uuid import uuid4
 
 from .models import Lote, MovimientoInventario, Producto, LoteUbicacion, Almacen, Institucion, UbicacionAlmacen
 from .propuesta_utils import (
@@ -405,6 +407,7 @@ def comparar_reportes_archivos(request):
     """
     resultados = []
     resumen = {}
+    token = (request.GET.get("token") or "").strip()
 
     if request.method == "POST":
         archivos = request.FILES.getlist("archivos")
@@ -417,29 +420,18 @@ def comparar_reportes_archivos(request):
 
         if len(archivos) < 2:
             messages.error(request, "Debes subir al menos 2 archivos para comparar.")
-            return render(request, "inventario/reportes/comparador_reportes_archivos.html", {})
+            return render(
+                request,
+                "inventario/reportes/comparador_reportes_archivos.html",
+                {"resumen": {}, "resultados": [], "form_data": {}},
+            )
 
         candidatos_clave = [
-            "clavecnis",
-            "clave",
-            "cnis",
-            "claveproducto",
-            "producto",
-            "codigoproducto",
-            "codigo",
+            "clavecnis", "clave", "cnis", "claveproducto", "producto", "codigoproducto", "codigo",
         ]
         candidatos_cantidad = [
-            "cantidaddisponible",
-            "disponible",
-            "cantidad",
-            "existencia",
-            "existencias",
-            "cantidadneta",
-            "netoinv",
-            "netoinventario",
-            "cantidaddesurtida",
-            "movimiento",
-            "salidas",
+            "cantidaddisponible", "disponible", "cantidad", "existencia", "existencias",
+            "cantidadneta", "netoinv", "netoinventario", "cantidaddesurtida", "movimiento", "salidas",
         ]
 
         series_por_archivo = {}
@@ -463,24 +455,33 @@ def comparar_reportes_archivos(request):
                     continue
 
                 trabajo = df[[col_clave, col_cantidad]].copy()
-                trabajo[col_clave] = trabajo[col_clave].astype(str).str.strip()
-                trabajo[col_cantidad] = pd.to_numeric(trabajo[col_cantidad], errors="coerce").fillna(0)
-                trabajo = trabajo[trabajo[col_clave] != ""]
+                trabajo[col_clave] = trabajo[col_clave].apply(
+                    lambda v: "" if pd.isna(v) else str(v).strip()
+                )
+                trabajo[col_cantidad] = pd.to_numeric(
+                    trabajo[col_cantidad], errors="coerce"
+                ).fillna(0)
+                trabajo = trabajo[
+                    ~trabajo[col_clave].str.lower().isin(["", "none", "nan", "null"])
+                ]
                 agregado = trabajo.groupby(col_clave, dropna=False)[col_cantidad].sum()
                 series_por_archivo[archivo.name] = agregado
             except Exception as e:
                 errores_archivos.append(f"{archivo.name}: {str(e)}")
 
-        if errores_archivos:
-            for err in errores_archivos:
-                messages.warning(request, err)
+        for err in errores_archivos:
+            messages.warning(request, err)
 
         if len(series_por_archivo) < 2:
             messages.error(
                 request,
                 "No se pudieron procesar al menos 2 archivos válidos con columnas comparables.",
             )
-            return render(request, "inventario/reportes/comparador_reportes_archivos.html", {})
+            return render(
+                request,
+                "inventario/reportes/comparador_reportes_archivos.html",
+                {"resumen": {}, "resultados": [], "form_data": {}},
+            )
 
         comparativo = pd.concat(series_por_archivo, axis=1).fillna(0)
         comparativo["minimo"] = comparativo.min(axis=1)
@@ -491,46 +492,99 @@ def comparar_reportes_archivos(request):
             if x == 0
             else ("Poco movimiento" if x <= umbral_poco_movimiento else "Con diferencia")
         )
-        comparativo = comparativo.sort_values("diferencia_abs", ascending=False)
-        comparativo = comparativo.reset_index().rename(columns={"index": "clave"})
+        comparativo = comparativo.sort_values("diferencia_abs", ascending=False).reset_index()
+        comparativo = comparativo.rename(columns={comparativo.columns[0]: "clave"})
 
-        # Limitar vista para no saturar la interfaz; se priorizan diferencias.
-        visibles = comparativo.head(1500).to_dict(orient="records")
+        visibles = comparativo.to_dict(orient="records")
         nombres_archivos = list(series_por_archivo.keys())
-        resultados = []
-        for row in visibles:
-            resultados.append(
-                {
-                    "clave": row.get("clave"),
-                    "valores_archivos": [row.get(nombre, 0) for nombre in nombres_archivos],
-                    "minimo": row.get("minimo", 0),
-                    "maximo": row.get("maximo", 0),
-                    "diferencia_abs": row.get("diferencia_abs", 0),
-                    "estado_movimiento": row.get("estado_movimiento", ""),
-                }
-            )
-        total_registros = len(comparativo)
-        sin_movimiento = int((comparativo["estado_movimiento"] == "Sin movimiento").sum())
-        poco_mov = int((comparativo["estado_movimiento"] == "Poco movimiento").sum())
-        con_dif = int((comparativo["estado_movimiento"] == "Con diferencia").sum())
+        resultados = [
+            {
+                "clave": row.get("clave"),
+                "valores_archivos": [row.get(nombre, 0) for nombre in nombres_archivos],
+                "minimo": row.get("minimo", 0),
+                "maximo": row.get("maximo", 0),
+                "diferencia_abs": row.get("diferencia_abs", 0),
+                "estado_movimiento": row.get("estado_movimiento", ""),
+            }
+            for row in visibles
+        ]
 
+        total_registros = len(comparativo)
         resumen = {
             "total_archivos": len(series_por_archivo),
             "nombres_archivos": nombres_archivos,
             "total_claves": total_registros,
-            "sin_movimiento": sin_movimiento,
-            "poco_movimiento": poco_mov,
-            "con_diferencia": con_dif,
+            "sin_movimiento": int((comparativo["estado_movimiento"] == "Sin movimiento").sum()),
+            "poco_movimiento": int((comparativo["estado_movimiento"] == "Poco movimiento").sum()),
+            "con_diferencia": int((comparativo["estado_movimiento"] == "Con diferencia").sum()),
             "umbral_poco_movimiento": umbral_poco_movimiento,
             "columnas_archivos": nombres_archivos,
-            "truncado": total_registros > len(resultados),
+            "truncado": False,
         }
 
-    context = {
-        "resultados": resultados,
-        "resumen": resumen,
-    }
-    return render(request, "inventario/reportes/comparador_reportes_archivos.html", context)
+        token = uuid4().hex
+        request.session[f"comparador_reportes_{token}"] = {
+            "resultados": resultados,
+            "resumen": resumen,
+            "form_data": {
+                "columna_clave": columna_clave_usuario,
+                "columna_cantidad": columna_cantidad_usuario,
+                "umbral_poco_movimiento": umbral_poco_movimiento,
+            },
+        }
+        request.session.modified = True
+        return redirect(f"{reverse('comparar_reportes_archivos')}?token={token}")
+
+    form_data = {}
+    if token:
+        payload = request.session.get(f"comparador_reportes_{token}")
+        if payload:
+            resultados = payload.get("resultados", [])
+            resumen = payload.get("resumen", {})
+            form_data = payload.get("form_data", {})
+        else:
+            messages.warning(request, "La comparación ya no está disponible. Vuelve a cargar los archivos.")
+
+    if request.GET.get("export") == "1" and resultados and resumen:
+        export_rows = []
+        archivos_cols = resumen.get("columnas_archivos", [])
+        for row in resultados:
+            base = {
+                "Clave": row.get("clave"),
+                "Minimo": row.get("minimo"),
+                "Maximo": row.get("maximo"),
+                "Diferencia abs.": row.get("diferencia_abs"),
+                "Estado": row.get("estado_movimiento"),
+            }
+            valores = row.get("valores_archivos", [])
+            for idx, nombre in enumerate(archivos_cols):
+                base[nombre] = valores[idx] if idx < len(valores) else 0
+            export_rows.append(base)
+
+        response = HttpResponse(
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        response["Content-Disposition"] = (
+            f'attachment; filename="comparador_reportes_{date.today().strftime("%Y%m%d")}.xlsx"'
+        )
+        with pd.ExcelWriter(response, engine="openpyxl") as writer:
+            pd.DataFrame(export_rows).to_excel(writer, index=False, sheet_name="Comparativo")
+        return response
+
+    paginator = Paginator(resultados, 100) if resultados else None
+    page_obj = paginator.get_page(request.GET.get("page")) if paginator else None
+
+    return render(
+        request,
+        "inventario/reportes/comparador_reportes_archivos.html",
+        {
+            "resultados": page_obj.object_list if page_obj else [],
+            "resumen": resumen,
+            "page_obj": page_obj,
+            "token": token,
+            "form_data": form_data,
+        },
+    )
 
 
 @login_required
