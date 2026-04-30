@@ -6,9 +6,9 @@ INVENTARIO DISPONIBLE, LOTE, F_CAD, F_FAB, F_REC
 Orden y proveedor se resuelven con la FK OrdenSuministro cuando existe; si no,
 con los campos del lote (pedido, licitación, folio, proveedor, rfc_proveedor, etc.).
 
-INVENTARIO DISPONIBLE (columna): existencia física del lote menos reserva activa en pedidos.
-  Existencia = suma de LoteUbicacion.cantidad; si no hay ubicaciones, Lote.cantidad_disponible.
-  Reserva = suma de LoteAsignado.cantidad_asignada con surtido=False (misma regla que disponibilidad / pedidos).
+INVENTARIO DISPONIBLE (columna): existencia del lote (misma base que reporte de existencias SAICA:
+  ``Lote.cantidad_disponible``) menos reserva activa en propuestas de suministro.
+  Reserva = suma de ``LoteAsignado.cantidad_asignada`` con ``surtido=False`` (sumatoria por lote).
 """
 
 from django.shortcuts import render, redirect
@@ -34,7 +34,7 @@ from django.contrib import messages
 from datetime import date, datetime
 from io import BytesIO
 
-from .models import Lote, LoteUbicacion, Producto, Institucion, OrdenSuministro, Proveedor, MovimientoInventario
+from .models import Lote, Producto, Institucion, OrdenSuministro, Proveedor, MovimientoInventario
 from .pedidos_models import LoteAsignado
 from .propuesta_utils import totales_reserva_activa_por_lote_ids
 from openpyxl import Workbook, load_workbook
@@ -68,16 +68,10 @@ def _texto_proveedor_lote(lote):
 
 def _annotate_inventario_disponible_real(queryset):
     """
-    Por cada Lote: inventario neto = existencia física − reserva en pedidos (LoteAsignado activo).
+    Por cada Lote: inventario neto = existencia en lote (cantidad_disponible, alineado a existencias SAICA)
+    − reserva activa en propuestas (suma LoteAsignado con surtido=False por lote).
     Expone _inventario_disponible_neto para ordenar y para _fila_lote_a_dict.
     """
-    lu_total = (
-        LoteUbicacion.objects.filter(lote_id=OuterRef('pk'))
-        .order_by()
-        .values('lote_id')
-        .annotate(t=Sum('cantidad'))
-        .values('t')[:1]
-    )
     la_total = (
         LoteAsignado.objects.filter(lote_ubicacion__lote_id=OuterRef('pk'), surtido=False)
         .order_by()
@@ -87,11 +81,10 @@ def _annotate_inventario_disponible_real(queryset):
     )
     return (
         queryset.annotate(
-            _sum_lu=Subquery(lu_total, output_field=IntegerField()),
             _sum_res=Coalesce(Subquery(la_total, output_field=IntegerField()), Value(0)),
         )
         .annotate(
-            _fisico_lote=Coalesce(F('_sum_lu'), F('cantidad_disponible'), output_field=IntegerField()),
+            _fisico_lote=Coalesce(F('cantidad_disponible'), Value(0), output_field=IntegerField()),
         )
         .annotate(
             _inventario_disponible_neto=Case(
@@ -104,10 +97,7 @@ def _annotate_inventario_disponible_real(queryset):
 
 
 def _cantidad_fisica_lote_obj(lote):
-    """Suma LoteUbicacion.cantidad; si no hay filas, Lote.cantidad_disponible."""
-    ubs = lote.ubicaciones_detalle.all()
-    if ubs:
-        return sum(lu.cantidad for lu in ubs)
+    """Misma base física que el reporte de existencias por lote: ``Lote.cantidad_disponible``."""
     return int(lote.cantidad_disponible or 0)
 
 
