@@ -1644,7 +1644,7 @@ def api_cita_folio(request, cita_id):
 
 # Firmas del EPA: nombres fijos (ajustar aquí cuando cambien los titulares)
 EPA_ENCARGADA_AREA_ENTRADAS = 'Mtra. Lluvia Marlene Barona Franco'
-EPA_TITULAR_OFICINA_INSUMOS = 'Lic. Elizabeth Acosta Escobar'
+EPA_ENCARGADA_OFICINA_INSUMOS = 'Lic. Elizabeth Acosta Escobar'
 
 
 class ImprimirEPAView(LoginRequiredMixin, View):
@@ -1664,7 +1664,7 @@ class ImprimirEPAView(LoginRequiredMixin, View):
             'items': llegada.items.all(),
             'total_items': llegada.items.aggregate(total=models.Sum('cantidad_recibida'))['total'] or 0,
             'nombre_titular_entrada': EPA_ENCARGADA_AREA_ENTRADAS,
-            'nombre_titular_insumos': EPA_TITULAR_OFICINA_INSUMOS,
+            'nombre_encargada_insumos': EPA_ENCARGADA_OFICINA_INSUMOS,
         }
         
         return render(request, 'inventario/llegadas/imprimir_epa.html', context)
