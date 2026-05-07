@@ -1644,7 +1644,7 @@ def api_cita_folio(request, cita_id):
 
 # Firmas del EPA: nombres fijos (ajustar aquí cuando cambien los titulares)
 EPA_ENCARGADA_AREA_ENTRADAS = 'Mtra. Lluvia Marlene Barona Franco'
-EPA_TITULAR_OFICINA_INSUMOS = 'Lic. Rosa María Ortega Hernández'
+EPA_TITULAR_OFICINA_INSUMOS = 'Lic. Elizabeth Acosta Escobar'
 
 
 class ImprimirEPAView(LoginRequiredMixin, View):
