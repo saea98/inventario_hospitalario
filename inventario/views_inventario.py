@@ -1287,6 +1287,7 @@ def exportar_movimientos_excel(request):
         'Remisión',
         'Folio del pedido',
         'CLUES destino (pedido)',
+        'IB CLUE destino (pedido)',
         'Institución destino (pedido)',
         'Motivo',
         'Usuario',
@@ -1307,9 +1308,11 @@ def exportar_movimientos_excel(request):
         inst_dest = m.institucion_destino
         if m.mostrar_bloque_destino_pedido_lista and inst_dest:
             dest_clue = (getattr(inst_dest, 'clue', None) or '')
+            dest_ib_clue = (getattr(inst_dest, 'ib_clue', None) or '')
             dest_nom = (getattr(inst_dest, 'denominacion', None) or '')
         else:
             dest_clue = '-'
+            dest_ib_clue = '-'
             dest_nom = '-'
         folio_pedido = m.folio_pedido_lista_movimientos
         ws.append(
@@ -1327,6 +1330,7 @@ def exportar_movimientos_excel(request):
                 str(remision) if remision else '',
                 folio_pedido,
                 dest_clue,
+                dest_ib_clue,
                 dest_nom,
                 (m.motivo or '')[:5000],
                 m.usuario.username if m.usuario_id else '',
@@ -1334,7 +1338,7 @@ def exportar_movimientos_excel(request):
             ]
         )
 
-    widths = [18, 16, 14, 14, 36, 12, 28, 12, 12, 14, 14, 24, 14, 32, 40, 16, 8]
+    widths = [18, 16, 14, 14, 36, 12, 28, 12, 12, 14, 14, 24, 14, 14, 32, 40, 16, 8]
     for i, w in enumerate(widths, start=1):
         ws.column_dimensions[get_column_letter(i)].width = w
 
