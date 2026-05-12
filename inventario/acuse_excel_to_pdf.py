@@ -128,15 +128,22 @@ def convertir_acuse_excel_a_pdf(excel_buffer):
             leading=10
         )
 
-        direccion_almacen_central = ''
+        denominacion_almacen_central = ''
+        direccion_almacen_c0entral = ''
         try:
-            direccion_almacen_central = Institucion.objects.filter(
+            institucion_central = Institucion.objects.filter(
                 clue='DFSSA004936'
-            ).values_list('direccion', flat=True).first() or ''
+            ).values('denominacion', 'direccion').first()
+            if institucion_central:
+                denominacion_almacen_central = institucion_central.get('denominacion', '') or ''
+                direccion_almacen_central = institucion_central.get('direccion', '') or ''
         except Exception:
+            denominacion_almacen_central = ''
             direccion_almacen_central = ''
 
         info_text = f'#FOLIO: {folio}<br/>FECHA: {fecha}<br/>FOLIO DE PEDIDO: {folio_pedido}'
+        if denominacion_almacen_central:
+            info_text += f'<br/>DENOMINACIÓN: {denominacion_almacen_central}, CDMX'
         if direccion_almacen_central:
             info_text += f'<br/>DIRECCIÓN: {direccion_almacen_central}'
 
