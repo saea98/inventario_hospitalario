@@ -14,6 +14,7 @@ from io import BytesIO
 from datetime import datetime
 import os
 from django.conf import settings
+from .models import Institucion
 
 
 def convertir_acuse_excel_a_pdf(excel_buffer):
@@ -126,8 +127,21 @@ def convertir_acuse_excel_a_pdf(excel_buffer):
             fontName='Helvetica',
             leading=10
         )
+
+        direccion_almacen_central = ''
+        try:
+            direccion_almacen_central = Institucion.objects.filter(
+                clue='DFSSA004936'
+            ).values_list('direccion', flat=True).first() or ''
+        except Exception:
+            direccion_almacen_central = ''
+
+        info_text = f'#FOLIO: {folio}<br/>FECHA: {fecha}<br/>FOLIO DE PEDIDO: {folio_pedido}'
+        if direccion_almacen_central:
+            info_text += f'<br/>DIRECCIÓN: {direccion_almacen_central}'
+
         info_right = Paragraph(
-            f'#FOLIO: {folio}<br/>FECHA: {fecha}<br/>FOLIO DE PEDIDO: {folio_pedido}',
+            info_text,
             info_style
         )
         
