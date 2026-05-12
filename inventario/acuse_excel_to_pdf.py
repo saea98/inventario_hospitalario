@@ -143,9 +143,9 @@ def convertir_acuse_excel_a_pdf(excel_buffer):
 
         info_text = f'#FOLIO: {folio}<br/>FECHA: {fecha}<br/>FOLIO DE PEDIDO: {folio_pedido}'
         if denominacion_almacen_central:
-            info_text += f'<br/>DENOMINACIÓN: {denominacion_almacen_central}, CDMX'
+            info_text += f'<br/>DIRECCIÓN: {denominacion_almacen_central}, CDMX'
         if direccion_almacen_central:
-            info_text += f'<br/>DIRECCIÓN: {direccion_almacen_central}'
+            info_text += f'<br/>{direccion_almacen_central}'
 
         info_right = Paragraph(
             info_text,
