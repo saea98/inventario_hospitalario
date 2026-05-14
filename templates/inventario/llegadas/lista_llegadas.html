@@ -133,7 +133,7 @@
                             </td>
                             <td>
                                 {% if llegada.estado == 'CANCELADA' %}
-                                    <span class="badge badge-secondary">{{ llegada.get_estado_display }}</span>
+                                    <span class="badge badge-info" style="color: black;">{{ llegada.get_estado_display }}</span>
                                 {% else %}
                                     <span class="badge badge-info" style="color: black;">{{ llegada.get_estado_display }}</span>
                                 {% endif %}
