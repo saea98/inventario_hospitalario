@@ -11,8 +11,7 @@ from django.shortcuts import render, redirect
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse
-from django.db.models import Q, OuterRef, Subquery, UUIDField
-from django.db.models.functions import Cast
+from django.db.models import Q
 from datetime import datetime, timedelta
 from decimal import Decimal
 from openpyxl import Workbook
@@ -20,7 +19,7 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
 from .models import MovimientoInventario, Institucion, Almacen, UbicacionAlmacen
-from .pedidos_models import PropuestaPedido
+from .propuesta_utils import enriquecer_movimientos_folio_observaciones_surtimiento
 
 # Layout del reporte de salidas para auditorías
 SALIDAS_LAYOUT_HEADERS = [
@@ -150,7 +149,7 @@ def _construir_fila_salida(m):
         rfc,
         proveedor_nombre,
         _valor(m.folio),
-        _valor(getattr(m, 'folio_pedido_solicitud', None) or (lote and lote.observaciones)),
+        _valor(getattr(m, '_folio_obs_solicitud', None) or (lote and lote.observaciones)),
         _fecha(m.fecha_movimiento, '%d/%m/%Y %H:%M') if m.fecha_movimiento else '',
         _valor(inst_destino and inst_destino.denominacion),
         _valor(inst_destino and inst_destino.clue),
@@ -187,13 +186,8 @@ def reporte_salidas(request):
     total_importe = 0.0
 
     if not requiere_filtros:
-        subq_folio_pedido = PropuestaPedido.objects.filter(
-            id=Cast(OuterRef('folio'), UUIDField())
-        ).values('solicitud__observaciones_solicitud')[:1]
         salidas = MovimientoInventario.objects.filter(
             tipo_movimiento='SALIDA', anulado=False
-        ).annotate(
-            folio_pedido_solicitud=Subquery(subq_folio_pedido)
         ).select_related(
             'lote',
             'lote__producto',
@@ -232,6 +226,7 @@ def reporte_salidas(request):
             salidas = salidas.filter(folio__icontains=filtro_folio)
 
         movimientos_unicos = _deduplicar_movimientos_salida(salidas)
+        enriquecer_movimientos_folio_observaciones_surtimiento(movimientos_unicos)
         for m in movimientos_unicos:
             row = _construir_fila_salida(m)
             salidas_lista.append({'row': row, 'id': m.id})
@@ -277,13 +272,8 @@ def exportar_salidas_excel(request):
         )
         return redirect('reporte_salidas')
 
-    subq_folio_pedido_exp = PropuestaPedido.objects.filter(
-        id=Cast(OuterRef('folio'), UUIDField())
-    ).values('solicitud__observaciones_solicitud')[:1]
     salidas = MovimientoInventario.objects.filter(
         tipo_movimiento='SALIDA', anulado=False
-    ).annotate(
-        folio_pedido_solicitud=Subquery(subq_folio_pedido_exp)
     ).select_related(
         'lote',
         'lote__producto',
@@ -330,6 +320,7 @@ def exportar_salidas_excel(request):
         salidas = salidas.filter(folio__icontains=filtro_folio)
 
     movimientos_unicos = _deduplicar_movimientos_salida(salidas)
+    enriquecer_movimientos_folio_observaciones_surtimiento(movimientos_unicos)
 
     wb = Workbook()
     ws = wb.active
