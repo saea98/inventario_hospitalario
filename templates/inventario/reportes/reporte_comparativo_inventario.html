@@ -1,0 +1,262 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Comparativo de Inventario{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2><i class="fas fa-balance-scale text-primary"></i> Comparativo de Inventario</h2>
+            <p class="text-muted mb-1">
+                Compara dos cortes de fecha y revisa las claves con mayor diferencia y los movimientos del periodo.
+            </p>
+            {% if tiene_fechas %}
+            <p class="small text-muted mb-0">
+                <strong>Fecha A:</strong> existencia física al cierre (último movimiento).
+                <strong>Fecha B:</strong>
+                {% if usar_neto_b %}
+                inventario disponible neto actual (como inventario detallado: físico − reservas).
+                {% else %}
+                existencia física al cierre (historial de movimientos).
+                {% endif %}
+                Periodo de movimientos: después de A hasta B (inclusive).
+            </p>
+            {% endif %}
+        </div>
+        <div class="col-md-4 text-end d-flex align-items-end justify-content-end gap-2">
+            <a href="{% url 'reportes:reporte_inventario_detallado' %}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-clipboard-list"></i> Inventario detallado
+            </a>
+            <a href="{% url 'comparar_reportes_archivos' %}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-file-upload"></i> Comparar archivos
+            </a>
+            {% if tiene_fechas and filas %}
+            <a href="{% url 'reportes:exportar_comparativo_inventario_excel' %}?{{ query_export }}" class="btn btn-success btn-sm">
+                <i class="fas fa-file-excel"></i> Exportar Excel
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-header bg-light">
+            <h6 class="mb-0"><i class="fas fa-filter"></i> Parámetros del comparativo</h6>
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-2">
+                    <label class="form-label" for="fecha_a">Fecha A (inicio)</label>
+                    <input type="date" class="form-control" id="fecha_a" name="fecha_a" value="{{ fecha_a }}" required>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label" for="fecha_b">Fecha B (corte)</label>
+                    <input type="date" class="form-control" id="fecha_b" name="fecha_b" value="{{ fecha_b }}" required>
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="agrupacion">Agrupar por</label>
+                    <select class="form-control" id="agrupacion" name="agrupacion">
+                        <option value="clave" {% if agrupacion == 'clave' %}selected{% endif %}>Clave CNIS</option>
+                        <option value="clave_clues" {% if agrupacion == 'clave_clues' %}selected{% endif %}>Clave + CLUES</option>
+                        <option value="clave_clues_almacen" {% if agrupacion == 'clave_clues_almacen' %}selected{% endif %}>Clave + CLUES + Almacén</option>
+                        <option value="lote" {% if agrupacion == 'lote' %}selected{% endif %}>Clave + Lote + CLUES</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label" for="metrica">Métrica</label>
+                    <select class="form-control" id="metrica" name="metrica">
+                        <option value="fisica" {% if metrica == 'fisica' %}selected{% endif %}>Física (movimientos)</option>
+                        <option value="disponible" {% if metrica == 'disponible' %}selected{% endif %}>Disponible neto (B=hoy)</option>
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label" for="top">Top diferencias</label>
+                    <input type="number" class="form-control" id="top" name="top" value="{{ top_n }}" min="10" max="500">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="almacen">Almacén (filtro)</label>
+                    <input type="text" class="form-control" id="almacen" name="almacen" value="{{ filtro_almacen }}" placeholder="Ej. Vallejo">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="clues">CLUES</label>
+                    <input type="text" class="form-control" id="clues" name="clues" value="{{ filtro_clues }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="clave">Clave CNIS</label>
+                    <input type="text" class="form-control" id="clave" name="clave" value="{{ filtro_clave }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="lote">Número de lote</label>
+                    <input type="text" class="form-control" id="lote" name="lote" value="{{ filtro_lote }}">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="orden">Orden de suministro</label>
+                    <input type="text" class="form-control" id="orden" name="orden" value="{{ filtro_orden }}">
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="excluir_sin_orden" value="si" id="excluir_sin_orden" {% if excluir_sin_orden %}checked{% endif %}>
+                        <label class="form-check-label" for="excluir_sin_orden">Excluir sin orden</label>
+                    </div>
+                </div>
+                <div class="col-md-12 d-flex gap-2">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-search"></i> Comparar
+                    </button>
+                    <a href="{% url 'reportes:reporte_comparativo_inventario' %}" class="btn btn-outline-secondary">Limpiar</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% if tiene_fechas and totales %}
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="card border-primary">
+                <div class="card-body text-center">
+                    <div class="text-muted small">Total fecha A</div>
+                    <div class="h4 mb-0">{{ totales.total_a|floatformat:0 }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-success">
+                <div class="card-body text-center">
+                    <div class="text-muted small">Total fecha B</div>
+                    <div class="h4 mb-0">{{ totales.total_b|floatformat:0 }}</div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-warning">
+                <div class="card-body text-center">
+                    <div class="text-muted small">Diferencia global</div>
+                    <div class="h4 mb-0 {% if totales.delta < 0 %}text-danger{% elif totales.delta > 0 %}text-success{% endif %}">
+                        {{ totales.delta|floatformat:0 }}
+                    </div>
+                </div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="card border-info">
+                <div class="card-body text-center">
+                    <div class="text-muted small">Claves con diff. (top)</div>
+                    <div class="h4 mb-0">{{ totales.claves_con_diff }}</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if filas %}
+    <div class="card shadow mb-4">
+        <div class="card-header bg-primary text-white d-flex justify-content-between align-items-center">
+            <h6 class="mb-0"><i class="fas fa-sort-amount-down"></i> Mayores diferencias ({{ filas_todas_count }} en top)</h6>
+        </div>
+        <div class="card-body p-0">
+            <div class="table-responsive">
+                <table class="table table-striped table-hover mb-0 table-sm">
+                    <thead class="table-dark">
+                        <tr>
+                            <th>Grupo</th>
+                            <th class="text-end">Inv. A</th>
+                            <th class="text-end">Inv. B</th>
+                            <th class="text-end">Δ B−A</th>
+                            <th class="text-end">Entradas</th>
+                            <th class="text-end">Salidas</th>
+                            <th class="text-end">Neto mov.</th>
+                            <th class="text-end" title="Delta menos neto de movimientos">Δ − mov.</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for f in filas %}
+                        <tr class="{% if f.delta != 0 %}table-warning{% endif %}">
+                            <td><code>{{ f.grupo }}</code></td>
+                            <td class="text-end">{{ f.total_a }}</td>
+                            <td class="text-end">{{ f.total_b }}</td>
+                            <td class="text-end fw-bold {% if f.delta < 0 %}text-danger{% elif f.delta > 0 %}text-success{% endif %}">{{ f.delta }}</td>
+                            <td class="text-end text-success">{{ f.mov_entradas }}</td>
+                            <td class="text-end text-danger">{{ f.mov_salidas }}</td>
+                            <td class="text-end">{{ f.mov_neto }}</td>
+                            <td class="text-end {% if f.diff_vs_movimientos != 0 %}text-warning fw-bold{% endif %}">{{ f.diff_vs_movimientos }}</td>
+                            <td>
+                                <a class="btn btn-sm btn-outline-primary" href="?{{ query_export }}&clave_detalle={{ f.clave_cnis }}#movimientos">
+                                    Movimientos
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% if filas.has_other_pages %}
+            <nav class="p-3">
+                <ul class="pagination justify-content-center mb-0">
+                    {% if filas.has_previous %}
+                    <li class="page-item"><a class="page-link" href="?{{ query_export }}&page={{ filas.previous_page_number }}">Anterior</a></li>
+                    {% endif %}
+                    <li class="page-item disabled"><span class="page-link">Pág. {{ filas.number }} / {{ filas.paginator.num_pages }}</span></li>
+                    {% if filas.has_next %}
+                    <li class="page-item"><a class="page-link" href="?{{ query_export }}&page={{ filas.next_page_number }}">Siguiente</a></li>
+                    {% endif %}
+                </ul>
+            </nav>
+            {% endif %}
+        </div>
+    </div>
+    {% elif tiene_fechas %}
+    <div class="alert alert-info">No hay diferencias en el top solicitado o no hay lotes con los filtros aplicados.</div>
+    {% endif %}
+
+    {% if clave_detalle %}
+    <div class="card shadow" id="movimientos">
+        <div class="card-header bg-secondary text-white">
+            <h6 class="mb-0"><i class="fas fa-exchange-alt"></i> Movimientos — clave {{ clave_detalle }} ({{ fecha_a }} → {{ fecha_b }})</h6>
+        </div>
+        <div class="card-body p-0">
+            {% if movimientos %}
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0">
+                    <thead class="table-light">
+                        <tr>
+                            <th>Fecha</th>
+                            <th>Lote</th>
+                            <th>CLUES</th>
+                            <th>Almacén</th>
+                            <th>Tipo</th>
+                            <th class="text-end">Cant.</th>
+                            <th class="text-end">Efecto</th>
+                            <th class="text-end">Antes</th>
+                            <th class="text-end">Después</th>
+                            <th>Motivo</th>
+                            <th>Usuario</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for m in movimientos %}
+                        <tr>
+                            <td>{{ m.fecha|date:"d/m/Y H:i" }}</td>
+                            <td>{{ m.numero_lote }}</td>
+                            <td>{{ m.clues }}</td>
+                            <td>{{ m.almacen }}</td>
+                            <td><span class="badge bg-secondary">{{ m.tipo }}</span></td>
+                            <td class="text-end">{{ m.cantidad }}</td>
+                            <td class="text-end {% if m.efecto > 0 %}text-success{% elif m.efecto < 0 %}text-danger{% endif %}">{{ m.efecto }}</td>
+                            <td class="text-end">{{ m.cantidad_anterior }}</td>
+                            <td class="text-end">{{ m.cantidad_nueva }}</td>
+                            <td class="small">{{ m.motivo }}</td>
+                            <td class="small">{{ m.usuario }}</td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            {% else %}
+            <div class="p-4 text-muted">Sin movimientos en el periodo para esta clave.</div>
+            {% endif %}
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -13,6 +13,10 @@ from .views_reporte_inventario_detallado import (
     reporte_existencias_por_claves,
     exportar_existencias_por_claves_excel,
 )
+from .views_reporte_comparativo_inventario import (
+    reporte_comparativo_inventario,
+    exportar_comparativo_inventario_excel,
+)
 from .views_reporte_usuarios import reporte_usuarios_actividades
 
 app_name = 'reportes'
@@ -29,6 +33,12 @@ urlpatterns = [
     path("inventario-detallado/", reporte_inventario_detallado, name="reporte_inventario_detallado"),
     path("inventario-detallado/exportar-excel/", exportar_inventario_detallado_excel, name="exportar_inventario_detallado_excel"),
     path("inventario-detallado/carga-masiva/", carga_masiva_inventario_detallado, name="carga_masiva_inventario_detallado"),
+    path("comparativo-inventario/", reporte_comparativo_inventario, name="reporte_comparativo_inventario"),
+    path(
+        "comparativo-inventario/exportar-excel/",
+        exportar_comparativo_inventario_excel,
+        name="exportar_comparativo_inventario_excel",
+    ),
     path("existencias/", reporte_existencias, name="reporte_existencias"),
     path("existencias/exportar-excel/", exportar_existencias_excel, name="exportar_existencias_excel"),
     path("existencias-por-claves/", reporte_existencias_por_claves, name="reporte_existencias_por_claves"),

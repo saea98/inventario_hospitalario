@@ -18,6 +18,9 @@
             <p class="text-muted">Inventario disponible por lote = existencia en ubicaciones (o cantidad del lote si no hay detalle) menos reserva activa en pedidos (<code>LoteAsignado</code> pendiente de surtir).</p>
         </div>
         <div class="col-md-4 text-end d-flex align-items-end justify-content-end gap-2">
+            <a href="{% url 'reportes:reporte_comparativo_inventario' %}" class="btn btn-outline-info">
+                <i class="fas fa-balance-scale"></i> Comparativo
+            </a>
             <a href="{% url 'reportes:carga_masiva_inventario_detallado' %}" class="btn btn-outline-primary">
                 <i class="fas fa-file-upload"></i> Carga masiva
             </a>
