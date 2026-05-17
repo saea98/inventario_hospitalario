@@ -17,6 +17,7 @@ from .views_reporte_comparativo_inventario import (
     reporte_comparativo_inventario,
     exportar_comparativo_inventario_excel,
 )
+from .views_reporte_kardex import reporte_kardex, exportar_kardex_excel
 from .views_reporte_usuarios import reporte_usuarios_actividades
 
 app_name = 'reportes'
@@ -39,6 +40,8 @@ urlpatterns = [
         exportar_comparativo_inventario_excel,
         name="exportar_comparativo_inventario_excel",
     ),
+    path("kardex/", reporte_kardex, name="reporte_kardex"),
+    path("kardex/exportar-excel/", exportar_kardex_excel, name="exportar_kardex_excel"),
     path("existencias/", reporte_existencias, name="reporte_existencias"),
     path("existencias/exportar-excel/", exportar_existencias_excel, name="exportar_existencias_excel"),
     path("existencias-por-claves/", reporte_existencias_por_claves, name="reporte_existencias_por_claves"),

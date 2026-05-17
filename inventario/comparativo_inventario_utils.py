@@ -194,12 +194,15 @@ def agregar_diferencias_por_grupo(
     return filas[:top_n], usar_neto_b
 
 
-def _signo_movimiento(tipo):
+def signo_movimiento(tipo):
     if tipo in TIPOS_INCREMENTAN:
         return 1
     if tipo in TIPOS_DECREMENTAN:
         return -1
     return 0
+
+
+_signo_movimiento = signo_movimiento
 
 
 def movimientos_en_periodo(lotes_qs, fecha_a, fecha_b, clave_cnis=None, limite=500):

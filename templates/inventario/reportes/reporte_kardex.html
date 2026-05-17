@@ -1,0 +1,214 @@
+{% extends 'base.html' %}
+{% load humanize %}
+
+{% block title %}Kardex / Libro Mayor{% endblock %}
+
+{% block extra_css %}
+<style>
+.kardex-table thead th { position: sticky; top: 0; z-index: 1; }
+.kardex-table .col-entrada { background-color: #e8f5e9; }
+.kardex-table .col-salida { background-color: #ffebee; }
+.kardex-table .col-saldo { background-color: #e3f2fd; font-weight: 600; }
+.kardex-table tr.anulado { opacity: 0.65; text-decoration: line-through; }
+.kardex-lote-header { border-left: 4px solid #2e7d32; }
+.saldo-inicial-row { background-color: #f5f5f5; font-style: italic; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col-md-8">
+            <h2><i class="fas fa-book text-success"></i> Kardex / Libro Mayor</h2>
+            <p class="text-muted mb-0">
+                Movimientos en orden cronológico con saldo acumulado. Indique <strong>clave CNIS</strong> y/o <strong>número de lote</strong>.
+            </p>
+        </div>
+        <div class="col-md-4 text-end d-flex gap-2 justify-content-end flex-wrap align-items-start">
+            <a href="{% url 'lista_movimientos' %}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-list"></i> Lista movimientos
+            </a>
+            {% if tiene_resultados %}
+            <a href="{% url 'reportes:exportar_kardex_excel' %}?{{ query_export }}" class="btn btn-success btn-sm">
+                <i class="fas fa-file-excel"></i> Exportar Excel
+            </a>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-header bg-light">
+            <h6 class="mb-0"><i class="fas fa-filter"></i> Filtros</h6>
+        </div>
+        <div class="card-body">
+            <form method="get" class="row g-3">
+                <div class="col-md-3">
+                    <label class="form-label" for="clave">Clave CNIS <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="clave" name="clave"
+                           value="{{ filtros.clave }}" placeholder="Ej. 060.000.0100.01">
+                </div>
+                <div class="col-md-3">
+                    <label class="form-label" for="lote">Número de lote <span class="text-danger">*</span></label>
+                    <input type="text" class="form-control" id="lote" name="lote"
+                           value="{{ filtros.lote }}" placeholder="Al menos clave o lote">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label" for="fecha_desde">Desde</label>
+                    <input type="date" class="form-control" id="fecha_desde" name="fecha_desde"
+                           value="{{ filtros.fecha_desde }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label" for="fecha_hasta">Hasta</label>
+                    <input type="date" class="form-control" id="fecha_hasta" name="fecha_hasta"
+                           value="{{ filtros.fecha_hasta }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label" for="tipo">Tipo movimiento</label>
+                    <select class="form-control" id="tipo" name="tipo">
+                        <option value="">Todos</option>
+                        {% for value, label in tipos_movimiento %}
+                        <option value="{{ value }}" {% if filtros.tipo == value %}selected{% endif %}>{{ label }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label" for="clues">CLUES</label>
+                    <input type="text" class="form-control" id="clues" name="clues" value="{{ filtros.clues }}">
+                </div>
+                <div class="col-md-2">
+                    <label class="form-label" for="almacen">Almacén</label>
+                    <input type="text" class="form-control" id="almacen" name="almacen"
+                           value="{{ filtros.almacen }}" placeholder="Vallejo">
+                </div>
+                <div class="col-md-4">
+                    <label class="form-label" for="producto">Descripción producto</label>
+                    <input type="text" class="form-control" id="producto" name="producto" value="{{ filtros.producto }}">
+                </div>
+                <div class="col-md-3 d-flex align-items-end">
+                    <div class="form-check">
+                        <input class="form-check-input" type="checkbox" name="incluir_anulados" value="si"
+                               id="incluir_anulados" {% if filtros.incluir_anulados %}checked{% endif %}>
+                        <label class="form-check-label" for="incluir_anulados">Incluir anulados</label>
+                    </div>
+                </div>
+                <div class="col-md-12 d-flex gap-2">
+                    <button type="submit" class="btn btn-success">
+                        <i class="fas fa-search"></i> Generar kardex
+                    </button>
+                    <a href="{% url 'reportes:reporte_kardex' %}" class="btn btn-outline-secondary">Limpiar</a>
+                </div>
+            </form>
+        </div>
+    </div>
+
+    {% for k in kardexes %}
+    <div class="card shadow mb-4 kardex-lote-header">
+        <div class="card-header bg-success text-white">
+            <div class="row align-items-center">
+                <div class="col-md-8">
+                    <h6 class="mb-1">
+                        <code>{{ k.clave_cnis }}</code> — Lote <strong>{{ k.numero_lote }}</strong>
+                    </h6>
+                    <small>{{ k.producto|truncatechars:80 }}</small><br>
+                    <small>{{ k.clues }} · {{ k.institucion|truncatechars:40 }} · {{ k.almacen|default:"Sin almacén" }}</small>
+                </div>
+                <div class="col-md-4 text-md-end">
+                    <span class="badge bg-light text-dark me-1">Saldo inicial: {{ k.saldo_inicial|intcomma }}</span>
+                    <span class="badge bg-warning text-dark me-1">Saldo final: {{ k.saldo_final|intcomma }}</span>
+                    <span class="badge bg-info text-dark">Actual BD: {{ k.existencia_actual|intcomma }}</span>
+                </div>
+            </div>
+        </div>
+        <div class="card-body p-0">
+            <div class="row g-0 border-bottom bg-light small px-3 py-2">
+                <div class="col-md-3"><strong>Periodo:</strong> +{{ k.total_entradas|intcomma }} entradas</div>
+                <div class="col-md-3"><strong>−</strong>{{ k.total_salidas|intcomma }} salidas</div>
+                <div class="col-md-3"><strong>Neto:</strong>
+                    <span class="{% if k.neto_periodo < 0 %}text-danger{% elif k.neto_periodo > 0 %}text-success{% endif %}">
+                        {{ k.neto_periodo|intcomma }}
+                    </span>
+                </div>
+                <div class="col-md-3 text-md-end">{{ k.conteo_movimientos }} movimiento(s)</div>
+            </div>
+            <div class="table-responsive">
+                <table class="table table-sm table-hover mb-0 kardex-table">
+                    <thead class="table-dark">
+                        <tr>
+                            <th style="width:11%">Fecha</th>
+                            <th style="width:12%">Tipo</th>
+                            <th style="width:10%">Documento</th>
+                            <th style="width:8%">Folio</th>
+                            <th class="text-end col-entrada" style="width:8%">Entrada (+)</th>
+                            <th class="text-end col-salida" style="width:8%">Salida (−)</th>
+                            <th class="text-end col-saldo" style="width:8%">Saldo</th>
+                            <th>Motivo / destino</th>
+                            <th style="width:9%">Usuario</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% if k.saldo_inicial is not None %}
+                        <tr class="saldo-inicial-row">
+                            <td colspan="4"><em>Saldo inicial{% if filtros.fecha_desde %} al {{ filtros.fecha_desde }}{% endif %}</em></td>
+                            <td class="text-end">—</td>
+                            <td class="text-end">—</td>
+                            <td class="text-end col-saldo">{{ k.saldo_inicial|intcomma }}</td>
+                            <td colspan="2"></td>
+                        </tr>
+                        {% endif %}
+                        {% for f in k.movimientos %}
+                        <tr class="{% if f.anulado %}anulado table-danger{% endif %}">
+                            <td>
+                                {{ f.fecha|date:"d/m/Y" }}<br>
+                                <small class="text-muted">{{ f.fecha|time:"H:i" }}</small>
+                            </td>
+                            <td>
+                                <span class="badge bg-{% if f.entrada %}success{% elif f.salida %}danger{% else %}secondary{% endif %}">
+                                    {{ f.tipo_display }}
+                                </span>
+                            </td>
+                            <td class="small">{{ f.documento|default:"—" }}</td>
+                            <td class="small">{{ f.folio|default:f.pedido|default:"—" }}</td>
+                            <td class="text-end col-entrada">{% if f.entrada %}{{ f.entrada|intcomma }}{% else %}—{% endif %}</td>
+                            <td class="text-end col-salida">{% if f.salida %}{{ f.salida|intcomma }}{% else %}—{% endif %}</td>
+                            <td class="text-end col-saldo">{{ f.saldo|intcomma }}</td>
+                            <td class="small">
+                                {{ f.motivo|truncatechars:120 }}
+                                {% if f.institucion_destino %}<br><span class="text-muted">→ {{ f.institucion_destino|truncatechars:50 }}</span>{% endif %}
+                            </td>
+                            <td class="small">{{ f.usuario }}</td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="9" class="text-center text-muted py-3">Sin movimientos en el periodo</td></tr>
+                        {% endfor %}
+                    </tbody>
+                    <tfoot class="table-secondary">
+                        <tr class="fw-bold">
+                            <td colspan="4" class="text-end">Totales del periodo</td>
+                            <td class="text-end">{{ k.total_entradas|intcomma }}</td>
+                            <td class="text-end">{{ k.total_salidas|intcomma }}</td>
+                            <td class="text-end">{{ k.saldo_final|intcomma }}</td>
+                            <td colspan="2"></td>
+                        </tr>
+                    </tfoot>
+                </table>
+            </div>
+        </div>
+    </div>
+    {% endfor %}
+
+    {% if not tiene_resultados and filtros.clave or filtros.lote %}
+    <div class="alert alert-info">Use los filtros y pulse <strong>Generar kardex</strong>. Debe indicar clave y/o lote.</div>
+    {% elif not tiene_resultados %}
+    <div class="alert alert-light border">
+        <h6 class="alert-heading">¿Cómo leer el kardex?</h6>
+        <ul class="mb-0 small">
+            <li><strong>Saldo inicial:</strong> existencia antes del primer día del rango (último movimiento previo).</li>
+            <li><strong>Entrada (+):</strong> entradas, ajustes positivos, transferencias entrada.</li>
+            <li><strong>Salida (−):</strong> salidas, caducidad, deterioro, ajustes negativos.</li>
+            <li><strong>Saldo:</strong> existencia después de cada movimiento (<code>cantidad_nueva</code> en sistema).</li>
+            <li><strong>Actual BD:</strong> <code>cantidad_disponible</code> del lote hoy (puede diferir si hay cambios sin movimiento).</li>
+        </ul>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

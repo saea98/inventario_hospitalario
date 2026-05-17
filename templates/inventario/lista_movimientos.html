@@ -12,6 +12,9 @@
             <p class="text-muted">Historial de todas las transacciones de inventario</p>
         </div>
         <div class="col-md-4 text-end d-flex gap-2 justify-content-end flex-wrap">
+            <a href="{% url 'reportes:reporte_kardex' %}?clave={{ busqueda_clave|urlencode }}&lote={{ busqueda_lote|urlencode }}&fecha_desde={{ filtro_fecha_desde }}&fecha_hasta={{ filtro_fecha_hasta }}" class="btn btn-outline-success">
+                <i class="bi bi-journal-text"></i> Kardex / Libro mayor
+            </a>
             <a href="{% url 'exportar_movimientos_excel' %}?{% if request.GET.urlencode %}{{ request.GET.urlencode }}{% endif %}" class="btn btn-success">
                 <i class="bi bi-file-earmark-excel"></i> Exportar Excel
             </a>
