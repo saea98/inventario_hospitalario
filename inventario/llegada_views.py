@@ -529,7 +529,6 @@ def exportar_llegadas_excel(request):
         'FECHA DE FABRICACION',
         'OBSERVACIONES',
         'NOMBRE DE LA PERSONA QUE CAPTURO',
-        'NOMBRE DE LA PERSONA QUE REVISO',
         'FECHA DE CAPTURA',
     ]
     
@@ -699,10 +698,6 @@ def exportar_llegadas_excel(request):
             col += 1
             # NOMBRE DE LA PERSONA QUE CAPTURO
             ws.cell(row=row_num, column=col).value = _nombre_usuario(llegada.creado_por)
-            col += 1
-            # NOMBRE DE LA PERSONA QUE REVISO (calidad; si no hay, supervisión como revisor)
-            revisor = llegada.usuario_calidad or llegada.usuario_supervision
-            ws.cell(row=row_num, column=col).value = _nombre_usuario(revisor)
             col += 1
             # FECHA DE CAPTURA
             ws.cell(row=row_num, column=col).value = llegada.fecha_creacion.strftime('%d/%m/%Y %H:%M') if llegada.fecha_creacion else ''
@@ -942,7 +937,9 @@ class EditarLlegadaView(LoginRequiredMixin, PermissionRequiredMixin, View):
         if form.is_valid() and formset.is_valid():
             with transaction.atomic():
                 es_correccion_aprobada = llegada.estado == 'APROBADA' and usuario_tiene_rol(request.user, 'administrador_local')
-                form.save()
+                llegada = form.save(commit=False)
+                llegada.creado_por = request.user
+                llegada.save()
                 if 'tipo_entrega' in form.cleaned_data and llegada.cita_id:
                     llegada.cita.tipo_entrega = form.cleaned_data['tipo_entrega'] or llegada.cita.tipo_entrega
                     llegada.cita.save()
@@ -967,6 +964,10 @@ class AprobarEntradaView(LoginRequiredMixin, PermissionRequiredMixin, View):
         
         # Verificar si se solicita inspección visual
         solicita_inspeccion_visual = request.POST.get('solicita_inspeccion_visual') == '1'
+
+        # Excel columna "Usuario Supervisión" lee usuario_supervision
+        llegada.usuario_supervision = request.user
+        llegada.fecha_supervision = timezone.now()
         
         if solicita_inspeccion_visual:
             # Si solicita inspección visual, pasar a CONTROL_CALIDAD
