@@ -44,7 +44,8 @@ if [ "$DEBUG" = "False" ] || [ "$DEBUG" = "false" ]; then
     exec gunicorn inventario_hospitalario.wsgi:application \
         --bind 0.0.0.0:8000 \
         --workers 5 \
-        --timeout 120 \
+        --timeout 300 \
+        --graceful-timeout 300 \
         --access-logfile - \
         --error-logfile - \
         --log-level info
