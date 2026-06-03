@@ -18,7 +18,8 @@ MAX_ADVERTENCIAS_CSV_UI = 15
 # Carga CSV en crear pedido: ítems en sesión (evita formset gigante + Select2 por renglón)
 SESSION_CREAR_PEDIDO_CSV_ITEMS = 'crear_pedido_csv_items'
 SESSION_CREAR_PEDIDO_HEADER = 'crear_pedido_csv_header'
-CSV_PREVIEW_MAX_FILAS = 50
+SESSION_CREAR_PEDIDO_CSV_STATS = 'crear_pedido_csv_stats'
+CSV_PREVIEW_PAGE_SIZE = 25
 CSV_ITEMS_MAX = 10000
 
 logger = logging.getLogger(__name__)
@@ -177,13 +178,20 @@ def _normalizar_clave_header_csv(k):
     return str(k).replace('\ufeff', '').strip().upper()
 
 
+def _folio_desde_fila_csv(row):
+    for k, v in row.items():
+        if _normalizar_clave_header_csv(k) == 'FOLIO' and v is not None:
+            s = str(v).strip()
+            if s:
+                return s
+    return ''
+
+
 def _extraer_folio_desde_filas_csv(rows):
     for row in rows:
-        for k, v in row.items():
-            if _normalizar_clave_header_csv(k) == 'FOLIO' and v is not None:
-                s = str(v).strip()
-                if s:
-                    return s
+        folio = _folio_desde_fila_csv(row)
+        if folio:
+            return folio
     return ''
 
 
@@ -203,13 +211,17 @@ def procesar_csv_crear_solicitud_pedido(
         dict con items_data, folio_desde_csv, conteos y listas para mensajes UI.
     """
     decoded = decodificar_csv_pedidos(contenido_bytes)
-    rows = list(csv.DictReader(io.StringIO(decoded)))
-    folio_desde_csv = _extraer_folio_desde_filas_csv(rows)
+    reader = csv.DictReader(io.StringIO(decoded))
 
     cantidad_por_clave = {}
     errores_cantidad = []
+    folio_desde_csv = ''
+    total_filas_csv = 0
 
-    for row in rows:
+    for row in reader:
+        total_filas_csv += 1
+        if not folio_desde_csv:
+            folio_desde_csv = _folio_desde_fila_csv(row)
         clave = (row.get('CLAVE') or '').strip()
         cantidad = row.get('CANTIDAD SOLICITADA')
         if not clave or cantidad is None or str(cantidad).strip() == '':
@@ -283,7 +295,7 @@ def procesar_csv_crear_solicitud_pedido(
     return {
         'items_data': items_data,
         'folio_desde_csv': folio_desde_csv,
-        'total_filas_csv': len(rows),
+        'total_filas_csv': total_filas_csv,
         'claves_ok': len(items_data),
         'claves_no_existen': claves_no_existen,
         'errores_cantidad': errores_cantidad,
@@ -328,16 +340,23 @@ def serializar_header_crear_pedido(cleaned_data):
     }
 
 
-def guardar_csv_en_sesion_crear_pedido(request, items_data, header_serializado):
+def guardar_csv_en_sesion_crear_pedido(request, items_data, header_serializado, stats=None):
     request.session[SESSION_CREAR_PEDIDO_CSV_ITEMS] = items_data
     request.session[SESSION_CREAR_PEDIDO_HEADER] = header_serializado
+    if stats is not None:
+        request.session[SESSION_CREAR_PEDIDO_CSV_STATS] = stats
     request.session.modified = True
 
 
 def limpiar_csv_sesion_crear_pedido(request):
     request.session.pop(SESSION_CREAR_PEDIDO_CSV_ITEMS, None)
     request.session.pop(SESSION_CREAR_PEDIDO_HEADER, None)
+    request.session.pop(SESSION_CREAR_PEDIDO_CSV_STATS, None)
     request.session.modified = True
+
+
+def obtener_stats_csv_sesion_crear_pedido(request):
+    return request.session.get(SESSION_CREAR_PEDIDO_CSV_STATS) or {}
 
 
 def obtener_items_csv_sesion_crear_pedido(request):
@@ -348,24 +367,31 @@ def obtener_header_csv_sesion_crear_pedido(request):
     return request.session.get(SESSION_CREAR_PEDIDO_HEADER)
 
 
-def preparar_filas_vista_previa_csv(items_data, max_filas=CSV_PREVIEW_MAX_FILAS):
-    """Filas ligeras para plantilla (sin formset por renglón)."""
+def preparar_filas_vista_previa_csv(items_data, page_number=1, per_page=CSV_PREVIEW_PAGE_SIZE):
+    """
+    Vista previa paginada: solo consulta catálogo para la página actual (menos CPU/RAM por request).
+    """
+    from django.core.paginator import Paginator
+
     if not items_data:
-        return [], 0
-    ids = {row['producto'] for row in items_data}
+        return [], None, 0
+
+    paginator = Paginator(items_data, per_page)
+    page_obj = paginator.get_page(page_number)
+    ids = {row['producto'] for row in page_obj.object_list}
     productos = {
         p.id: p
         for p in Producto.objects.filter(id__in=ids).only('id', 'clave_cnis', 'descripcion')
     }
     filas = []
-    for row in items_data[:max_filas]:
+    for row in page_obj.object_list:
         producto = productos.get(row['producto'])
         filas.append({
             'clave_cnis': producto.clave_cnis if producto else '—',
             'descripcion': (producto.descripcion[:80] if producto and producto.descripcion else '—'),
             'cantidad_solicitada': row['cantidad_solicitada'],
         })
-    return filas, len(items_data)
+    return filas, page_obj, paginator.count
 
 
 def bulk_crear_items_solicitud_pedido(solicitud, items_data):

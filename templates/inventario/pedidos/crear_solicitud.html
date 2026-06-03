@@ -58,8 +58,16 @@
                 {% if csv_preview %}
                     <div class="alert alert-success">
                         <i class="fas fa-check-circle"></i>
-                        Carga masiva lista: <strong>{{ csv_total_items }}</strong> claves se guardarán al pulsar «Guardar Solicitud».
-                        La cantidad aprobada se tomará igual a la solicitada (puede ajustarla después al validar el pedido).
+                        Carga masiva lista: <strong>{{ csv_total_items }}</strong> clave(s) se guardarán al pulsar «Guardar Solicitud».
+                        {% if csv_stats.total_filas_csv %}
+                            <span class="d-block small mt-1">
+                                Archivo leído: {{ csv_stats.total_filas_csv }} fila(s) en CSV
+                                {% if csv_stats.total_errores %} · {{ csv_stats.total_errores }} registro(s) con error (ver advertencias arriba){% endif %}
+                            </span>
+                        {% endif %}
+                        <span class="d-block small mt-1">
+                            La cantidad aprobada será igual a la solicitada (puede ajustarla al validar el pedido).
+                        </span>
                     </div>
                     <div class="table-responsive mb-3" style="max-height: 320px; overflow-y: auto;">
                         <table class="table table-sm table-bordered mb-0">
@@ -77,14 +85,41 @@
                                     <td>{{ fila.descripcion }}</td>
                                     <td class="text-right">{{ fila.cantidad_solicitada }}</td>
                                 </tr>
+                                {% empty %}
+                                <tr><td colspan="3" class="text-muted">Sin ítems en esta página.</td></tr>
                                 {% endfor %}
                             </tbody>
                         </table>
                     </div>
-                    {% if csv_total_items > csv_preview_max_filas %}
-                        <p class="text-muted small">
-                            Mostrando las primeras {{ csv_preview_max_filas }} de {{ csv_total_items }} filas.
-                        </p>
+                    {% if csv_page_obj and csv_page_obj.paginator.num_pages > 1 %}
+                    <nav aria-label="Vista previa CSV" class="mb-3">
+                        <ul class="pagination pagination-sm mb-0 flex-wrap">
+                            {% if csv_page_obj.has_previous %}
+                            <li class="page-item">
+                                <a class="page-link" href="?csv_page={{ csv_page_obj.previous_page_number }}">Anterior</a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled"><span class="page-link">Anterior</span></li>
+                            {% endif %}
+                            <li class="page-item disabled">
+                                <span class="page-link">
+                                    Página {{ csv_page_obj.number }} de {{ csv_page_obj.paginator.num_pages }}
+                                    ({{ csv_preview_page_size }} por página, {{ csv_total_items }} ítems en total)
+                                </span>
+                            </li>
+                            {% if csv_page_obj.has_next %}
+                            <li class="page-item">
+                                <a class="page-link" href="?csv_page={{ csv_page_obj.next_page_number }}">Siguiente</a>
+                            </li>
+                            {% else %}
+                            <li class="page-item disabled"><span class="page-link">Siguiente</span></li>
+                            {% endif %}
+                        </ul>
+                    </nav>
+                    {% elif csv_total_items > csv_preview_page_size %}
+                    <p class="text-muted small mb-3">
+                        Vista previa: {{ csv_preview_page_size }} ítems por página · {{ csv_total_items }} en total.
+                    </p>
                     {% endif %}
                     <button type="submit" name="limpiar_csv_pedido" class="btn btn-outline-warning btn-sm mb-3" formnovalidate>
                         <i class="fas fa-times"></i> Descartar CSV y empezar de nuevo

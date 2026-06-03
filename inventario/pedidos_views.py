@@ -41,12 +41,13 @@ from .pedidos_utils import (
     procesar_csv_crear_solicitud_pedido,
     mensajes_advertencia_csv,
     CSV_ITEMS_MAX,
-    CSV_PREVIEW_MAX_FILAS,
+    CSV_PREVIEW_PAGE_SIZE,
     serializar_header_crear_pedido,
     guardar_csv_en_sesion_crear_pedido,
     limpiar_csv_sesion_crear_pedido,
     obtener_items_csv_sesion_crear_pedido,
     obtener_header_csv_sesion_crear_pedido,
+    obtener_stats_csv_sesion_crear_pedido,
     preparar_filas_vista_previa_csv,
     bulk_crear_items_solicitud_pedido,
 )
@@ -372,9 +373,19 @@ def crear_solicitud(request):
                         header_serializado = serializar_header_crear_pedido(header_form.cleaned_data)
                         if folio_desde_csv and not user_obs:
                             header_serializado['observaciones_solicitud'] = folio_desde_csv
-                        guardar_csv_en_sesion_crear_pedido(request, items_data, header_serializado)
+                        guardar_csv_en_sesion_crear_pedido(
+                            request,
+                            items_data,
+                            header_serializado,
+                            stats={
+                                'total_filas_csv': resultado_csv['total_filas_csv'],
+                                'claves_ok': resultado_csv['claves_ok'],
+                                'total_errores': resultado_csv['total_errores'],
+                            },
+                        )
                         msg_csv = (
-                            f"{len(items_data)} ítems listos desde el CSV. Revise el resumen y pulse «Guardar Solicitud» "
+                            f"Archivo: {resultado_csv['total_filas_csv']} filas → "
+                            f"{len(items_data)} ítems listos. Revise el resumen (paginado) y pulse «Guardar Solicitud» "
                             f"(cantidad aprobada = solicitada; puede ajustar después al validar el pedido)."
                         )
                         if folio_desde_csv:
@@ -473,9 +484,17 @@ def crear_solicitud(request):
     items_csv_sesion = obtener_items_csv_sesion_crear_pedido(request)
     csv_preview = bool(items_csv_sesion)
     csv_preview_filas = []
+    csv_page_obj = None
     csv_total_items = 0
+    csv_stats = obtener_stats_csv_sesion_crear_pedido(request)
     if csv_preview:
-        csv_preview_filas, csv_total_items = preparar_filas_vista_previa_csv(items_csv_sesion)
+        try:
+            csv_page_num = int(request.GET.get('csv_page', 1))
+        except (TypeError, ValueError):
+            csv_page_num = 1
+        csv_preview_filas, csv_page_obj, csv_total_items = preparar_filas_vista_previa_csv(
+            items_csv_sesion, page_number=csv_page_num, per_page=CSV_PREVIEW_PAGE_SIZE
+        )
 
     context = {
         'form': form,
@@ -484,8 +503,10 @@ def crear_solicitud(request):
         'page_title': 'Crear Nueva Solicitud de Pedido',
         'csv_preview': csv_preview,
         'csv_preview_filas': csv_preview_filas,
+        'csv_page_obj': csv_page_obj,
         'csv_total_items': csv_total_items,
-        'csv_preview_max_filas': CSV_PREVIEW_MAX_FILAS,
+        'csv_stats': csv_stats,
+        'csv_preview_page_size': CSV_PREVIEW_PAGE_SIZE,
     }
     return render(request, 'inventario/pedidos/crear_solicitud.html', context)
 
