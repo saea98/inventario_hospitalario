@@ -12,11 +12,31 @@ echo -e "${BLUE}═════════════════════�
 echo -e "${BLUE}🚀 Iniciando contenedor Django${NC}"
 echo -e "${BLUE}════════════════════════════════════════════════════${NC}"
 
-# Esperar a que la base de datos esté lista
-echo -e "${YELLOW}⏳ Esperando a que la base de datos esté lista...${NC}"
-sleep 5
+# Esperar conexión a PostgreSQL (evita migrate colgado sin mensaje)
+echo -e "${YELLOW}⏳ Esperando conexión a PostgreSQL...${NC}"
+python <<'PY'
+import os, sys, time
+os.environ.setdefault("DJANGO_SETTINGS_MODULE", "inventario_hospitalario.settings")
+import django
+django.setup()
+from django.conf import settings
+from django.db import connection
+db = settings.DATABASES["default"]
+print(f"   Host: {db.get('HOST')}:{db.get('PORT')}  DB: {db.get('NAME')}", flush=True)
+max_attempts = 30
+for attempt in range(1, max_attempts + 1):
+    try:
+        connection.ensure_connection()
+        print("✓ Base de datos accesible", flush=True)
+        sys.exit(0)
+    except Exception as e:
+        print(f"   Intento {attempt}/{max_attempts}: {e}", flush=True)
+        time.sleep(3)
+print("✗ No se pudo conectar a la base de datos", flush=True)
+sys.exit(1)
+PY
 
-# Ejecutar migraciones (salida completa: el grep anterior ocultaba errores de BD)
+# Ejecutar migraciones
 echo -e "${YELLOW}🔄 Ejecutando migraciones...${NC}"
 if ! python manage.py migrate --noinput; then
     echo -e "${RED}❌ Error en migraciones (revisar POSTGRES_* en .env)${NC}"

@@ -3,12 +3,17 @@ Utilidades para el módulo de Gestión de Pedidos
 Incluye funciones para logging de errores y envío de alertas
 """
 
+import csv
+import io
 import logging
 import requests
 from django.conf import settings
 from django.utils import timezone
-from .pedidos_models import LogErrorPedido
+from .pedidos_models import LogErrorPedido, Producto
 from .models import Institucion, Almacen
+
+# Máximo de advertencias en pantalla tras CSV (evita render pesado)
+MAX_ADVERTENCIAS_CSV_UI = 15
 
 logger = logging.getLogger(__name__)
 
@@ -147,6 +152,157 @@ def construir_mensaje_alerta(log_error):
 """
     
     return mensaje.strip()
+
+
+def decodificar_csv_pedidos(contenido_bytes):
+    """Decodifica bytes de CSV probando codificaciones habituales en México."""
+    codificaciones = ['utf-8-sig', 'utf-8', 'latin-1', 'cp1252', 'iso-8859-1']
+    for codificacion in codificaciones:
+        try:
+            return contenido_bytes.decode(codificacion)
+        except (UnicodeDecodeError, AttributeError):
+            continue
+    raise ValueError('No se pudo decodificar el archivo con ninguna codificación soportada')
+
+
+def _normalizar_clave_header_csv(k):
+    if k is None:
+        return ''
+    return str(k).replace('\ufeff', '').strip().upper()
+
+
+def _extraer_folio_desde_filas_csv(rows):
+    for row in rows:
+        for k, v in row.items():
+            if _normalizar_clave_header_csv(k) == 'FOLIO' and v is not None:
+                s = str(v).strip()
+                if s:
+                    return s
+    return ''
+
+
+def procesar_csv_crear_solicitud_pedido(
+    contenido_bytes,
+    usuario,
+    institucion=None,
+    almacen=None,
+):
+    """
+    Procesa CSV de crear pedido con una sola consulta de catálogo (por lotes).
+
+    Antes: Producto.objects.get() por fila + Telegram por error → CPU/red altos.
+    Ahora: acumula cantidades, carga productos con __in__, errores en bulk_create sin Telegram.
+
+    Returns:
+        dict con items_data, folio_desde_csv, conteos y listas para mensajes UI.
+    """
+    decoded = decodificar_csv_pedidos(contenido_bytes)
+    rows = list(csv.DictReader(io.StringIO(decoded)))
+    folio_desde_csv = _extraer_folio_desde_filas_csv(rows)
+
+    cantidad_por_clave = {}
+    errores_cantidad = []
+
+    for row in rows:
+        clave = (row.get('CLAVE') or '').strip()
+        cantidad = row.get('CANTIDAD SOLICITADA')
+        if not clave or cantidad is None or str(cantidad).strip() == '':
+            continue
+        try:
+            cantidad_int = int(cantidad)
+        except (TypeError, ValueError):
+            errores_cantidad.append((clave, str(cantidad)))
+            continue
+        if cantidad_int < 0:
+            errores_cantidad.append((clave, str(cantidad)))
+            continue
+        cantidad_por_clave[clave] = cantidad_por_clave.get(clave, 0) + cantidad_int
+
+    claves = list(cantidad_por_clave.keys())
+    productos_map = {}
+    chunk = 500
+    for i in range(0, len(claves), chunk):
+        lote = claves[i : i + chunk]
+        for p in Producto.objects.filter(clave_cnis__in=lote).only('id', 'clave_cnis'):
+            productos_map[p.clave_cnis] = p
+
+    items_data = []
+    logs_bulk = []
+    claves_no_existen = []
+
+    for clave, cantidad_total in cantidad_por_clave.items():
+        producto = productos_map.get(clave)
+        if not producto:
+            claves_no_existen.append(clave)
+            logs_bulk.append(
+                LogErrorPedido(
+                    usuario=usuario,
+                    tipo_error='CLAVE_NO_EXISTE',
+                    clave_solicitada=clave[:50],
+                    cantidad_solicitada=cantidad_total,
+                    descripcion_error='Clave no existe en catálogo',
+                    institucion=institucion,
+                    almacen=almacen,
+                )
+            )
+            continue
+        items_data.append(
+            {
+                'producto': producto.id,
+                'cantidad_solicitada': cantidad_total,
+                'cantidad_aprobada': None,
+            }
+        )
+
+    for clave, cant_raw in errores_cantidad:
+        logs_bulk.append(
+            LogErrorPedido(
+                usuario=usuario,
+                tipo_error='CANTIDAD_INVALIDA',
+                clave_solicitada=(clave or '?')[:50],
+                cantidad_solicitada=None,
+                descripcion_error=f'Cantidad no válida: {cant_raw}',
+                institucion=institucion,
+                almacen=almacen,
+            )
+        )
+
+    if logs_bulk:
+        LogErrorPedido.objects.bulk_create(logs_bulk, batch_size=500)
+        logger.info(
+            'CSV pedido: %s errores registrados (bulk, sin Telegram por fila)',
+            len(logs_bulk),
+        )
+
+    return {
+        'items_data': items_data,
+        'folio_desde_csv': folio_desde_csv,
+        'total_filas_csv': len(rows),
+        'claves_ok': len(items_data),
+        'claves_no_existen': claves_no_existen,
+        'errores_cantidad': errores_cantidad,
+        'total_errores': len(logs_bulk),
+    }
+
+
+def mensajes_advertencia_csv(resultado):
+    """Genera textos breves para messages.warning (limitados)."""
+    textos = []
+
+    for clave in resultado['claves_no_existen']:
+        textos.append(f'Clave {clave} no existe en el catálogo.')
+
+    for clave, cant in resultado['errores_cantidad']:
+        textos.append(f'Cantidad inválida para clave {clave}: {cant}')
+
+    if len(textos) > MAX_ADVERTENCIAS_CSV_UI:
+        omitidos = len(textos) - MAX_ADVERTENCIAS_CSV_UI
+        textos = textos[:MAX_ADVERTENCIAS_CSV_UI]
+        textos.append(
+            f'… y {omitidos} advertencia(s) más (consulte el reporte de errores de pedidos).'
+        )
+
+    return textos
 
 
 def obtener_resumen_errores(fecha_inicio=None, fecha_fin=None, tipo_error=None):

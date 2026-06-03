@@ -36,7 +36,11 @@ from .propuesta_utils import (
     cantidad_surtida_registrada_item,
     sincronizar_cantidades_surtidas_items_propuesta,
 )
-from .pedidos_utils import registrar_error_pedido
+from .pedidos_utils import (
+    registrar_error_pedido,
+    procesar_csv_crear_solicitud_pedido,
+    mensajes_advertencia_csv,
+)
 from .pedidos_forms import _usuario_puede_duplicar_folio
 from .decorators_roles import es_administrador
 from django.db import models
@@ -320,89 +324,20 @@ def crear_solicitud(request):
             else:
                 csv_file = request.FILES['csv_file']
                 try:
-                    items_data = []
-                    # Intentar decodificar con múltiples codificaciones
-                    decoded_file = None
-                    codificaciones = ['utf-8-sig', 'utf-8', 'latin-1', 'cp1252', 'iso-8859-1']
-                    contenido_bytes = csv_file.read()
-                    
-                    for codificacion in codificaciones:
-                        try:
-                            decoded_file = contenido_bytes.decode(codificacion)
-                            break
-                        except (UnicodeDecodeError, AttributeError):
-                            continue
-                    
-                    if decoded_file is None:
-                        raise ValueError('No se pudo decodificar el archivo con ninguna codificación soportada')
-                    
-                    io_string = io.StringIO(decoded_file)
-                    reader = csv.DictReader(io_string)
-                    rows = list(reader)
+                    institucion = header_form.cleaned_data.get('institucion_solicitante')
+                    almacen = header_form.cleaned_data.get('almacen_destino')
+                    resultado_csv = procesar_csv_crear_solicitud_pedido(
+                        csv_file.read(),
+                        usuario=request.user,
+                        institucion=institucion,
+                        almacen=almacen,
+                    )
+                    items_data = resultado_csv['items_data']
+                    folio_desde_csv = resultado_csv['folio_desde_csv']
 
-                    def _normalizar_clave_header(k):
-                        if k is None:
-                            return ''
-                        return str(k).replace('\ufeff', '').strip().upper()
+                    for aviso in mensajes_advertencia_csv(resultado_csv):
+                        messages.warning(request, aviso)
 
-                    folio_desde_csv = ''
-                    for row in rows:
-                        for k, v in row.items():
-                            if _normalizar_clave_header(k) == 'FOLIO' and v is not None:
-                                s = str(v).strip()
-                                if s:
-                                    folio_desde_csv = s
-                                    break
-                        if folio_desde_csv:
-                            break
-
-                    # Acumular por producto: el modelo exige unique (solicitud, producto)
-                    cantidad_por_producto_id = {}
-                    for row in rows:
-                        clave = row.get('CLAVE')
-                        cantidad = row.get('CANTIDAD SOLICITADA')
-
-                        if clave and cantidad:
-                            try:
-                                cantidad_int = int(cantidad)
-                            except ValueError:
-                                registrar_error_pedido(
-                                    usuario=request.user,
-                                    tipo_error='CANTIDAD_INVALIDA',
-                                    clave_solicitada=clave,
-                                    cantidad_solicitada=None,
-                                    descripcion_error=f"Cantidad no valida: {cantidad}",
-                                    enviar_alerta=True
-                                )
-                                messages.warning(request, f"Cantidad invalida para clave {clave}")
-                                continue
-
-                            try:
-                                producto = Producto.objects.get(clave_cnis=clave)
-                            except Producto.DoesNotExist:
-                                registrar_error_pedido(
-                                    usuario=request.user,
-                                    tipo_error='CLAVE_NO_EXISTE',
-                                    clave_solicitada=clave,
-                                    cantidad_solicitada=cantidad_int,
-                                    descripcion_error=f"Clave no existe en catalogo",
-                                    enviar_alerta=True
-                                )
-                                messages.warning(request, f"Clave {clave} no existe")
-                                continue
-
-                            pid = producto.id
-                            cantidad_por_producto_id[pid] = (
-                                cantidad_por_producto_id.get(pid, 0) + cantidad_int
-                            )
-
-                    for pid, cantidad_total in cantidad_por_producto_id.items():
-                        items_data.append({
-                            'producto': pid,
-                            'cantidad_solicitada': cantidad_total,
-                            'cantidad_aprobada': None,
-                        })
-                    
                     extra_forms = len(items_data) if items_data else 1
                     ItemSolicitudFormSet = inlineformset_factory(
                         SolicitudPedido, ItemSolicitud, form=ItemSolicitudForm, extra=extra_forms, can_delete=True
