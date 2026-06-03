@@ -40,6 +40,15 @@ from .pedidos_utils import (
     registrar_error_pedido,
     procesar_csv_crear_solicitud_pedido,
     mensajes_advertencia_csv,
+    CSV_ITEMS_MAX,
+    CSV_PREVIEW_MAX_FILAS,
+    serializar_header_crear_pedido,
+    guardar_csv_en_sesion_crear_pedido,
+    limpiar_csv_sesion_crear_pedido,
+    obtener_items_csv_sesion_crear_pedido,
+    obtener_header_csv_sesion_crear_pedido,
+    preparar_filas_vista_previa_csv,
+    bulk_crear_items_solicitud_pedido,
 )
 from .pedidos_forms import _usuario_puede_duplicar_folio
 from .decorators_roles import es_administrador
@@ -300,6 +309,11 @@ def crear_solicitud(request):
     ItemSolicitudFormSet = inlineformset_factory(SolicitudPedido, ItemSolicitud, form=ItemSolicitudForm, extra=1, can_delete=True)
 
     if request.method == 'POST':
+        if 'limpiar_csv_pedido' in request.POST:
+            limpiar_csv_sesion_crear_pedido(request)
+            messages.info(request, 'Se descartó la carga CSV. Puede cargar otro archivo o capturar ítems manualmente.')
+            return redirect('logistica:crear_pedido')
+
         if 'upload_csv' in request.POST:
             # Los datos del pedido (institución, almacén, fecha) deben estar definidos antes del CSV
             # para correlacionar correctamente con almacén destino y validaciones de folio.
@@ -338,31 +352,41 @@ def crear_solicitud(request):
                     for aviso in mensajes_advertencia_csv(resultado_csv):
                         messages.warning(request, aviso)
 
-                    extra_forms = len(items_data) if items_data else 1
-                    ItemSolicitudFormSet = inlineformset_factory(
-                        SolicitudPedido, ItemSolicitud, form=ItemSolicitudForm, extra=extra_forms, can_delete=True
-                    )
-                    formset = ItemSolicitudFormSet(initial=items_data)
-                    # Conservar datos del pedido ya validados; el folio capturado en pantalla prevalece sobre el CSV.
-                    user_obs = (header_form.cleaned_data.get('observaciones_solicitud') or '').strip()
-                    post_datos = request.POST.copy()
-                    if folio_desde_csv and not user_obs:
-                        post_datos['observaciones_solicitud'] = folio_desde_csv
-                    form = SolicitudPedidoForm(post_datos, user=request.user)
-                    msg_csv = (
-                        f"{len(items_data)} items cargados desde el CSV. Revise «Cantidad aprobada»: "
-                        f"vacío = se aprueba lo solicitado; 0 = no surtir."
-                    )
-                    if folio_desde_csv:
-                        if user_obs:
-                            msg_csv += (
-                                f" Folio en el formulario: «{user_obs}». "
-                                f"(La columna FOLIO del CSV «{folio_desde_csv}» no sustituye al folio ya capturado.)"
-                            )
-                        else:
-                            msg_csv += f" Folio de pedido tomado de la columna FOLIO del CSV: «{folio_desde_csv}»."
-                    messages.success(request, msg_csv)
-                    upload_form = BulkUploadForm()
+                    if len(items_data) > CSV_ITEMS_MAX:
+                        messages.error(
+                            request,
+                            f'El CSV tiene {len(items_data)} claves válidas; el máximo permitido es {CSV_ITEMS_MAX}. '
+                            'Divida el archivo o reduzca renglones.',
+                        )
+                        form = header_form
+                        formset = ItemSolicitudFormSet(instance=SolicitudPedido())
+                    elif not items_data:
+                        messages.error(
+                            request,
+                            'El CSV no generó ítems válidos. Revise claves y cantidades o use renglones manuales.',
+                        )
+                        form = header_form
+                        formset = ItemSolicitudFormSet(instance=SolicitudPedido())
+                    else:
+                        user_obs = (header_form.cleaned_data.get('observaciones_solicitud') or '').strip()
+                        header_serializado = serializar_header_crear_pedido(header_form.cleaned_data)
+                        if folio_desde_csv and not user_obs:
+                            header_serializado['observaciones_solicitud'] = folio_desde_csv
+                        guardar_csv_en_sesion_crear_pedido(request, items_data, header_serializado)
+                        msg_csv = (
+                            f"{len(items_data)} ítems listos desde el CSV. Revise el resumen y pulse «Guardar Solicitud» "
+                            f"(cantidad aprobada = solicitada; puede ajustar después al validar el pedido)."
+                        )
+                        if folio_desde_csv:
+                            if user_obs:
+                                msg_csv += (
+                                    f" Folio en el formulario: «{user_obs}». "
+                                    f"(La columna FOLIO del CSV «{folio_desde_csv}» no sustituye al folio ya capturado.)"
+                                )
+                            else:
+                                msg_csv += f" Folio tomado de la columna FOLIO del CSV: «{folio_desde_csv}»."
+                        messages.success(request, msg_csv)
+                        return redirect('logistica:crear_pedido')
 
                 except Exception as e:
                     messages.error(request, f"Error al procesar el archivo CSV: {e}")
@@ -372,8 +396,9 @@ def crear_solicitud(request):
         else:
             form = SolicitudPedidoForm(request.POST, user=request.user)
             formset = ItemSolicitudFormSet(request.POST, instance=SolicitudPedido())
-            
-            if form.is_valid() and formset.is_valid():
+            items_csv_sesion = obtener_items_csv_sesion_crear_pedido(request)
+
+            if form.is_valid() and (items_csv_sesion or formset.is_valid()):
                 try:
                     if getattr(form, '_folio_existe_cancelado', False):
                         messages.warning(
@@ -383,12 +408,23 @@ def crear_solicitud(request):
                     solicitud = form.save(commit=False)
                     solicitud.usuario_solicitante = request.user
                     solicitud.save()
-                    
-                    formset.instance = solicitud
-                    formset.save()
-                    # Items con cantidad_aprobada=0 quedan registrados; al validar no se incluirán en la propuesta ni se reserva inventario.
-                    messages.success(request, f"Solicitud {solicitud.folio} creada con éxito.")
-                    return redirect('logistica:detalle_pedido', solicitud_id=solicitud.id)
+
+                    total_items = 0
+                    if items_csv_sesion:
+                        total_items += bulk_crear_items_solicitud_pedido(solicitud, items_csv_sesion)
+                        limpiar_csv_sesion_crear_pedido(request)
+                    if not items_csv_sesion or formset.is_valid():
+                        formset.instance = solicitud
+                        guardados_formset = formset.save()
+                        if guardados_formset:
+                            total_items += len(guardados_formset)
+
+                    if total_items == 0:
+                        messages.error(request, 'La solicitud debe tener al menos un ítem.')
+                        transaction.set_rollback(True)
+                    else:
+                        messages.success(request, f"Solicitud {solicitud.folio} creada con éxito ({total_items} ítems).")
+                        return redirect('logistica:detalle_pedido', solicitud_id=solicitud.id)
                 except Exception as e:
                     messages.error(
                         request,
@@ -427,14 +463,29 @@ def crear_solicitud(request):
                                     messages.error(request, f"Item {num_fila} — {label}: {error}")
 
     else:
-        form = SolicitudPedidoForm(user=request.user)
+        header_sesion = obtener_header_csv_sesion_crear_pedido(request)
+        if header_sesion:
+            form = SolicitudPedidoForm(initial=header_sesion, user=request.user)
+        else:
+            form = SolicitudPedidoForm(user=request.user)
         formset = ItemSolicitudFormSet(instance=SolicitudPedido())
-        
+
+    items_csv_sesion = obtener_items_csv_sesion_crear_pedido(request)
+    csv_preview = bool(items_csv_sesion)
+    csv_preview_filas = []
+    csv_total_items = 0
+    if csv_preview:
+        csv_preview_filas, csv_total_items = preparar_filas_vista_previa_csv(items_csv_sesion)
+
     context = {
         'form': form,
         'formset': formset,
         'upload_form': upload_form,
-        'page_title': 'Crear Nueva Solicitud de Pedido'
+        'page_title': 'Crear Nueva Solicitud de Pedido',
+        'csv_preview': csv_preview,
+        'csv_preview_filas': csv_preview_filas,
+        'csv_total_items': csv_total_items,
+        'csv_preview_max_filas': CSV_PREVIEW_MAX_FILAS,
     }
     return render(request, 'inventario/pedidos/crear_solicitud.html', context)
 

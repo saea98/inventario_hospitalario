@@ -9,11 +9,17 @@ import logging
 import requests
 from django.conf import settings
 from django.utils import timezone
-from .pedidos_models import LogErrorPedido, Producto
+from .pedidos_models import LogErrorPedido, Producto, ItemSolicitud
 from .models import Institucion, Almacen
 
 # Máximo de advertencias en pantalla tras CSV (evita render pesado)
 MAX_ADVERTENCIAS_CSV_UI = 15
+
+# Carga CSV en crear pedido: ítems en sesión (evita formset gigante + Select2 por renglón)
+SESSION_CREAR_PEDIDO_CSV_ITEMS = 'crear_pedido_csv_items'
+SESSION_CREAR_PEDIDO_HEADER = 'crear_pedido_csv_header'
+CSV_PREVIEW_MAX_FILAS = 50
+CSV_ITEMS_MAX = 10000
 
 logger = logging.getLogger(__name__)
 
@@ -303,6 +309,83 @@ def mensajes_advertencia_csv(resultado):
         )
 
     return textos
+
+
+def _cantidad_aprobada_desde_item_data(cantidad_solicitada, cantidad_aprobada):
+    if cantidad_aprobada is None or cantidad_aprobada == '':
+        return cantidad_solicitada
+    return int(cantidad_aprobada)
+
+
+def serializar_header_crear_pedido(cleaned_data):
+    """Guarda en sesión los campos del encabezado del pedido (IDs y fechas serializables)."""
+    fecha = cleaned_data.get('fecha_entrega_programada')
+    return {
+        'institucion_solicitante': cleaned_data['institucion_solicitante'].pk,
+        'almacen_destino': cleaned_data['almacen_destino'].pk,
+        'fecha_entrega_programada': fecha.isoformat() if fecha else None,
+        'observaciones_solicitud': (cleaned_data.get('observaciones_solicitud') or '').strip(),
+    }
+
+
+def guardar_csv_en_sesion_crear_pedido(request, items_data, header_serializado):
+    request.session[SESSION_CREAR_PEDIDO_CSV_ITEMS] = items_data
+    request.session[SESSION_CREAR_PEDIDO_HEADER] = header_serializado
+    request.session.modified = True
+
+
+def limpiar_csv_sesion_crear_pedido(request):
+    request.session.pop(SESSION_CREAR_PEDIDO_CSV_ITEMS, None)
+    request.session.pop(SESSION_CREAR_PEDIDO_HEADER, None)
+    request.session.modified = True
+
+
+def obtener_items_csv_sesion_crear_pedido(request):
+    return request.session.get(SESSION_CREAR_PEDIDO_CSV_ITEMS) or []
+
+
+def obtener_header_csv_sesion_crear_pedido(request):
+    return request.session.get(SESSION_CREAR_PEDIDO_HEADER)
+
+
+def preparar_filas_vista_previa_csv(items_data, max_filas=CSV_PREVIEW_MAX_FILAS):
+    """Filas ligeras para plantilla (sin formset por renglón)."""
+    if not items_data:
+        return [], 0
+    ids = {row['producto'] for row in items_data}
+    productos = {
+        p.id: p
+        for p in Producto.objects.filter(id__in=ids).only('id', 'clave_cnis', 'descripcion')
+    }
+    filas = []
+    for row in items_data[:max_filas]:
+        producto = productos.get(row['producto'])
+        filas.append({
+            'clave_cnis': producto.clave_cnis if producto else '—',
+            'descripcion': (producto.descripcion[:80] if producto and producto.descripcion else '—'),
+            'cantidad_solicitada': row['cantidad_solicitada'],
+        })
+    return filas, len(items_data)
+
+
+def bulk_crear_items_solicitud_pedido(solicitud, items_data):
+    """Crea ítems en bloque (misma lógica de cantidad aprobada que el formulario)."""
+    objetos = []
+    for row in items_data:
+        cant_sol = row['cantidad_solicitada']
+        cant_apr = _cantidad_aprobada_desde_item_data(cant_sol, row.get('cantidad_aprobada'))
+        objetos.append(
+            ItemSolicitud(
+                solicitud=solicitud,
+                producto_id=row['producto'],
+                cantidad_solicitada=cant_sol,
+                cantidad_aprobada=cant_apr,
+                justificacion_cambio=row.get('justificacion_cambio') or '',
+            )
+        )
+    if objetos:
+        ItemSolicitud.objects.bulk_create(objetos, batch_size=500)
+    return len(objetos)
 
 
 def obtener_resumen_errores(fecha_inicio=None, fecha_fin=None, tipo_error=None):

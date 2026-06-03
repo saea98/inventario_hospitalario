@@ -21,6 +21,7 @@
         </div>
 
         <!-- Carga masiva: mismo POST que los datos del pedido -->
+        {% if not csv_preview %}
         <div class="card shadow mb-4">
             <div class="card-header py-3">
                 <h6 class="m-0 font-weight-bold text-primary">Opcional — Carga masiva desde CSV</h6>
@@ -43,23 +44,65 @@
                 </button>
             </div>
         </div>
+        {% endif %}
 
         <!-- Items de la Solicitud -->
         <div class="card shadow mb-4">
-            <div class="card-header py-3">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center flex-wrap gap-2">
                 <h6 class="m-0 font-weight-bold text-primary">Items de la Solicitud</h6>
+                {% if csv_preview %}
+                    <span class="badge badge-success">{{ csv_total_items }} ítems desde CSV</span>
+                {% endif %}
             </div>
             <div class="card-body">
+                {% if csv_preview %}
+                    <div class="alert alert-success">
+                        <i class="fas fa-check-circle"></i>
+                        Carga masiva lista: <strong>{{ csv_total_items }}</strong> claves se guardarán al pulsar «Guardar Solicitud».
+                        La cantidad aprobada se tomará igual a la solicitada (puede ajustarla después al validar el pedido).
+                    </div>
+                    <div class="table-responsive mb-3" style="max-height: 320px; overflow-y: auto;">
+                        <table class="table table-sm table-bordered mb-0">
+                            <thead class="thead-light">
+                                <tr>
+                                    <th>Clave CNIS</th>
+                                    <th>Descripción</th>
+                                    <th class="text-right">Cant. solicitada</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for fila in csv_preview_filas %}
+                                <tr>
+                                    <td>{{ fila.clave_cnis }}</td>
+                                    <td>{{ fila.descripcion }}</td>
+                                    <td class="text-right">{{ fila.cantidad_solicitada }}</td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                    {% if csv_total_items > csv_preview_max_filas %}
+                        <p class="text-muted small">
+                            Mostrando las primeras {{ csv_preview_max_filas }} de {{ csv_total_items }} filas.
+                        </p>
+                    {% endif %}
+                    <button type="submit" name="limpiar_csv_pedido" class="btn btn-outline-warning btn-sm mb-3" formnovalidate>
+                        <i class="fas fa-times"></i> Descartar CSV y empezar de nuevo
+                    </button>
+                    <hr>
+                    <p class="text-muted small mb-2">Opcional: agregue un ítem manual adicional abajo.</p>
+                {% endif %}
+
                 {{ formset.management_form }}
                 {% if formset.non_form_errors %}
                     <div class="alert alert-danger">{{ formset.non_form_errors }}</div>
                 {% endif %}
 
-                <div id="item-forms-container">
+                <div id="item-forms-container" {% if csv_preview %}class="csv-preview-manual-only"{% endif %}>
                     {% for item_form in formset %}
                         <div class="item-form mb-4 p-3 border rounded position-relative" data-form-index="{{ forloop.counter0 }}">
                             <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-2">
-                                <span class="text-muted small">Renglón {{ forloop.counter }}</span>
+                                <span class="text-muted small">{% if csv_preview %}Ítem manual{% else %}Renglón {{ forloop.counter }}{% endif %}</span>
                                 <button type="button" class="btn btn-sm btn-outline-danger btn-quitar-renglon" title="Quitar este renglón (no se guardará al enviar)">
                                     <i class="fas fa-trash-alt"></i> Quitar renglón
                                 </button>
@@ -71,6 +114,7 @@
                     {% endfor %}
                 </div>
 
+                {% if not csv_preview %}
                 <button type="button" id="add-item-form" class="btn btn-success btn-sm mt-3">
                     <i class="fas fa-plus"></i> Añadir otro item
                 </button>
@@ -80,6 +124,7 @@
                 <p class="text-muted small mt-1 mb-0">
                     <i class="fas fa-info-circle"></i> Si <strong>Cantidad aprobada</strong> es 0: el ítem se registra (para saber que se solicitó), pero no se generará propuesta ni se reservará inventario para esa clave.
                 </p>
+                {% endif %}
             </div>
         </div>
 
@@ -101,8 +146,13 @@
 <script src="https://cdn.jsdelivr.net/npm/select2@4.1.0-rc.0/dist/js/select2.min.js"></script>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        var csvPreviewMode = {{ csv_preview|yesno:"true,false" }};
+
         function initializeSelect2() {
-            $('.select2-single').select2({
+            var $targets = csvPreviewMode
+                ? $('#item-forms-container.csv-preview-manual-only .select2-single')
+                : $('.select2-single');
+            $targets.select2({
                 width: '100%',
                 language: 'es',
                 allowClear: true,
@@ -166,7 +216,7 @@
             itemForm.style.display = 'none';
         });
 
-        addButton.addEventListener('click', function(e) {
+        if (addButton) addButton.addEventListener('click', function(e) {
             e.preventDefault();
             
             const formCount = parseInt(totalFormsInput.value);
