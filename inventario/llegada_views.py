@@ -493,43 +493,54 @@ def exportar_llegadas_excel(request):
     
     # Encabezados - Campos de Cita, Llegada y detalle por ítem (una fila por ítem)
     headers = [
-        # Campos de Cita
-        'Folio Cita', 'Fecha Cita', 'Estado Cita', 'Tipo Entrega',
-        'Orden Suministro (Cita)', 'Orden Remisión (Cita)', 'Contrato (Cita)', 'Clave Medicamento (Cita)',
-        'Usuario Autorización Cita',
-        # Campos de Llegada
-        'Folio Llegada', 'Estado Llegada', 'Remisión',
-        'Piezas Emitidas (total llegada)', 'Piezas Recibidas (por partida)', 'Tipo Red', 'Almacén',
-        'Orden Suministro (Llegada)', 'Contrato (Llegada)', 'Procedimiento',
-        # Control de Calidad
-        'Estado Calidad', 'Observaciones Calidad', 'Usuario Calidad', 'Fecha Validación Calidad',
-        # Facturación
-        'Fecha Facturación',
-        # Supervisión
-        'Estado Supervisión', 'Observaciones Supervisión', 'Usuario Supervisión', 'Fecha Supervisión',
-        # Ubicación
-        'Usuario Ubicación', 'Fecha Ubicación',
-        # Observaciones
-        'Observaciones Recepción',
-        # Proveedor
-        'Proveedor', 'RFC Proveedor',
-        # Detalle por ítem (nuevos campos solicitados)
-        'FECHA REAL DE LA ENTREGA',
-        'DESCRIPCION',
-        'UNIDAD DE MEDIDA',
-        'LOTE',
-        'CADUCIDAD',
-        'PRECIO UNITARIO SIN IVA',
-        'PRECIO UNITARIO CON IVA',
-        'SUBTOTAL',
-        'IVA',
-        'IMPORTE TOTAL',
-        'MARCA',
-        'FABRICANTE',
-        'FECHA DE FABRICACION',
-        'OBSERVACIONES',
-        'NOMBRE DE LA PERSONA QUE CAPTURO',
-        'FECHA DE CAPTURA',
+        
+        # # Campos de Cita
+        # 'Folio Cita', 'Fecha Cita', 'Estado Cita', 'Tipo Entrega',
+        # 'Orden Suministro (Cita)', 'Orden Remisión (Cita)', 'Contrato (Cita)', 'Clave Medicamento (Cita)',
+        # 'Usuario Autorización Cita',
+        # # Campos de Llegada
+        # 'Folio Llegada', 'Estado Llegada', 'Remisión',
+        # 'Piezas Emitidas (total llegada)', 'Piezas Recibidas (por partida)', 'Tipo Red', 'Almacén',
+        # 'Orden Suministro (Llegada)', 'Contrato (Llegada)', 'Procedimiento',
+        # # Control de Calidad
+        # 'Estado Calidad', 'Observaciones Calidad', 'Usuario Calidad', 'Fecha Validación Calidad',
+        # # Facturación
+        # 'Fecha Facturación',
+        # # Supervisión
+        # 'Estado Supervisión', 'Observaciones Supervisión', 'Usuario Supervisión', 'Fecha Supervisión',
+        # # Ubicación
+        # 'Usuario Ubicación', 'Fecha Ubicación',
+        # # Observaciones
+        # 'Observaciones Recepción',
+        # # Proveedor
+        # 'Proveedor', 'RFC Proveedor',
+        # # Detalle por ítem (nuevos campos solicitados)
+        # 'FECHA REAL DE LA ENTREGA',
+        # 'DESCRIPCION',
+        # 'UNIDAD DE MEDIDA',
+        # 'LOTE',
+        # 'CADUCIDAD',
+        # 'PRECIO UNITARIO SIN IVA',
+        # 'PRECIO UNITARIO CON IVA',
+        # 'SUBTOTAL',
+        # 'IVA',
+        # 'IMPORTE TOTAL',
+        # 'MARCA',
+        # 'FABRICANTE',
+        # 'FECHA DE FABRICACION',
+        # 'OBSERVACIONES',
+        # 'NOMBRE DE LA PERSONA QUE CAPTURO',
+        # 'FECHA DE CAPTURA',
+        'Folio Cita', 'Fecha Cita', 'Estado Cita', 'Tipo Entrega', 'Almacén', 'RFC Proveedor', 'Proveedor',
+        'Orden Suministro (Cita)', 'Orden Remisión (Cita)', 'Contrato (Cita)', 'Usuario Autorización Cita',
+        'Folio Llegada', 'Estado Llegada', 'Remisión', 'Orden Suministro (Llegada)', 'Contrato (Llegada)',
+        'Procedimiento','Clave Medicamento (Cita)', 'Descripción', 'UNIDAD DE MEDIDA', 'Piezas Emitidas (total llegada)',
+        'Piezas Recibidas (por partida)', 'LOTE', 'CADUCIDAD', 'PRECIO UNITARIO SIN IVA', 'PRECIO UNITARIO CON IVA',
+        'SUBTOTAL', 'IVA', 'IMPORTE TOTAL', 'Tipo Red', 'MARCA', 'FABRICANTE', 'FECHA DE FABRICACION',
+        'Observaciones Recepción', 'OBSERVACIONES', 'NOMBRE DE LA PERSONA QUE CAPTURO', 'FECHA DE CAPTURA',
+        'FECHA REAL DE LA ENTREGA', 'Estado Supervisión', 'Observaciones Supervisión', 'Usuario Supervisión', 
+        'Fecha Supervisión', 'Usuario Ubicación', 'Estado Calidad', 'Observaciones Calidad', 'Usuario Calidad',
+        'Fecha Validación Calidad', 'Fecha Ubicación',
     ]
     
     # Escribir encabezados
@@ -551,103 +562,60 @@ def exportar_llegadas_excel(request):
         for item in items_list:
             col = 1
 
-            # Campos de Cita
-            ws.cell(row=row_num, column=col).value = llegada.cita.folio if llegada.cita and llegada.cita.folio else ''
+            # Folio Cita
+            ws.cell(row=row_num, column=col).value = llegada.cita.folio if llegada.cita and llegada.cita.folio else ''  
             col += 1
-            ws.cell(row=row_num, column=col).value = llegada.cita.fecha_cita.strftime('%d/%m/%Y %H:%M') if llegada.cita and llegada.cita.fecha_cita else ''
+            # Fecha Cita
+            ws.cell(row=row_num, column=col).value = llegada.cita.fecha_cita.strftime('%d/%m/%Y %H:%M') if llegada.cita and llegada.cita.fecha_cita else ''  
             col += 1
-            ws.cell(row=row_num, column=col).value = dict(llegada.cita.ESTADOS_CITA).get(llegada.cita.estado, llegada.cita.estado) if llegada.cita else ''
+            # Estado Cita
+            ws.cell(row=row_num, column=col).value = dict(llegada.cita.ESTADOS_CITA).get(llegada.cita.estado, llegada.cita.estado) if llegada.cita else ''  
             col += 1
-            ws.cell(row=row_num, column=col).value = dict([(t[0], t[1]) for t in llegada.cita.TIPOS_ENTREGA]).get(llegada.cita.tipo_entrega, llegada.cita.tipo_entrega) if llegada.cita else ''
+            # Tipo Entrega
+            ws.cell(row=row_num, column=col).value = dict([(t[0], t[1]) for t in llegada.cita.TIPOS_ENTREGA]).get(llegada.cita.tipo_entrega, llegada.cita.tipo_entrega) if llegada.cita else ''  
             col += 1
-            ws.cell(row=row_num, column=col).value = llegada.cita.numero_orden_suministro if llegada.cita else ''
+            # Almacén
+            ws.cell(row=row_num, column=col).value = llegada.almacen.nombre if llegada.almacen else ''  
             col += 1
-            ws.cell(row=row_num, column=col).value = llegada.cita.numero_orden_remision if llegada.cita else ''
+            # RFC Proveedor
+            ws.cell(row=row_num, column=col).value = llegada.proveedor.rfc if llegada.proveedor else ''  
             col += 1
-            ws.cell(row=row_num, column=col).value = llegada.cita.numero_contrato if llegada.cita else ''
+            # Proveedor
+            ws.cell(row=row_num, column=col).value = llegada.proveedor.razon_social if llegada.proveedor else ''  
             col += 1
-            ws.cell(row=row_num, column=col).value = llegada.cita.clave_medicamento if llegada.cita else ''
+            # Orden Suministro (Cita)
+            ws.cell(row=row_num, column=col).value = llegada.cita.numero_orden_suministro if llegada.cita else ''  
             col += 1
+            # Orden Remisión (Cita)
+            ws.cell(row=row_num, column=col).value = llegada.cita.numero_orden_remision if llegada.cita else ''  
+            col += 1
+            # Contrato (Cita)
+            ws.cell(row=row_num, column=col).value = llegada.cita.numero_contrato if llegada.cita else ''  
+            col += 1
+            # Usuario Autorización Cita
             ws.cell(row=row_num, column=col).value = _nombre_usuario(llegada.cita.usuario_autorizacion if (llegada.cita and llegada.cita.usuario_autorizacion) else None)
             col += 1
 
-            # Campos de Llegada
-            ws.cell(row=row_num, column=col).value = llegada.folio
+            # Folio Llegada
+            ws.cell(row=row_num, column=col).value = llegada.folio  
             col += 1
+            # Estado Llegada
             ws.cell(row=row_num, column=col).value = dict(LlegadaProveedor.ESTADO_CHOICES).get(llegada.estado, llegada.estado)
             col += 1
-            ws.cell(row=row_num, column=col).value = llegada.remision
+            # Remisión
+            ws.cell(row=row_num, column=col).value = llegada.remision 
             col += 1
-            # Una fila por ítem: cantidades por partida; si en BD se repitió el total en cada fila,
-            # intentar corregir recibidas desde subtotal/precio (ver _piezas_emitidas_recibidas_fila_excel).
-            piezas_em, piezas_rec = _piezas_emitidas_recibidas_fila_excel(
-                item, llegada, items_list
-            )
-            ws.cell(row=row_num, column=col).value = piezas_em
+            # Orden Suministro (Llegada)
+            ws.cell(row=row_num, column=col).value = llegada.numero_orden_suministro or ''  
             col += 1
-            ws.cell(row=row_num, column=col).value = piezas_rec
+            # Contrato (Llegada)
+            ws.cell(row=row_num, column=col).value = llegada.numero_contrato or ''  
             col += 1
-            if llegada.tipo_red:
-                tipo_red_display = dict([('FRIA', 'Red Fría'), ('SECA', 'Red Seca')]).get(llegada.tipo_red, llegada.tipo_red)
-            else:
-                tipo_red_display = ''
-            ws.cell(row=row_num, column=col).value = tipo_red_display
+            # Procedimiento
+            ws.cell(row=row_num, column=col).value = llegada.numero_procedimiento or ''  
             col += 1
-            ws.cell(row=row_num, column=col).value = llegada.almacen.nombre if llegada.almacen else ''
-            col += 1
-            ws.cell(row=row_num, column=col).value = llegada.numero_orden_suministro or ''
-            col += 1
-            ws.cell(row=row_num, column=col).value = llegada.numero_contrato or ''
-            col += 1
-            ws.cell(row=row_num, column=col).value = llegada.numero_procedimiento or ''
-            col += 1
-
-            # Control de Calidad
-            ws.cell(row=row_num, column=col).value = dict([('APROBADO', 'Aprobado'), ('RECHAZADO', 'Rechazado')]).get(llegada.estado_calidad, llegada.estado_calidad or '')
-            col += 1
-            ws.cell(row=row_num, column=col).value = llegada.observaciones_calidad or ''
-            col += 1
-            ws.cell(row=row_num, column=col).value = _nombre_usuario(llegada.usuario_calidad)
-            col += 1
-            ws.cell(row=row_num, column=col).value = llegada.fecha_validacion_calidad.strftime('%d/%m/%Y %H:%M') if llegada.fecha_validacion_calidad else ''
-            col += 1
-
-            # Facturación
-            ws.cell(row=row_num, column=col).value = llegada.fecha_facturacion.strftime('%d/%m/%Y %H:%M') if llegada.fecha_facturacion else ''
-            col += 1
-
-            # Estado de la llegada (y datos supervisión)
-            ws.cell(row=row_num, column=col).value = dict(LlegadaProveedor.ESTADO_CHOICES).get(llegada.estado, llegada.estado or '')
-            col += 1
-            ws.cell(row=row_num, column=col).value = llegada.observaciones_supervision or ''
-            col += 1
-            ws.cell(row=row_num, column=col).value = _nombre_usuario(llegada.usuario_supervision)
-            col += 1
-            ws.cell(row=row_num, column=col).value = llegada.fecha_actualizacion.strftime('%d/%m/%Y %H:%M') if getattr(llegada, 'fecha_actualizacion', None) else ''
-            col += 1
-
-            # Ubicación
-            ws.cell(row=row_num, column=col).value = _nombre_usuario(llegada.usuario_ubicacion)
-            col += 1
-            ws.cell(row=row_num, column=col).value = llegada.fecha_ubicacion.strftime('%d/%m/%Y %H:%M') if llegada.fecha_ubicacion else ''
-            col += 1
-
-            # Observaciones recepción
-            ws.cell(row=row_num, column=col).value = llegada.observaciones_recepcion or ''
-            col += 1
-
-            # Proveedor
-            ws.cell(row=row_num, column=col).value = llegada.proveedor.razon_social if llegada.proveedor else ''
-            col += 1
-            ws.cell(row=row_num, column=col).value = llegada.proveedor.rfc if llegada.proveedor else ''
-            col += 1
-
-            # --- Nuevos campos (detalle por ítem) ---
-            # FECHA REAL DE LA ENTREGA (por petición del usuario: se muestra la fecha de la cita)
-            if llegada.cita and llegada.cita.fecha_cita:
-                ws.cell(row=row_num, column=col).value = llegada.cita.fecha_cita.strftime('%d/%m/%Y %H:%M')
-            else:
-                ws.cell(row=row_num, column=col).value = ''
+            # Clave Medicamento (Cita)
+            ws.cell(row=row_num, column=col).value = llegada.cita.clave_medicamento if llegada.cita else ''  
             col += 1
             # DESCRIPCION (solo descripción)
             if item:
@@ -663,7 +631,14 @@ def exportar_llegadas_excel(request):
             else:
                 ws.cell(row=row_num, column=col).value = ''
             col += 1
-            # LOTE
+            piezas_em, piezas_rec = _piezas_emitidas_recibidas_fila_excel(item, llegada, items_list)
+            # Piezas Emitidas (total llegada)
+            ws.cell(row=row_num, column=col).value = piezas_em  
+            col += 1
+            # Piezas Recibidas (por partida)
+            ws.cell(row=row_num, column=col).value = piezas_rec  
+            col += 1
+            # LOTE 
             ws.cell(row=row_num, column=col).value = item.numero_lote if item else ''
             col += 1
             # CADUCIDAD
@@ -676,13 +651,20 @@ def exportar_llegadas_excel(request):
             ws.cell(row=row_num, column=col).value = float(item.precio_unitario_con_iva) if item and item.precio_unitario_con_iva is not None else ''
             col += 1
             # SUBTOTAL
-            ws.cell(row=row_num, column=col).value = float(item.subtotal) if item and item.subtotal is not None else ''
+            ws.cell(row=row_num, column=col).value = float(item.subtotal) if item and item.subtotal is not None else ''  
             col += 1
             # IVA
-            ws.cell(row=row_num, column=col).value = float(item.importe_iva) if item and item.importe_iva is not None else ''
+            ws.cell(row=row_num, column=col).value = float(item.importe_iva) if item and item.importe_iva is not None else ''  
             col += 1
             # IMPORTE TOTAL
-            ws.cell(row=row_num, column=col).value = float(item.importe_total) if item and item.importe_total is not None else ''
+            ws.cell(row=row_num, column=col).value = float(item.importe_total) if item and item.importe_total is not None else ''  
+            col += 1
+            # Tipo Red
+            if llegada.tipo_red:
+                tipo_red_display = dict([('FRIA', 'Red Fría'), ('SECA', 'Red Seca')]).get(llegada.tipo_red, llegada.tipo_red)
+            else:
+                tipo_red_display = ''
+            ws.cell(row=row_num, column=col).value = tipo_red_display
             col += 1
             # MARCA
             ws.cell(row=row_num, column=col).value = item.marca or '' if item else ''
@@ -693,7 +675,10 @@ def exportar_llegadas_excel(request):
             # FECHA DE FABRICACION
             ws.cell(row=row_num, column=col).value = item.fecha_elaboracion.strftime('%d/%m/%Y') if item and item.fecha_elaboracion else ''
             col += 1
-            # OBSERVACIONES (recepción de la llegada)
+            # Observaciones Recepción
+            ws.cell(row=row_num, column=col).value = llegada.observaciones_recepcion or ''
+            col += 1
+            # OBSERVACIONES
             ws.cell(row=row_num, column=col).value = llegada.observaciones_recepcion or ''
             col += 1
             # NOMBRE DE LA PERSONA QUE CAPTURO
@@ -701,6 +686,39 @@ def exportar_llegadas_excel(request):
             col += 1
             # FECHA DE CAPTURA
             ws.cell(row=row_num, column=col).value = llegada.fecha_creacion.strftime('%d/%m/%Y %H:%M') if llegada.fecha_creacion else ''
+            col += 1
+            # FECHA REAL DE LA ENTREGA
+            ws.cell(row=row_num, column=col).value = llegada.cita.fecha_cita.strftime('%d/%m/%Y %H:%M') if llegada.cita and llegada.cita.fecha_cita else '' 
+            col += 1
+            # Estado Supervisión
+            ws.cell(row=row_num, column=col).value = dict(LlegadaProveedor.ESTADO_CHOICES).get(llegada.estado, llegada.estado or '')
+            col += 1
+            # Observaciones Supervisión
+            ws.cell(row=row_num, column=col).value = llegada.observaciones_supervision or '' 
+            col += 1
+            # Usuario Supervisión
+            ws.cell(row=row_num, column=col).value = _nombre_usuario(llegada.usuario_supervision)
+            col += 1
+            # Fecha Supervisión
+            ws.cell(row=row_num, column=col).value = llegada.fecha_supervision.strftime('%d/%m/%Y %H:%M') if getattr(llegada, 'fecha_supervision', None) else ''
+            col += 1
+            # Usuario Ubicación
+            ws.cell(row=row_num, column=col).value = _nombre_usuario(llegada.usuario_ubicacion)  # Usuario Ubicació
+            col += 1
+            # Estado Calidad
+            ws.cell(row=row_num, column=col).value = dict([('APROBADO', 'Aprobado'), ('RECHAZADO', 'Rechazado')]).get(llegada.estado_calidad, llegada.estado_calidad or '')
+            col += 1
+            # Observaciones Calidad
+            ws.cell(row=row_num, column=col).value = llegada.observaciones_calidad or ''
+            col += 1
+            # Usuario Calidad
+            ws.cell(row=row_num, column=col).value = _nombre_usuario(llegada.usuario_calidad)
+            col += 1
+            # Fecha Validación Calidad
+            ws.cell(row=row_num, column=col).value = llegada.fecha_validacion_calidad.strftime('%d/%m/%Y %H:%M') if llegada.fecha_validacion_calidad else '' 
+            col += 1
+            # Fecha Ubicación
+            ws.cell(row=row_num, column=col).value = llegada.fecha_ubicacion.strftime('%d/%m/%Y %H:%M') if llegada.fecha_ubicacion else '' 
 
             # Aplicar bordes a toda la fila
             for col_num in range(1, len(headers) + 1):
