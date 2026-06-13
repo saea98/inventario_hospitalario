@@ -9,8 +9,6 @@ services:
     restart: always
     ports:
       - "${PORT:-8700}:8000"
-      # API móvil (FastAPI) corre en el mismo contenedor, puerto interno 8001
-      - "${MOBILE_API_PORT:-8701}:8001"
     env_file:
       - .env
     # Volumen dinámico: mapea el directorio actual sin depender de rutas absolutas

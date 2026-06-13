@@ -10,8 +10,8 @@ from mobile_api.routers import auth_router, conteos_router
 app = FastAPI(
     title='Inventario Hospitalario — API móvil conteo',
     version='1.0.0',
-    docs_url='/api/v1/docs',
-    openapi_url='/api/v1/openapi.json',
+    docs_url='/docs',
+    openapi_url='/openapi.json',
 )
 
 app.add_middleware(
@@ -22,10 +22,10 @@ app.add_middleware(
     allow_headers=['*'],
 )
 
-app.include_router(auth_router.router, prefix='/api/v1')
-app.include_router(conteos_router.router, prefix='/api/v1')
+app.include_router(auth_router.router)
+app.include_router(conteos_router.router)
 
 
-@app.get('/api/v1/health')
+@app.get('/health')
 def health():
     return {'status': 'ok', 'service': 'mobile_api'}

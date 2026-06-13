@@ -1,6 +1,6 @@
 const API_URL =
   process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '') ||
-  'http://localhost:8701/api/v1';
+  'http://localhost:8700/api/v1';
 
 type RequestOptions = {
   method?: string;
