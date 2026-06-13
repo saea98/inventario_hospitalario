@@ -55,7 +55,39 @@ if [ -z "$DEBUG" ]; then
     DEBUG=True
 fi
 
-# Iniciar la aplicación
+# API móvil (FastAPI) en el mismo contenedor — puerto interno 8001
+start_mobile_api() {
+    if [ "${MOBILE_API_ENABLED:-true}" = "false" ] || [ "${MOBILE_API_ENABLED}" = "False" ]; then
+        echo -e "${YELLOW}⏭ API móvil deshabilitada (MOBILE_API_ENABLED=false)${NC}"
+        return
+    fi
+
+    MOBILE_API_INTERNAL_PORT=8001
+    MOBILE_API_WORKERS="${MOBILE_API_WORKERS:-2}"
+
+    echo -e "${YELLOW}📱 Iniciando API móvil (FastAPI) en :${MOBILE_API_INTERNAL_PORT}...${NC}"
+
+    if [ "$DEBUG" = "False" ] || [ "$DEBUG" = "false" ]; then
+        uvicorn mobile_api.main:app \
+            --host 0.0.0.0 \
+            --port "${MOBILE_API_INTERNAL_PORT}" \
+            --workers "${MOBILE_API_WORKERS}" \
+            --log-level info &
+    else
+        uvicorn mobile_api.main:app \
+            --host 0.0.0.0 \
+            --port "${MOBILE_API_INTERNAL_PORT}" \
+            --reload \
+            --log-level info &
+    fi
+
+    disown
+    echo -e "${GREEN}✓ API móvil en segundo plano (http://0.0.0.0:${MOBILE_API_INTERNAL_PORT}/api/v1/health)${NC}"
+}
+
+start_mobile_api
+
+# Iniciar la aplicación web (proceso principal del contenedor)
 if [ "$DEBUG" = "False" ] || [ "$DEBUG" = "false" ]; then
     echo -e "${BLUE}════════════════════════════════════════════════════${NC}"
     echo -e "${GREEN}🚀 Iniciando en modo PRODUCCIÓN con Gunicorn${NC}"

@@ -9,29 +9,14 @@ services:
     restart: always
     ports:
       - "${PORT:-8700}:8000"
+      # API móvil (FastAPI) corre en el mismo contenedor, puerto interno 8001
+      - "${MOBILE_API_PORT:-8701}:8001"
     env_file:
       - .env
     # Volumen dinámico: mapea el directorio actual sin depender de rutas absolutas
     volumes:
       - .:/app
     # No dependemos de Redis ni otros servicios en desarrollo (pero puedes dejarlo)
-    networks:
-      - inventario_net
-
-  mobile_api:
-    build:
-      context: .
-      dockerfile: Dockerfile
-    platform: linux/amd64
-    container_name: inventario_mobile_api
-    restart: always
-    command: ["uvicorn", "mobile_api.main:app", "--host", "0.0.0.0", "--port", "8001", "--reload"]
-    ports:
-      - "${MOBILE_API_PORT:-8701}:8001"
-    env_file:
-      - .env
-    volumes:
-      - .:/app
     networks:
       - inventario_net
 
