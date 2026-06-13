@@ -18,6 +18,23 @@ services:
     networks:
       - inventario_net
 
+  mobile_api:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    platform: linux/amd64
+    container_name: inventario_mobile_api
+    restart: always
+    command: ["uvicorn", "mobile_api.main:app", "--host", "0.0.0.0", "--port", "8001", "--reload"]
+    ports:
+      - "${MOBILE_API_PORT:-8701}:8001"
+    env_file:
+      - .env
+    volumes:
+      - .:/app
+    networks:
+      - inventario_net
+
   redis:
     image: redis:7
     container_name: inventario_redis

@@ -16,3 +16,7 @@ requests==2.31.0
 xhtml2pdf==0.2.16
 weasyprint==61.2
 reportlab==4.0.7
+fastapi==0.115.6
+uvicorn[standard]==0.32.1
+python-jose[cryptography]==3.3.0
+pydantic==2.10.3
