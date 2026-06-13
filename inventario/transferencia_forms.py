@@ -1,10 +1,22 @@
 """Formularios para entradas por transferencia."""
 
+from decimal import Decimal
+
 from django import forms
 from django.forms import inlineformset_factory
 
 from .transferencia_models import TransferenciaEntrada, ItemTransferenciaEntrada
 from .transferencia_services import resolver_producto_transferencia
+
+
+def _iva_sugerido_por_clave(clave):
+    """Sugerencia de IVA al capturar clave (misma lógica que ItemLlegadaForm)."""
+    clave = (clave or '').strip()
+    if any(clave.startswith(prefix) for prefix in ('010', '020', '030', '040')):
+        return Decimal('0.00')
+    if any(clave.startswith(prefix) for prefix in ('060', '080', '130', '379')):
+        return Decimal('16.00')
+    return Decimal('0.00')
 
 
 class TransferenciaEntradaForm(forms.ModelForm):
@@ -68,20 +80,86 @@ class ItemTransferenciaEntradaForm(forms.ModelForm):
             'fecha_caducidad',
             'cantidad_recibida',
             'unidad_medida',
+            'precio_unitario_sin_iva',
+            'porcentaje_iva',
+            'precio_unitario_con_iva',
+            'subtotal',
+            'importe_iva',
+            'importe_total',
         ]
         widgets = {
             'numero_lote': forms.TextInput(attrs={'class': 'form-control', 'placeholder': 'Lote'}),
             'fecha_caducidad': forms.DateInput(attrs={'class': 'form-control', 'type': 'date'}),
-            'cantidad_recibida': forms.NumberInput(attrs={'class': 'form-control', 'min': '1'}),
+            'cantidad_recibida': forms.NumberInput(
+                attrs={'class': 'form-control cantidad-recibida', 'min': '1'}
+            ),
             'unidad_medida': forms.TextInput(attrs={'class': 'form-control', 'value': 'Pieza'}),
+            'precio_unitario_sin_iva': forms.NumberInput(
+                attrs={'class': 'form-control precio-unitario', 'step': '0.01', 'placeholder': '0.00'}
+            ),
+            'porcentaje_iva': forms.NumberInput(
+                attrs={'class': 'form-control porcentaje-iva', 'step': '0.01', 'placeholder': '0.00'}
+            ),
+            'precio_unitario_con_iva': forms.NumberInput(
+                attrs={
+                    'class': 'form-control precio-con-iva',
+                    'step': '0.01',
+                    'placeholder': '0.00',
+                    'readonly': 'readonly',
+                }
+            ),
+            'subtotal': forms.NumberInput(
+                attrs={
+                    'class': 'form-control subtotal',
+                    'step': '0.01',
+                    'placeholder': '0.00',
+                    'readonly': 'readonly',
+                }
+            ),
+            'importe_iva': forms.NumberInput(
+                attrs={
+                    'class': 'form-control importe-iva',
+                    'step': '0.01',
+                    'placeholder': '0.00',
+                    'readonly': 'readonly',
+                }
+            ),
+            'importe_total': forms.NumberInput(
+                attrs={
+                    'class': 'form-control importe-total',
+                    'step': '0.01',
+                    'placeholder': '0.00',
+                    'readonly': 'readonly',
+                }
+            ),
         }
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.fields['fecha_caducidad'].required = False
         self.fields['unidad_medida'].required = False
+        self.fields['precio_unitario_sin_iva'].required = False
+        self.fields['porcentaje_iva'].required = False
+        self.fields['precio_unitario_con_iva'].required = False
+        self.fields['subtotal'].required = False
+        self.fields['importe_iva'].required = False
+        self.fields['importe_total'].required = False
         if not self.instance.pk:
             self.fields['unidad_medida'].initial = 'Pieza'
+            clave = (self.initial.get('clave') if self.initial else '') or ''
+            if clave:
+                self.fields['porcentaje_iva'].initial = _iva_sugerido_por_clave(clave)
+
+    def clean_porcentaje_iva(self):
+        porcentaje_iva = self.cleaned_data.get('porcentaje_iva')
+        if porcentaje_iva is None or porcentaje_iva == '':
+            clave = ''
+            if self.instance and self.instance.pk and self.instance.clave:
+                clave = self.instance.clave
+            elif 'clave' in self.cleaned_data:
+                clave = self.cleaned_data.get('clave') or ''
+            return _iva_sugerido_por_clave(clave)
+        return Decimal(str(porcentaje_iva))
 
     def clean(self):
         cleaned = super().clean()

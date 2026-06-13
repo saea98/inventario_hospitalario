@@ -219,6 +219,7 @@ def api_buscar_clave_producto(request):
             'clave_cnis': p.clave_cnis,
             'descripcion': p.descripcion,
             'id': p.id,
+            'iva': float(p.iva) if p.iva is not None else 0.0,
         }
         for p in productos
     ]

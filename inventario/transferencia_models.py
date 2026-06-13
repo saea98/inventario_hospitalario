@@ -9,6 +9,7 @@ from django.contrib.auth import get_user_model
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.utils import timezone
+from decimal import Decimal
 
 Usuario = get_user_model()
 
@@ -131,6 +132,47 @@ class ItemTransferenciaEntrada(models.Model):
         verbose_name='Cantidad recibida',
     )
     unidad_medida = models.CharField(max_length=50, default='Pieza')
+    precio_unitario_sin_iva = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        validators=[MinValueValidator(0)],
+    )
+    porcentaje_iva = models.DecimalField(
+        max_digits=5,
+        decimal_places=2,
+        default=0,
+        validators=[MinValueValidator(0)],
+    )
+    precio_unitario_con_iva = models.DecimalField(
+        max_digits=12,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        validators=[MinValueValidator(0)],
+    )
+    subtotal = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        validators=[MinValueValidator(0)],
+    )
+    importe_iva = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        validators=[MinValueValidator(0)],
+    )
+    importe_total = models.DecimalField(
+        max_digits=15,
+        decimal_places=2,
+        blank=True,
+        null=True,
+        validators=[MinValueValidator(0)],
+    )
     lote_creado = models.OneToOneField(
         'inventario.Lote',
         on_delete=models.SET_NULL,
@@ -156,3 +198,33 @@ class ItemTransferenciaEntrada(models.Model):
         if self.producto_id:
             return self.producto.descripcion
         return ''
+
+    def calcular_iva_automatico(self):
+        """Misma regla que ItemLlegada: claves 060/080/130/379 → 16%, resto 0%."""
+        if self.clave and self.clave.startswith(('060', '080', '130', '379')):
+            return Decimal('16.00')
+        return Decimal('0.00')
+
+    def calcular_precios(self):
+        """Precio con/sin IVA y totales por cantidad recibida (igual que llegadas)."""
+        if self.porcentaje_iva == 0:
+            self.porcentaje_iva = self.calcular_iva_automatico()
+
+        if not self.precio_unitario_sin_iva:
+            self.precio_unitario_con_iva = None
+            self.subtotal = None
+            self.importe_iva = None
+            self.importe_total = None
+            return
+
+        porcentaje_iva_decimal = Decimal(str(self.porcentaje_iva or 0))
+        factor_iva = Decimal('1') + (porcentaje_iva_decimal / Decimal('100'))
+        self.precio_unitario_con_iva = self.precio_unitario_sin_iva * factor_iva
+        cantidad = Decimal(str(self.cantidad_recibida or 0))
+        self.subtotal = self.precio_unitario_sin_iva * cantidad
+        self.importe_iva = self.subtotal * (porcentaje_iva_decimal / Decimal('100'))
+        self.importe_total = self.subtotal + self.importe_iva
+
+    def save(self, *args, **kwargs):
+        self.calcular_precios()
+        super().save(*args, **kwargs)

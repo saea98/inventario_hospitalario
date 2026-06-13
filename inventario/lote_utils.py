@@ -196,4 +196,10 @@ def completar_datos_lote_desde_transferencia(lote, item_transferencia):
     if not (getattr(lote, 'responsable', None) or '').strip() and transferencia.usuario_aprobacion:
         u = transferencia.usuario_aprobacion
         lote.responsable = getattr(u, 'username', None) or str(u)
+    if getattr(item_transferencia, 'subtotal', None) is not None:
+        lote.subtotal = item_transferencia.subtotal
+    if getattr(item_transferencia, 'importe_iva', None) is not None:
+        lote.iva = item_transferencia.importe_iva
+    if getattr(item_transferencia, 'importe_total', None) is not None:
+        lote.importe_total = item_transferencia.importe_total
     lote.save()

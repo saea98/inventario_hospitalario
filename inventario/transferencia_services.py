@@ -64,6 +64,8 @@ def asignar_transferencia_a_staging(transferencia, usuario):
             cantidad_recibida = item.cantidad_recibida
             fecha_cad = item.fecha_caducidad or fecha_caducidad_default
             producto_desc = item.descripcion_mostrar or item.clave
+            precio_unit = item.precio_unitario_sin_iva or 0
+            incremento_valor = precio_unit * cantidad_recibida
 
             lote_existente = Lote.objects.filter(
                 numero_lote=item.numero_lote,
@@ -76,6 +78,7 @@ def asignar_transferencia_a_staging(transferencia, usuario):
                 cantidad_anterior_lote = lote.cantidad_disponible
                 lote.cantidad_inicial += cantidad_recibida
                 lote.cantidad_disponible += cantidad_recibida
+                lote.valor_total += incremento_valor
                 lote.almacen = almacen_staging
                 lote.save()
                 lote_ubi, created = LoteUbicacion.objects.get_or_create(
@@ -143,8 +146,8 @@ def asignar_transferencia_a_staging(transferencia, usuario):
                     cantidad_reservada=0,
                     almacen=almacen_staging,
                     institucion=institucion,
-                    precio_unitario=0,
-                    valor_total=0,
+                    precio_unitario=precio_unit,
+                    valor_total=incremento_valor,
                     fecha_recepcion=transferencia.fecha_recepcion.date()
                     if transferencia.fecha_recepcion
                     else date.today(),

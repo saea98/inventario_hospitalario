@@ -3,9 +3,10 @@
 {% block extra_css %}
 <link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.1.0-rc.0/css/select2.min.css" rel="stylesheet" />
 <style>
-    .table-items th { background: #f8f9fa; font-size: 0.85rem; }
-    .table-items td { vertical-align: middle; }
-    .table-items input { width: 100%; font-size: 0.85rem; }
+    .table-items th { background: #f8f9fa; font-size: 0.75rem; white-space: nowrap; }
+    .table-items td { vertical-align: middle; font-size: 0.8rem; }
+    .table-items input { width: 100%; font-size: 0.8rem; min-width: 4.5rem; }
+    .table-items input[readonly] { background: #f0f0f0; }
 </style>
 {% endblock %}
 
@@ -13,8 +14,8 @@
 <div class="container-fluid">
     <h1 class="h3 mb-2 text-gray-800">{{ page_title|default:"Registrar entrada por transferencia" }}</h1>
     <p class="text-muted mb-4">
-        Capture la remisión y las claves recibidas (puede agregar varias filas). No requiere cita ni proveedor.
-        Sin control de calidad; al aprobar, las existencias van a <strong>staging</strong> como en llegadas de proveedor.
+        Capture la remisión y las claves recibidas. Precio unitario e IVA (%): si IVA es 0%, el total es precio × cantidad;
+        con IVA se calcula subtotal, importe IVA e importe total (igual que llegadas de proveedor).
     </p>
 
     <form method="post" id="transferencia-form">
@@ -49,25 +50,36 @@
                     <table class="table table-bordered table-items" id="items-table">
                         <thead>
                             <tr>
-                                <th>Clave CNIS</th>
+                                <th>Clave</th>
                                 <th>Descripción</th>
                                 <th>Lote</th>
                                 <th>Caducidad</th>
-                                <th>Cantidad</th>
-                                <th>Unidad</th>
-                                <th></th>
+                                <th>Cant.</th>
+                                <th>P. unit. s/IVA</th>
+                                <th>% IVA</th>
+                                <th>P. c/IVA</th>
+                                <th>Subtotal</th>
+                                <th>Imp. IVA</th>
+                                <th>Total</th>
+                                <th>Quitar</th>
                             </tr>
                         </thead>
                         <tbody id="items-tbody">
                             {% for item_form in formset %}
-                            <tr class="item-row">
+                            <tr class="item-row" data-form-index="{{ forloop.counter0 }}">
                                 {% for hidden in item_form.hidden_fields %}{{ hidden }}{% endfor %}
-                                <td>{{ item_form.clave }}{% if item_form.clave.errors %}<div class="text-danger small">{{ item_form.clave.errors }}</div>{% endif %}</td>
+                                <td style="display:none">{{ item_form.unidad_medida }}</td>
+                                <td>{{ item_form.clave }}</td>
                                 <td>{{ item_form.descripcion }}</td>
-                                <td>{{ item_form.numero_lote }}{% if item_form.numero_lote.errors %}<div class="text-danger small">{{ item_form.numero_lote.errors }}</div>{% endif %}</td>
+                                <td>{{ item_form.numero_lote }}</td>
                                 <td>{{ item_form.fecha_caducidad }}</td>
-                                <td>{{ item_form.cantidad_recibida }}{% if item_form.cantidad_recibida.errors %}<div class="text-danger small">{{ item_form.cantidad_recibida.errors }}</div>{% endif %}</td>
-                                <td>{{ item_form.unidad_medida }}</td>
+                                <td>{{ item_form.cantidad_recibida }}</td>
+                                <td>{{ item_form.precio_unitario_sin_iva }}</td>
+                                <td>{{ item_form.porcentaje_iva }}</td>
+                                <td>{{ item_form.precio_unitario_con_iva }}</td>
+                                <td>{{ item_form.subtotal }}</td>
+                                <td>{{ item_form.importe_iva }}</td>
+                                <td>{{ item_form.importe_total }}</td>
                                 <td class="text-center">{% if item_form.DELETE %}{{ item_form.DELETE }}{% endif %}</td>
                             </tr>
                             {% endfor %}
@@ -94,6 +106,68 @@ document.addEventListener('DOMContentLoaded', function() {
     var btnAdd = document.getElementById('btn-add-item');
     var apiUrl = '{% url "logistica:transferencias:api_buscar_clave" %}';
 
+    function ivaSugeridoPorClave(clave) {
+        clave = (clave || '').trim();
+        if (/^(010|020|030|040)/.test(clave)) return 0;
+        if (/^(060|080|130|379)/.test(clave)) return 16;
+        return 0;
+    }
+
+    function calculatePrices(row) {
+        var precioUnitario = parseFloat(row.querySelector('.precio-unitario')?.value) || 0;
+        var porcentajeIva = parseFloat(row.querySelector('.porcentaje-iva')?.value) || 0;
+        var cantRecibida = parseInt(row.querySelector('.cantidad-recibida')?.value, 10) || 0;
+        var factorIva = 1 + (porcentajeIva / 100);
+        var precioConIva = precioUnitario * factorIva;
+        var subtotal = precioUnitario * cantRecibida;
+        var importeIva = subtotal * (porcentajeIva / 100);
+        var importeTotal = subtotal + importeIva;
+        var setVal = function(sel, val) {
+            var el = row.querySelector(sel);
+            if (el) el.value = val.toFixed(2);
+        };
+        setVal('.precio-con-iva', precioConIva);
+        setVal('.subtotal', subtotal);
+        setVal('.importe-iva', importeIva);
+        setVal('.importe-total', importeTotal);
+    }
+
+    function bindRowEvents(row) {
+        ['.precio-unitario', '.porcentaje-iva', '.cantidad-recibida'].forEach(function(sel) {
+            var el = row.querySelector(sel);
+            if (el) {
+                el.addEventListener('input', function() { calculatePrices(row); });
+                el.addEventListener('change', function() { calculatePrices(row); });
+            }
+        });
+        var claveEl = row.querySelector('.clave-cnis');
+        if (claveEl) {
+            claveEl.addEventListener('blur', function() {
+                var clave = claveEl.value.trim();
+                if (clave.length < 2) return;
+                var ivaEl = row.querySelector('.porcentaje-iva');
+                fetch(apiUrl + '?q=' + encodeURIComponent(clave))
+                    .then(function(r) { return r.json(); })
+                    .then(function(data) {
+                        var exact = data.find(function(p) { return p.clave_cnis === clave; });
+                        if (exact) {
+                            var desc = row.querySelector('.descripcion-item');
+                            if (desc && !desc.value) desc.value = exact.descripcion.substring(0, 120);
+                            if (ivaEl && (ivaEl.value === '' || ivaEl.value === '0')) {
+                                ivaEl.value = (exact.iva != null ? exact.iva : ivaSugeridoPorClave(clave)).toFixed(2);
+                            }
+                        } else if (ivaEl && (ivaEl.value === '' || ivaEl.value === '0')) {
+                            ivaEl.value = ivaSugeridoPorClave(clave).toFixed(2);
+                        }
+                        calculatePrices(row);
+                    });
+            });
+        }
+        calculatePrices(row);
+    }
+
+    tbody.querySelectorAll('.item-row').forEach(bindRowEvents);
+
     if (btnAdd && tbody && totalForms) {
         btnAdd.addEventListener('click', function() {
             var n = parseInt(totalForms.value, 10);
@@ -105,26 +179,12 @@ document.addEventListener('DOMContentLoaded', function() {
             });
             clone.querySelectorAll('input[type=checkbox]').forEach(function(el) { el.checked = false; });
             clone.innerHTML = clone.innerHTML.replace(/items-\d+-/g, 'items-' + n + '-');
+            clone.setAttribute('data-form-index', n);
             tbody.appendChild(clone);
             totalForms.value = n + 1;
+            bindRowEvents(clone);
         });
     }
-
-    tbody.addEventListener('blur', function(e) {
-        if (!e.target.classList.contains('clave-cnis')) return;
-        var clave = e.target.value.trim();
-        if (clave.length < 3) return;
-        var row = e.target.closest('tr');
-        fetch(apiUrl + '?q=' + encodeURIComponent(clave))
-            .then(function(r) { return r.json(); })
-            .then(function(data) {
-                var exact = data.find(function(p) { return p.clave_cnis === clave; });
-                if (exact && row) {
-                    var desc = row.querySelector('.descripcion-item');
-                    if (desc && !desc.value) desc.value = exact.descripcion.substring(0, 120);
-                }
-            });
-    }, true);
 });
 </script>
 {% endblock %}

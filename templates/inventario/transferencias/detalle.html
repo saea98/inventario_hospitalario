@@ -61,6 +61,11 @@
                         <th>Lote</th>
                         <th>Caducidad</th>
                         <th>Cantidad</th>
+                        <th>P. unit. s/IVA</th>
+                        <th>% IVA</th>
+                        <th>Subtotal</th>
+                        <th>Imp. IVA</th>
+                        <th>Total</th>
                         <th>Unidad</th>
                     </tr>
                 </thead>
@@ -73,17 +78,22 @@
                         <td>{{ item.numero_lote }}</td>
                         <td>{% if item.fecha_caducidad %}{{ item.fecha_caducidad|date:"d/m/Y" }}{% else %}—{% endif %}</td>
                         <td class="text-right">{{ item.cantidad_recibida }}</td>
+                        <td class="text-right">{% if item.precio_unitario_sin_iva %}{{ item.precio_unitario_sin_iva }}{% else %}—{% endif %}</td>
+                        <td class="text-right">{% if item.porcentaje_iva is not None %}{{ item.porcentaje_iva }}%{% else %}—{% endif %}</td>
+                        <td class="text-right">{% if item.subtotal %}{{ item.subtotal }}{% else %}—{% endif %}</td>
+                        <td class="text-right">{% if item.importe_iva %}{{ item.importe_iva }}{% else %}—{% endif %}</td>
+                        <td class="text-right">{% if item.importe_total %}{{ item.importe_total }}{% else %}—{% endif %}</td>
                         <td>{{ item.unidad_medida }}</td>
                     </tr>
                     {% empty %}
-                    <tr><td colspan="7" class="text-muted text-center">Sin ítems.</td></tr>
+                    <tr><td colspan="12" class="text-muted text-center">Sin ítems.</td></tr>
                     {% endfor %}
                 </tbody>
                 <tfoot>
                     <tr class="font-weight-bold">
-                        <td colspan="5" class="text-right">Total piezas</td>
+                        <td colspan="9" class="text-right">Total piezas</td>
                         <td class="text-right">{{ total_piezas }}</td>
-                        <td></td>
+                        <td colspan="2"></td>
                     </tr>
                 </tfoot>
             </table>
