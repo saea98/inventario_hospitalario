@@ -1,0 +1,130 @@
+{% extends "base.html" %}
+
+{% block extra_css %}
+<link href="https://cdnjs.cloudflare.com/ajax/libs/select2/4.1.0-rc.0/css/select2.min.css" rel="stylesheet" />
+<style>
+    .table-items th { background: #f8f9fa; font-size: 0.85rem; }
+    .table-items td { vertical-align: middle; }
+    .table-items input { width: 100%; font-size: 0.85rem; }
+</style>
+{% endblock %}
+
+{% block content %}
+<div class="container-fluid">
+    <h1 class="h3 mb-2 text-gray-800">{{ page_title|default:"Registrar entrada por transferencia" }}</h1>
+    <p class="text-muted mb-4">
+        Capture la remisión y las claves recibidas (puede agregar varias filas). No requiere cita ni proveedor.
+        Sin control de calidad; al aprobar, las existencias van a <strong>staging</strong> como en llegadas de proveedor.
+    </p>
+
+    <form method="post" id="transferencia-form">
+        {% csrf_token %}
+
+        <div class="card shadow mb-4">
+            <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary">Datos de la remisión</h6></div>
+            <div class="card-body row">
+                <div class="col-md-6">
+                    <div class="form-group">{{ form.remision.label_tag }}{{ form.remision }}{% if form.remision.errors %}<div class="text-danger small">{{ form.remision.errors }}</div>{% endif %}</div>
+                    <div class="form-group">{{ form.entidad_origen.label_tag }}{{ form.entidad_origen }}{% if form.entidad_origen.errors %}<div class="text-danger small">{{ form.entidad_origen.errors }}</div>{% endif %}</div>
+                    <div class="form-group">{{ form.estado_origen.label_tag }}{{ form.estado_origen }}</div>
+                    <div class="form-group">{{ form.almacen_destino.label_tag }}{{ form.almacen_destino }}{% if form.almacen_destino.errors %}<div class="text-danger small">{{ form.almacen_destino.errors }}</div>{% endif %}</div>
+                </div>
+                <div class="col-md-6">
+                    <div class="form-group">{{ form.fecha_recepcion.label_tag }}{{ form.fecha_recepcion }}{% if form.fecha_recepcion.errors %}<div class="text-danger small">{{ form.fecha_recepcion.errors }}</div>{% endif %}</div>
+                    <div class="form-group">{{ form.numero_piezas_recibidas.label_tag }}{{ form.numero_piezas_recibidas }}</div>
+                    <div class="form-group">{{ form.observaciones.label_tag }}{{ form.observaciones }}</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card shadow mb-4">
+            <div class="card-header py-3 d-flex justify-content-between align-items-center">
+                <h6 class="m-0 font-weight-bold text-primary">Claves de la remisión</h6>
+                <button type="button" class="btn btn-success btn-sm" id="btn-add-item"><i class="fas fa-plus"></i> Agregar clave</button>
+            </div>
+            <div class="card-body">
+                {{ formset.management_form }}
+                {% if formset.non_form_errors %}<div class="alert alert-danger">{{ formset.non_form_errors }}</div>{% endif %}
+                <div class="table-responsive">
+                    <table class="table table-bordered table-items" id="items-table">
+                        <thead>
+                            <tr>
+                                <th>Clave CNIS</th>
+                                <th>Descripción</th>
+                                <th>Lote</th>
+                                <th>Caducidad</th>
+                                <th>Cantidad</th>
+                                <th>Unidad</th>
+                                <th></th>
+                            </tr>
+                        </thead>
+                        <tbody id="items-tbody">
+                            {% for item_form in formset %}
+                            <tr class="item-row">
+                                {% for hidden in item_form.hidden_fields %}{{ hidden }}{% endfor %}
+                                <td>{{ item_form.clave }}{% if item_form.clave.errors %}<div class="text-danger small">{{ item_form.clave.errors }}</div>{% endif %}</td>
+                                <td>{{ item_form.descripcion }}</td>
+                                <td>{{ item_form.numero_lote }}{% if item_form.numero_lote.errors %}<div class="text-danger small">{{ item_form.numero_lote.errors }}</div>{% endif %}</td>
+                                <td>{{ item_form.fecha_caducidad }}</td>
+                                <td>{{ item_form.cantidad_recibida }}{% if item_form.cantidad_recibida.errors %}<div class="text-danger small">{{ item_form.cantidad_recibida.errors }}</div>{% endif %}</td>
+                                <td>{{ item_form.unidad_medida }}</td>
+                                <td class="text-center">{% if item_form.DELETE %}{{ item_form.DELETE }}{% endif %}</td>
+                            </tr>
+                            {% endfor %}
+                        </tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Guardar</button>
+        <a href="{% if cancel_url %}{{ cancel_url }}{% else %}{% url 'logistica:transferencias:lista_transferencias' %}{% endif %}" class="btn btn-secondary">Cancelar</a>
+    </form>
+</div>
+{% endblock %}
+
+{% block extra_js %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/select2/4.1.0-rc.0/js/select2.min.js"></script>
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    $('.select2-single').select2({ width: '100%', language: 'es' });
+
+    var tbody = document.getElementById('items-tbody');
+    var totalForms = document.getElementById('id_items-TOTAL_FORMS');
+    var btnAdd = document.getElementById('btn-add-item');
+    var apiUrl = '{% url "logistica:transferencias:api_buscar_clave" %}';
+
+    if (btnAdd && tbody && totalForms) {
+        btnAdd.addEventListener('click', function() {
+            var n = parseInt(totalForms.value, 10);
+            var first = tbody.querySelector('.item-row');
+            if (!first) return;
+            var clone = first.cloneNode(true);
+            clone.querySelectorAll('input:not([type=checkbox]), select, textarea').forEach(function(el) {
+                if (el.name && el.name.indexOf('-DELETE') === -1) el.value = '';
+            });
+            clone.querySelectorAll('input[type=checkbox]').forEach(function(el) { el.checked = false; });
+            clone.innerHTML = clone.innerHTML.replace(/items-\d+-/g, 'items-' + n + '-');
+            tbody.appendChild(clone);
+            totalForms.value = n + 1;
+        });
+    }
+
+    tbody.addEventListener('blur', function(e) {
+        if (!e.target.classList.contains('clave-cnis')) return;
+        var clave = e.target.value.trim();
+        if (clave.length < 3) return;
+        var row = e.target.closest('tr');
+        fetch(apiUrl + '?q=' + encodeURIComponent(clave))
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                var exact = data.find(function(p) { return p.clave_cnis === clave; });
+                if (exact && row) {
+                    var desc = row.querySelector('.descripcion-item');
+                    if (desc && !desc.value) desc.value = exact.descripcion.substring(0, 120);
+                }
+            });
+    }, true);
+});
+</script>
+{% endblock %}

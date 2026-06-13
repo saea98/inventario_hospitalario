@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-center mb-4">
+        <h1 class="h3 mb-0 text-gray-800">Entradas por Transferencia</h1>
+        <a href="{% url 'logistica:transferencias:crear_transferencia' %}" class="btn btn-primary">
+            <i class="fas fa-plus"></i> Nueva transferencia
+        </a>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-body">
+            <form method="get" class="form-inline mb-3 flex-wrap gap-2">
+                <input type="text" name="q" class="form-control mr-2 mb-2" placeholder="Folio, remisión u origen" value="{{ q }}">
+                <select name="estado" class="form-control mr-2 mb-2">
+                    <option value="">Todos los estados</option>
+                    {% for val, label in estados %}
+                    <option value="{{ val }}" {% if estado == val %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
+                <button type="submit" class="btn btn-secondary mb-2">Filtrar</button>
+            </form>
+
+            <div class="table-responsive">
+                <table class="table table-bordered table-sm">
+                    <thead class="thead-light">
+                        <tr>
+                            <th>Folio</th>
+                            <th>Remisión</th>
+                            <th>Origen</th>
+                            <th>Almacén destino</th>
+                            <th>Estado</th>
+                            <th>Fecha</th>
+                            <th>Ítems</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for t in transferencias %}
+                        <tr>
+                            <td>{{ t.folio }}</td>
+                            <td>{{ t.remision }}</td>
+                            <td>{{ t.entidad_origen }}{% if t.estado_origen %} ({{ t.estado_origen }}){% endif %}</td>
+                            <td>{{ t.almacen_destino.nombre }}</td>
+                            <td><span class="badge badge-info">{{ t.get_estado_display }}</span></td>
+                            <td>{{ t.fecha_recepcion|date:"d/m/Y H:i" }}</td>
+                            <td>{{ t.items.count }}</td>
+                            <td>
+                                <a href="{% url 'logistica:transferencias:detalle_transferencia' t.pk %}" class="btn btn-sm btn-outline-primary">Ver</a>
+                            </td>
+                        </tr>
+                        {% empty %}
+                        <tr><td colspan="8" class="text-muted text-center">Sin registros.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

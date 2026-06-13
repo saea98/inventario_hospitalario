@@ -175,3 +175,25 @@ def completar_datos_lote_desde_llegada(lote, item_llegada):
             except Exception:
                 pass
     lote.save()
+
+
+def completar_datos_lote_desde_transferencia(lote, item_transferencia):
+    """Completa metadatos del lote creado desde una entrada por transferencia."""
+    if not item_transferencia or not lote:
+        return
+    transferencia = item_transferencia.transferencia
+    if not (getattr(lote, 'folio', None) or '').strip():
+        lote.folio = (transferencia.folio or '').strip()
+    if not (getattr(lote, 'remision', None) or '').strip():
+        lote.remision = (transferencia.remision or '').strip()
+    if not (getattr(lote, 'tipo_entrega', None) or '').strip():
+        lote.tipo_entrega = 'transferencia'
+    if not (getattr(lote, 'proveedor', None) or '').strip():
+        origen = (transferencia.entidad_origen or '').strip()
+        if transferencia.estado_origen:
+            origen = f'{origen} ({transferencia.estado_origen})'
+        lote.proveedor = origen
+    if not (getattr(lote, 'responsable', None) or '').strip() and transferencia.usuario_aprobacion:
+        u = transferencia.usuario_aprobacion
+        lote.responsable = getattr(u, 'username', None) or str(u)
+    lote.save()

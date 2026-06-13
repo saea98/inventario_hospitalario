@@ -1,0 +1,93 @@
+{% extends "base.html" %}
+
+{% block content %}
+<div class="container-fluid">
+    <div class="d-flex justify-content-between align-items-start flex-wrap gap-2 mb-4">
+        <div>
+            <h1 class="h3 mb-1 text-gray-800">Transferencia {{ transferencia.folio }}</h1>
+            <span class="badge badge-info">{{ transferencia.get_estado_display }}</span>
+        </div>
+        <div class="d-flex flex-wrap gap-2">
+            {% if transferencia.puede_editar %}
+            <a href="{% url 'logistica:transferencias:editar_transferencia' transferencia.pk %}" class="btn btn-outline-secondary btn-sm">
+                <i class="fas fa-edit"></i> Editar
+            </a>
+            {% endif %}
+            {% if transferencia.puede_aprobar %}
+            <form method="post" action="{% url 'logistica:transferencias:aprobar_transferencia' transferencia.pk %}" class="d-inline">
+                {% csrf_token %}
+                <button type="submit" class="btn btn-success btn-sm" onclick="return confirm('¿Aprobar y registrar existencias en staging?');">
+                    <i class="fas fa-check"></i> Aprobar entrada
+                </button>
+            </form>
+            {% endif %}
+            {% if transferencia.estado == 'APROBADA' or transferencia.estado == 'UBICACION' %}
+            <a href="{% url 'logistica:transferencias:imprimir_epa' transferencia.pk %}" class="btn btn-primary btn-sm" target="_blank">
+                <i class="fas fa-print"></i> Imprimir EPA
+            </a>
+            {% endif %}
+            <a href="{% url 'logistica:transferencias:lista_transferencias' %}" class="btn btn-secondary btn-sm">Volver</a>
+        </div>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary">Datos generales</h6></div>
+        <div class="card-body row">
+            <div class="col-md-6">
+                <p><strong>Remisión:</strong> {{ transferencia.remision }}</p>
+                <p><strong>Origen:</strong> {{ transferencia.entidad_origen }}{% if transferencia.estado_origen %} ({{ transferencia.estado_origen }}){% endif %}</p>
+                <p><strong>Almacén destino:</strong> {{ transferencia.almacen_destino.nombre }}</p>
+            </div>
+            <div class="col-md-6">
+                <p><strong>Fecha recepción:</strong> {{ transferencia.fecha_recepcion|date:"d/m/Y H:i" }}</p>
+                <p><strong>Piezas recibidas:</strong> {{ transferencia.numero_piezas_recibidas|default:total_piezas }}</p>
+                <p><strong>Capturó:</strong> {{ transferencia.creado_por.get_full_name|default:transferencia.creado_por.username|default:"—" }}</p>
+            </div>
+            {% if transferencia.observaciones %}
+            <div class="col-12"><p><strong>Observaciones:</strong> {{ transferencia.observaciones|linebreaksbr }}</p></div>
+            {% endif %}
+        </div>
+    </div>
+
+    <div class="card shadow mb-4">
+        <div class="card-header py-3"><h6 class="m-0 font-weight-bold text-primary">Claves capturadas ({{ items|length }})</h6></div>
+        <div class="card-body table-responsive">
+            <table class="table table-bordered table-sm">
+                <thead class="thead-light">
+                    <tr>
+                        <th>#</th>
+                        <th>Clave</th>
+                        <th>Descripción</th>
+                        <th>Lote</th>
+                        <th>Caducidad</th>
+                        <th>Cantidad</th>
+                        <th>Unidad</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for item in items %}
+                    <tr>
+                        <td>{{ forloop.counter }}</td>
+                        <td>{{ item.clave }}</td>
+                        <td>{{ item.descripcion_mostrar }}</td>
+                        <td>{{ item.numero_lote }}</td>
+                        <td>{% if item.fecha_caducidad %}{{ item.fecha_caducidad|date:"d/m/Y" }}{% else %}—{% endif %}</td>
+                        <td class="text-right">{{ item.cantidad_recibida }}</td>
+                        <td>{{ item.unidad_medida }}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="7" class="text-muted text-center">Sin ítems.</td></tr>
+                    {% endfor %}
+                </tbody>
+                <tfoot>
+                    <tr class="font-weight-bold">
+                        <td colspan="5" class="text-right">Total piezas</td>
+                        <td class="text-right">{{ total_piezas }}</td>
+                        <td></td>
+                    </tr>
+                </tfoot>
+            </table>
+        </div>
+    </div>
+</div>
+{% endblock %}

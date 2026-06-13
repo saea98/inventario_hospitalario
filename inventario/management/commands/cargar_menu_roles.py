@@ -201,12 +201,21 @@ class Command(BaseCommand):
                 'es_submenu': False,
             },
             {
+                'menu_item': 'entrada_transferencias',
+                'nombre_mostrado': 'Entradas por Transferencia',
+                'icono': 'fas fa-exchange-alt',
+                'url_name': 'logistica:transferencias:lista_transferencias',
+                'roles': ['Recepción', 'Supervisión', 'Administrador'],
+                'orden': 46,
+                'es_submenu': False,
+            },
+            {
                 'menu_item': 'devoluciones',
                 'nombre_mostrado': 'Devoluciones de Proveedores',
                 'icono': 'fas fa-undo',
                 'url_name': 'devoluciones:lista_devoluciones',
                 'roles': ['Almacenero', 'Supervisión', 'Administrador'],
-                'orden': 46,
+                'orden': 47,
                 'es_submenu': False,
             },
 
