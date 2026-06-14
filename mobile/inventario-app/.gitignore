@@ -1,3 +1,11 @@
-mobile/inventario-app/node_modules/
-mobile/inventario-app/.expo/
-mobile/inventario-app/dist/
+node_modules/
+.expo/
+dist/
+android/
+ios/
+.env
+.env.local
+google-play-service-account.json
+*.jks
+*.p8
+*.mobileprovision
