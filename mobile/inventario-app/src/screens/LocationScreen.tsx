@@ -26,7 +26,15 @@ export function LocationScreen({ navigation }: Props) {
 
   useEffect(() => {
     if (!token) return;
-    api.almacenes(token).then(setAlmacenes).finally(() => setLoading(false));
+    api
+      .almacenes(token)
+      .then((items) => {
+        setAlmacenes(items);
+        if (items.length === 1) {
+          setAlmacenId(items[0].id);
+        }
+      })
+      .finally(() => setLoading(false));
   }, [token]);
 
   useEffect(() => {
@@ -57,24 +65,32 @@ export function LocationScreen({ navigation }: Props) {
         </Pressable>
       </View>
 
-      <Text style={styles.label}>Almacén</Text>
-      <FlatList
-        horizontal
-        data={almacenes}
-        keyExtractor={(item) => String(item.id)}
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.chips}
-        renderItem={({ item }) => (
-          <Pressable
-            style={[styles.chip, almacenId === item.id && styles.chipActive]}
-            onPress={() => setAlmacenId(item.id)}
-          >
-            <Text style={[styles.chipText, almacenId === item.id && styles.chipTextActive]}>
-              {item.nombre}
-            </Text>
-          </Pressable>
-        )}
-      />
+      {almacenes.length === 0 ? (
+        <Text style={styles.empty}>Su usuario no tiene almacén asignado. Contacte al administrador.</Text>
+      ) : almacenes.length > 1 ? (
+        <>
+          <Text style={styles.label}>Almacén</Text>
+          <FlatList
+            horizontal
+            data={almacenes}
+            keyExtractor={(item) => String(item.id)}
+            showsHorizontalScrollIndicator={false}
+            contentContainerStyle={styles.chips}
+            renderItem={({ item }) => (
+              <Pressable
+                style={[styles.chip, almacenId === item.id && styles.chipActive]}
+                onPress={() => setAlmacenId(item.id)}
+              >
+                <Text style={[styles.chipText, almacenId === item.id && styles.chipTextActive]}>
+                  {item.nombre}
+                </Text>
+              </Pressable>
+            )}
+          />
+        </>
+      ) : (
+        <Text style={styles.almacenUnico}>Almacén: {almacenes[0]?.nombre}</Text>
+      )}
 
       {almacenId ? (
         <>
@@ -104,9 +120,9 @@ export function LocationScreen({ navigation }: Props) {
             ListEmptyComponent={<Text style={styles.empty}>Sin ubicaciones</Text>}
           />
         </>
-      ) : (
+      ) : almacenes.length > 0 ? (
         <Text style={styles.empty}>Seleccione un almacén</Text>
-      )}
+      ) : null}
     </View>
   );
 }
@@ -118,6 +134,7 @@ const styles = StyleSheet.create({
   greeting: { fontSize: 18, fontWeight: '600', color: '#0f172a' },
   link: { color: '#0f766e', fontWeight: '600' },
   label: { fontWeight: '600', marginBottom: 8, color: '#334155' },
+  almacenUnico: { fontSize: 16, fontWeight: '600', color: '#0f766e', marginBottom: 12 },
   chips: { gap: 8, paddingBottom: 12 },
   chip: {
     paddingHorizontal: 14,

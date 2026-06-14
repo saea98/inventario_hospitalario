@@ -1,6 +1,19 @@
-const API_URL =
-  process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '') ||
-  'http://localhost:8700/api/v1';
+import Constants from 'expo-constants';
+
+function resolveApiUrl(): string {
+  const fromEnv = process.env.EXPO_PUBLIC_API_URL?.replace(/\/$/, '');
+  if (fromEnv) return fromEnv;
+
+  const fromExtra = (Constants.expoConfig?.extra as { apiUrl?: string } | undefined)?.apiUrl?.replace(
+    /\/$/,
+    '',
+  );
+  if (fromExtra) return fromExtra;
+
+  return 'http://localhost:8700/api/v1';
+}
+
+const API_URL = resolveApiUrl();
 
 type RequestOptions = {
   method?: string;
