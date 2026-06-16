@@ -9,6 +9,9 @@
       "distribution": "internal",
       "env": {
         "EXPO_PUBLIC_API_URL": "https://inventarios.almacen.proyectosceib.com.mx/api/v1"
+      },
+      "ios": {
+        "image": "macos-sequoia-15.6-xcode-26.2"
       }
     },
     "preview": {
@@ -18,7 +21,8 @@
         "EXPO_PUBLIC_API_URL": "https://inventarios.almacen.proyectosceib.com.mx/api/v1"
       },
       "ios": {
-        "simulator": false
+        "simulator": false,
+        "image": "macos-sequoia-15.6-xcode-26.2"
       },
       "android": {
         "buildType": "apk"
@@ -30,12 +34,19 @@
       "env": {
         "EXPO_PUBLIC_API_URL": "https://inventarios.almacen.proyectosceib.com.mx/api/v1"
       },
+      "ios": {
+        "image": "macos-sequoia-15.6-xcode-26.2"
+      },
       "android": {
         "buildType": "app-bundle"
       }
     }
   },
   "submit": {
-    "production": {}
+    "production": {
+      "ios": {
+        "ascAppId": "6780701100"
+      }
+    }
   }
 }
