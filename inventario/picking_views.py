@@ -76,9 +76,10 @@ def dashboard_picking(request):
         propuestas = propuestas.filter(estado=estado_filter)
     
     # Búsqueda
-    busqueda = request.GET.get('q')
+    busqueda = request.GET.get('q', '').strip()
     if busqueda:
         propuestas = propuestas.filter(
+            Q(solicitud__observaciones_solicitud__icontains=busqueda) |
             Q(solicitud__folio__icontains=busqueda) |
             Q(solicitud__institucion_solicitante__nombre__icontains=busqueda)
         )
