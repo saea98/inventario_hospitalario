@@ -397,6 +397,16 @@
             Selecciona los campos y <strong>arrastra</strong> para definir su orden en el Excel.
           </div>
 
+          <div class="d-flex justify-content-between align-items-center mb-3 px-1">
+            <div class="form-check">
+              <input class="form-check-input" type="checkbox" id="seleccionar-todos" checked>
+              <label class="form-check-label fw-bold" for="seleccionar-todos">
+                Seleccionar todos
+              </label>
+            </div>
+            <span class="text-muted small" id="contador-seleccionados"></span>
+          </div>
+
           <ul id="lista-campos" class="list-group mb-3">
             {% for columna in columnas_disponibles %}
             <li class="list-group-item d-flex justify-content-between align-items-center draggable-item">
@@ -462,8 +472,21 @@ document.addEventListener("DOMContentLoaded", function() {
   const ordenInput = document.getElementById("orden_columnas");
   const form = document.getElementById("formReportePersonalizado");
   const modalReporte = document.getElementById("modalReporte");
+  const selectAllCheckbox = document.getElementById("seleccionar-todos");
+  const submitBtn = document.getElementById("btn-generar-excel");
+  const contador = document.getElementById("contador-seleccionados");
 
   if (!form || !ordenInput) return;
+
+  // Add validation feedback element
+  let feedback = document.getElementById("excel-validation-feedback");
+  if (!feedback) {
+    feedback = document.createElement("div");
+    feedback.className = "alert alert-danger small mt-2 d-none";
+    feedback.id = "excel-validation-feedback";
+    feedback.innerHTML = '<i class="fas fa-exclamation-circle"></i> Debes seleccionar al menos 1 campo para generar el reporte.';
+    form.querySelector(".modal-footer").before(feedback);
+  }
 
   function actualizarOrden() {
     if (!lista) return;
@@ -473,6 +496,49 @@ document.addEventListener("DOMContentLoaded", function() {
       if (item.checked) orden.push(item.value);
     });
     ordenInput.value = orden.join(",");
+  }
+
+  function checkValidation() {
+    if (!lista) return;
+    const checkboxes = lista.querySelectorAll("input[type='checkbox']");
+    const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+    
+    if (contador) {
+      contador.innerText = `${checkedCount} de ${checkboxes.length} seleccionados`;
+    }
+
+    if (checkedCount === 0) {
+      submitBtn.disabled = true;
+      feedback.classList.remove("d-none");
+    } else {
+      submitBtn.disabled = false;
+      feedback.classList.add("d-none");
+    }
+
+    if (selectAllCheckbox) {
+      if (checkedCount === 0) {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = false;
+      } else if (checkedCount === checkboxes.length) {
+        selectAllCheckbox.checked = true;
+        selectAllCheckbox.indeterminate = false;
+      } else {
+        selectAllCheckbox.checked = false;
+        selectAllCheckbox.indeterminate = true;
+      }
+    }
+  }
+
+  if (selectAllCheckbox) {
+    selectAllCheckbox.addEventListener("change", function() {
+      const state = selectAllCheckbox.checked;
+      const checkboxes = lista.querySelectorAll("input[type='checkbox']");
+      checkboxes.forEach(function(cb) {
+        cb.checked = state;
+      });
+      actualizarOrden();
+      checkValidation();
+    });
   }
 
   if (lista && typeof Sortable !== "undefined") {
@@ -486,12 +552,24 @@ document.addEventListener("DOMContentLoaded", function() {
   }
 
   if (lista) {
-    lista.addEventListener("change", actualizarOrden);
+    lista.addEventListener("change", function(e) {
+      actualizarOrden();
+      checkValidation();
+    });
   }
-  actualizarOrden();
 
-  form.addEventListener("submit", function() {
+  actualizarOrden();
+  checkValidation();
+
+  form.addEventListener("submit", function(e) {
     actualizarOrden();
+    const checkboxes = lista.querySelectorAll("input[type='checkbox']");
+    const checkedCount = Array.from(checkboxes).filter(cb => cb.checked).length;
+    if (checkedCount === 0) {
+      e.preventDefault();
+      checkValidation();
+      return false;
+    }
     if (modalReporte && typeof bootstrap !== "undefined") {
       var m = bootstrap.Modal.getInstance(modalReporte);
       if (m) m.hide();

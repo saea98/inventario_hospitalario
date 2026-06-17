@@ -1,3 +1,4 @@
+{% load static %}
 <!DOCTYPE html>
 <html lang="es">
 <head>
@@ -382,7 +383,7 @@
     <div class="container">
         <div class="header header-screen">
             <div class="header-logos">
-                <img src="/static/images/encabezado_epa.png" alt="Encabezado IMSS Bienestar" style="max-width: 100%; height: auto; max-height: 80px;">
+                <img src="{% static 'images/encabezado_epa.png' %}" alt="Encabezado IMSS Bienestar" style="max-width: 100%; height: auto; max-height: 80px;">
             </div>
             <h2 style="margin-top: 10px;">DIRECCIÓN GENERAL</h2>
             <h3>COORDINACIÓN ESTATAL EN LA CIUDAD DE MÉXICO IMSS BIENESTAR</h3>
@@ -391,7 +392,7 @@
         
         <div class="header header-print">
             <div class="header-logos">
-                <img src="/static/images/encabezado_epa.png" alt="Encabezado IMSS Bienestar" style="max-width: 100%; height: auto; max-height: 60px;">
+                <img src="{% static 'images/encabezado_epa.png' %}" alt="Encabezado IMSS Bienestar" style="max-width: 100%; height: auto; max-height: 60px;">
             </div>
             <h2 style="margin-top: 5px; font-size: 12px;">DIRECCIÓN GENERAL</h2>
             <h3 style="font-size: 10px; margin: 2px 0;">COORDINACIÓN ESTATAL EN LA CIUDAD DE MÉXICO IMSS BIENESTAR</h3>
@@ -512,14 +513,14 @@
             <div class="footer-leyenda">
                 ESTE DOCUMENTO AMPARA LA ENTREGA DE BIENES MUEBLES MEDIANTE REMISIÓN, SIN CONSIDERAR LOS COSTOS UNITARIOS Y/O TOTALES
             </div>
-            <img src="/static/images/pie_pagina_epa.png" alt="Pie de página IMSS Bienestar" class="footer-logo">
+            <img src="{% static 'images/pie_pagina_epa.png' %}" alt="Pie de página IMSS Bienestar" class="footer-logo">
         </div>
         
         <div class="footer footer-print">
             <div class="footer-leyenda">
                 ESTE DOCUMENTO AMPARA LA ENTREGA DE BIENES MUEBLES MEDIANTE REMISIÓN, SIN CONSIDERAR LOS COSTOS UNITARIOS Y/O TOTALES
             </div>
-            <img src="/static/images/pie_pagina_epa.png" alt="Pie de página IMSS Bienestar" class="footer-logo">
+            <img src="{% static 'images/pie_pagina_epa.png' %}" alt="Pie de página IMSS Bienestar" class="footer-logo">
         </div>
     </div>
     
