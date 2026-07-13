@@ -22,6 +22,12 @@ ROLES_CONTEO_MOVIL = (
     'Supervisión',
 )
 
+ROLES_VER_TODOS_ALMACENES = (
+    'Administrador',
+    'Gestor de Inventario',
+    'Supervisión',
+)
+
 
 def usuario_puede_conteo_movil(user) -> bool:
     if not user or not user.is_authenticated:
@@ -29,6 +35,66 @@ def usuario_puede_conteo_movil(user) -> bool:
     if user.is_superuser:
         return True
     return user.groups.filter(name__in=ROLES_CONTEO_MOVIL).exists()
+
+
+def usuario_puede_ver_todos_almacenes(user) -> bool:
+    """Misma lógica que picking/acuse: solo perfiles globales ven todo el inventario."""
+    if not user or not user.is_authenticated:
+        return False
+    if user.is_superuser or user.is_staff:
+        return True
+    return user.groups.filter(name__in=ROLES_VER_TODOS_ALMACENES).exists()
+
+
+def queryset_almacenes_usuario(user):
+    from inventario.models import Almacen
+
+    qs = Almacen.objects.filter(activo=True).select_related('institucion').order_by('nombre')
+    if usuario_puede_ver_todos_almacenes(user):
+        return qs
+    almacen = getattr(user, 'almacen', None)
+    if almacen:
+        return qs.filter(pk=almacen.pk)
+    return qs.none()
+
+
+def asegurar_acceso_almacen(user, almacen_id: int) -> None:
+    if not queryset_almacenes_usuario(user).filter(pk=almacen_id).exists():
+        raise PermissionError('No tiene acceso a este almacén.')
+
+
+def asegurar_acceso_ubicacion(user, ubicacion_id: int) -> None:
+    from inventario.models import UbicacionAlmacen
+
+    ubicacion = UbicacionAlmacen.objects.filter(pk=ubicacion_id, activo=True).select_related('almacen').first()
+    if not ubicacion:
+        raise ValueError('Ubicación no encontrada.')
+    asegurar_acceso_almacen(user, ubicacion.almacen_id)
+
+
+def asegurar_acceso_lote_ubicacion(user, lote_ubicacion_id: int) -> None:
+    from inventario.models import LoteUbicacion
+
+    lu = (
+        LoteUbicacion.objects.filter(pk=lote_ubicacion_id)
+        .select_related('ubicacion')
+        .first()
+    )
+    if not lu:
+        raise ValueError('Lote en ubicación no encontrado.')
+    asegurar_acceso_almacen(user, lu.ubicacion.almacen_id)
+
+
+def listar_almacenes_usuario(user) -> list[dict]:
+    return [
+        {
+            'id': a.id,
+            'nombre': a.nombre,
+            'codigo': a.codigo,
+            'institucion_clue': a.institucion.clue if a.institucion_id else None,
+        }
+        for a in queryset_almacenes_usuario(user)
+    ]
 
 
 @dataclass
@@ -83,6 +149,8 @@ def registrar_conteo_ubicacion(
 
     if cantidad_fisica < 0:
         raise ValueError('La cantidad física no puede ser negativa.')
+
+    asegurar_acceso_lote_ubicacion(usuario, lote_ubicacion_id)
 
     lote_ubicacion = (
         LoteUbicacion.objects.select_related('lote', 'lote__producto', 'ubicacion', 'ubicacion__almacen')
@@ -198,6 +266,8 @@ def crear_lote_en_ubicacion(
     if cantidad_inicial < 0:
         raise ValueError('La cantidad inicial no puede ser negativa.')
 
+    asegurar_acceso_ubicacion(usuario, ubicacion_id)
+
     ubicacion = UbicacionAlmacen.objects.select_related('almacen', 'almacen__institucion').get(pk=ubicacion_id)
     almacen = ubicacion.almacen
     institucion = almacen.institucion
@@ -271,8 +341,11 @@ def crear_lote_en_ubicacion(
     }
 
 
-def listar_lotes_ubicacion(ubicacion_id: int) -> list[dict]:
+def listar_lotes_ubicacion(ubicacion_id: int, usuario=None) -> list[dict]:
     from inventario.models import LoteUbicacion, RegistroConteoFisico
+
+    if usuario is not None:
+        asegurar_acceso_ubicacion(usuario, ubicacion_id)
 
     qs = (
         LoteUbicacion.objects.filter(ubicacion_id=ubicacion_id)
