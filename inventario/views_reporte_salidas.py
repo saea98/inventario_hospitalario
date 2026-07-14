@@ -7,18 +7,21 @@ CLUES DEL ALMACÉN, ALMACÉN, P.P., RFC, Proveedor, FOLIO DE SALIDA, FECHA DE EN
 CLUES DESTINO SSA/IMB, CONTRATO, REMISIÓN, ORDEN DE SUMINISTRO, LICITACIÓN, Precio, Importe.
 """
 
-from django.shortcuts import render, redirect
+from datetime import datetime, timedelta, time as dt_time
+from decimal import Decimal
+
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
+from django.core.paginator import Paginator
+from django.db.models import Q, Min, Sum, Count, F, Value, DecimalField
+from django.db.models.functions import Coalesce
 from django.http import HttpResponse
-from django.db.models import Q
-from datetime import datetime, timedelta
-from decimal import Decimal
+from django.shortcuts import render, redirect
+from django.urls import reverse
+from django.utils import timezone
 from openpyxl import Workbook
-from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
-from openpyxl.utils import get_column_letter
 
-from .models import MovimientoInventario, Institucion, Almacen, UbicacionAlmacen
+from .models import MovimientoInventario, Institucion, Almacen
 from .propuesta_utils import enriquecer_movimientos_folio_observaciones_surtimiento
 
 # Layout del reporte de salidas para auditorías
@@ -48,6 +51,9 @@ SALIDAS_LAYOUT_HEADERS = [
     'Importe',
     'USUARIO MOVIMIENTO',
 ]
+
+REPORTE_SALIDAS_MAX_EXCEL_ROWS = 50000
+REPORTE_SALIDAS_DIAS_DEFAULT = 30
 
 
 def _valor(o, default=''):
@@ -87,34 +93,147 @@ def _hay_filtros_reporte_salidas(data):
     )
 
 
-def _deduplicar_movimientos_salida(salidas_qs):
-    """
-    Evita filas repetidas en el reporte cuando en BD existen dos MovimientoInventario
-    equivalentes (mismo lote, folio de propuesta, cantidades, fecha y motivo).
-    Conserva el registro de menor id (creación original).
+def _parse_fecha(valor):
+    if not valor:
+        return None
+    try:
+        return datetime.strptime(valor, '%Y-%m-%d').date()
+    except ValueError:
+        return None
 
-    El queryset puede venir ordenado de cualquier forma; se devuelve una lista ordenada
-    por fecha_movimiento descendente.
-    """
-    rows = list(salidas_qs.order_by('id'))
-    seen = set()
-    out = []
-    for m in rows:
-        fp = (
-            m.lote_id,
-            (m.folio or '').strip(),
-            int(m.cantidad),
-            int(m.cantidad_anterior),
-            int(m.cantidad_nueva),
-            str(m.fecha_movimiento),
-            (m.motivo or '')[:500],
+
+def _rango_datetime(fecha_ini, fecha_fin):
+    tz = timezone.get_current_timezone()
+    inicio = timezone.make_aware(datetime.combine(fecha_ini, dt_time.min), tz) if fecha_ini else None
+    fin_exclusivo = None
+    if fecha_fin:
+        fin_exclusivo = timezone.make_aware(
+            datetime.combine(fecha_fin + timedelta(days=1), dt_time.min),
+            tz,
         )
-        if fp in seen:
-            continue
-        seen.add(fp)
-        out.append(m)
-    out.sort(key=lambda x: x.fecha_movimiento, reverse=True)
-    return out
+    return inicio, fin_exclusivo
+
+
+def _extraer_filtros(request):
+    """Lee filtros GET y aplica ventana de 30 días si no hay fechas ni búsqueda puntual."""
+    filtro_fecha_desde = (request.GET.get('fecha_desde') or '').strip()
+    filtro_fecha_hasta = (request.GET.get('fecha_hasta') or '').strip()
+    filtro_clave = (request.GET.get('clave') or '').strip()
+    filtro_lote = (request.GET.get('lote') or '').strip()
+    filtro_almacen = (request.GET.get('almacen') or '').strip()
+    filtro_destino = (request.GET.get('destino') or '').strip()
+    filtro_folio = (request.GET.get('folio') or '').strip()
+
+    fechas_por_defecto = False
+    f_desde = _parse_fecha(filtro_fecha_desde)
+    f_hasta = _parse_fecha(filtro_fecha_hasta)
+
+    # Folio/clave/lote suelen ser selectivos; sin eso, exigir ventana corta
+    if not f_desde and not f_hasta and not filtro_folio and not filtro_clave and not filtro_lote:
+        f_hasta = timezone.localdate()
+        f_desde = f_hasta - timedelta(days=REPORTE_SALIDAS_DIAS_DEFAULT)
+        filtro_fecha_desde = f_desde.isoformat()
+        filtro_fecha_hasta = f_hasta.isoformat()
+        fechas_por_defecto = True
+
+    return {
+        'fecha_desde': filtro_fecha_desde,
+        'fecha_hasta': filtro_fecha_hasta,
+        'f_desde': f_desde,
+        'f_hasta': f_hasta,
+        'clave': filtro_clave,
+        'lote': filtro_lote,
+        'almacen': filtro_almacen,
+        'destino': filtro_destino,
+        'folio': filtro_folio,
+        'fechas_por_defecto': fechas_por_defecto,
+    }
+
+
+def _apply_filtros_salidas(qs, filtros):
+    dt_inicio, dt_fin_excl = _rango_datetime(filtros['f_desde'], filtros['f_hasta'])
+    if dt_inicio:
+        qs = qs.filter(fecha_movimiento__gte=dt_inicio)
+    if dt_fin_excl:
+        qs = qs.filter(fecha_movimiento__lt=dt_fin_excl)
+    if filtros['clave']:
+        qs = qs.filter(lote__producto__clave_cnis__icontains=filtros['clave'])
+    if filtros['lote']:
+        qs = qs.filter(lote__numero_lote__icontains=filtros['lote'])
+    if filtros['almacen']:
+        qs = qs.filter(lote__almacen__nombre=filtros['almacen'])
+    if filtros['destino']:
+        qs = qs.filter(
+            Q(institucion_destino__denominacion__icontains=filtros['destino'])
+            | Q(institucion_destino__clue__icontains=filtros['destino'])
+        )
+    if filtros['folio']:
+        qs = qs.filter(folio__icontains=filtros['folio'])
+    return qs
+
+
+def _queryset_base_salidas(filtros):
+    qs = MovimientoInventario.objects.filter(tipo_movimiento='SALIDA', anulado=False)
+    return _apply_filtros_salidas(qs, filtros)
+
+
+def _ids_movimientos_unicos(qs):
+    """
+    Deduplicación en BD: conserva el menor id por huella
+    (lote, folio, cantidades, fecha, motivo). Evita list() de todos los objetos.
+    """
+    return (
+        qs.values(
+            'lote_id',
+            'folio',
+            'cantidad',
+            'cantidad_anterior',
+            'cantidad_nueva',
+            'fecha_movimiento',
+            'motivo',
+        )
+        .annotate(keep_id=Min('id'))
+        .values('keep_id')
+    )
+
+
+def _queryset_salidas_unicas(filtros):
+    """Queryset de MovimientoInventario ya deduplicado, listo para paginar/exportar."""
+    base = _queryset_base_salidas(filtros)
+    keep = _ids_movimientos_unicos(base)
+    return (
+        MovimientoInventario.objects.filter(id__in=keep)
+        .select_related(
+            'lote',
+            'lote__producto',
+            'lote__almacen',
+            'lote__almacen__institucion',
+            'lote__orden_suministro',
+            'lote__orden_suministro__proveedor',
+            'institucion_destino',
+            'usuario',
+        )
+        .order_by('-fecha_movimiento', 'id')
+    )
+
+
+def _totales_salidas(qs):
+    """Totales sin materializar filas (importe ≈ importe_total o cantidad * precio)."""
+    importe_expr = Coalesce(
+        F('importe_total'),
+        F('cantidad') * Coalesce(F('lote__precio_unitario'), Value(0)),
+        output_field=DecimalField(max_digits=18, decimal_places=2),
+    )
+    agg = qs.aggregate(
+        total_registros=Count('id'),
+        total_cantidad=Coalesce(Sum('cantidad'), Value(0)),
+        total_importe=Coalesce(Sum(importe_expr), Value(0), output_field=DecimalField(max_digits=18, decimal_places=2)),
+    )
+    return {
+        'total_registros': agg['total_registros'] or 0,
+        'total_cantidad': agg['total_cantidad'] or 0,
+        'total_importe': float(agg['total_importe'] or 0),
+    }
 
 
 def _construir_fila_salida(m):
@@ -168,102 +287,78 @@ def _construir_fila_salida(m):
 def reporte_salidas(request):
     """
     Reporte de salidas al inventario (Inventario de Salidas) para auditorías.
-    Layout oficial de 20 columnas.
-    Sin filtros no se consulta la BD (el volumen de salidas lo hace inviable).
+    Sin filtros no se consulta la BD. Con filtros: dedupe en SQL + paginación en BD.
     """
-    filtro_fecha_desde = request.GET.get('fecha_desde', '')
-    filtro_fecha_hasta = request.GET.get('fecha_hasta', '')
-    filtro_clave = request.GET.get('clave', '').strip()
-    filtro_lote = request.GET.get('lote', '').strip()
-    filtro_almacen = request.GET.get('almacen', '')
-    filtro_destino = request.GET.get('destino', '').strip()
-    filtro_folio = request.GET.get('folio', '').strip()
-
     requiere_filtros = not _hay_filtros_reporte_salidas(request.GET)
+    filtros = _extraer_filtros(request) if not requiere_filtros else {
+        'fecha_desde': (request.GET.get('fecha_desde') or '').strip(),
+        'fecha_hasta': (request.GET.get('fecha_hasta') or '').strip(),
+        'clave': (request.GET.get('clave') or '').strip(),
+        'lote': (request.GET.get('lote') or '').strip(),
+        'almacen': (request.GET.get('almacen') or '').strip(),
+        'destino': (request.GET.get('destino') or '').strip(),
+        'folio': (request.GET.get('folio') or '').strip(),
+        'fechas_por_defecto': False,
+        'f_desde': None,
+        'f_hasta': None,
+    }
 
-    salidas_lista = []
-    total_cantidad = 0
-    total_importe = 0.0
+    salidas_page = []
+    totales = {'total_registros': 0, 'total_cantidad': 0, 'total_importe': 0.0}
+    page_obj = None
 
     if not requiere_filtros:
-        salidas = MovimientoInventario.objects.filter(
-            tipo_movimiento='SALIDA', anulado=False
-        ).select_related(
-            'lote',
-            'lote__producto',
-            'lote__institucion',
-            'lote__almacen',
-            'lote__orden_suministro',
-            'lote__orden_suministro__proveedor',
-            'institucion_destino',
-            'usuario'
-        ).order_by('-fecha_movimiento')
+        qs = _queryset_salidas_unicas(filtros)
+        totales = _totales_salidas(qs)
 
-        if filtro_fecha_desde:
-            try:
-                fecha_desde = datetime.strptime(filtro_fecha_desde, '%Y-%m-%d').date()
-                salidas = salidas.filter(fecha_movimiento__date__gte=fecha_desde)
-            except ValueError:
-                pass
-        if filtro_fecha_hasta:
-            try:
-                fecha_hasta = datetime.strptime(filtro_fecha_hasta, '%Y-%m-%d').date() + timedelta(days=1)
-                salidas = salidas.filter(fecha_movimiento__date__lt=fecha_hasta)
-            except ValueError:
-                pass
-        if filtro_clave:
-            salidas = salidas.filter(lote__producto__clave_cnis__icontains=filtro_clave)
-        if filtro_lote:
-            salidas = salidas.filter(lote__numero_lote__icontains=filtro_lote)
-        if filtro_almacen:
-            salidas = salidas.filter(lote__almacen__nombre=filtro_almacen)
-        if filtro_destino:
-            salidas = salidas.filter(
-                Q(institucion_destino__denominacion__icontains=filtro_destino) |
-                Q(institucion_destino__clue__icontains=filtro_destino)
-            )
-        if filtro_folio:
-            salidas = salidas.filter(folio__icontains=filtro_folio)
+        paginator = Paginator(qs, 25)
+        page_obj = paginator.get_page(request.GET.get('page'))
+        movimientos_pagina = list(page_obj.object_list)
+        enriquecer_movimientos_folio_observaciones_surtimiento(movimientos_pagina)
+        salidas_page = [{'row': _construir_fila_salida(m), 'id': m.id} for m in movimientos_pagina]
 
-        movimientos_unicos = _deduplicar_movimientos_salida(salidas)
-        enriquecer_movimientos_folio_observaciones_surtimiento(movimientos_unicos)
-        for m in movimientos_unicos:
-            row = _construir_fila_salida(m)
-            salidas_lista.append({'row': row, 'id': m.id})
-            total_cantidad += row[5]  # CANTIDAD SURTIDA
-            total_importe += float(row[22] or 0)  # Importe
-
-    from django.core.paginator import Paginator
-    paginator = Paginator(salidas_lista, 25)
-    page_number = request.GET.get('page')
-    page_obj = paginator.get_page(page_number)
+        # Sustituir object_list para que el template itere filas ya armadas
+        page_obj.object_list = salidas_page
 
     instituciones = Institucion.objects.all().order_by('denominacion')
     almacenes = Almacen.objects.all().order_by('nombre')
 
+    params = request.GET.copy()
+    if 'page' in params:
+        params.pop('page')
+    if filtros.get('fechas_por_defecto'):
+        params['fecha_desde'] = filtros['fecha_desde']
+        params['fecha_hasta'] = filtros['fecha_hasta']
+    query_string = params.urlencode()
+
+    if page_obj is None:
+        page_obj = Paginator([], 25).get_page(1)
+
     context = {
         'page_obj': page_obj,
         'headers': SALIDAS_LAYOUT_HEADERS,
-        'total_registros': len(salidas_lista),
-        'total_cantidad': total_cantidad,
-        'total_importe': total_importe,
+        'total_registros': totales['total_registros'],
+        'total_cantidad': totales['total_cantidad'],
+        'total_importe': totales['total_importe'],
         'almacenes': almacenes,
         'instituciones': instituciones,
-        'filtro_fecha_desde': filtro_fecha_desde,
-        'filtro_fecha_hasta': filtro_fecha_hasta,
-        'filtro_clave': filtro_clave,
-        'filtro_lote': filtro_lote,
-        'filtro_almacen': filtro_almacen,
-        'filtro_destino': filtro_destino,
-        'filtro_folio': filtro_folio,
+        'filtro_fecha_desde': filtros['fecha_desde'],
+        'filtro_fecha_hasta': filtros['fecha_hasta'],
+        'filtro_clave': filtros['clave'],
+        'filtro_lote': filtros['lote'],
+        'filtro_almacen': filtros['almacen'],
+        'filtro_destino': filtros['destino'],
+        'filtro_folio': filtros['folio'],
         'requiere_filtros': requiere_filtros,
+        'fechas_por_defecto': filtros.get('fechas_por_defecto', False),
+        'query_string': query_string,
     }
     return render(request, 'inventario/reporte_salidas.html', context)
 
 
 @login_required
 def exportar_salidas_excel(request):
-    """Exporta el reporte de salidas a Excel con el layout oficial (incluye RFC y Proveedor)."""
+    """Exporta el reporte de salidas a Excel (write_only + iterator por lotes)."""
     if not _hay_filtros_reporte_salidas(request.GET):
         messages.warning(
             request,
@@ -272,107 +367,59 @@ def exportar_salidas_excel(request):
         )
         return redirect('reporte_salidas')
 
-    salidas = MovimientoInventario.objects.filter(
-        tipo_movimiento='SALIDA', anulado=False
-    ).select_related(
-        'lote',
-        'lote__producto',
-        'lote__institucion',
-        'lote__almacen',
-        'lote__orden_suministro',
-        'lote__orden_suministro__proveedor',
-        'institucion_destino',
-        'usuario'
-    ).order_by('-fecha_movimiento')
+    filtros = _extraer_filtros(request)
+    qs = _queryset_salidas_unicas(filtros)
 
-    filtro_fecha_desde = request.GET.get('fecha_desde', '')
-    filtro_fecha_hasta = request.GET.get('fecha_hasta', '')
-    filtro_clave = request.GET.get('clave', '').strip()
-    filtro_lote = request.GET.get('lote', '').strip()
-    filtro_almacen = request.GET.get('almacen', '')
-    filtro_destino = request.GET.get('destino', '').strip()
-    filtro_folio = request.GET.get('folio', '').strip()
-
-    if filtro_fecha_desde:
-        try:
-            fecha_desde = datetime.strptime(filtro_fecha_desde, '%Y-%m-%d').date()
-            salidas = salidas.filter(fecha_movimiento__date__gte=fecha_desde)
-        except ValueError:
-            pass
-    if filtro_fecha_hasta:
-        try:
-            fecha_hasta = datetime.strptime(filtro_fecha_hasta, '%Y-%m-%d').date() + timedelta(days=1)
-            salidas = salidas.filter(fecha_movimiento__date__lt=fecha_hasta)
-        except ValueError:
-            pass
-    if filtro_clave:
-        salidas = salidas.filter(lote__producto__clave_cnis__icontains=filtro_clave)
-    if filtro_lote:
-        salidas = salidas.filter(lote__numero_lote__icontains=filtro_lote)
-    if filtro_almacen:
-        salidas = salidas.filter(lote__almacen__nombre=filtro_almacen)
-    if filtro_destino:
-        salidas = salidas.filter(
-            Q(institucion_destino__denominacion__icontains=filtro_destino) |
-            Q(institucion_destino__clue__icontains=filtro_destino)
+    total = qs.count()
+    if total > REPORTE_SALIDAS_MAX_EXCEL_ROWS:
+        messages.error(
+            request,
+            f'El resultado tiene {total:,} filas (máximo {REPORTE_SALIDAS_MAX_EXCEL_ROWS:,}). '
+            'Reduce el rango de fechas u otros filtros e inténtalo de nuevo.',
         )
-    if filtro_folio:
-        salidas = salidas.filter(folio__icontains=filtro_folio)
+        return redirect(f"{reverse('reporte_salidas')}?{request.GET.urlencode()}")
 
-    movimientos_unicos = _deduplicar_movimientos_salida(salidas)
-    enriquecer_movimientos_folio_observaciones_surtimiento(movimientos_unicos)
-
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Salidas"
-    header_fill = PatternFill(start_color="1565C0", end_color="1565C0", fill_type="solid")
-    header_font = Font(bold=True, color="E3F2FD", size=10)
-    total_fill = PatternFill(start_color="BBDEFB", end_color="BBDEFB", fill_type="solid")
-    total_font = Font(bold=True, size=10)
-    border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
-
-    for col, header in enumerate(SALIDAS_LAYOUT_HEADERS, 1):
-        cell = ws.cell(row=1, column=col)
-        cell.value = header
-        cell.fill = header_fill
-        cell.font = header_font
-        cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
-        cell.border = border
+    wb = Workbook(write_only=True)
+    ws = wb.create_sheet(title='Salidas')
+    ws.append(list(SALIDAS_LAYOUT_HEADERS))
 
     total_cantidad = 0
     total_importe_val = 0.0
-    listado = []
-    for m in movimientos_unicos:
-        fila = _construir_fila_salida(m)
-        listado.append(fila)
-        total_cantidad += fila[5] or 0
-        total_importe_val += float(fila[22] or 0)
+    chunk = 1500
 
-    for row_num, fila in enumerate(listado, 2):
-        for col_num, val in enumerate(fila, 1):
-            cell = ws.cell(row=row_num, column=col_num)
-            cell.value = val
-            cell.border = border
-            if col_num in (6, 22, 23):
-                cell.alignment = Alignment(horizontal='right')
+    # Solo IDs en memoria (liviano); objetos + select_related por lotes
+    ids = list(qs.values_list('id', flat=True))
+    for i in range(0, len(ids), chunk):
+        batch_ids = ids[i:i + chunk]
+        by_id = {
+            m.id: m
+            for m in MovimientoInventario.objects.filter(id__in=batch_ids).select_related(
+                'lote',
+                'lote__producto',
+                'lote__almacen',
+                'lote__almacen__institucion',
+                'lote__orden_suministro',
+                'lote__orden_suministro__proveedor',
+                'institucion_destino',
+                'usuario',
+            )
+        }
+        batch = [by_id[pk] for pk in batch_ids if pk in by_id]
+        enriquecer_movimientos_folio_observaciones_surtimiento(batch)
+        for mov in batch:
+            fila = _construir_fila_salida(mov)
+            ws.append(fila)
+            total_cantidad += fila[5] or 0
+            total_importe_val += float(fila[22] or 0)
 
-    total_row = len(listado) + 2
-    ws.cell(row=total_row, column=1).value = "TOTALES"
-    ws.cell(row=total_row, column=1).font = total_font
-    ws.cell(row=total_row, column=1).fill = total_fill
-    ws.cell(row=total_row, column=6).value = total_cantidad
-    ws.cell(row=total_row, column=6).font = total_font
-    ws.cell(row=total_row, column=6).fill = total_fill
-    ws.cell(row=total_row, column=23).value = total_importe_val
-    ws.cell(row=total_row, column=23).font = total_font
-    ws.cell(row=total_row, column=23).fill = total_fill
-    for col in range(1, len(SALIDAS_LAYOUT_HEADERS) + 1):
-        ws.cell(row=total_row, column=col).border = border
+    total_row = ['TOTALES'] + [''] * (len(SALIDAS_LAYOUT_HEADERS) - 1)
+    total_row[5] = total_cantidad
+    total_row[22] = total_importe_val
+    ws.append(total_row)
 
-    for col in range(1, len(SALIDAS_LAYOUT_HEADERS) + 1):
-        ws.column_dimensions[get_column_letter(col)].width = 14
-
-    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response = HttpResponse(
+        content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
+    )
     response['Content-Disposition'] = 'attachment; filename="reporte_salidas.xlsx"'
     wb.save(response)
     return response

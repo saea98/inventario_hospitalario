@@ -112,6 +112,14 @@
                     </a>
                 </div>
             </form>
+            {% if fechas_por_defecto %}
+            <div class="alert alert-info mt-3 mb-0 py-2">
+                <small>
+                    Sin fechas ni búsqueda por folio/clave/lote: se aplicaron los últimos 30 días por rendimiento.
+                    Amplía el rango si necesitas más histórico.
+                </small>
+            </div>
+            {% endif %}
         </div>
     </div>
 
@@ -123,7 +131,7 @@
                 {% if requiere_filtros %}
                 <span class="text-muted fw-normal">(aplique filtros para ver resultados)</span>
                 {% else %}
-                ({{ page_obj.paginator.count }} total)
+                ({{ total_registros|intcomma }} total)
                 {% endif %}
             </h5>
             {% if requiere_filtros %}
@@ -131,7 +139,7 @@
                 <i class="fas fa-file-excel me-2"></i>Exportar a Excel
             </button>
             {% else %}
-            <a href="{% url 'exportar_salidas_excel' %}?{{ request.GET.urlencode }}" class="btn btn-success btn-sm">
+            <a href="{% url 'exportar_salidas_excel' %}?{% if query_string %}{{ query_string }}{% else %}{{ request.GET.urlencode }}{% endif %}" class="btn btn-success btn-sm">
                 <i class="fas fa-file-excel me-2"></i>Exportar a Excel
             </a>
             {% endif %}
@@ -174,10 +182,10 @@
                 <ul class="pagination justify-content-center mb-0">
                     {% if page_obj.has_previous %}
                     <li class="page-item">
-                        <a class="page-link" href="?page=1{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}{% if filtro_clave %}&clave={{ filtro_clave }}{% endif %}{% if filtro_lote %}&lote={{ filtro_lote }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_destino %}&destino={{ filtro_destino }}{% endif %}{% if filtro_folio %}&folio={{ filtro_folio }}{% endif %}"><i class="fas fa-angle-double-left"></i></a>
+                        <a class="page-link" href="?{% if query_string %}{{ query_string }}&{% endif %}page=1"><i class="fas fa-angle-double-left"></i></a>
                     </li>
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.previous_page_number }}{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}{% if filtro_clave %}&clave={{ filtro_clave }}{% endif %}{% if filtro_lote %}&lote={{ filtro_lote }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_destino %}&destino={{ filtro_destino }}{% endif %}{% if filtro_folio %}&folio={{ filtro_folio }}{% endif %}"><i class="fas fa-angle-left"></i></a>
+                        <a class="page-link" href="?{% if query_string %}{{ query_string }}&{% endif %}page={{ page_obj.previous_page_number }}"><i class="fas fa-angle-left"></i></a>
                     </li>
                     {% endif %}
                     <li class="page-item active">
@@ -185,10 +193,10 @@
                     </li>
                     {% if page_obj.has_next %}
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.next_page_number }}{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}{% if filtro_clave %}&clave={{ filtro_clave }}{% endif %}{% if filtro_lote %}&lote={{ filtro_lote }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_destino %}&destino={{ filtro_destino }}{% endif %}{% if filtro_folio %}&folio={{ filtro_folio }}{% endif %}"><i class="fas fa-angle-right"></i></a>
+                        <a class="page-link" href="?{% if query_string %}{{ query_string }}&{% endif %}page={{ page_obj.next_page_number }}"><i class="fas fa-angle-right"></i></a>
                     </li>
                     <li class="page-item">
-                        <a class="page-link" href="?page={{ page_obj.paginator.num_pages }}{% if filtro_fecha_desde %}&fecha_desde={{ filtro_fecha_desde }}{% endif %}{% if filtro_fecha_hasta %}&fecha_hasta={{ filtro_fecha_hasta }}{% endif %}{% if filtro_clave %}&clave={{ filtro_clave }}{% endif %}{% if filtro_lote %}&lote={{ filtro_lote }}{% endif %}{% if filtro_almacen %}&almacen={{ filtro_almacen }}{% endif %}{% if filtro_destino %}&destino={{ filtro_destino }}{% endif %}{% if filtro_folio %}&folio={{ filtro_folio }}{% endif %}"><i class="fas fa-angle-double-right"></i></a>
+                        <a class="page-link" href="?{% if query_string %}{{ query_string }}&{% endif %}page={{ page_obj.paginator.num_pages }}"><i class="fas fa-angle-double-right"></i></a>
                     </li>
                     {% endif %}
                 </ul>
