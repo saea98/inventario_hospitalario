@@ -60,11 +60,19 @@
                     <a href="{% url 'pedidos:reporte_pedidos' %}" class="btn btn-secondary">
                         <i class="fas fa-redo"></i> Limpiar
                     </a>
-                    <a href="{% url 'pedidos:exportar_reporte_pedidos_excel' %}?{{ request.GET.urlencode }}" class="btn btn-success">
+                    <a href="{% url 'pedidos:exportar_reporte_pedidos_excel' %}?{% if query_string %}{{ query_string }}{% else %}{{ request.GET.urlencode }}{% endif %}" class="btn btn-success">
                         <i class="fas fa-file-excel"></i> Exportar a Excel
                     </a>
                 </div>
             </form>
+            {% if fechas_por_defecto %}
+            <div class="alert alert-info mt-3 mb-0 py-2">
+                <small>
+                    Sin filtros de fecha: se muestran los últimos 30 días por rendimiento.
+                    Amplía el rango o busca por folio/clave si necesitas más histórico.
+                </small>
+            </div>
+            {% endif %}
         </div>
     </div>
 
@@ -92,7 +100,7 @@
     <div class="card">
         <div class="card-header bg-light d-flex justify-content-between align-items-center">
             <h5 class="mb-0">📋 Detalle de Pedidos</h5>
-            <a href="{% url 'pedidos:exportar_reporte_pedidos_excel' %}?{{ request.GET.urlencode }}" class="btn btn-sm btn-success">
+            <a href="{% url 'pedidos:exportar_reporte_pedidos_excel' %}?{% if query_string %}{{ query_string }}{% else %}{{ request.GET.urlencode }}{% endif %}" class="btn btn-sm btn-success">
                 <i class="fas fa-file-excel"></i> Excel
             </a>
         </div>

@@ -5,11 +5,11 @@ Vistas para reportes de errores en carga masiva de pedidos
 from django.shortcuts import render
 from django.contrib.auth.decorators import login_required
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
-from django.db.models import Count, Q, F, Value, CharField
-from django.db.models.functions import Concat
+from django.db.models import Count, Q, F, Value, CharField, Sum, Subquery, OuterRef, IntegerField
+from django.db.models.functions import Concat, Coalesce
 from django.utils import timezone
 from django.http import HttpResponse
-from datetime import timedelta
+from datetime import timedelta, datetime, time as dt_time, date
 from .pedidos_models import LogErrorPedido, SolicitudPedido, ItemSolicitud, PropuestaPedido, ItemPropuesta, LoteAsignado
 from .pedidos_utils import obtener_resumen_errores
 from .models import Producto, Institucion
@@ -370,9 +370,61 @@ def exportar_items_no_surtidos_excel(request):
     return response
 
 
-def _obtener_filtros_reporte_pedidos(request):
-    """Extrae y aplica filtros comunes para el reporte de pedidos (vista y Excel)."""
-    from datetime import datetime
+# Límite de filas para export Excel (evita saturar CPU/memoria en exports masivos)
+REPORTE_PEDIDOS_MAX_EXCEL_ROWS = 50000
+# Ventana por defecto si no hay fechas (evitar cargar todo el histórico)
+REPORTE_PEDIDOS_DIAS_DEFAULT = 30
+
+
+def _parse_fecha(valor):
+    """Parsea YYYY-MM-DD; retorna date o None."""
+    if not valor:
+        return None
+    try:
+        return datetime.strptime(valor, '%Y-%m-%d').date()
+    except ValueError:
+        return None
+
+
+def _rango_datetime(fecha_ini, fecha_fin):
+    """Convierte fechas a datetime aware [inicio del día, fin del día] en TZ local."""
+    tz = timezone.get_current_timezone()
+    inicio = timezone.make_aware(datetime.combine(fecha_ini, dt_time.min), tz) if fecha_ini else None
+    fin = timezone.make_aware(datetime.combine(fecha_fin, dt_time.max), tz) if fecha_fin else None
+    return inicio, fin
+
+
+def _subquery_cantidad_surtida():
+    """Suma LoteAsignado.surtido=True del item, ligada a la propuesta de esa solicitud."""
+    return (
+        LoteAsignado.objects.filter(
+            surtido=True,
+            item_propuesta__item_solicitud_id=OuterRef('pk'),
+            item_propuesta__propuesta__solicitud_id=OuterRef('solicitud_id'),
+        )
+        .values('item_propuesta__item_solicitud_id')
+        .annotate(total=Sum('cantidad_asignada'))
+        .values('total')[:1]
+    )
+
+
+def _annotar_cantidad_surtida(qs):
+    """Aplica Subquery de cantidad surtida solo cuando hace falta (página/Excel)."""
+    return qs.annotate(
+        cantidad_surtida_calc=Coalesce(
+            Subquery(_subquery_cantidad_surtida(), output_field=IntegerField()),
+            Value(0),
+        )
+    )
+
+
+def _obtener_filtros_reporte_pedidos(request, aplicar_default_fechas=True):
+    """
+    Queryset de ItemSolicitud (una fila del reporte) con filtros.
+    Por defecto limita a los últimos REPORTE_PEDIDOS_DIAS_DEFAULT días
+    si no se envían fechas ni búsqueda por folio/clave (evita cargar todo el histórico).
+    Sin annotate de surtido (se aplica solo en página/Excel).
+    """
     institucion_id = request.GET.get('institucion', '').strip()
     folio = request.GET.get('folio', '').strip()
     fecha_inicio = request.GET.get('fecha_inicio', '').strip()
@@ -380,81 +432,82 @@ def _obtener_filtros_reporte_pedidos(request):
     clave_cnis = request.GET.get('clave_cnis', '').strip()
     estado = request.GET.get('estado', '').strip()
 
-    solicitudes = SolicitudPedido.objects.select_related(
-        'institucion_solicitante', 'almacen_destino', 'usuario_solicitante'
-    ).prefetch_related(
-        'items__producto',
-        'items__items_propuesta__propuesta',
-        'items__items_propuesta__lotes_asignados',
-    ).order_by('-fecha_solicitud')
+    fechas_por_defecto = False
+    f_inicio = _parse_fecha(fecha_inicio)
+    f_fin = _parse_fecha(fecha_fin)
+
+    if aplicar_default_fechas and not f_inicio and not f_fin and not folio and not clave_cnis:
+        # Sin fechas ni búsqueda puntual: ventana corta (protege CPU)
+        f_fin = timezone.localdate()
+        f_inicio = f_fin - timedelta(days=REPORTE_PEDIDOS_DIAS_DEFAULT)
+        fecha_inicio = f_inicio.isoformat()
+        fecha_fin = f_fin.isoformat()
+        fechas_por_defecto = True
+
+    dt_inicio, dt_fin = _rango_datetime(f_inicio, f_fin)
+
+    items = ItemSolicitud.objects.select_related(
+        'solicitud',
+        'solicitud__institucion_solicitante',
+        'solicitud__almacen_destino',
+        'producto',
+    ).order_by('-solicitud__fecha_solicitud', 'producto__clave_cnis')
 
     if institucion_id:
-        solicitudes = solicitudes.filter(institucion_solicitante_id=institucion_id)
+        items = items.filter(solicitud__institucion_solicitante_id=institucion_id)
     if folio:
-        solicitudes = solicitudes.filter(
-            Q(observaciones_solicitud__icontains=folio) | Q(folio__icontains=folio)
+        items = items.filter(
+            Q(solicitud__observaciones_solicitud__icontains=folio)
+            | Q(solicitud__folio__icontains=folio)
         )
-    if fecha_inicio:
-        try:
-            f_inicio = datetime.strptime(fecha_inicio, '%Y-%m-%d').date()
-            solicitudes = solicitudes.filter(fecha_solicitud__date__gte=f_inicio)
-        except ValueError:
-            pass
-    if fecha_fin:
-        try:
-            f_fin = datetime.strptime(fecha_fin, '%Y-%m-%d').date()
-            solicitudes = solicitudes.filter(fecha_solicitud__date__lte=f_fin)
-        except ValueError:
-            pass
+    if dt_inicio:
+        items = items.filter(solicitud__fecha_solicitud__gte=dt_inicio)
+    if dt_fin:
+        items = items.filter(solicitud__fecha_solicitud__lte=dt_fin)
     if clave_cnis:
-        solicitudes = solicitudes.filter(items__producto__clave_cnis__icontains=clave_cnis).distinct()
+        items = items.filter(producto__clave_cnis__icontains=clave_cnis)
     if estado:
-        solicitudes = solicitudes.filter(estado=estado)
+        items = items.filter(solicitud__estado=estado)
 
-    return solicitudes, {
+    return items, {
         'filtro_institucion': institucion_id,
         'filtro_folio': folio,
         'filtro_fecha_inicio': fecha_inicio,
         'filtro_fecha_fin': fecha_fin,
         'filtro_clave': clave_cnis,
         'filtro_estado': estado,
+        'fechas_por_defecto': fechas_por_defecto,
     }
 
 
-def _construir_filas_reporte_pedidos(solicitudes):
-    """Construye lista de filas (una por item de solicitud) para el reporte de pedidos.
-    Incluye cantidad suministrada (surtida) desde LoteAsignado donde surtido=True.
-    """
-    filas = []
-    for solicitud in solicitudes:
-        folio_pedido = (solicitud.observaciones_solicitud or '').strip() or (solicitud.folio or '')
-        institucion_nombre = solicitud.institucion_solicitante.denominacion if solicitud.institucion_solicitante else '-'
-        almacen_nombre = solicitud.almacen_destino.nombre if solicitud.almacen_destino else '-'
-        for item in solicitud.items.all():
-            # Cantidad suministrada: suma de LoteAsignado.cantidad_asignada donde surtido=True
-            cantidad_surtida = 0
-            for ip in item.items_propuesta.all():
-                if ip.propuesta and ip.propuesta.solicitud_id == solicitud.id:
-                    cantidad_surtida = sum(
-                        la.cantidad_asignada for la in ip.lotes_asignados.all() if la.surtido
-                    )
-                    break
-            filas.append({
-                'solicitud': solicitud,
-                'item': item,
-                'folio_pedido': folio_pedido,
-                'folio_sistema': solicitud.folio or '',
-                'institucion': institucion_nombre,
-                'almacen': almacen_nombre,
-                'fecha_solicitud': solicitud.fecha_solicitud,
-                'estado': solicitud.get_estado_display(),
-                'clave_cnis': item.producto.clave_cnis if item.producto else '',
-                'descripcion': (item.producto.descripcion or '')[:100] if item.producto else '',
-                'cantidad_solicitada': item.cantidad_solicitada,
-                'cantidad_aprobada': item.cantidad_aprobada,
-                'cantidad_surtida': cantidad_surtida,
-            })
-    return filas
+def _fila_desde_item(item):
+    """Construye un dict de fila a partir de un ItemSolicitud ya select_related/annotated."""
+    solicitud = item.solicitud
+    producto = item.producto
+    folio_pedido = (solicitud.observaciones_solicitud or '').strip() or (solicitud.folio or '')
+    return {
+        'solicitud': solicitud,
+        'item': item,
+        'folio_pedido': folio_pedido,
+        'folio_sistema': solicitud.folio or '',
+        'institucion': (
+            solicitud.institucion_solicitante.denominacion
+            if solicitud.institucion_solicitante else '-'
+        ),
+        'almacen': solicitud.almacen_destino.nombre if solicitud.almacen_destino else '-',
+        'fecha_solicitud': solicitud.fecha_solicitud,
+        'estado': solicitud.get_estado_display(),
+        'clave_cnis': producto.clave_cnis if producto else '',
+        'descripcion': (producto.descripcion or '')[:100] if producto else '',
+        'cantidad_solicitada': item.cantidad_solicitada,
+        'cantidad_aprobada': item.cantidad_aprobada,
+        'cantidad_surtida': getattr(item, 'cantidad_surtida_calc', 0) or 0,
+    }
+
+
+def _construir_filas_reporte_pedidos(items):
+    """Construye filas solo para los items dados (p. ej. página actual)."""
+    return [_fila_desde_item(item) for item in items]
 
 
 @login_required
@@ -462,14 +515,17 @@ def reporte_pedidos(request):
     """
     Reporte de pedidos (solicitudes) con filtros: institución, folio, fecha, claves, estado.
     Muestra detalle por item (una fila por producto en cada pedido).
+    Paginación en BD; cantidad surtida solo en la página actual.
     """
-    solicitudes, filtros = _obtener_filtros_reporte_pedidos(request)
-    filas = _construir_filas_reporte_pedidos(solicitudes)
+    items, filtros = _obtener_filtros_reporte_pedidos(request)
 
     instituciones = Institucion.objects.filter(activo=True).order_by('denominacion')
 
-    # Paginación (25 por página)
-    paginator = Paginator(filas, 25)
+    # Contadores sin Subquery de surtido (más baratos)
+    total_items = items.count()
+    total_solicitudes = items.values('solicitud_id').distinct().count()
+
+    paginator = Paginator(items, 25)
     page = request.GET.get('page', 1)
     try:
         page_obj = paginator.page(page)
@@ -478,17 +534,41 @@ def reporte_pedidos(request):
     except EmptyPage:
         page_obj = paginator.page(paginator.num_pages)
 
+    # Annotate solo la página visible
+    page_pks = [obj.pk for obj in page_obj.object_list]
+    if page_pks:
+        annotated = {
+            obj.pk: obj
+            for obj in _annotar_cantidad_surtida(
+                ItemSolicitud.objects.filter(pk__in=page_pks).select_related(
+                    'solicitud',
+                    'solicitud__institucion_solicitante',
+                    'solicitud__almacen_destino',
+                    'producto',
+                )
+            )
+        }
+        filas = _construir_filas_reporte_pedidos(
+            [annotated[pk] for pk in page_pks if pk in annotated]
+        )
+    else:
+        filas = []
+
     params = request.GET.copy()
     if 'page' in params:
         params.pop('page')
+    # Si aplicamos fechas por defecto, reflejarlas en query de paginación/export
+    if filtros.get('fechas_por_defecto'):
+        params['fecha_inicio'] = filtros['filtro_fecha_inicio']
+        params['fecha_fin'] = filtros['filtro_fecha_fin']
     query_string = params.urlencode()
 
     context = {
-        'filas': page_obj,
+        'filas': filas,
         'page_obj': page_obj,
         'paginator': paginator,
-        'total_items': paginator.count,
-        'total_solicitudes': len(set(f['solicitud'].id for f in filas)),
+        'total_items': total_items,
+        'total_solicitudes': total_solicitudes,
         'is_paginated': paginator.num_pages > 1,
         'query_string': query_string,
         'instituciones': instituciones,
@@ -501,22 +581,23 @@ def reporte_pedidos(request):
 
 @login_required
 def exportar_reporte_pedidos_excel(request):
-    """Exporta el reporte de pedidos a Excel con los mismos filtros de la vista."""
-    solicitudes, _ = _obtener_filtros_reporte_pedidos(request)
-    filas = _construir_filas_reporte_pedidos(solicitudes)
+    """Exporta el reporte de pedidos a Excel (write_only + iterator)."""
+    items, _filtros = _obtener_filtros_reporte_pedidos(request)
 
-    wb = openpyxl.Workbook()
-    ws = wb.active
-    ws.title = 'Reporte de Pedidos'
+    total = items.count()
+    if total > REPORTE_PEDIDOS_MAX_EXCEL_ROWS:
+        return HttpResponse(
+            f'El resultado tiene {total:,} filas. '
+            f'El máximo para exportar es {REPORTE_PEDIDOS_MAX_EXCEL_ROWS:,}. '
+            'Reduce el rango de fechas u otros filtros e inténtalo de nuevo.',
+            status=400,
+            content_type='text/plain; charset=utf-8',
+        )
 
-    header_fill = PatternFill(start_color='1F4E78', end_color='1F4E78', fill_type='solid')
-    header_font = Font(bold=True, color='FFFFFF', size=11)
-    border = Border(
-        left=Side(style='thin'),
-        right=Side(style='thin'),
-        top=Side(style='thin'),
-        bottom=Side(style='thin'),
-    )
+    items = _annotar_cantidad_surtida(items)
+
+    wb = openpyxl.Workbook(write_only=True)
+    ws = wb.create_sheet(title='Reporte de Pedidos')
 
     headers = [
         'Folio de Pedido',
@@ -531,46 +612,27 @@ def exportar_reporte_pedidos_excel(request):
         'Cant. Aprobada',
         'Cant. Suministrada',
     ]
-    for col, h in enumerate(headers, 1):
-        cell = ws.cell(row=1, column=col)
-        cell.value = h
-        cell.fill = header_fill
-        cell.font = header_font
-        cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
-        cell.border = border
+    ws.append(headers)
 
-    for row_idx, f in enumerate(filas, 2):
-        ws.cell(row=row_idx, column=1).value = f['folio_pedido'] or ''
-        ws.cell(row=row_idx, column=2).value = f['folio_sistema'] or ''
-        ws.cell(row=row_idx, column=3).value = f['institucion'] or ''
-        ws.cell(row=row_idx, column=4).value = f['almacen'] or ''
-        ws.cell(row=row_idx, column=5).value = f['fecha_solicitud'].strftime('%d/%m/%Y %H:%M') if f['fecha_solicitud'] else ''
-        ws.cell(row=row_idx, column=6).value = f['estado'] or ''
-        ws.cell(row=row_idx, column=7).value = f['clave_cnis'] or ''
-        ws.cell(row=row_idx, column=8).value = f['descripcion'] or ''
-        ws.cell(row=row_idx, column=9).value = f['cantidad_solicitada'] or 0
-        ws.cell(row=row_idx, column=10).value = f['cantidad_aprobada'] or 0
-        ws.cell(row=row_idx, column=11).value = f.get('cantidad_surtida', 0) or 0
-        for col in range(1, 12):
-            ws.cell(row=row_idx, column=col).border = border
-            ws.cell(row=row_idx, column=col).alignment = Alignment(horizontal='left', vertical='center')
-
-    ws.column_dimensions['A'].width = 22
-    ws.column_dimensions['B'].width = 22
-    ws.column_dimensions['C'].width = 35
-    ws.column_dimensions['D'].width = 25
-    ws.column_dimensions['E'].width = 18
-    ws.column_dimensions['F'].width = 22
-    ws.column_dimensions['G'].width = 14
-    ws.column_dimensions['H'].width = 45
-    ws.column_dimensions['I'].width = 14
-    ws.column_dimensions['J'].width = 14
-    ws.column_dimensions['K'].width = 18
+    for item in items.iterator(chunk_size=2000):
+        f = _fila_desde_item(item)
+        ws.append([
+            f['folio_pedido'] or '',
+            f['folio_sistema'] or '',
+            f['institucion'] or '',
+            f['almacen'] or '',
+            f['fecha_solicitud'].strftime('%d/%m/%Y %H:%M') if f['fecha_solicitud'] else '',
+            f['estado'] or '',
+            f['clave_cnis'] or '',
+            f['descripcion'] or '',
+            f['cantidad_solicitada'] or 0,
+            f['cantidad_aprobada'] or 0,
+            f.get('cantidad_surtida', 0) or 0,
+        ])
 
     response = HttpResponse(
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
-    from datetime import date
     fecha_str = date.today().strftime('%Y%m%d')
     response['Content-Disposition'] = f'attachment; filename="reporte_pedidos_{fecha_str}.xlsx"'
     wb.save(response)
