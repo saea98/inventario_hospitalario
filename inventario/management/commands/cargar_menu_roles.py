@@ -238,6 +238,15 @@ class Command(BaseCommand):
                 'orden': 51,
                 'es_submenu': False,
             },
+            {
+                'menu_item': 'solicitud_informacion',
+                'nombre_mostrado': 'Solicitud de Información',
+                'icono': 'fas fa-file-alt',
+                'url_name': 'reportes:reporte_solicitud_informacion',
+                'roles': ['Supervisión', 'Administrador', 'Gestor de Inventario'],
+                'orden': 52,
+                'es_submenu': False,
+            },
 
             # ===== SECCIÓN INVENTARIO =====
             {
