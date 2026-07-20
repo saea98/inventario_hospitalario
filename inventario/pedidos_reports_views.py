@@ -485,15 +485,14 @@ def _fila_desde_item(item):
     solicitud = item.solicitud
     producto = item.producto
     folio_pedido = (solicitud.observaciones_solicitud or '').strip() or (solicitud.folio or '')
+    institucion = solicitud.institucion_solicitante
     return {
         'solicitud': solicitud,
         'item': item,
         'folio_pedido': folio_pedido,
         'folio_sistema': solicitud.folio or '',
-        'institucion': (
-            solicitud.institucion_solicitante.denominacion
-            if solicitud.institucion_solicitante else '-'
-        ),
+        'institucion': institucion.denominacion if institucion else '-',
+        'clue': (institucion.clue or '') if institucion else '',
         'almacen': solicitud.almacen_destino.nombre if solicitud.almacen_destino else '-',
         'fecha_solicitud': solicitud.fecha_solicitud,
         'estado': solicitud.get_estado_display(),
@@ -603,6 +602,7 @@ def exportar_reporte_pedidos_excel(request):
         'Folio de Pedido',
         'Folio Sistema',
         'Institución',
+        'CLUE',
         'Almacén',
         'Fecha Solicitud',
         'Estado',
@@ -620,6 +620,7 @@ def exportar_reporte_pedidos_excel(request):
             f['folio_pedido'] or '',
             f['folio_sistema'] or '',
             f['institucion'] or '',
+            f.get('clue') or '',
             f['almacen'] or '',
             f['fecha_solicitud'].strftime('%d/%m/%Y %H:%M') if f['fecha_solicitud'] else '',
             f['estado'] or '',

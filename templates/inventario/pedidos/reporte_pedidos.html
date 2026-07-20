@@ -111,6 +111,7 @@
                         <th>Folio Pedido</th>
                         <th>Folio Sistema</th>
                         <th>Institución</th>
+                        <th>CLUE</th>
                         <th>Almacén</th>
                         <th>Fecha</th>
                         <th>Estado</th>
@@ -128,6 +129,7 @@
                         <td><small><strong>{{ f.folio_pedido|default:"-" }}</strong></small></td>
                         <td><small><code>{{ f.folio_sistema|default:"-" }}</code></small></td>
                         <td><small>{{ f.institucion }}</small></td>
+                        <td><small><code>{{ f.clue|default:"-" }}</code></small></td>
                         <td><small>{{ f.almacen }}</small></td>
                         <td><small>{{ f.fecha_solicitud|date:"d/m/Y H:i" }}</small></td>
                         <td><span class="badge bg-secondary">{{ f.estado }}</span></td>
@@ -144,7 +146,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="12" class="text-center text-muted py-4">
+                        <td colspan="13" class="text-center text-muted py-4">
                             <i class="fas fa-inbox fa-2x mb-2"></i>
                             <p class="mb-0">No hay pedidos con los filtros seleccionados</p>
                         </td>
