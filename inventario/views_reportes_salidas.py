@@ -8,11 +8,12 @@ from django.urls import reverse
 from django.contrib.auth.decorators import login_required
 from django.contrib import messages
 from django.http import JsonResponse, HttpResponse
-from django.db.models import Sum, Count, Q, F, DecimalField
+from django.db.models import Sum, Count, Q, F, DecimalField, Exists, OuterRef, CharField
+from django.db.models.functions import Cast
 from django.views.decorators.http import require_http_methods
 from django.utils import timezone
 from django.core.paginator import Paginator, EmptyPage, PageNotAnInteger
-from datetime import timedelta, datetime
+from datetime import timedelta, datetime, time as dt_time
 import json
 import logging
 from openpyxl import Workbook
@@ -234,239 +235,296 @@ def analisis_temporal(request):
 # REPORTE DE SALIDAS - ÓRDENES DE SURTIMIENTO SURTIDAS
 # ============================================================
 
+SURTIDAS_DIAS_DEFAULT = 30
+SURTIDAS_MAX_EXCEL_ROWS = 50000
+
+
+def _parse_fecha_surtidas(valor):
+    if not valor:
+        return None
+    try:
+        return datetime.strptime(valor, '%Y-%m-%d').date()
+    except ValueError:
+        return None
+
+
+def _subquery_tiene_movimiento_salida():
+    """Exists: hay MovimientoInventario SALIDA con folio=UUID propuesta y mismo lote."""
+    return MovimientoInventario.objects.filter(
+        tipo_movimiento='SALIDA',
+        lote_id=OuterRef('lote_ubicacion__lote_id'),
+        folio=Cast(OuterRef('item_propuesta__propuesta_id'), CharField()),
+    )
+
+
+def _extraer_filtros_surtidas(request):
+    """Lee filtros GET; aplica últimos N días si no hay fechas ni búsqueda puntual."""
+    fecha_inicio = (request.GET.get('fecha_inicio') or '').strip()
+    fecha_fin = (request.GET.get('fecha_fin') or '').strip()
+    folio = (request.GET.get('folio') or '').strip()
+    clave_cnis = (request.GET.get('clave_cnis') or '').strip()
+    filtro_lote = (request.GET.get('lote') or '').strip()
+    institucion_id = (request.GET.get('institucion') or '').strip()
+    estatus_movimiento = (request.GET.get('estatus_movimiento') or '').strip()
+
+    f_ini = _parse_fecha_surtidas(fecha_inicio)
+    f_fin = _parse_fecha_surtidas(fecha_fin)
+    fechas_por_defecto = False
+
+    if not f_ini and not f_fin and not folio and not clave_cnis and not filtro_lote:
+        f_fin = timezone.localdate()
+        f_ini = f_fin - timedelta(days=SURTIDAS_DIAS_DEFAULT)
+        fecha_inicio = f_ini.isoformat()
+        fecha_fin = f_fin.isoformat()
+        fechas_por_defecto = True
+
+    return {
+        'fecha_inicio': fecha_inicio,
+        'fecha_fin': fecha_fin,
+        'f_ini': f_ini,
+        'f_fin': f_fin,
+        'folio': folio,
+        'clave_cnis': clave_cnis,
+        'filtro_lote': filtro_lote,
+        'institucion_id': institucion_id,
+        'estatus_movimiento': estatus_movimiento,
+        'fechas_por_defecto': fechas_por_defecto,
+    }
+
+
+def _queryset_lotes_asignados_surtidos(filtros, anotar_movimiento=True):
+    """
+    Una fila del reporte = LoteAsignado surtido de propuesta SURTIDA.
+    Evita materializar propuestas + prefetch masivo.
+    """
+    qs = (
+        LoteAsignado.objects.filter(
+            surtido=True,
+            item_propuesta__propuesta__estado='SURTIDA',
+            item_propuesta__propuesta__fecha_surtimiento__isnull=False,
+        )
+        .select_related(
+            'item_propuesta__producto',
+            'item_propuesta__propuesta__solicitud__institucion_solicitante',
+            'item_propuesta__propuesta__solicitud__almacen_destino__institucion',
+            'item_propuesta__propuesta__usuario_surtimiento',
+            'lote_ubicacion__lote__orden_suministro',
+            'lote_ubicacion__ubicacion',
+        )
+        .order_by(
+            '-item_propuesta__propuesta__fecha_surtimiento',
+            'item_propuesta__propuesta__solicitud__folio',
+            'id',
+        )
+    )
+
+    tz = timezone.get_current_timezone()
+    if filtros['f_ini']:
+        qs = qs.filter(
+            item_propuesta__propuesta__fecha_surtimiento__gte=timezone.make_aware(
+                datetime.combine(filtros['f_ini'], dt_time.min), tz
+            )
+        )
+    if filtros['f_fin']:
+        qs = qs.filter(
+            item_propuesta__propuesta__fecha_surtimiento__lte=timezone.make_aware(
+                datetime.combine(filtros['f_fin'], dt_time.max), tz
+            )
+        )
+    if filtros['folio']:
+        qs = qs.filter(
+            Q(item_propuesta__propuesta__solicitud__folio__icontains=filtros['folio'])
+            | Q(item_propuesta__propuesta__solicitud__observaciones_solicitud__icontains=filtros['folio'])
+        )
+    if filtros['clave_cnis']:
+        qs = qs.filter(item_propuesta__producto__clave_cnis__icontains=filtros['clave_cnis'])
+    if filtros['filtro_lote']:
+        qs = qs.filter(
+            lote_ubicacion__lote__numero_lote__icontains=filtros['filtro_lote']
+        )
+    if filtros['institucion_id']:
+        try:
+            qs = qs.filter(
+                item_propuesta__propuesta__solicitud__institucion_solicitante_id=int(
+                    filtros['institucion_id']
+                )
+            )
+        except (ValueError, TypeError):
+            pass
+
+    if anotar_movimiento:
+        qs = qs.annotate(_tiene_mov=Exists(_subquery_tiene_movimiento_salida()))
+        estatus = filtros.get('estatus_movimiento') or ''
+        if estatus == 'sin_movimiento':
+            qs = qs.filter(_tiene_mov=False)
+        elif estatus == 'con_movimiento':
+            qs = qs.filter(_tiene_mov=True)
+
+    return qs
+
+
+def _mapear_movimientos_salida(propuesta_ids):
+    """Dicts de lookup para remisión / tiene_movimiento de una página o lote Excel."""
+    movimientos_por_clave = {}
+    movimientos_fallback = {}
+    if not propuesta_ids:
+        return movimientos_por_clave, movimientos_fallback
+    folios_str = [str(pid) for pid in propuesta_ids]
+    for m in MovimientoInventario.objects.filter(
+        tipo_movimiento='SALIDA', folio__in=folios_str
+    ).only('id', 'lote_id', 'folio', 'cantidad', 'remision'):
+        movimientos_por_clave[(m.lote_id, m.folio or '', m.cantidad)] = m
+        k = (m.lote_id, m.folio or '')
+        if k not in movimientos_fallback:
+            movimientos_fallback[k] = m
+    return movimientos_por_clave, movimientos_fallback
+
+
+def _fila_desde_lote_asignado(la, partida, movimiento=None):
+    """Arma el dict de fila para vista/Excel a partir de un LoteAsignado."""
+    item = la.item_propuesta
+    propuesta = item.propuesta
+    solicitud = propuesta.solicitud
+    producto = item.producto
+    lote_ubicacion = la.lote_ubicacion
+    lote = lote_ubicacion.lote
+    ubicacion = lote_ubicacion.ubicacion
+
+    cantidad_surtida = la.cantidad_asignada
+    cantidad_disponible_lote = getattr(lote, 'cantidad_disponible', None) or 0
+    cantidad_previa = cantidad_disponible_lote + cantidad_surtida
+    orden_reposicion = lote.orden_suministro.numero_orden if lote.orden_suministro else ''
+    dias_caducidad = (
+        (lote.fecha_caducidad - timezone.now().date()).days if lote.fecha_caducidad else None
+    )
+    tiene_movimiento = movimiento is not None
+    if hasattr(la, '_tiene_mov') and movimiento is None:
+        tiene_movimiento = bool(la._tiene_mov)
+
+    usuario = ''
+    if propuesta.usuario_surtimiento:
+        usuario = (
+            propuesta.usuario_surtimiento.get_full_name()
+            or propuesta.usuario_surtimiento.username
+        )
+
+    destino = ''
+    if solicitud.almacen_destino and solicitud.almacen_destino.institucion:
+        inst = solicitud.almacen_destino.institucion
+        destino = inst.nombre or inst.denominacion or ''
+
+    return {
+        'partida': partida,
+        'clave_cnis': producto.clave_cnis if producto else '',
+        'descripcion': producto.descripcion if producto else '',
+        'unidad_medida': (producto.unidad_medida if producto and producto.unidad_medida else ''),
+        'lote': lote.numero_lote,
+        'lote_id': lote.pk,
+        'lote_ubicacion_id': lote_ubicacion.pk,
+        'propuesta_id': propuesta.id,
+        'caducidad': lote.fecha_caducidad.strftime('%d/%m/%Y') if lote.fecha_caducidad else '',
+        'dias_caducidad': dias_caducidad,
+        'cantidad_solicitada': item.cantidad_solicitada,
+        'cantidad_disponible': cantidad_disponible_lote,
+        'cantidad_previa': cantidad_previa,
+        'cantidad_surtida': cantidad_surtida,
+        'observaciones': solicitud.observaciones_solicitud or '',
+        'recurso': (
+            solicitud.institucion_solicitante.nombre
+            if solicitud.institucion_solicitante else ''
+        ),
+        'destino': destino,
+        'ubicacion': ubicacion.codigo if ubicacion else '',
+        'fecha_captura': (
+            solicitud.fecha_solicitud.strftime('%d/%m/%Y %H:%M')
+            if solicitud.fecha_solicitud else ''
+        ),
+        'folio': solicitud.observaciones_solicitud or solicitud.folio,
+        'fecha_entrega_programada': (
+            solicitud.fecha_entrega_programada.strftime('%d/%m/%Y')
+            if solicitud.fecha_entrega_programada else ''
+        ),
+        'status': propuesta.get_estado_display(),
+        'tiene_movimiento': tiene_movimiento,
+        'estatus_movimiento': (
+            'Con movimiento' if tiene_movimiento else 'Sin movimiento - Revisar'
+        ),
+        'remision_ingreso': movimiento.remision if movimiento else '',
+        'orden_reposicion': orden_reposicion,
+        'usuario': usuario,
+    }
+
+
 @login_required
 @requiere_rol('Administrador', 'Gestor de Inventario', 'Analista', 'Supervisor')
 def reporte_salidas_surtidas(request):
     """
     Reporte detallado de órdenes de surtimiento ya surtidas.
-    Muestra información completa de cada item surtido.
+    Una fila por LoteAsignado; paginación en BD (sin prefetch masivo).
     """
-    # Filtros (filtro_lote para no sobrescribir con la variable "lote" del bucle)
-    fecha_inicio = request.GET.get('fecha_inicio')
-    fecha_fin = request.GET.get('fecha_fin')
-    folio = request.GET.get('folio', '').strip()
-    clave_cnis = request.GET.get('clave_cnis', '').strip()
-    filtro_lote = request.GET.get('lote', '').strip()
-    institucion_id = request.GET.get('institucion')
-    estatus_movimiento = request.GET.get('estatus_movimiento', '').strip()
-    
-    # Obtener propuestas surtidas con sus relaciones (filtro_lote evita sobrescribir variable en el bucle)
-    propuestas = PropuestaPedido.objects.filter(
-        estado='SURTIDA',
-        fecha_surtimiento__isnull=False
-    ).select_related(
-        'solicitud',
-        'solicitud__institucion_solicitante',
-        'solicitud__almacen_destino',
-        'solicitud__almacen_destino__institucion',
-        'usuario_surtimiento'
-    ).prefetch_related(
-        'items__producto',
-        'items__item_solicitud',
-        'items__lotes_asignados__lote_ubicacion__lote',
-        'items__lotes_asignados__lote_ubicacion__lote__orden_suministro',
-        'items__lotes_asignados__lote_ubicacion__ubicacion'
-    )
-    
-    # Aplicar filtros
-    if fecha_inicio:
-        try:
-            fecha_inicio_obj = datetime.strptime(fecha_inicio, '%Y-%m-%d')
-            propuestas = propuestas.filter(fecha_surtimiento__gte=fecha_inicio_obj)
-        except ValueError:
-            pass
-    
-    if fecha_fin:
-        try:
-            fecha_fin_obj = datetime.strptime(fecha_fin, '%Y-%m-%d')
-            # Incluir todo el día
-            from datetime import time as dt_time
-            fecha_fin_obj = datetime.combine(fecha_fin_obj.date(), dt_time.max)
-            propuestas = propuestas.filter(fecha_surtimiento__lte=fecha_fin_obj)
-        except ValueError:
-            pass
-    
-    if folio:
-        folio = folio.strip()
-        if folio:
-            propuestas = propuestas.filter(
-                Q(solicitud__folio__icontains=folio) |
-                Q(solicitud__observaciones_solicitud__icontains=folio)
-            )
-    
-    if clave_cnis:
-        clave_cnis = clave_cnis.strip()
-        if clave_cnis:
-            # Filtrar propuestas que tengan items con productos que coincidan con la clave CNIS
-            propuestas = propuestas.filter(
-                items__producto__clave_cnis__icontains=clave_cnis
-            ).distinct()
-    
-    if filtro_lote:
-        propuestas = propuestas.filter(
-            items__lotes_asignados__surtido=True,
-            items__lotes_asignados__lote_ubicacion__lote__numero_lote__icontains=filtro_lote
-        ).distinct()
-    
-    if institucion_id:
-        try:
-            institucion_id = int(institucion_id)
-            propuestas = propuestas.filter(
-                solicitud__institucion_solicitante_id=institucion_id
-            )
-        except (ValueError, TypeError):
-            pass
-    
-    # Construir datos del reporte
-    datos_reporte = []
-    partida_counter = 1
+    filtros = _extraer_filtros_surtidas(request)
+    qs = _queryset_lotes_asignados_surtidos(filtros, anotar_movimiento=True)
 
-    # Normalizar filtros para comparación (guardar valores originales antes de modificar)
-    clave_cnis_filter_value = clave_cnis.strip().upper() if clave_cnis else None
-    lote_filter_value = filtro_lote.strip().upper() if filtro_lote else None
+    # Contador "sin movimiento" sobre el universo filtrado (antes del filtro de estatus)
+    if filtros['estatus_movimiento'] in ('sin_movimiento', 'con_movimiento'):
+        qs_base = _queryset_lotes_asignados_surtidos(
+            {**filtros, 'estatus_movimiento': ''}, anotar_movimiento=True
+        )
+        total_sin_movimiento = qs_base.filter(_tiene_mov=False).count()
+    else:
+        total_sin_movimiento = qs.filter(_tiene_mov=False).count()
 
-    propuestas_ordered = propuestas.order_by('-fecha_surtimiento', 'solicitud__folio')
-    propuesta_ids = list(propuestas_ordered.values_list('id', flat=True))
-
-    # Una sola consulta de movimientos para todas las propuestas (evita N+1 en el bucle)
-    movimientos_por_clave = {}
-    movimientos_fallback = {}
-    if propuesta_ids:
-        folios_str = [str(pid) for pid in propuesta_ids]
-        movimientos = MovimientoInventario.objects.filter(
-            tipo_movimiento='SALIDA',
-            folio__in=folios_str
-        ).select_related('lote').only('id', 'lote_id', 'folio', 'cantidad', 'remision')
-        for m in movimientos:
-            clave = (m.lote_id, m.folio or '', m.cantidad)
-            movimientos_por_clave[clave] = m
-            fallback_key = (m.lote_id, m.folio or '')
-            if fallback_key not in movimientos_fallback:
-                movimientos_fallback[fallback_key] = m
-
-    for propuesta in propuestas_ordered:
-        solicitud = propuesta.solicitud
-        folio_propuesta = str(propuesta.id) if propuesta.id else ''
-
-        for item_propuesta in propuesta.items.all():
-            producto = item_propuesta.producto
-
-            # Aplicar filtro de clave_cnis a nivel de item
-            if clave_cnis_filter_value:
-                if not producto.clave_cnis or clave_cnis_filter_value not in producto.clave_cnis.upper():
-                    continue
-
-            # Usar prefetch en memoria (evita query por item)
-            lotes_surtidos = [la for la in item_propuesta.lotes_asignados.all() if la.surtido]
-            if not lotes_surtidos:
-                continue
-
-            for lote_asignado in lotes_surtidos:
-                lote_ubicacion = lote_asignado.lote_ubicacion
-                lote = lote_ubicacion.lote
-                ubicacion = lote_ubicacion.ubicacion
-
-                # Aplicar filtro de lote a nivel de lote individual
-                if lote_filter_value:
-                    if not lote.numero_lote or lote_filter_value not in lote.numero_lote.upper():
-                        continue
-
-                # Lookup en diccionario (sin consultas en el bucle)
-                movimiento = movimientos_por_clave.get(
-                    (lote.pk, folio_propuesta, lote_asignado.cantidad_asignada)
-                ) or movimientos_fallback.get((lote.pk, folio_propuesta))
-
-                # Cantidad previa = cantidad_disponible (inventario_lote) + cantidad surtida
-                cantidad_surtida = lote_asignado.cantidad_asignada
-                cantidad_disponible_lote = getattr(lote, 'cantidad_disponible', None) or 0
-                cantidad_previa = cantidad_disponible_lote + cantidad_surtida
-
-                # orden_suministro ya viene por prefetch
-                orden_reposicion = lote.orden_suministro.numero_orden if lote.orden_suministro else ''
-                
-                # Calcular días para caducidad
-                if lote.fecha_caducidad:
-                    dias_caducidad = (lote.fecha_caducidad - timezone.now().date()).days
-                else:
-                    dias_caducidad = None
-                
-                tiene_movimiento = movimiento is not None
-                datos_reporte.append({
-                    'partida': partida_counter,
-                    'clave_cnis': producto.clave_cnis,
-                    'descripcion': producto.descripcion,
-                    'unidad_medida': producto.unidad_medida if producto.unidad_medida else '',
-                    'lote': lote.numero_lote,
-                    'lote_id': lote.pk,
-                    'lote_ubicacion_id': lote_ubicacion.pk,
-                    'propuesta_id': propuesta.id,
-                    'caducidad': lote.fecha_caducidad.strftime('%d/%m/%Y') if lote.fecha_caducidad else '',
-                    'dias_caducidad': dias_caducidad,
-                    'cantidad_solicitada': item_propuesta.cantidad_solicitada,
-                    'cantidad_disponible': cantidad_disponible_lote,
-                    'cantidad_previa': cantidad_previa,
-                    'cantidad_surtida': lote_asignado.cantidad_asignada,
-                    'observaciones': solicitud.observaciones_solicitud or '',
-                    'recurso': solicitud.institucion_solicitante.nombre if solicitud.institucion_solicitante else '',
-                    'destino': (solicitud.almacen_destino.institucion.nombre or solicitud.almacen_destino.institucion.denominacion) if solicitud.almacen_destino and solicitud.almacen_destino.institucion else '',
-                    'ubicacion': ubicacion.codigo if ubicacion else '',
-                    'fecha_captura': solicitud.fecha_solicitud.strftime('%d/%m/%Y %H:%M') if solicitud.fecha_solicitud else '',
-                    'folio': solicitud.observaciones_solicitud or solicitud.folio,
-                    'fecha_entrega_programada': solicitud.fecha_entrega_programada.strftime('%d/%m/%Y') if solicitud.fecha_entrega_programada else '',
-                    'status': propuesta.get_estado_display(),
-                    'tiene_movimiento': tiene_movimiento,
-                    'remision_ingreso': movimiento.remision if movimiento else '',
-                    'orden_reposicion': orden_reposicion,
-                    'usuario': propuesta.usuario_surtimiento.get_full_name() if propuesta.usuario_surtimiento else propuesta.usuario_surtimiento.username if propuesta.usuario_surtimiento else '',
-                })
-                
-                partida_counter += 1
-    
-    total_sin_movimiento = sum(1 for d in datos_reporte if not d.get('tiene_movimiento', True))
-    
-    # Filtro por estatus movimiento (EST. MOV.)
-    if estatus_movimiento == 'sin_movimiento':
-        datos_reporte = [d for d in datos_reporte if not d.get('tiene_movimiento')]
-    elif estatus_movimiento == 'con_movimiento':
-        datos_reporte = [d for d in datos_reporte if d.get('tiene_movimiento')]
-    # Renumerar partidas después del filtro
-    for i, d in enumerate(datos_reporte, 1):
-        d['partida'] = i
-    
-    # Paginación
-    paginator = Paginator(datos_reporte, 50)
+    total_registros = qs.count()
+    paginator = Paginator(qs, 50)
     page = request.GET.get('page', 1)
     try:
-        datos_paginados = paginator.page(page)
+        page_obj = paginator.page(page)
     except PageNotAnInteger:
-        datos_paginados = paginator.page(1)
+        page_obj = paginator.page(1)
     except EmptyPage:
-        datos_paginados = paginator.page(paginator.num_pages)
-    
-    # Obtener instituciones para el filtro
-    instituciones = Institucion.objects.all().order_by('denominacion')
-    
-    # Query string sin 'page' para que los enlaces de paginación conserven los filtros
+        page_obj = paginator.page(paginator.num_pages)
+
+    lotes_pagina = list(page_obj.object_list)
+    propuesta_ids = {
+        la.item_propuesta.propuesta_id for la in lotes_pagina
+    }
+    mov_por_clave, mov_fallback = _mapear_movimientos_salida(propuesta_ids)
+
+    offset = (page_obj.number - 1) * paginator.per_page
+    datos = []
+    for i, la in enumerate(lotes_pagina, start=offset + 1):
+        folio_prop = str(la.item_propuesta.propuesta_id)
+        lote_id = la.lote_ubicacion.lote_id
+        movimiento = mov_por_clave.get(
+            (lote_id, folio_prop, la.cantidad_asignada)
+        ) or mov_fallback.get((lote_id, folio_prop))
+        datos.append(_fila_desde_lote_asignado(la, i, movimiento))
+
+    page_obj.object_list = datos
+
     get_copy = request.GET.copy()
     if 'page' in get_copy:
         get_copy.pop('page')
+    if filtros['fechas_por_defecto']:
+        get_copy['fecha_inicio'] = filtros['fecha_inicio']
+        get_copy['fecha_fin'] = filtros['fecha_fin']
     query_string_sin_page = get_copy.urlencode()
-    
+
     context = {
-        'datos': datos_paginados,
-        'total_registros': len(datos_reporte),
+        'datos': page_obj,
+        'total_registros': total_registros,
         'total_sin_movimiento': total_sin_movimiento,
-        'fecha_inicio': fecha_inicio,
-        'fecha_fin': fecha_fin,
-        'folio': folio,
-        'clave_cnis': clave_cnis,
-        'lote': filtro_lote,
-        'institucion_id': institucion_id,
-        'instituciones': instituciones,
-        'estatus_movimiento': estatus_movimiento,
+        'fecha_inicio': filtros['fecha_inicio'],
+        'fecha_fin': filtros['fecha_fin'],
+        'folio': filtros['folio'],
+        'clave_cnis': filtros['clave_cnis'],
+        'lote': filtros['filtro_lote'],
+        'institucion_id': filtros['institucion_id'],
+        'instituciones': Institucion.objects.all().order_by('denominacion'),
+        'estatus_movimiento': filtros['estatus_movimiento'],
         'query_string_sin_page': query_string_sin_page,
+        'fechas_por_defecto': filtros['fechas_por_defecto'],
     }
-    
     return render(request, 'inventario/reportes_salidas/reporte_salidas_surtidas.html', context)
 
 
@@ -665,242 +723,74 @@ def movimientos_surtimiento(request):
 @login_required
 @requiere_rol('Administrador', 'Gestor de Inventario', 'Analista', 'Supervisor')
 def exportar_salidas_surtidas_excel(request):
-    """
-    Exporta el reporte de salidas surtidas a Excel.
-    """
-    # Aplicar los mismos filtros que la vista principal
-    fecha_inicio = request.GET.get('fecha_inicio')
-    fecha_fin = request.GET.get('fecha_fin')
-    folio = request.GET.get('folio', '').strip()
-    clave_cnis = request.GET.get('clave_cnis', '').strip()
-    filtro_lote = request.GET.get('lote', '').strip()
-    institucion_id = request.GET.get('institucion')
-    
-    # Obtener propuestas surtidas (misma lógica que la vista, con prefetch optimizado)
-    propuestas = PropuestaPedido.objects.filter(
-        estado='SURTIDA',
-        fecha_surtimiento__isnull=False
-    ).select_related(
-        'solicitud',
-        'solicitud__institucion_solicitante',
-        'solicitud__almacen_destino',
-        'solicitud__almacen_destino__institucion',
-        'usuario_surtimiento'
-    ).prefetch_related(
-        'items__producto',
-        'items__item_solicitud',
-        'items__lotes_asignados__lote_ubicacion__lote',
-        'items__lotes_asignados__lote_ubicacion__lote__orden_suministro',
-        'items__lotes_asignados__lote_ubicacion__ubicacion'
-    )
+    """Exporta salidas surtidas a Excel (write_only, por lotes)."""
+    filtros = _extraer_filtros_surtidas(request)
+    qs = _queryset_lotes_asignados_surtidos(filtros, anotar_movimiento=True)
 
-    # Aplicar filtros (misma lógica que la vista principal)
-    if fecha_inicio:
-        try:
-            fecha_inicio_obj = datetime.strptime(fecha_inicio, '%Y-%m-%d')
-            propuestas = propuestas.filter(fecha_surtimiento__gte=fecha_inicio_obj)
-        except ValueError:
-            pass
-    
-    if fecha_fin:
-        try:
-            fecha_fin_obj = datetime.strptime(fecha_fin, '%Y-%m-%d')
-            from datetime import time as dt_time
-            fecha_fin_obj = datetime.combine(fecha_fin_obj.date(), dt_time.max)
-            propuestas = propuestas.filter(fecha_surtimiento__lte=fecha_fin_obj)
-        except ValueError:
-            pass
-    
-    if folio:
-        folio = folio.strip()
-        if folio:
-            propuestas = propuestas.filter(
-                Q(solicitud__folio__icontains=folio) |
-                Q(solicitud__observaciones_solicitud__icontains=folio)
-            )
-    
-    if clave_cnis:
-        clave_cnis = clave_cnis.strip()
-        if clave_cnis:
-            # Filtrar propuestas que tengan items con productos que coincidan con la clave CNIS
-            propuestas = propuestas.filter(
-                items__producto__clave_cnis__icontains=clave_cnis
-            ).distinct()
-    
-    if filtro_lote:
-        propuestas = propuestas.filter(
-            items__lotes_asignados__surtido=True,
-            items__lotes_asignados__lote_ubicacion__lote__numero_lote__icontains=filtro_lote
-        ).distinct()
-    
-    if institucion_id:
-        try:
-            institucion_id = int(institucion_id)
-            propuestas = propuestas.filter(
-                solicitud__institucion_solicitante_id=institucion_id
-            )
-        except (ValueError, TypeError):
-            pass
-    
-    # Construir datos del reporte (misma optimización que la vista: movimientos en una sola consulta)
-    datos_reporte = []
-    partida_counter = 1
-    clave_cnis_filter_value = clave_cnis.strip().upper() if clave_cnis else None
-    lote_filter_value = filtro_lote.strip().upper() if filtro_lote else None
+    total = qs.count()
+    if total > SURTIDAS_MAX_EXCEL_ROWS:
+        messages.error(
+            request,
+            f'El resultado tiene {total:,} filas (máximo {SURTIDAS_MAX_EXCEL_ROWS:,}). '
+            'Reduce el rango de fechas u otros filtros e inténtalo de nuevo.',
+        )
+        return redirect(
+            f"{reverse('reportes_salidas:reporte_salidas_surtidas')}?{request.GET.urlencode()}"
+        )
 
-    propuestas_ordered_exp = propuestas.order_by('-fecha_surtimiento', 'solicitud__folio')
-    propuesta_ids_exp = list(propuestas_ordered_exp.values_list('id', flat=True))
-
-    movimientos_por_clave_exp = {}
-    movimientos_fallback_exp = {}
-    if propuesta_ids_exp:
-        folios_str_exp = [str(pid) for pid in propuesta_ids_exp]
-        for m in MovimientoInventario.objects.filter(
-            tipo_movimiento='SALIDA', folio__in=folios_str_exp
-        ).only('id', 'lote_id', 'folio', 'cantidad', 'remision'):
-            movimientos_por_clave_exp[(m.lote_id, m.folio or '', m.cantidad)] = m
-            k = (m.lote_id, m.folio or '')
-            if k not in movimientos_fallback_exp:
-                movimientos_fallback_exp[k] = m
-
-    for propuesta in propuestas_ordered_exp:
-        solicitud = propuesta.solicitud
-        folio_propuesta_exp = str(propuesta.id) if propuesta.id else ''
-
-        for item_propuesta in propuesta.items.all():
-            producto = item_propuesta.producto
-            if clave_cnis_filter_value:
-                if not producto.clave_cnis or clave_cnis_filter_value not in producto.clave_cnis.upper():
-                    continue
-
-            lotes_surtidos_exp = [la for la in item_propuesta.lotes_asignados.all() if la.surtido]
-            if not lotes_surtidos_exp:
-                continue
-
-            for lote_asignado in lotes_surtidos_exp:
-                lote_ubicacion = lote_asignado.lote_ubicacion
-                lote = lote_ubicacion.lote
-                ubicacion = lote_ubicacion.ubicacion
-                if lote_filter_value:
-                    if not lote.numero_lote or lote_filter_value not in lote.numero_lote.upper():
-                        continue
-
-                movimiento = movimientos_por_clave_exp.get(
-                    (lote.pk, folio_propuesta_exp, lote_asignado.cantidad_asignada)
-                ) or movimientos_fallback_exp.get((lote.pk, folio_propuesta_exp))
-                cantidad_previa = (lote.cantidad_disponible or 0) + lote_asignado.cantidad_asignada
-                tiene_movimiento = movimiento is not None
-                orden_reposicion = lote.orden_suministro.numero_orden if lote.orden_suministro else ''
-
-                datos_reporte.append({
-                    'partida': partida_counter,
-                    'clave_cnis': producto.clave_cnis,
-                    'descripcion': producto.descripcion,
-                    'unidad_medida': producto.unidad_medida if producto.unidad_medida else '',
-                    'lote': lote.numero_lote,
-                    'caducidad': lote.fecha_caducidad.strftime('%d/%m/%Y') if lote.fecha_caducidad else '',
-                    'cantidad_solicitada': item_propuesta.cantidad_solicitada,
-                    'cantidad_previa': cantidad_previa,
-                    'cantidad_surtida': lote_asignado.cantidad_asignada,
-                    'observaciones': solicitud.observaciones_solicitud or '',
-                    'recurso': solicitud.institucion_solicitante.nombre if solicitud.institucion_solicitante else '',
-                    'destino': (solicitud.almacen_destino.institucion.nombre or solicitud.almacen_destino.institucion.denominacion) if solicitud.almacen_destino and solicitud.almacen_destino.institucion else '',
-                    'ubicacion': ubicacion.codigo if ubicacion else '',
-                    'fecha_captura': solicitud.fecha_solicitud.strftime('%d/%m/%Y %H:%M') if solicitud.fecha_solicitud else '',
-                    'folio': solicitud.observaciones_solicitud or solicitud.folio,
-                    'fecha_entrega_programada': solicitud.fecha_entrega_programada.strftime('%d/%m/%Y') if solicitud.fecha_entrega_programada else '',
-                    'status': propuesta.get_estado_display(),
-                    'estatus_movimiento': 'Con movimiento' if tiene_movimiento else 'Sin movimiento - Revisar',
-                    'remision_ingreso': movimiento.remision if movimiento else '',
-                    'orden_reposicion': orden_reposicion,
-                    'usuario': propuesta.usuario_surtimiento.get_full_name() if propuesta.usuario_surtimiento else propuesta.usuario_surtimiento.username if propuesta.usuario_surtimiento else '',
-                })
-                
-                partida_counter += 1
-    
-    # Aplicar filtro por estatus movimiento si viene en la URL (mismo criterio que la vista)
-    estatus_movimiento_exp = request.GET.get('estatus_movimiento', '').strip()
-    if estatus_movimiento_exp == 'sin_movimiento':
-        datos_reporte = [d for d in datos_reporte if d.get('estatus_movimiento') == 'Sin movimiento - Revisar']
-    elif estatus_movimiento_exp == 'con_movimiento':
-        datos_reporte = [d for d in datos_reporte if d.get('estatus_movimiento') == 'Con movimiento']
-    for i, d in enumerate(datos_reporte, 1):
-        d['partida'] = i
-    
-    # Crear workbook
-    wb = Workbook()
-    ws = wb.active
-    ws.title = "Salidas Surtidas"
-    
-    # Estilos
-    header_fill = PatternFill(start_color="366092", end_color="366092", fill_type="solid")
-    header_font = Font(bold=True, color="FFFFFF", size=11)
-    border = Border(
-        left=Side(style='thin'),
-        right=Side(style='thin'),
-        top=Side(style='thin'),
-        bottom=Side(style='thin')
-    )
-    center_alignment = Alignment(horizontal='center', vertical='center')
-    
-    # Encabezados
+    wb = Workbook(write_only=True)
+    ws = wb.create_sheet(title='Salidas Surtidas')
     headers = [
         'PARTIDA', 'CLAVE (CNIS)', 'DESCRIPCION', 'UNIDAD DE MEDIDA', 'LOTE',
-        'CADUCIDAD', 'CANTIDAD SOLICITADA', 'CANT. PREVIA AL SURTIMIENTO', 'CANTIDAD SURTIDA', 'OBSERVACIONES',
-        'RECURSO', 'DESTINO', 'UBICACIÓN', 'FECHA CAPTURA', 'FOLIO',
+        'CADUCIDAD', 'CANTIDAD SOLICITADA', 'CANT. PREVIA AL SURTIMIENTO', 'CANTIDAD SURTIDA',
+        'OBSERVACIONES', 'RECURSO', 'DESTINO', 'UBICACIÓN', 'FECHA CAPTURA', 'FOLIO',
         'FECHA ENTREGA PROGRAMADA', 'STATUS', 'REMISION DE INGRESO',
-        'ORDEN DE REPOSICION', 'USUARIO'
+        'ORDEN DE REPOSICION', 'USUARIO',
     ]
-    
-    for col_num, header in enumerate(headers, 1):
-        cell = ws.cell(row=1, column=col_num, value=header)
-        cell.fill = header_fill
-        cell.font = header_font
-        cell.alignment = center_alignment
-        cell.border = border
-    
-    # Datos
-    for row_num, dato in enumerate(datos_reporte, 2):
-        ws.cell(row=row_num, column=1, value=dato['partida'])
-        ws.cell(row=row_num, column=2, value=dato['clave_cnis'])
-        ws.cell(row=row_num, column=3, value=dato['descripcion'])
-        ws.cell(row=row_num, column=4, value=dato['unidad_medida'])
-        ws.cell(row=row_num, column=5, value=dato['lote'])
-        ws.cell(row=row_num, column=6, value=dato['caducidad'])
-        ws.cell(row=row_num, column=7, value=dato['cantidad_solicitada'])
-        ws.cell(row=row_num, column=8, value=dato.get('cantidad_previa'))
-        ws.cell(row=row_num, column=9, value=dato['cantidad_surtida'])
-        ws.cell(row=row_num, column=10, value=dato['observaciones'])
-        ws.cell(row=row_num, column=11, value=dato['recurso'])
-        ws.cell(row=row_num, column=12, value=dato['destino'])
-        ws.cell(row=row_num, column=13, value=dato['ubicacion'])
-        ws.cell(row=row_num, column=14, value=dato['fecha_captura'])
-        ws.cell(row=row_num, column=15, value=dato['folio'])
-        ws.cell(row=row_num, column=16, value=dato['fecha_entrega_programada'])
-        ws.cell(row=row_num, column=17, value=dato['status'])
-        ws.cell(row=row_num, column=18, value=dato['remision_ingreso'])
-        ws.cell(row=row_num, column=19, value=dato['orden_reposicion'])
-        ws.cell(row=row_num, column=20, value=dato['usuario'])
-        
-        # Aplicar bordes
-        for col_num in range(1, 21):
-            ws.cell(row=row_num, column=col_num).border = border
-    
-    # Ajustar ancho de columnas
-    column_widths = [10, 15, 50, 15, 15, 12, 18, 22, 18, 30, 30, 25, 15, 18, 20, 22, 15, 20, 20, 25]
-    for col_num, width in enumerate(column_widths, 1):
-        ws.column_dimensions[get_column_letter(col_num)].width = width
-    
-    # Congelar primera fila
-    ws.freeze_panes = 'A2'
-    
-    # Preparar respuesta
+    ws.append(headers)
+
+    chunk = 1500
+    ids = list(qs.values_list('id', flat=True))
+    partida = 0
+    for i in range(0, len(ids), chunk):
+        batch_ids = ids[i:i + chunk]
+        by_id = {
+            la.id: la
+            for la in LoteAsignado.objects.filter(id__in=batch_ids).select_related(
+                'item_propuesta__producto',
+                'item_propuesta__propuesta__solicitud__institucion_solicitante',
+                'item_propuesta__propuesta__solicitud__almacen_destino__institucion',
+                'item_propuesta__propuesta__usuario_surtimiento',
+                'lote_ubicacion__lote__orden_suministro',
+                'lote_ubicacion__ubicacion',
+            )
+        }
+        batch = [by_id[pk] for pk in batch_ids if pk in by_id]
+        propuesta_ids = {la.item_propuesta.propuesta_id for la in batch}
+        mov_por_clave, mov_fallback = _mapear_movimientos_salida(propuesta_ids)
+
+        for la in batch:
+            partida += 1
+            folio_prop = str(la.item_propuesta.propuesta_id)
+            lote_id = la.lote_ubicacion.lote_id
+            movimiento = mov_por_clave.get(
+                (lote_id, folio_prop, la.cantidad_asignada)
+            ) or mov_fallback.get((lote_id, folio_prop))
+            d = _fila_desde_lote_asignado(la, partida, movimiento)
+            ws.append([
+                d['partida'], d['clave_cnis'], d['descripcion'], d['unidad_medida'],
+                d['lote'], d['caducidad'], d['cantidad_solicitada'], d['cantidad_previa'],
+                d['cantidad_surtida'], d['observaciones'], d['recurso'], d['destino'],
+                d['ubicacion'], d['fecha_captura'], d['folio'],
+                d['fecha_entrega_programada'], d['status'], d['remision_ingreso'],
+                d['orden_reposicion'], d['usuario'],
+            ])
+
     response = HttpResponse(
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
     filename = f"reporte_salidas_surtidas_{timezone.now().strftime('%Y%m%d_%H%M%S')}.xlsx"
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
-    
     wb.save(response)
     return response
 
