@@ -148,10 +148,10 @@ def convertir_acuse_excel_a_pdf(excel_buffer):
             f'FOLIO DE PEDIDO: {folio_pedido}<br/>'
             f'{total_line}'
         )
-        if direccion_txt:
+        if direccion_txt and 'sin dirección' not in direccion_txt.lower():
             info_text += f'<br/>{direccion_txt}'
         else:
-            # Fallback legacy (por si el Excel aún no trae I6)
+            # Fallback: siempre almacén central
             denominacion_almacen = ''
             direccion_almacen = ''
             try:
@@ -159,8 +159,12 @@ def convertir_acuse_excel_a_pdf(excel_buffer):
                     clue='DFSSA004936'
                 ).values('denominacion', 'direccion').first()
                 if institucion_central:
-                    denominacion_almacen = institucion_central.get('denominacion', '') or ''
-                    direccion_almacen = institucion_central.get('direccion', '') or ''
+                    denominacion_almacen = str(institucion_central.get('denominacion') or '').strip()
+                    direccion_almacen = str(institucion_central.get('direccion') or '').strip()
+                    if denominacion_almacen.lower() in ('nan', 'none', 'null'):
+                        denominacion_almacen = ''
+                    if direccion_almacen.lower() in ('nan', 'none', 'null'):
+                        direccion_almacen = ''
             except Exception:
                 denominacion_almacen = ''
                 direccion_almacen = ''
