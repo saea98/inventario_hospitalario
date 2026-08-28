@@ -195,7 +195,8 @@ def convertir_acuse_excel_a_pdf(excel_buffer):
         story.append(header_table)
         story.append(Spacer(1, 0.05*inch))
         
-        # Información adicional (TRANSFERENCIA y TIPO) - alineada a la derecha
+        # Información adicional (TIPO) - alineada a la derecha
+        # TRANSFERENCIA se omite de momento (antes estaba hardcodeado "prueba")
         info_adicional_style = ParagraphStyle(
             'InfoAdicional',
             fontSize=8,
@@ -203,7 +204,6 @@ def convertir_acuse_excel_a_pdf(excel_buffer):
             fontName='Helvetica',
             leading=10
         )
-        story.append(Paragraph('TRANSFERENCIA: prueba', info_adicional_style))
         story.append(Paragraph('TIPO: TRANSFERENCIA (SURTIMIENTO)', info_adicional_style))
         story.append(Spacer(1, 0.15*inch))
         
