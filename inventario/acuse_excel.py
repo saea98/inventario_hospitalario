@@ -132,6 +132,50 @@ def agregar_bordes_celda(celda):
     celda.border = thin_border
 
 
+def _obtener_info_almacen_acuse(propuesta):
+    """
+    Denominación y dirección para el encabezado del acuse.
+    Prioridad: Almacen.destino.direccion → Institución del almacén → almacén central (CLUE DFSSA004936).
+    """
+    from .models import Institucion
+
+    denominacion = ''
+    direccion = ''
+    fuente = ''
+
+    almacen = getattr(getattr(propuesta, 'solicitud', None), 'almacen_destino', None)
+    if almacen:
+        denominacion = (almacen.nombre or '').strip()
+        direccion = (almacen.direccion or '').strip()
+        fuente = 'almacen'
+        if not direccion and getattr(almacen, 'institucion', None):
+            denominacion = denominacion or (almacen.institucion.denominacion or '').strip()
+            direccion = (almacen.institucion.direccion or '').strip()
+            if direccion:
+                fuente = 'institucion_almacen'
+
+    if not direccion or not denominacion:
+        try:
+            central = Institucion.objects.filter(clue='DFSSA004936').values(
+                'denominacion', 'direccion'
+            ).first()
+        except Exception:
+            central = None
+        if central:
+            if not denominacion:
+                denominacion = (central.get('denominacion') or '').strip()
+            if not direccion:
+                direccion = (central.get('direccion') or '').strip()
+                if direccion:
+                    fuente = 'institucion_central'
+
+    return {
+        'denominacion': denominacion,
+        'direccion': direccion,
+        'fuente': fuente,
+    }
+
+
 def generar_acuse_excel(propuesta, almacen_id=None, for_pdf=False):
     """
     Genera un archivo Excel con el acuse de entrega usando un template como base.
@@ -167,6 +211,7 @@ def generar_acuse_excel(propuesta, almacen_id=None, for_pdf=False):
     fecha_actual = datetime.now().strftime("%d/%m/%Y")
     folio_pedido = propuesta.solicitud.observaciones_solicitud or 'N/A'
     institucion = propuesta.solicitud.institucion_solicitante.denominacion if propuesta.solicitud.institucion_solicitante else 'N/A'
+    info_almacen = _obtener_info_almacen_acuse(propuesta)
     
     # ============ ACTUALIZAR ENCABEZADO ============
     
@@ -178,6 +223,20 @@ def generar_acuse_excel(propuesta, almacen_id=None, for_pdf=False):
     
     # Fila 4: FECHA
     ws['I4'].value = f'FECHA: {fecha_actual}'
+
+    # Fila 5: se llena al final con el total de piezas (tras armar items_data)
+    ws['I5'].value = 'TOTAL PIEZAS ENTREGADAS: 0'
+
+    # Dirección del almacén (encabezado)
+    if info_almacen['denominacion'] or info_almacen['direccion']:
+        partes = []
+        if info_almacen['denominacion']:
+            partes.append(info_almacen['denominacion'])
+        if info_almacen['direccion']:
+            partes.append(info_almacen['direccion'])
+        ws['I6'].value = 'DIRECCIÓN: ' + ', '.join(partes)
+    else:
+        ws['I6'].value = 'DIRECCIÓN: (sin dirección registrada en el almacén/institución)'
     
     # ============ ACTUALIZAR TABLA DE FIRMAS ============
     
@@ -292,6 +351,9 @@ def generar_acuse_excel(propuesta, almacen_id=None, for_pdf=False):
                 'folio_pedido': propuesta.solicitud.observaciones_solicitud or ''  # Usar observaciones_solicitud
             })
             idx += 1
+
+    total_piezas = sum(int(it['cantidad'] or 0) for it in items_data)
+    ws['I5'].value = f'TOTAL PIEZAS ENTREGADAS: {total_piezas}'
     
     # Eliminar filas de datos del template (mantener encabezados)
     # El template tiene datos de ejemplo en filas 18 en adelante

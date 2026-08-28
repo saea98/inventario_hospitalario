@@ -206,7 +206,8 @@ def generar_acuse_entrega_pdf(request, propuesta_id):
     propuesta = get_object_or_404(
         PropuestaPedido.objects.select_related(
             'solicitud__institucion_solicitante',
-            'solicitud__almacen_destino'
+            'solicitud__almacen_destino',
+            'solicitud__almacen_destino__institucion',
         ).prefetch_related(
             'items__producto',
             'items__lotes_asignados__lote_ubicacion__lote',
@@ -247,7 +248,8 @@ def generar_acuse_entrega_excel(request, propuesta_id):
     propuesta = get_object_or_404(
         PropuestaPedido.objects.select_related(
             'solicitud__institucion_solicitante',
-            'solicitud__almacen_destino'
+            'solicitud__almacen_destino',
+            'solicitud__almacen_destino__institucion',
         ).prefetch_related(
             'items__producto',
             'items__lotes_asignados__lote_ubicacion__lote',

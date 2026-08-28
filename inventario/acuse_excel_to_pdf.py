@@ -41,10 +41,13 @@ def convertir_acuse_excel_a_pdf(excel_buffer):
         folio = _obtener_valor_celda(worksheet['I1']).replace('#FOLIO: ', '')
         folio_pedido = _obtener_valor_celda(worksheet['I3']).replace('FOLIO DE PEDIDO: ', '')
         fecha = _obtener_valor_celda(worksheet['I4']).replace('FECHA: ', '')
+        total_piezas_txt = _obtener_valor_celda(worksheet['I5'])
+        direccion_txt = _obtener_valor_celda(worksheet['I6'])
         institucion = _obtener_valor_celda(worksheet['A10']).replace('INSTITUCIÓN: ', '')
         
         # Extraer datos de la tabla (a partir de fila 18)
         datos_tabla = []
+        total_piezas_calc = 0
         for row_idx in range(18, worksheet.max_row + 1):
             fila = []
             for col_idx in range(1, 12):
@@ -64,6 +67,11 @@ def convertir_acuse_excel_a_pdf(excel_buffer):
                     fila.append(Paragraph(valor, style))
                 else:
                     fila.append(valor if valor else "")
+                if col_idx == 10 and valor not in (None, ''):
+                    try:
+                        total_piezas_calc += int(float(str(valor).replace(',', '')))
+                    except (TypeError, ValueError):
+                        pass
             
             # Si la fila tiene contenido, agregarla
             if any(fila):
@@ -128,24 +136,37 @@ def convertir_acuse_excel_a_pdf(excel_buffer):
             leading=10
         )
 
-        denominacion_almacen_central = ''
-        direccion_almacen_c0entral = ''
-        try:
-            institucion_central = Institucion.objects.filter(
-                clue='DFSSA004936'
-            ).values('denominacion', 'direccion').first()
-            if institucion_central:
-                denominacion_almacen_central = institucion_central.get('denominacion', '') or ''
-                direccion_almacen_central = institucion_central.get('direccion', '') or ''
-        except Exception:
-            denominacion_almacen_central = ''
-            direccion_almacen_central = ''
+        # Total piezas: preferir celda del Excel; si no, suma de la columna CANTIDAD
+        if total_piezas_txt and 'TOTAL PIEZAS' in total_piezas_txt.upper():
+            total_line = total_piezas_txt
+        else:
+            total_line = f'TOTAL PIEZAS ENTREGADAS: {total_piezas_calc}'
 
-        info_text = f'#FOLIO: {folio}<br/>FECHA: {fecha}<br/>FOLIO DE PEDIDO: {folio_pedido}'
-        if denominacion_almacen_central:
-            info_text += f'<br/>DIRECCIÓN: {denominacion_almacen_central}, CDMX'
-        if direccion_almacen_central:
-            info_text += f'<br/>{direccion_almacen_central}'
+        info_text = (
+            f'#FOLIO: {folio}<br/>'
+            f'FECHA: {fecha}<br/>'
+            f'FOLIO DE PEDIDO: {folio_pedido}<br/>'
+            f'{total_line}'
+        )
+        if direccion_txt:
+            info_text += f'<br/>{direccion_txt}'
+        else:
+            # Fallback legacy (por si el Excel aún no trae I6)
+            denominacion_almacen = ''
+            direccion_almacen = ''
+            try:
+                institucion_central = Institucion.objects.filter(
+                    clue='DFSSA004936'
+                ).values('denominacion', 'direccion').first()
+                if institucion_central:
+                    denominacion_almacen = institucion_central.get('denominacion', '') or ''
+                    direccion_almacen = institucion_central.get('direccion', '') or ''
+            except Exception:
+                denominacion_almacen = ''
+                direccion_almacen = ''
+            if denominacion_almacen or direccion_almacen:
+                partes = [p for p in [denominacion_almacen, direccion_almacen] if p]
+                info_text += f'<br/>DIRECCIÓN: {", ".join(partes)}'
 
         info_right = Paragraph(
             info_text,
