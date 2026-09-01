@@ -18,11 +18,11 @@
                     <form method="get" action="{% url 'reportes_salidas:reporte_salidas_surtidas' %}" class="mb-4">
                         <div class="row">
                             <div class="col-md-3">
-                                <label for="fecha_inicio" class="form-label">Fecha Inicio</label>
+                                <label for="fecha_inicio" class="form-label">Fecha surtimiento (inicio)</label>
                                 <input type="date" class="form-control" id="fecha_inicio" name="fecha_inicio" value="{% if fecha_inicio %}{{ fecha_inicio }}{% endif %}">
                             </div>
                             <div class="col-md-3">
-                                <label for="fecha_fin" class="form-label">Fecha Fin</label>
+                                <label for="fecha_fin" class="form-label">Fecha surtimiento (fin)</label>
                                 <input type="date" class="form-control" id="fecha_fin" name="fecha_fin" value="{% if fecha_fin %}{{ fecha_fin }}{% endif %}">
                             </div>
                             <div class="col-md-2">
@@ -74,11 +74,18 @@
                     {% if fechas_por_defecto %}
                     <div class="alert alert-info py-2">
                         <small>
-                            Sin fechas ni búsqueda por folio/clave/lote: se muestran los últimos 30 días por rendimiento.
+                            Sin fechas ni búsqueda por folio/clave/lote: se muestran los últimos 30 días
+                            <strong>por fecha de surtimiento</strong> (no por fecha de captura del pedido).
                             Amplía el rango si necesitas más histórico.
                         </small>
                     </div>
                     {% endif %}
+                    <div class="alert alert-secondary py-2">
+                        <small>
+                            El rango de fechas filtra por <strong>fecha de surtimiento</strong> de la propuesta.
+                            La columna <em>Fecha captura</em> es cuando se capturó el pedido (puede ser de meses anteriores).
+                        </small>
+                    </div>
 
                     <!-- Resumen -->
                     <div class="alert alert-info d-flex justify-content-between align-items-center flex-wrap gap-2">
@@ -109,6 +116,7 @@
                                     <th>DESTINO</th>
                                     <th>UBICACIÓN</th>
                                     <th>FECHA CAPTURA</th>
+                                    <th>FECHA SURTIMIENTO</th>
                                     <th>FOLIO</th>
                                     <th>FECHA ENTREGA PROGRAMADA</th>
                                     <th>STATUS</th>
@@ -137,6 +145,7 @@
                                         <td>{{ dato.destino }}</td>
                                         <td>{{ dato.ubicacion }}</td>
                                         <td>{{ dato.fecha_captura }}</td>
+                                        <td>{{ dato.fecha_surtimiento }}</td>
                                         <td>{{ dato.folio }}</td>
                                         <td>{{ dato.fecha_entrega_programada }}</td>
                                         <td>
@@ -174,7 +183,7 @@
                                     {% endfor %}
                                 {% else %}
                                     <tr>
-                                        <td colspan="22" class="text-center text-muted">
+                                        <td colspan="23" class="text-center text-muted">
                                             <i class="fas fa-info-circle"></i> No se encontraron registros con los filtros aplicados.
                                         </td>
                                     </tr>

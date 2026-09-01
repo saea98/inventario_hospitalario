@@ -439,6 +439,11 @@ def _fila_desde_lote_asignado(la, partida, movimiento=None):
             solicitud.fecha_solicitud.strftime('%d/%m/%Y %H:%M')
             if solicitud.fecha_solicitud else ''
         ),
+        # Fecha que usa el filtro de rango (propuesta); fallback al lote asignado
+        'fecha_surtimiento': (
+            (propuesta.fecha_surtimiento or la.fecha_surtimiento).strftime('%d/%m/%Y %H:%M')
+            if (propuesta.fecha_surtimiento or la.fecha_surtimiento) else ''
+        ),
         'folio': solicitud.observaciones_solicitud or solicitud.folio,
         'fecha_entrega_programada': (
             solicitud.fecha_entrega_programada.strftime('%d/%m/%Y')
@@ -743,7 +748,8 @@ def exportar_salidas_surtidas_excel(request):
     headers = [
         'PARTIDA', 'CLAVE (CNIS)', 'DESCRIPCION', 'UNIDAD DE MEDIDA', 'LOTE',
         'CADUCIDAD', 'CANTIDAD SOLICITADA', 'CANT. PREVIA AL SURTIMIENTO', 'CANTIDAD SURTIDA',
-        'OBSERVACIONES', 'RECURSO', 'DESTINO', 'UBICACIÓN', 'FECHA CAPTURA', 'FOLIO',
+        'OBSERVACIONES', 'RECURSO', 'DESTINO', 'UBICACIÓN', 'FECHA CAPTURA',
+        'FECHA SURTIMIENTO', 'FOLIO',
         'FECHA ENTREGA PROGRAMADA', 'STATUS', 'REMISION DE INGRESO',
         'ORDEN DE REPOSICION', 'USUARIO',
     ]
@@ -781,7 +787,7 @@ def exportar_salidas_surtidas_excel(request):
                 d['partida'], d['clave_cnis'], d['descripcion'], d['unidad_medida'],
                 d['lote'], d['caducidad'], d['cantidad_solicitada'], d['cantidad_previa'],
                 d['cantidad_surtida'], d['observaciones'], d['recurso'], d['destino'],
-                d['ubicacion'], d['fecha_captura'], d['folio'],
+                d['ubicacion'], d['fecha_captura'], d['fecha_surtimiento'], d['folio'],
                 d['fecha_entrega_programada'], d['status'], d['remision_ingreso'],
                 d['orden_reposicion'], d['usuario'],
             ])
