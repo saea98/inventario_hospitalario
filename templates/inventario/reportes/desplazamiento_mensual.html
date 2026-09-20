@@ -1,0 +1,95 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Desplazamiento mensual — complemento de entregas{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col-lg-8">
+            <h2><i class="fas fa-truck-loading text-primary"></i> Desplazamiento mensual</h2>
+            <p class="text-muted mb-0">
+                Sube el Excel del programa mensual (hojas <strong>Resumen</strong> / <strong>Datos</strong>)
+                e indícanos el <strong>mes y año</strong> de consulta. El sistema lo complementa con los
+                surtimientos reales de ese periodo y genera el archivo listo para directivos.
+            </p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-7">
+            <div class="card shadow mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0"><i class="fas fa-upload"></i> Generar reporte complementado</h6>
+                </div>
+                <div class="card-body">
+                    <form method="post" enctype="multipart/form-data">
+                        {% csrf_token %}
+                        <div class="row g-3">
+                            <div class="col-md-4">
+                                <label for="mes" class="form-label">Mes de surtimiento</label>
+                                <select name="mes" id="mes" class="form-select" required>
+                                    <option value="">Seleccione…</option>
+                                    {% for num, nombre in meses %}
+                                    <option value="{{ num }}" {% if mes_sel == num|stringformat:"s" or not mes_sel and mes_actual == num %}selected{% endif %}>
+                                        {{ nombre }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-4">
+                                <label for="anio" class="form-label">Año</label>
+                                <select name="anio" id="anio" class="form-select" required>
+                                    {% for a in anios %}
+                                    <option value="{{ a }}" {% if anio_sel == a|stringformat:"s" or not anio_sel and anio_actual == a %}selected{% endif %}>
+                                        {{ a }}
+                                    </option>
+                                    {% endfor %}
+                                </select>
+                            </div>
+                            <div class="col-md-12">
+                                <label for="archivo" class="form-label">Archivo del programa (.xlsx)</label>
+                                <input type="file" name="archivo" id="archivo" class="form-control"
+                                       accept=".xlsx,.xlsm" required>
+                                <div class="form-text">
+                                    Debe incluir la hoja <code>Datos</code> con columnas CLUES, CLAVE y
+                                    «CANTIDAD REAL FISICA ENTREGADA…».
+                                </div>
+                            </div>
+                        </div>
+                        <div class="mt-4">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-file-excel"></i> Complementar y descargar
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+
+        <div class="col-lg-5">
+            <div class="card shadow mb-4">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="fas fa-info-circle"></i> Qué hace el proceso</h6>
+                </div>
+                <div class="card-body small">
+                    <ol class="mb-3 ps-3">
+                        <li>Lee el programa mensual (hoja <strong>Datos</strong>).</li>
+                        <li>Consulta surtimientos del <strong>mes/año</strong> indicados (lotes surtidos).</li>
+                        <li>Cruza por <strong>CLUES + CLAVE</strong> y llena la cantidad entregada.</li>
+                        <li>Agrega en la misma hoja las <strong>entregas adicionales</strong> no listadas en el programa.</li>
+                        <li>Actualiza el <strong>Resumen</strong> con indicadores para directivos.</li>
+                    </ol>
+                    <p class="mb-2"><strong>Leyenda en Datos</strong></p>
+                    <ul class="list-unstyled mb-0">
+                        <li><span class="badge" style="background:#C6EFCE;color:#006100">Verde</span> Entregado conforme a programa</li>
+                        <li><span class="badge" style="background:#FFF2CC;color:#7F6000">Amarillo</span> Entrega parcial</li>
+                        <li><span class="badge" style="background:#D9E2F3;color:#1F4E79">Azul</span> Sin entrega por existencia/disponibilidad</li>
+                        <li><span class="badge" style="background:#FCE4D6;color:#C65911">Naranja</span> Entrega adicional</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

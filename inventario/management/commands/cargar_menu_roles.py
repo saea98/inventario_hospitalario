@@ -247,6 +247,15 @@ class Command(BaseCommand):
                 'orden': 52,
                 'es_submenu': False,
             },
+            {
+                'menu_item': 'desplazamiento_mensual',
+                'nombre_mostrado': 'Desplazamiento mensual',
+                'icono': 'fas fa-truck-loading',
+                'url_name': 'reportes:desplazamiento_mensual',
+                'roles': ['Supervisión', 'Administrador', 'Gestor de Inventario', 'Analista'],
+                'orden': 53,
+                'es_submenu': False,
+            },
 
             # ===== SECCIÓN INVENTARIO =====
             {

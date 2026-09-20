@@ -23,6 +23,7 @@ from .views_reporte_solicitud_informacion import (
     reporte_solicitud_informacion,
     exportar_solicitud_informacion_excel,
 )
+from .views_desplazamiento_mensual import desplazamiento_mensual
 
 app_name = 'reportes'
 
@@ -60,5 +61,10 @@ urlpatterns = [
         "solicitud-informacion/exportar-excel/",
         exportar_solicitud_informacion_excel,
         name="exportar_solicitud_informacion_excel",
+    ),
+    path(
+        "desplazamiento-mensual/",
+        desplazamiento_mensual,
+        name="desplazamiento_mensual",
     ),
 ]
