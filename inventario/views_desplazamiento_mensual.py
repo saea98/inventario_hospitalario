@@ -27,11 +27,6 @@ def desplazamiento_mensual(request):
     Sube el Excel del programa mensual (hoja Datos), indica mes/año,
     y descarga el mismo archivo complementado con surtimientos del sistema.
     """
-    try:
-        asegurar_menu_desplazamiento_mensual()
-    except Exception:
-        pass
-
     hoy = date.today()
     context = {
         'meses': MESES,
@@ -42,6 +37,10 @@ def desplazamiento_mensual(request):
     }
 
     if request.method != 'POST':
+        try:
+            asegurar_menu_desplazamiento_mensual()
+        except Exception:
+            pass
         return render(request, 'inventario/reportes/desplazamiento_mensual.html', context)
 
     archivo = request.FILES.get('archivo')
@@ -59,6 +58,11 @@ def desplazamiento_mensual(request):
         messages.error(request, 'El archivo debe ser Excel (.xlsx).')
         return render(request, 'inventario/reportes/desplazamiento_mensual.html', context)
 
+    # Límite práctico: archivos enormes + mes completo tardan y caen en 502
+    if archivo.size and archivo.size > 15 * 1024 * 1024:
+        messages.error(request, 'El archivo supera 15 MB. Reduce el Excel o divide por entidad.')
+        return render(request, 'inventario/reportes/desplazamiento_mensual.html', context)
+
     try:
         mes = int(mes_raw)
         anio = int(anio_raw)
@@ -71,7 +75,7 @@ def desplazamiento_mensual(request):
         return render(request, 'inventario/reportes/desplazamiento_mensual.html', context)
 
     try:
-        buf, stats = complementar_workbook(
+        buf, _stats = complementar_workbook(
             archivo,
             anio=anio,
             mes=mes,
@@ -85,14 +89,10 @@ def desplazamiento_mensual(request):
         return render(request, 'inventario/reportes/desplazamiento_mensual.html', context)
 
     mes_nombre = dict(MESES).get(mes, str(mes))
-    filename = (
-        f"desplazamiento_{mes_nombre.lower()}_{anio}_con_entregas.xlsx"
-    )
+    filename = f"desplazamiento_{mes_nombre.lower()}_{anio}_con_entregas.xlsx"
     response = HttpResponse(
         buf.getvalue(),
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
     )
     response['Content-Disposition'] = f'attachment; filename="{filename}"'
-    # flash no se ve bien en download-only; igual dejamos stats en query si quisieran
-    # — devolvemos directo el archivo
     return response

@@ -1,18 +1,24 @@
 """
 Complemento de reporte mensual de desplazamiento (programa por entidad)
 con surtimientos reales del sistema (LoteAsignado surtido en el mes/año).
+
+Optimizado para no provocar 502:
+- Primero lee CLUES del Excel y limita la consulta a esas instituciones
+- Agrega en PostgreSQL (Sum / StringAgg) en lugar de iterar ORM fila a fila
+- Evita copiar estilos celda a celda en miles de filas adicionales
 """
 
 from __future__ import annotations
 
 from calendar import monthrange
 from collections import defaultdict
-from copy import copy
 from datetime import date, datetime
 from io import BytesIO
-from typing import Dict, Iterable, List, Optional, Tuple
+from typing import Dict, List, Optional, Set, Tuple
 
-from django.db.models import Q
+from django.contrib.postgres.aggregates import StringAgg
+from django.db.models import CharField, F, Max, Q, Sum, Value
+from django.db.models.functions import Coalesce, NullIf, Trim, Upper
 from django.utils import timezone
 from openpyxl import load_workbook
 from openpyxl.styles import Alignment, Font, PatternFill
@@ -20,6 +26,8 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from .pedidos_models import LoteAsignado
 
 Key = Tuple[str, str]  # (clues_norm, clave_norm)
+
+MAX_FILAS_ADICIONALES = 5000
 
 
 def norm(v) -> str:
@@ -40,84 +48,91 @@ def rango_mes(anio: int, mes: int) -> Tuple[date, date]:
     return date(anio, mes, 1), date(anio, mes, ultimo)
 
 
-def obtener_surtimientos_mes(anio: int, mes: int) -> Dict[Key, dict]:
+def obtener_surtimientos_mes(
+    anio: int,
+    mes: int,
+    *,
+    clues_filtro: Optional[Set[str]] = None,
+) -> Dict[Key, dict]:
     """
-    Agrega cantidad surtida por (CLUES, CLAVE).
-    CLUES se indexa tanto por ib_clue como por clue SSA para maximizar match.
+    Agrega cantidad surtida por (CLUES, CLAVE) en SQL.
+    Si clues_filtro viene, solo instituciones de ese conjunto (ib_clue o clue).
+    Indexa cada resultado por ib_clue y por clue (mismo dict) para el match del Excel.
     """
     inicio, fin = rango_mes(anio, mes)
     tz = timezone.get_current_timezone()
     dt_ini = timezone.make_aware(datetime.combine(inicio, datetime.min.time()), tz)
     dt_fin = timezone.make_aware(datetime.combine(fin, datetime.max.time()), tz)
 
+    path_ib = 'item_propuesta__propuesta__solicitud__institucion_solicitante__ib_clue'
+    path_clue = 'item_propuesta__propuesta__solicitud__institucion_solicitante__clue'
+    path_clave = 'item_propuesta__producto__clave_cnis'
+    path_desc = 'item_propuesta__producto__descripcion'
+    path_obs = 'item_propuesta__propuesta__solicitud__observaciones_solicitud'
+    path_folio = 'item_propuesta__propuesta__solicitud__folio'
+
     qs = (
         LoteAsignado.objects.filter(surtido=True, cantidad_asignada__gt=0)
-        .filter(
-            Q(fecha_surtimiento__gte=dt_ini, fecha_surtimiento__lte=dt_fin)
-            | Q(
-                fecha_surtimiento__isnull=True,
-                item_propuesta__propuesta__fecha_surtimiento__gte=dt_ini,
-                item_propuesta__propuesta__fecha_surtimiento__lte=dt_fin,
+        .annotate(
+            fecha_efectiva=Coalesce(
+                'fecha_surtimiento',
+                'item_propuesta__propuesta__fecha_surtimiento',
             )
         )
-        .select_related(
-            'item_propuesta__producto',
-            'item_propuesta__propuesta__solicitud__institucion_solicitante',
-            'item_propuesta__propuesta__solicitud',
+        .filter(fecha_efectiva__gte=dt_ini, fecha_efectiva__lte=dt_fin)
+    )
+
+    if clues_filtro is not None:
+        clues_list = [c for c in clues_filtro if c]
+        if not clues_list:
+            return {}
+        qs = qs.filter(
+            Q(**{f'{path_ib}__in': clues_list}) | Q(**{f'{path_clue}__in': clues_list})
         )
+
+    folio_expr = Coalesce(
+        NullIf(Trim(F(path_obs)), Value('')),
+        NullIf(Trim(F(path_folio)), Value('')),
+        Value(''),
+        output_field=CharField(),
     )
 
-    agg: Dict[Key, dict] = defaultdict(
-        lambda: {'cantidad': 0.0, 'folios': [], 'descripcion': '', 'categoria': ''}
+    rows = qs.values(
+        ib_clue=Trim(Upper(F(path_ib))),
+        clue_ssa=Trim(Upper(F(path_clue))),
+        clave=Trim(Upper(F(path_clave))),
+    ).annotate(
+        total=Sum('cantidad_asignada'),
+        descripcion=Max(path_desc),
+        folios=StringAgg(folio_expr, delimiter='|', distinct=True),
     )
 
-    for la in qs.iterator(chunk_size=2000):
-        item = la.item_propuesta
-        if not item or not item.producto_id:
-            continue
-        propuesta = item.propuesta
-        solicitud = propuesta.solicitud if propuesta else None
-        inst = solicitud.institucion_solicitante if solicitud else None
-        clave = norm(item.producto.clave_cnis)
+    agg: Dict[Key, dict] = {}
+    for row in rows.iterator(chunk_size=2000):
+        clave = norm(row.get('clave'))
         if not clave:
             continue
-        folio = ''
-        if solicitud:
-            folio = (solicitud.observaciones_solicitud or '').strip() or (solicitud.folio or '')
-        desc = (item.producto.descripcion or '')[:500]
-
-        clues_keys = []
-        if inst:
-            if inst.ib_clue:
-                clues_keys.append(norm(inst.ib_clue))
-            if inst.clue:
-                clues_keys.append(norm(inst.clue))
-        clues_keys = [c for c in dict.fromkeys(clues_keys) if c]
-        if not clues_keys:
+        ib_clue = norm(row.get('ib_clue'))
+        clue_ssa = norm(row.get('clue_ssa'))
+        cant = float(row.get('total') or 0)
+        if cant <= 0:
             continue
-
-        for clues in clues_keys:
-            key = (clues, clave)
-            agg[key]['cantidad'] += float(la.cantidad_asignada or 0)
-            if folio and folio not in agg[key]['folios']:
-                agg[key]['folios'].append(folio)
-            if desc and not agg[key]['descripcion']:
-                agg[key]['descripcion'] = desc
+        folios_raw = (row.get('folios') or '').strip()
+        folios = [f for f in folios_raw.split('|') if f][:8]
+        desc = (row.get('descripcion') or '')[:300]
+        info = {
+            'cantidad': cant,
+            'folios': folios,
+            'descripcion': desc,
+            'categoria': '',
+            'clues_preferida': ib_clue or clue_ssa,
+        }
+        if ib_clue:
+            agg[(ib_clue, clave)] = info
+        if clue_ssa and (clue_ssa, clave) not in agg:
+            agg[(clue_ssa, clave)] = info
 
     return agg
-
-
-def copy_row_style(ws, src_row: int, dst_row: int, max_col: int = 15):
-    for col in range(1, max_col + 1):
-        sc = ws.cell(src_row, col)
-        dc = ws.cell(dst_row, col)
-        if sc.has_style:
-            dc.font = copy(sc.font)
-            dc.border = copy(sc.border)
-            dc.fill = copy(sc.fill)
-            dc.number_format = sc.number_format
-            dc.protection = copy(sc.protection)
-            dc.alignment = copy(sc.alignment)
 
 
 def complementar_workbook(
@@ -128,19 +143,16 @@ def complementar_workbook(
     nombre_fuente: str = '',
 ) -> Tuple[BytesIO, dict]:
     """
-    Recibe el xlsx del programa mensual (hojas Resumen/Datos[/Extraordinario]),
-    llena cantidad entregada desde surtimientos del mes y agrega filas adicionales.
-    Retorna (buffer xlsx, estadisticas).
+    Llena el programa mensual con surtimientos del mes.
+    Orden: Excel → CLUES → query acotada → escritura ligera.
     """
-    agg = obtener_surtimientos_mes(anio, mes)
-    wb = load_workbook(archivo)
+    wb = load_workbook(archivo, keep_links=False)
 
     if 'Datos' not in wb.sheetnames:
         raise ValueError("El archivo debe contener la hoja 'Datos'.")
 
     ws = wb['Datos']
 
-    # Detectar fila de encabezados (busca 'CLUES' + 'CLAVE')
     header_row = None
     for r in range(1, min(20, ws.max_row + 1)):
         vals = [norm(ws.cell(r, c).value) for c in range(1, 16)]
@@ -153,12 +165,14 @@ def complementar_workbook(
 
     meta_clues = {}
     programa: Dict[Key, List[int]] = {}
+    clues_en_excel: Set[str] = set()
     for r in range(data_start, ws.max_row + 1):
         clues = norm(ws.cell(r, 2).value)
         clave = norm(ws.cell(r, 4).value)
         if not clues or not clave:
             continue
         programa.setdefault((clues, clave), []).append(r)
+        clues_en_excel.add(clues)
         if clues not in meta_clues:
             meta_clues[clues] = {
                 'entidad': ws.cell(r, 1).value or 'CIUDAD DE MEXICO',
@@ -169,21 +183,19 @@ def complementar_workbook(
     extra_pairs = set()
     if 'Extraordinario' in wb.sheetnames:
         wse = wb['Extraordinario']
-        for r in range(1, wse.max_row + 1):
-            # columnas típicas: B entidad, C CLUES, D CLAVE (a veces con col A vacía)
-            for clues_col, clave_col in ((3, 4), (2, 3)):
-                clues = norm(wse.cell(r, clues_col).value)
-                clave = norm(wse.cell(r, clave_col).value)
-                if clues.startswith('DF') or clues.startswith('BC') or len(clues) >= 8:
-                    if clave and '.' in clave or clave.startswith('0') or len(clave) >= 5:
-                        if clues and clave and not clues.startswith('ENTIDAD'):
-                            extra_pairs.add((clues, clave))
+        for r in range(8, min(wse.max_row + 1, 5000)):
+            clues = norm(wse.cell(r, 3).value)
+            clave = norm(wse.cell(r, 4).value)
+            if clues and clave and not clues.startswith('ENTIDAD'):
+                extra_pairs.add((clues, clave))
+                clues_en_excel.add(clues)
+
+    agg = obtener_surtimientos_mes(anio, mes, clues_filtro=clues_en_excel)
 
     fill_entregado = PatternFill('solid', fgColor='C6EFCE')
     fill_parcial = PatternFill('solid', fgColor='FFF2CC')
     fill_sin_exist = PatternFill('solid', fgColor='D9E2F3')
     fill_adicional = PatternFill('solid', fgColor='FCE4D6')
-    fill_adic_row = PatternFill('solid', fgColor='FDF2E9')
     font_ok = Font(color='006100', bold=True)
     font_info = Font(color='1F4E79')
     font_adic = Font(color='C65911', bold=True)
@@ -191,38 +203,31 @@ def complementar_workbook(
     n_entregado = n_parcial = n_sin_exist = 0
     piezas_programa = piezas_adicionales = 0.0
     n_adicionales = 0
+    cat_stats = defaultdict(lambda: {'clues': set(), 'claves': 0, 'piezas': 0.0, 'adic': 0.0, 'prog': 0.0})
+    clues_all: Set[str] = set()
+
+    def _folios_txt(info: dict) -> str:
+        folios = info.get('folios') or []
+        txt = ', '.join(folios[:6])
+        if len(folios) > 6:
+            txt += f' (+{len(folios) - 6} más)'
+        return txt
 
     for key, rows in programa.items():
         info = agg.get(key)
+        clues, _clave = key
         for r in rows:
             proyectada = to_num(ws.cell(r, 11).value)
             cell_l = ws.cell(r, 12)
             cell_obs = ws.cell(r, 15)
-            prev = str(cell_obs.value or '').strip()
-            for tag in (
-                'ENTREGADO según reporte pedidos',
-                'SIN ENTREGA en reporte de pedidos',
-                'ENTREGA ADICIONAL',
-                'Sin entrega en el periodo',
-                'Entrega parcial',
-                'Entregado conforme a programa',
-                'falta de existencia',
-            ):
-                if tag.lower() in prev.lower():
-                    parts = [
-                        p.strip()
-                        for p in prev.split('|')
-                        if p.strip() and tag.lower() not in p.lower()
-                    ]
-                    prev = ' | '.join(parts)
+            cat = str(ws.cell(r, 3).value or 'Sin categoría').strip()
+            clues_all.add(clues)
 
             if info and info['cantidad'] > 0:
                 cant = info['cantidad']
                 cell_l.value = cant
                 piezas_programa += cant
-                folios = ', '.join(info['folios'][:6])
-                if len(info['folios']) > 6:
-                    folios += f' (+{len(info["folios"]) - 6} más)'
+                folios = _folios_txt(info)
                 if proyectada and cant + 0.001 < proyectada:
                     n_parcial += 1
                     cell_l.fill = fill_parcial
@@ -235,70 +240,78 @@ def complementar_workbook(
                     cell_l.fill = fill_entregado
                     cell_l.font = font_ok
                     nota = f'Entregado conforme a programa. Folios: {folios}'
-                cell_obs.value = (prev + ' | ' + nota) if prev else nota
+                cell_obs.value = nota
+                cat_stats[cat]['prog'] += cant
+                cat_stats[cat]['piezas'] += cant
             else:
                 n_sin_exist += 1
                 cell_l.value = 0
                 cell_l.fill = fill_sin_exist
                 cell_l.font = font_info
-                nota = (
+                cell_obs.value = (
                     'Sin entrega en el periodo por falta de existencia o disponibilidad '
                     'en almacén central (no implica falta de gestión).'
                 )
-                cell_obs.value = (prev + ' | ' + nota) if prev else nota
+            cat_stats[cat]['clues'].add(clues)
+            cat_stats[cat]['claves'] += 1
 
     last_data_row = max((max(rows) for rows in programa.values()), default=header_row)
-    template_row = data_start if data_start <= ws.max_row else header_row
 
-    adicionales = [
-        (clues, clave, info)
-        for (clues, clave), info in sorted(agg.items(), key=lambda x: (x[0][0], x[0][1]))
-        if (clues, clave) not in programa and info['cantidad'] > 0
-    ]
+    info_en_programa = {id(agg[k]) for k in programa if k in agg}
+    vistos = set()
+    adicionales = []
+    for key, info in agg.items():
+        oid = id(info)
+        if oid in vistos or oid in info_en_programa:
+            continue
+        vistos.add(oid)
+        if info['cantidad'] <= 0:
+            continue
+        clues_pref = info.get('clues_preferida') or key[0]
+        adicionales.append((clues_pref, key[1], info))
+
+    adicionales.sort(key=lambda x: (x[0], x[1]))
+    truncados = max(0, len(adicionales) - MAX_FILAS_ADICIONALES)
+    if truncados:
+        adicionales = adicionales[:MAX_FILAS_ADICIONALES]
 
     for clues, clave, info in adicionales:
         last_data_row += 1
         n_adicionales += 1
         piezas_adicionales += info['cantidad']
-        copy_row_style(ws, template_row, last_data_row, 15)
         meta = meta_clues.get(clues, {})
         en_extra = (clues, clave) in extra_pairs
-        folios = ', '.join(info['folios'][:6])
-        if len(info['folios']) > 6:
-            folios += f' (+{len(info["folios"]) - 6} más)'
+        folios = _folios_txt(info)
+        cat = meta.get('categoria') or 'Entrega adicional'
 
         ws.cell(last_data_row, 1).value = meta.get('entidad') or 'CIUDAD DE MEXICO'
         ws.cell(last_data_row, 2).value = clues
-        ws.cell(last_data_row, 3).value = meta.get('categoria') or info.get('categoria') or 'Entrega adicional'
+        ws.cell(last_data_row, 3).value = cat
         ws.cell(last_data_row, 4).value = clave
         ws.cell(last_data_row, 5).value = 'Entrega adicional'
         ws.cell(last_data_row, 6).value = 'Atención a demanda / fuera de programa'
         ws.cell(last_data_row, 7).value = info.get('descripcion') or ''
         ws.cell(last_data_row, 8).value = meta.get('unidad') or ''
-        ws.cell(last_data_row, 9).value = None
-        ws.cell(last_data_row, 10).value = None
         ws.cell(last_data_row, 11).value = 0
         cell_l = ws.cell(last_data_row, 12)
         cell_l.value = info['cantidad']
         cell_l.fill = fill_adicional
         cell_l.font = font_adic
         ws.cell(last_data_row, 13).value = 'ENTREGA ADICIONAL'
-        ws.cell(last_data_row, 14).value = None
         obs = (
             'ENTREGA ADICIONAL / fuera del programa de desplazamiento. '
-            'Atención a necesidades de la unidad más allá del listado base. '
             f'Folios: {folios}'
         )
         if en_extra:
-            obs += ' (También referida en hoja Extraordinario).'
+            obs += ' (También en Extraordinario).'
         ws.cell(last_data_row, 15).value = obs
-        for col in range(1, 16):
-            if col == 12:
-                continue
-            c = ws.cell(last_data_row, col)
-            c.fill = fill_adic_row
 
-    # Resumen ejecutivo
+        clues_all.add(clues)
+        cat_stats[cat]['clues'].add(clues)
+        cat_stats[cat]['claves'] += 1
+        cat_stats[cat]['piezas'] += info['cantidad']
+        cat_stats[cat]['adic'] += info['cantidad']
+
     _reescribir_resumen(
         wb,
         anio=anio,
@@ -311,13 +324,13 @@ def complementar_workbook(
         n_adicionales=n_adicionales,
         piezas_programa=piezas_programa,
         piezas_adicionales=piezas_adicionales,
-        ws_datos=ws,
-        data_start=data_start,
-        last_data_row=last_data_row,
+        cat_stats=cat_stats,
+        clues_all=clues_all,
         fill_entregado=fill_entregado,
         fill_parcial=fill_parcial,
         fill_sin_exist=fill_sin_exist,
         fill_adicional=fill_adicional,
+        adicionales_truncados=truncados,
     )
 
     for name in ('Entregas fuera de programa', 'Resumen cruce entregas'):
@@ -329,7 +342,7 @@ def complementar_workbook(
     buf.seek(0)
 
     total = piezas_programa + piezas_adicionales
-    stats = {
+    return buf, {
         'anio': anio,
         'mes': mes,
         'pares_programa': len(programa),
@@ -340,9 +353,10 @@ def complementar_workbook(
         'piezas_programa': piezas_programa,
         'piezas_adicionales': piezas_adicionales,
         'piezas_total': total,
-        'pares_surtimiento_bd': len(agg),
+        'pares_surtimiento_bd': len({id(v) for v in agg.values()}),
+        'clues_filtradas': len(clues_en_excel),
+        'adicionales_truncados': truncados,
     }
-    return buf, stats
 
 
 def _reescribir_resumen(
@@ -358,19 +372,19 @@ def _reescribir_resumen(
     n_adicionales,
     piezas_programa,
     piezas_adicionales,
-    ws_datos,
-    data_start,
-    last_data_row,
+    cat_stats,
+    clues_all,
     fill_entregado,
     fill_parcial,
     fill_sin_exist,
     fill_adicional,
+    adicionales_truncados=0,
 ):
     if 'Resumen' not in wb.sheetnames:
         wsr = wb.create_sheet('Resumen', 0)
     else:
         wsr = wb['Resumen']
-        for row in wsr.iter_rows(min_row=1, max_row=100, max_col=12):
+        for row in wsr.iter_rows(min_row=1, max_row=80, max_col=12):
             for cell in row:
                 cell.value = None
                 cell.fill = PatternFill()
@@ -383,25 +397,6 @@ def _reescribir_resumen(
     total = piezas_programa + piezas_adicionales
     cobertura = (n_entregado + n_parcial) / max(n_programa, 1) * 100
     pct_adic = piezas_adicionales / max(total, 1) * 100
-
-    cat_stats = defaultdict(lambda: {'clues': set(), 'claves': 0, 'piezas': 0.0, 'adic': 0.0, 'prog': 0.0})
-    clues_all = set()
-    for r in range(data_start, last_data_row + 1):
-        clues = norm(ws_datos.cell(r, 2).value)
-        clave = norm(ws_datos.cell(r, 4).value)
-        if not clues or not clave:
-            continue
-        cat = str(ws_datos.cell(r, 3).value or 'Sin categoría').strip()
-        tipo = str(ws_datos.cell(r, 5).value or '').strip()
-        cant = to_num(ws_datos.cell(r, 12).value)
-        cat_stats[cat]['clues'].add(clues)
-        cat_stats[cat]['claves'] += 1
-        cat_stats[cat]['piezas'] += cant
-        clues_all.add(clues)
-        if tipo == 'Entrega adicional':
-            cat_stats[cat]['adic'] += cant
-        else:
-            cat_stats[cat]['prog'] += cant
 
     title_font = Font(bold=True, size=14, color='1F4E79')
     kpi_fill = PatternFill('solid', fgColor='1F4E79')
@@ -417,34 +412,35 @@ def _reescribir_resumen(
         f'Generado: {datetime.now().strftime("%d/%m/%Y %H:%M")}'
     )
     wsr['A2'].font = Font(italic=True, size=10)
-
     wsr['A4'] = 'INDICADORES DE GESTIÓN'
     wsr['A4'].font = Font(bold=True, size=12, color='833C0C')
 
     kpis = [
-        (6, 'TOTAL PIEZAS ENTREGADAS', f'{total:,.0f}', True),
-        (7, 'Piezas del programa (Datos)', f'{piezas_programa:,.0f}', False),
-        (8, 'Piezas ENTREGA ADICIONAL (fuera de listado base)', f'{piezas_adicionales:,.0f}', True),
-        (9, '% del volumen que fue atención adicional', f'{pct_adic:.1f}%', True),
-        (10, 'CLUES atendidas', f'{len(clues_all)}', False),
-        (11, 'Líneas de programa con entrega', f'{n_entregado + n_parcial} de {n_programa} ({cobertura:.1f}%)', False),
-        (12, 'Líneas sin entrega por existencia/disponibilidad', f'{n_sin_exist}', False),
-        (13, 'Líneas de entrega adicional agregadas', f'{n_adicionales}', True),
+        (6, 'TOTAL PIEZAS ENTREGADAS', f'{total:,.0f}', 'total'),
+        (7, 'Piezas del programa (Datos)', f'{piezas_programa:,.0f}', ''),
+        (8, 'Piezas ENTREGA ADICIONAL (fuera de listado base)', f'{piezas_adicionales:,.0f}', 'adic'),
+        (9, '% del volumen que fue atención adicional', f'{pct_adic:.1f}%', 'adic'),
+        (10, 'CLUES atendidas', f'{len(clues_all)}', ''),
+        (11, 'Líneas de programa con entrega', f'{n_entregado + n_parcial} de {n_programa} ({cobertura:.1f}%)', ''),
+        (12, 'Líneas sin entrega por existencia/disponibilidad', f'{n_sin_exist}', ''),
+        (13, 'Líneas de entrega adicional agregadas', f'{n_adicionales}', 'adic'),
     ]
-    for row, label, val, highlight_adic in kpis:
+    for row, label, val, kind in kpis:
         wsr.cell(row, 1, label).fill = kpi_fill
         wsr.cell(row, 1).font = kpi_font
         wsr.cell(row, 2, val).font = Font(bold=True, size=12)
-        if row == 6:
+        if kind == 'total':
             wsr.cell(row, 2).fill = pos_fill
-        elif highlight_adic:
+        elif kind == 'adic':
             wsr.cell(row, 2).fill = adic_fill
 
-    wsr['A15'] = (
-        'Lectura: las líneas en azul en Datos no entregadas responden a falta de existencia/disponibilidad, '
-        'no a falta de operación. Las líneas en naranja son entregas adicionales que evidencian atención '
-        'a demanda real de las unidades, más allá del programa base.'
+    nota = (
+        'Lectura: azul en Datos = sin entrega por existencia/disponibilidad (no es falta de operación). '
+        'Naranja = entrega adicional (atención a demanda fuera del programa base).'
     )
+    if adicionales_truncados:
+        nota += f' Se limitaron las adicionales a {MAX_FILAS_ADICIONALES} filas ({adicionales_truncados} omitidas).'
+    wsr['A15'] = nota
     wsr['A15'].alignment = Alignment(wrap_text=True)
     wsr.merge_cells('A15:F17')
 
