@@ -29,6 +29,26 @@ Key = Tuple[str, str]  # (clues_norm, clave_norm)
 
 MAX_FILAS_ADICIONALES = 5000
 
+MESES_NOMBRE = (
+    '', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
+    'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
+)
+
+_MESES_EN_NOMBRE = {
+    'ENERO': 1, 'FEBRERO': 2, 'MARZO': 3, 'ABRIL': 4, 'MAYO': 5, 'JUNIO': 6,
+    'JULIO': 7, 'AGOSTO': 8, 'SEPTIEMBRE': 9, 'SETIEMBRE': 9, 'OCTUBRE': 10,
+    'NOVIEMBRE': 11, 'DICIEMBRE': 12,
+}
+
+
+def mes_sugerido_en_nombre(nombre: str) -> Optional[int]:
+    """Si el nombre del archivo menciona un mes, lo regresa (1-12)."""
+    up = norm(nombre)
+    for token, num in _MESES_EN_NOMBRE.items():
+        if token in up:
+            return num
+    return None
+
 
 def norm(v) -> str:
     return str(v).strip().upper() if v is not None else ''
@@ -200,6 +220,16 @@ def complementar_workbook(
     font_info = Font(color='1F4E79')
     font_adic = Font(color='C65911', bold=True)
 
+    periodo_txt = f'{MESES_NOMBRE[mes]} {anio}'
+    aviso_archivo = ''
+    mes_en_archivo = mes_sugerido_en_nombre(nombre_fuente or '')
+    if mes_en_archivo and mes_en_archivo != mes:
+        aviso_archivo = (
+            f'AVISO: el archivo base menciona {MESES_NOMBRE[mes_en_archivo]} pero el filtro '
+            f'de surtimientos es {periodo_txt}. La columna FECHA PROGRAMADA DE ENTREGA '
+            f'pertenece al Excel cargado; las piezas sí corresponden a {periodo_txt}.'
+        )
+
     n_entregado = n_parcial = n_sin_exist = 0
     piezas_programa = piezas_adicionales = 0.0
     n_adicionales = 0
@@ -232,6 +262,7 @@ def complementar_workbook(
                     n_parcial += 1
                     cell_l.fill = fill_parcial
                     nota = (
+                        f'Surtido en {periodo_txt} (fecha de surtimiento). '
                         f'Entrega parcial ({cant:g} de {proyectada:g} proyectadas). '
                         f'Resto sujeto a existencia/disponibilidad. Folios: {folios}'
                     )
@@ -239,7 +270,10 @@ def complementar_workbook(
                     n_entregado += 1
                     cell_l.fill = fill_entregado
                     cell_l.font = font_ok
-                    nota = f'Entregado conforme a programa. Folios: {folios}'
+                    nota = (
+                        f'Surtido en {periodo_txt} (fecha de surtimiento). '
+                        f'Entregado conforme a programa. Folios: {folios}'
+                    )
                 cell_obs.value = nota
                 cat_stats[cat]['prog'] += cant
                 cat_stats[cat]['piezas'] += cant
@@ -249,7 +283,7 @@ def complementar_workbook(
                 cell_l.fill = fill_sin_exist
                 cell_l.font = font_info
                 cell_obs.value = (
-                    'Sin entrega en el periodo por falta de existencia o disponibilidad '
+                    f'Sin entrega en {periodo_txt} por falta de existencia o disponibilidad '
                     'en almacén central (no implica falta de gestión).'
                 )
             cat_stats[cat]['clues'].add(clues)
@@ -299,8 +333,8 @@ def complementar_workbook(
         cell_l.font = font_adic
         ws.cell(last_data_row, 13).value = 'ENTREGA ADICIONAL'
         obs = (
-            'ENTREGA ADICIONAL / fuera del programa de desplazamiento. '
-            f'Folios: {folios}'
+            f'ENTREGA ADICIONAL / fuera del programa de desplazamiento. '
+            f'Surtido en {periodo_txt} (fecha de surtimiento). Folios: {folios}'
         )
         if en_extra:
             obs += ' (También en Extraordinario).'
@@ -331,6 +365,7 @@ def complementar_workbook(
         fill_sin_exist=fill_sin_exist,
         fill_adicional=fill_adicional,
         adicionales_truncados=truncados,
+        aviso_archivo=aviso_archivo,
     )
 
     for name in ('Entregas fuera de programa', 'Resumen cruce entregas'):
@@ -379,6 +414,7 @@ def _reescribir_resumen(
     fill_sin_exist,
     fill_adicional,
     adicionales_truncados=0,
+    aviso_archivo='',
 ):
     if 'Resumen' not in wb.sheetnames:
         wsr = wb.create_sheet('Resumen', 0)
@@ -390,28 +426,32 @@ def _reescribir_resumen(
                 cell.fill = PatternFill()
                 cell.font = Font()
 
-    meses = (
-        '', 'Enero', 'Febrero', 'Marzo', 'Abril', 'Mayo', 'Junio',
-        'Julio', 'Agosto', 'Septiembre', 'Octubre', 'Noviembre', 'Diciembre',
-    )
     total = piezas_programa + piezas_adicionales
     cobertura = (n_entregado + n_parcial) / max(n_programa, 1) * 100
     pct_adic = piezas_adicionales / max(total, 1) * 100
+    periodo_txt = f'{MESES_NOMBRE[mes]} {anio}'
 
     title_font = Font(bold=True, size=14, color='1F4E79')
     kpi_fill = PatternFill('solid', fgColor='1F4E79')
     kpi_font = Font(bold=True, color='FFFFFF', size=11)
     pos_fill = PatternFill('solid', fgColor='C6EFCE')
     adic_fill = PatternFill('solid', fgColor='FCE4D6')
+    warn_fill = PatternFill('solid', fgColor='FFF2CC')
 
-    wsr['A1'] = f'AVANCE DE ENTREGAS — {meses[mes].upper()} {anio}'
+    wsr['A1'] = f'AVANCE DE ENTREGAS — {MESES_NOMBRE[mes].upper()} {anio}'
     wsr['A1'].font = title_font
     wsr['A2'] = (
-        f'Complementado con surtimientos del sistema | '
+        f'Complementado con surtimientos del sistema (fecha de surtimiento = {periodo_txt}) | '
         f'Archivo base: {nombre_fuente or "programa mensual"} | '
         f'Generado: {datetime.now().strftime("%d/%m/%Y %H:%M")}'
     )
     wsr['A2'].font = Font(italic=True, size=10)
+    if aviso_archivo:
+        wsr['A3'] = aviso_archivo
+        wsr['A3'].font = Font(bold=True, size=10, color='9C5700')
+        wsr['A3'].fill = warn_fill
+        wsr['A3'].alignment = Alignment(wrap_text=True)
+        wsr.merge_cells('A3:F3')
     wsr['A4'] = 'INDICADORES DE GESTIÓN'
     wsr['A4'].font = Font(bold=True, size=12, color='833C0C')
 
@@ -435,6 +475,9 @@ def _reescribir_resumen(
             wsr.cell(row, 2).fill = adic_fill
 
     nota = (
+        f'Criterio de piezas: LoteAsignado surtido con fecha_surtimiento en {periodo_txt}. '
+        'La columna FECHA PROGRAMADA DE ENTREGA del Excel base no se modifica (es del programa cargado, '
+        'no la fecha real de surtimiento). Folios con “-09-” u otro número son nombre de folio, no el mes. '
         'Lectura: azul en Datos = sin entrega por existencia/disponibilidad (no es falta de operación). '
         'Naranja = entrega adicional (atención a demanda fuera del programa base).'
     )
