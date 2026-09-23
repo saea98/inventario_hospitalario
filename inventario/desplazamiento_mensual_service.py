@@ -420,6 +420,9 @@ def _reescribir_resumen(
         wsr = wb.create_sheet('Resumen', 0)
     else:
         wsr = wb['Resumen']
+        # openpyxl no permite escribir value en MergedCell; hay que descombinar primero
+        for merged_range in list(wsr.merged_cells.ranges):
+            wsr.unmerge_cells(str(merged_range))
         for row in wsr.iter_rows(min_row=1, max_row=80, max_col=12):
             for cell in row:
                 cell.value = None
