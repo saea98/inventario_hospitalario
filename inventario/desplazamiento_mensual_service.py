@@ -155,6 +155,65 @@ def obtener_surtimientos_mes(
     return agg
 
 
+def encontrar_hoja(wb, *nombres):
+    """Busca hoja por nombre (case-insensitive)."""
+    por_lower = {str(n).strip().lower(): n for n in wb.sheetnames}
+    for nom in nombres:
+        key = str(nom).strip().lower()
+        if key in por_lower:
+            return wb[por_lower[key]]
+    return None
+
+
+def detectar_columnas(ws, header_row: int) -> Dict[str, int]:
+    """
+    Mapea columnas por encabezado. Soporta formato hospitalario (15 cols)
+    y formato 1er nivel (12 cols).
+    """
+    cols: Dict[str, int] = {}
+    max_c = min(ws.max_column or 20, 30)
+    for c in range(1, max_c + 1):
+        h = norm(ws.cell(header_row, c).value)
+        if not h:
+            continue
+        # Cantidades primero: sus títulos también contienen "UNIDAD MEDICA"
+        if 'PROYECTADA' in h:
+            cols['proyectada'] = c
+        elif 'REAL FISICA' in h or 'REAL FÍSICA' in h or (
+            'ENTREGADA' in h and 'PROYECCION' not in h and 'PROYECCIÓN' not in h
+        ):
+            cols['entregada'] = c
+        elif h == 'ENTIDAD' or h.startswith('ENTIDAD'):
+            cols.setdefault('entidad', c)
+        elif h == 'CLUES':
+            cols['clues'] = c
+        elif 'CATEGORIA' in h:
+            cols['categoria'] = c
+        elif h == 'CLAVE' or (h.startswith('CLAVE') and 'UNIC' not in h):
+            cols.setdefault('clave', c)
+        elif 'DESCRIPCION' in h or 'DESCRIPCIÓN' in h:
+            cols.setdefault('descripcion', c)
+        elif h == 'UNIDAD MEDICA' or h == 'UNIDAD MÉDICA' or (
+            ('UNIDAD MEDICA' in h or 'UNIDAD MÉDICA' in h)
+            and 'PROYECTADA' not in h
+            and 'ENTREGADA' not in h
+            and 'PROYECCION' not in h
+            and 'PROYECCIÓN' not in h
+            and 'EXISTENCIA' not in h
+            and 'CPM' not in h
+        ):
+            cols.setdefault('unidad', c)
+        elif 'FECHA PROGRAMADA' in h or h == 'FECHA':
+            cols.setdefault('fecha', c)
+        elif 'OBSERVACION' in h:
+            cols['observaciones'] = c
+        elif h == 'TIPO DE CLAVE' or h == 'TIPO':
+            cols.setdefault('tipo', c)
+        elif h == 'INSUMO':
+            cols['insumo'] = c
+    return cols
+
+
 def complementar_workbook(
     archivo,
     anio: int,
@@ -165,45 +224,79 @@ def complementar_workbook(
     """
     Llena el programa mensual con surtimientos del mes.
     Orden: Excel → CLUES → query acotada → escritura ligera.
+    Soporta hoja Datos/DATOS y layouts hospitalario / 1er nivel.
     """
     wb = load_workbook(archivo, keep_links=False)
 
-    if 'Datos' not in wb.sheetnames:
-        raise ValueError("El archivo debe contener la hoja 'Datos'.")
-
-    ws = wb['Datos']
+    ws = encontrar_hoja(wb, 'Datos', 'DATOS')
+    if ws is None:
+        raise ValueError("El archivo debe contener la hoja 'Datos' (o 'DATOS').")
 
     header_row = None
-    for r in range(1, min(20, ws.max_row + 1)):
-        vals = [norm(ws.cell(r, c).value) for c in range(1, 16)]
-        if 'CLUES' in vals and 'CLAVE' in vals:
+    for r in range(1, min(25, (ws.max_row or 1) + 1)):
+        vals = [norm(ws.cell(r, c).value) for c in range(1, min((ws.max_column or 15) + 1, 20))]
+        if 'CLUES' in vals and any(v == 'CLAVE' or v.startswith('CLAVE') for v in vals):
             header_row = r
             break
     if not header_row:
-        header_row = 8
-    data_start = header_row + 1
+        raise ValueError("No se encontró el renglón de encabezados con CLUES y CLAVE en la hoja Datos.")
 
+    cols = detectar_columnas(ws, header_row)
+    required = ('clues', 'clave', 'entregada')
+    missing = [k for k in required if k not in cols]
+    if missing:
+        raise ValueError(
+            f"Faltan columnas en Datos: {', '.join(missing)}. "
+            f"Encabezados detectados en fila {header_row}."
+        )
+
+    col_clues = cols['clues']
+    col_clave = cols['clave']
+    col_entregada = cols['entregada']
+    col_proyectada = cols.get('proyectada')
+    col_obs = cols.get('observaciones')
+    col_entidad = cols.get('entidad', 1)
+    col_categoria = cols.get('categoria')
+    col_unidad = cols.get('unidad')
+    col_desc = cols.get('descripcion')
+    col_fecha = cols.get('fecha')
+    col_tipo = cols.get('tipo')
+    col_insumo = cols.get('insumo')
+
+    data_start = header_row + 1
     meta_clues = {}
     programa: Dict[Key, List[int]] = {}
     clues_en_excel: Set[str] = set()
-    for r in range(data_start, ws.max_row + 1):
-        clues = norm(ws.cell(r, 2).value)
-        clave = norm(ws.cell(r, 4).value)
+
+    # Lectura por filas (más rápido que cell() suelto en archivos grandes)
+    max_col = max(cols.values())
+    for row in ws.iter_rows(min_row=data_start, max_row=ws.max_row, max_col=max_col):
+        r = row[0].row
+        clues = norm(row[col_clues - 1].value)
+        clave = norm(row[col_clave - 1].value)
         if not clues or not clave:
+            continue
+        if clues in ('CLUES', 'ENTIDAD') or clave == 'CLAVE':
             continue
         programa.setdefault((clues, clave), []).append(r)
         clues_en_excel.add(clues)
         if clues not in meta_clues:
+            cat_val = ''
+            if col_categoria:
+                cat_val = row[col_categoria - 1].value or ''
+            unidad_val = ''
+            if col_unidad:
+                unidad_val = row[col_unidad - 1].value or ''
             meta_clues[clues] = {
-                'entidad': ws.cell(r, 1).value or 'CIUDAD DE MEXICO',
-                'categoria': ws.cell(r, 3).value or '',
-                'unidad': ws.cell(r, 8).value or '',
+                'entidad': (row[col_entidad - 1].value if col_entidad else None) or 'CIUDAD DE MEXICO',
+                'categoria': cat_val,
+                'unidad': unidad_val,
             }
 
     extra_pairs = set()
-    if 'Extraordinario' in wb.sheetnames:
-        wse = wb['Extraordinario']
-        for r in range(8, min(wse.max_row + 1, 5000)):
+    wse = encontrar_hoja(wb, 'Extraordinario')
+    if wse is not None:
+        for r in range(8, min((wse.max_row or 0) + 1, 5000)):
             clues = norm(wse.cell(r, 3).value)
             clave = norm(wse.cell(r, 4).value)
             if clues and clave and not clues.startswith('ENTIDAD'):
@@ -230,6 +323,10 @@ def complementar_workbook(
             f'pertenece al Excel cargado; las piezas sí corresponden a {periodo_txt}.'
         )
 
+    # En archivos muy grandes (1er nivel ~37k filas) pintar cada "sin entrega"
+    # satura CPU/memoria y provoca 502; solo marcamos filas con entrega.
+    modo_ligero = len(programa) > 8000
+
     n_entregado = n_parcial = n_sin_exist = 0
     piezas_programa = piezas_adicionales = 0.0
     n_adicionales = 0
@@ -243,14 +340,19 @@ def complementar_workbook(
             txt += f' (+{len(folios) - 6} más)'
         return txt
 
+    def _categoria_fila(r: int) -> str:
+        if col_categoria:
+            return str(ws.cell(r, col_categoria).value or 'Sin categoría').strip() or 'Sin categoría'
+        return '1er nivel / sin categoría gerencial'
+
     for key, rows in programa.items():
         info = agg.get(key)
         clues, _clave = key
         for r in rows:
-            proyectada = to_num(ws.cell(r, 11).value)
-            cell_l = ws.cell(r, 12)
-            cell_obs = ws.cell(r, 15)
-            cat = str(ws.cell(r, 3).value or 'Sin categoría').strip()
+            proyectada = to_num(ws.cell(r, col_proyectada).value) if col_proyectada else 0.0
+            cell_l = ws.cell(r, col_entregada)
+            cell_obs = ws.cell(r, col_obs) if col_obs else None
+            cat = _categoria_fila(r)
             clues_all.add(clues)
 
             if info and info['cantidad'] > 0:
@@ -274,18 +376,21 @@ def complementar_workbook(
                         f'Surtido en {periodo_txt} (fecha de surtimiento). '
                         f'Entregado conforme a programa. Folios: {folios}'
                     )
-                cell_obs.value = nota
+                if cell_obs is not None:
+                    cell_obs.value = nota
                 cat_stats[cat]['prog'] += cant
                 cat_stats[cat]['piezas'] += cant
             else:
                 n_sin_exist += 1
-                cell_l.value = 0
-                cell_l.fill = fill_sin_exist
-                cell_l.font = font_info
-                cell_obs.value = (
-                    f'Sin entrega en {periodo_txt} por falta de existencia o disponibilidad '
-                    'en almacén central (no implica falta de gestión).'
-                )
+                if not modo_ligero:
+                    cell_l.value = 0
+                    cell_l.fill = fill_sin_exist
+                    cell_l.font = font_info
+                    if cell_obs is not None:
+                        cell_obs.value = (
+                            f'Sin entrega en {periodo_txt} por falta de existencia o disponibilidad '
+                            'en almacén central (no implica falta de gestión).'
+                        )
             cat_stats[cat]['clues'].add(clues)
             cat_stats[cat]['claves'] += 1
 
@@ -318,33 +423,48 @@ def complementar_workbook(
         folios = _folios_txt(info)
         cat = meta.get('categoria') or 'Entrega adicional'
 
-        ws.cell(last_data_row, 1).value = meta.get('entidad') or 'CIUDAD DE MEXICO'
-        ws.cell(last_data_row, 2).value = clues
-        ws.cell(last_data_row, 3).value = cat
-        ws.cell(last_data_row, 4).value = clave
-        ws.cell(last_data_row, 5).value = 'Entrega adicional'
-        ws.cell(last_data_row, 6).value = 'Atención a demanda / fuera de programa'
-        ws.cell(last_data_row, 7).value = info.get('descripcion') or ''
-        ws.cell(last_data_row, 8).value = meta.get('unidad') or ''
-        ws.cell(last_data_row, 11).value = 0
-        cell_l = ws.cell(last_data_row, 12)
+        ws.cell(last_data_row, col_entidad).value = meta.get('entidad') or 'CIUDAD DE MEXICO'
+        ws.cell(last_data_row, col_clues).value = clues
+        if col_categoria:
+            ws.cell(last_data_row, col_categoria).value = cat
+        ws.cell(last_data_row, col_clave).value = clave
+        if col_tipo:
+            ws.cell(last_data_row, col_tipo).value = 'Entrega adicional'
+        if col_insumo:
+            ws.cell(last_data_row, col_insumo).value = 'Atención a demanda / fuera de programa'
+        if col_desc:
+            ws.cell(last_data_row, col_desc).value = info.get('descripcion') or ''
+        if col_unidad:
+            ws.cell(last_data_row, col_unidad).value = meta.get('unidad') or ''
+        if col_proyectada:
+            ws.cell(last_data_row, col_proyectada).value = 0
+        cell_l = ws.cell(last_data_row, col_entregada)
         cell_l.value = info['cantidad']
         cell_l.fill = fill_adicional
         cell_l.font = font_adic
-        ws.cell(last_data_row, 13).value = 'ENTREGA ADICIONAL'
+        if col_fecha:
+            ws.cell(last_data_row, col_fecha).value = 'ENTREGA ADICIONAL'
         obs = (
             f'ENTREGA ADICIONAL / fuera del programa de desplazamiento. '
             f'Surtido en {periodo_txt} (fecha de surtimiento). Folios: {folios}'
         )
         if en_extra:
             obs += ' (También en Extraordinario).'
-        ws.cell(last_data_row, 15).value = obs
+        if col_obs:
+            ws.cell(last_data_row, col_obs).value = obs
 
         clues_all.add(clues)
         cat_stats[cat]['clues'].add(clues)
         cat_stats[cat]['claves'] += 1
         cat_stats[cat]['piezas'] += info['cantidad']
         cat_stats[cat]['adic'] += info['cantidad']
+
+    if modo_ligero:
+        extra_aviso = (
+            f' Archivo grande ({len(programa)} líneas de programa): solo se colorearon '
+            f'líneas con entrega; las sin surtimiento se dejaron sin marcar para evitar timeout.'
+        )
+        aviso_archivo = (aviso_archivo + extra_aviso).strip()
 
     _reescribir_resumen(
         wb,
@@ -368,8 +488,8 @@ def complementar_workbook(
         aviso_archivo=aviso_archivo,
     )
 
-    for name in ('Entregas fuera de programa', 'Resumen cruce entregas'):
-        if name in wb.sheetnames:
+    for name in list(wb.sheetnames):
+        if name.lower() in ('entregas fuera de programa', 'resumen cruce entregas'):
             del wb[name]
 
     buf = BytesIO()
@@ -391,6 +511,8 @@ def complementar_workbook(
         'pares_surtimiento_bd': len({id(v) for v in agg.values()}),
         'clues_filtradas': len(clues_en_excel),
         'adicionales_truncados': truncados,
+        'modo_ligero': modo_ligero,
+        'columnas': cols,
     }
 
 
@@ -416,10 +538,10 @@ def _reescribir_resumen(
     adicionales_truncados=0,
     aviso_archivo='',
 ):
-    if 'Resumen' not in wb.sheetnames:
+    wsr = encontrar_hoja(wb, 'Resumen', 'RESUMEN')
+    if wsr is None:
         wsr = wb.create_sheet('Resumen', 0)
     else:
-        wsr = wb['Resumen']
         # openpyxl no permite escribir value en MergedCell; hay que descombinar primero
         for merged_range in list(wsr.merged_cells.ranges):
             wsr.unmerge_cells(str(merged_range))

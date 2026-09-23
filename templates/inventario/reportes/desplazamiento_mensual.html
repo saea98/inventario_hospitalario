@@ -52,8 +52,8 @@
                                 <input type="file" name="archivo" id="archivo" class="form-control"
                                        accept=".xlsx,.xlsm" required>
                                 <div class="form-text">
-                                    Debe incluir la hoja <code>Datos</code> con columnas CLUES, CLAVE y
-                                    «CANTIDAD REAL FISICA ENTREGADA…».
+                                    Debe incluir la hoja <code>Datos</code> / <code>DATOS</code> con columnas
+                                    CLUES, CLAVE y cantidad entregada. Sirve formato hospitalario o 1er nivel.
                                 </div>
                             </div>
                         </div>
@@ -81,6 +81,9 @@
                         <li>Actualiza el <strong>Resumen</strong> con indicadores para directivos.</li>
                     </ol>
                     <p class="text-muted mb-2">
+                        Acepta el formato hospitalario (hoja Datos) y el de <strong>1er nivel</strong>
+                        (hojas DATOS / RESUMEN). Si el proceso es muy grande (&gt;8&nbsp;000 líneas),
+                        solo se colorean las filas con entrega para evitar timeout.
                         Si el proceso tarda mucho o regresa error 502, prueba con un Excel más liviano
                         (una entidad) o un mes con menos movimiento. Límite de archivo: 15&nbsp;MB.
                     </p>
