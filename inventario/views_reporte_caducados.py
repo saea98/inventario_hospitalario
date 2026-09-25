@@ -20,6 +20,7 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
 from .models import Lote, Institucion, Almacen, UbicacionAlmacen
+from .lote_utils import resolver_remision_lote
 
 # Mismo layout que reporte de entradas (34 columnas) + columna de estado caducidad
 CADUCADOS_LAYOUT_HEADERS = [
@@ -147,7 +148,7 @@ def _construir_fila_caducado(lote):
         _fecha(lote and lote.fecha_recepcion),
         lugar_entrega,
         _valor(lote and lote.contrato),
-        _valor(lote and lote.remision),
+        _valor(resolver_remision_lote(lote)),
         _valor(os and os.numero_orden),
         _valor(lote and lote.numero_lote),
         _fecha(lote and lote.fecha_caducidad),

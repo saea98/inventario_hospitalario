@@ -744,6 +744,10 @@ def _remisiones_distintas_lote(lote):
             out.append(s)
 
     agregar(lote.remision)
+    # Si remisión vacía, a veces el número quedó en partida
+    if not out:
+        from .lote_utils import resolver_remision_lote
+        agregar(resolver_remision_lote(lote))
     item = ItemLlegada.objects.filter(lote_creado=lote).select_related("llegada").first()
     if item and item.llegada_id:
         agregar(item.llegada.remision)

@@ -19,6 +19,7 @@ from openpyxl.utils import get_column_letter
 
 from .models import MovimientoInventario, Institucion, Almacen, Proveedor, UbicacionAlmacen
 from .llegada_models import LlegadaProveedor
+from .lote_utils import resolver_remision_lote
 
 # Layout del reporte de entradas (34 columnas). Col C = PARTIDA, Col J = ORDEN DE SUMINISTRO.
 ENTRADAS_LAYOUT_HEADERS = [
@@ -242,7 +243,7 @@ def reporte_entradas(request):
                 lugar_entrega,
                 _valor(orden_suministro_val),
                 _valor(m.contrato or (lote and lote.contrato)),
-                _valor(m.remision or (lote and lote.remision)),
+                _valor(resolver_remision_lote(lote, remision=m.remision or (lote.remision if lote else None))),
                 _valor(lote and lote.numero_lote),
                 _fecha(lote and lote.fecha_caducidad),
                 _valor(m.folio or (lote and lote.folio)),
@@ -341,7 +342,7 @@ def _construir_fila_entrada(m, llegadas_por_folio=None):
         lugar_entrega,
         _valor(orden_suministro_val),                                                          # col 10 = ORDEN DE SUMINISTRO
         _valor(m.contrato or (lote and lote.contrato)),
-        _valor(m.remision or (lote and lote.remision)),
+                _valor(resolver_remision_lote(lote, remision=m.remision or (lote.remision if lote else None))),
         _valor(lote and lote.numero_lote),
         _fecha(lote and lote.fecha_caducidad),
         _valor(m.folio or (lote and lote.folio)),

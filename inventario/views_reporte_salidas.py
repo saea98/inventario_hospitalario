@@ -23,6 +23,7 @@ from openpyxl import Workbook
 
 from .models import MovimientoInventario, Institucion, Almacen
 from .propuesta_utils import enriquecer_movimientos_folio_observaciones_surtimiento
+from .lote_utils import resolver_remision_lote
 
 # Layout del reporte de salidas para auditorías
 SALIDAS_LAYOUT_HEADERS = [
@@ -274,7 +275,7 @@ def _construir_fila_salida(m):
         _valor(inst_destino and inst_destino.clue),
         _valor(inst_destino and inst_destino.ib_clue),
         _valor(m.contrato or (lote and lote.contrato)),
-        _valor(m.remision or (lote and lote.remision)),
+        _valor(resolver_remision_lote(lote, remision=m.remision or (lote.remision if lote else None))),
         _valor(os and os.numero_orden),
         _valor(m.licitacion or (lote and lote.licitacion)),
         _decimal(precio),

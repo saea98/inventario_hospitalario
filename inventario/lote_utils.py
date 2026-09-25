@@ -15,6 +15,26 @@ def _valor_o_vacio(val):
     return str(val)
 
 
+def resolver_remision_lote(lote, remision=None, partida=None):
+    """
+    Remisión efectiva del lote.
+
+    Si el campo remisión está vacío, sugiere/usa ``partida`` (en algunos casos
+    el número de remisión se captura ahí por error o por costumbre operativa).
+    También considera partida_presupuestal de la orden de suministro.
+    """
+    rem = _valor_o_vacio(remision if remision is not None else getattr(lote, 'remision', None))
+    if rem:
+        return rem
+    part = _valor_o_vacio(partida if partida is not None else getattr(lote, 'partida', None))
+    if part:
+        return part
+    orden = getattr(lote, 'orden_suministro', None) if lote is not None else None
+    if orden:
+        return _valor_o_vacio(getattr(orden, 'partida_presupuestal', None))
+    return ''
+
+
 def get_datos_complementarios_lote(lote):
     """
     Obtiene datos complementarios del lote desde relaciones:
@@ -113,6 +133,9 @@ def get_datos_complementarios_lote(lote):
                 out['pedido'] = _valor_o_vacio(getattr(sol, 'observaciones_solicitud', None))
         except Exception:
             pass
+    # Remisión vacía → sugerir partida (captura frecuente del número de remisión ahí)
+    if not out['remision'] and out['partida']:
+        out['remision'] = out['partida']
     return out
 
 
@@ -141,6 +164,9 @@ def completar_datos_lote_desde_llegada(lote, item_llegada):
         lote.folio = (getattr(llegada, 'folio', None) or '').strip()
     if not (getattr(lote, 'remision', None) or '').strip():
         lote.remision = (getattr(llegada, 'remision', None) or '').strip()
+    # Si sigue vacía, a veces el número de remisión quedó capturado en partida
+    if not (getattr(lote, 'remision', None) or '').strip():
+        lote.remision = (getattr(lote, 'partida', None) or '').strip()
     # Tipo red / tipo entrega
     if not (getattr(lote, 'tipo_red', None) or '').strip():
         lote.tipo_red = (getattr(llegada, 'tipo_red', None) or '').strip()
@@ -186,6 +212,8 @@ def completar_datos_lote_desde_transferencia(lote, item_transferencia):
         lote.folio = (transferencia.folio or '').strip()
     if not (getattr(lote, 'remision', None) or '').strip():
         lote.remision = (transferencia.remision or '').strip()
+    if not (getattr(lote, 'remision', None) or '').strip():
+        lote.remision = (getattr(lote, 'partida', None) or '').strip()
     if not (getattr(lote, 'tipo_entrega', None) or '').strip():
         lote.tipo_entrega = 'transferencia'
     if not (getattr(lote, 'proveedor', None) or '').strip():

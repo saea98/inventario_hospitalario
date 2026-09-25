@@ -37,6 +37,7 @@ from io import BytesIO
 from .models import Lote, Producto, Institucion, OrdenSuministro, Proveedor, MovimientoInventario
 from .pedidos_models import LoteAsignado
 from .propuesta_utils import totales_reserva_activa_por_lote_ids
+from .lote_utils import resolver_remision_lote
 from openpyxl import Workbook, load_workbook
 from openpyxl.styles import PatternFill, Font, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
@@ -505,7 +506,7 @@ def _fila_lote_existencias_a_dict(lote):
         'importe': lote.valor_total,
         'contrato': getattr(lote, 'contrato', '') or '',
         'orden_suministro': orden.numero_orden if orden else '',
-        'remision': getattr(lote, 'remision', '') or '',
+        'remision': resolver_remision_lote(lote),
         'proveedor': proveedor_nombre,
         'marca': getattr(producto, 'marca', '') or '' if producto else '',
         'fabricante': getattr(producto, 'fabricante', '') or '' if producto else '',

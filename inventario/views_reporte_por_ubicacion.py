@@ -16,6 +16,7 @@ from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter
 
 from .models import LoteUbicacion, Almacen, UbicacionAlmacen, Institucion, Lote
+from .lote_utils import resolver_remision_lote
 
 
 def _parse_decimal_param(raw):
@@ -134,7 +135,7 @@ def _fila_dict(lu):
         "cantidad_reservada": lu.cantidad_reservada,
         "estado_lote": lote.get_estado_display() if hasattr(lote, "get_estado_display") else str(lote.estado),
         "fecha_caducidad": lote.fecha_caducidad.strftime("%d/%m/%Y") if lote.fecha_caducidad else "—",
-        "remision": (lote.remision or "").strip() or "—",
+        "remision": resolver_remision_lote(lote) or "—",
         "precio_unitario": precio,
         "valor_linea": valor,
     }
