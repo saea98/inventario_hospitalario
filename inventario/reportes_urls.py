@@ -24,6 +24,7 @@ from .views_reporte_solicitud_informacion import (
     exportar_solicitud_informacion_excel,
 )
 from .views_desplazamiento_mensual import desplazamiento_mensual
+from .views_reporte_existencias_transferencias import existencias_transferencias
 
 app_name = 'reportes'
 
@@ -66,5 +67,10 @@ urlpatterns = [
         "desplazamiento-mensual/",
         desplazamiento_mensual,
         name="desplazamiento_mensual",
+    ),
+    path(
+        "transferencias-entre-estados/",
+        existencias_transferencias,
+        name="existencias_transferencias",
     ),
 ]

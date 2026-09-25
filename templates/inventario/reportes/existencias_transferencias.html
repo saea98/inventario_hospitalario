@@ -1,0 +1,112 @@
+{% extends 'base.html' %}
+{% load static %}
+
+{% block title %}Transferencias entre estados — existencias por clave{% endblock %}
+
+{% block content %}
+<div class="container-fluid mt-4">
+    <div class="row mb-4">
+        <div class="col-lg-8">
+            <h2><i class="fas fa-exchange-alt text-primary"></i> Transferencias entre estados</h2>
+            <p class="text-muted mb-0">
+                Consulta lotes con existencia de la(s) clave(s) solicitada(s) y descarga un Excel
+                en el formato de transferencias:
+                <strong>CLAVE, DESCRIPCIÓN, EXISTENCIAS, ORDEN DE SUMINISTRO, LOTE, CADUCIDAD</strong>.
+            </p>
+        </div>
+    </div>
+
+    <div class="row">
+        <div class="col-lg-6">
+            <div class="card shadow mb-4">
+                <div class="card-header bg-primary text-white">
+                    <h6 class="mb-0"><i class="fas fa-search"></i> Clave(s) a consultar</h6>
+                </div>
+                <div class="card-body">
+                    <form method="post">
+                        {% csrf_token %}
+                        <div class="mb-3">
+                            <label for="claves" class="form-label">Clave CNIS</label>
+                            <textarea name="claves" id="claves" class="form-control" rows="4"
+                                      placeholder="Ej. 010.000.3603.00&#10;Puedes pegar varias (una por línea o separadas por coma)"
+                                      required>{{ claves_sel }}</textarea>
+                            <div class="form-text">
+                                Solo se incluyen lotes con <strong>existencia &gt; 0</strong>.
+                            </div>
+                        </div>
+                        <div class="d-flex flex-wrap gap-2">
+                            <button type="submit" name="accion" value="vista_previa" class="btn btn-outline-primary">
+                                <i class="fas fa-eye"></i> Vista previa
+                            </button>
+                            <button type="submit" name="accion" value="descargar" class="btn btn-primary">
+                                <i class="fas fa-file-excel"></i> Descargar Excel
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+        <div class="col-lg-6">
+            <div class="card shadow mb-4">
+                <div class="card-header bg-light">
+                    <h6 class="mb-0"><i class="fas fa-info-circle"></i> Formato de salida</h6>
+                </div>
+                <div class="card-body small">
+                    <p class="mb-2">El archivo coincide con el anexo de campos de transferencias:</p>
+                    <ol class="mb-0 ps-3">
+                        <li>CLAVE</li>
+                        <li>DESCRIPCIÓN</li>
+                        <li>EXISTENCIAS</li>
+                        <li>ORDEN DE SUMINISTRO</li>
+                        <li>LOTE</li>
+                        <li>CADUCIDAD</li>
+                    </ol>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    {% if preview is not None %}
+    <div class="card shadow mb-4">
+        <div class="card-header bg-light d-flex justify-content-between align-items-center">
+            <h6 class="mb-0">
+                Vista previa —
+                {{ total_lotes }} lote(s),
+                {{ total_piezas|floatformat:0 }} pieza(s)
+            </h6>
+            {% if preview_truncado %}
+            <span class="badge bg-warning text-dark">Mostrando primeros 200</span>
+            {% endif %}
+        </div>
+        <div class="card-body table-responsive">
+            <table class="table table-sm table-striped align-middle">
+                <thead>
+                    <tr>
+                        <th>CLAVE</th>
+                        <th>DESCRIPCIÓN</th>
+                        <th class="text-end">EXISTENCIAS</th>
+                        <th>ORDEN DE SUMINISTRO</th>
+                        <th>LOTE</th>
+                        <th>CADUCIDAD</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for row in preview %}
+                    <tr>
+                        <td>{{ row.clave }}</td>
+                        <td>{{ row.descripcion|truncatechars:80 }}</td>
+                        <td class="text-end">{{ row.existencias }}</td>
+                        <td>{{ row.orden }}</td>
+                        <td>{{ row.lote }}</td>
+                        <td>{% if row.caducidad %}{{ row.caducidad|date:"d/m/Y" }}{% endif %}</td>
+                    </tr>
+                    {% empty %}
+                    <tr><td colspan="6" class="text-muted">Sin filas.</td></tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -256,6 +256,15 @@ class Command(BaseCommand):
                 'orden': 53,
                 'es_submenu': False,
             },
+            {
+                'menu_item': 'existencias_transferencias',
+                'nombre_mostrado': 'Transferencias entre estados',
+                'icono': 'fas fa-exchange-alt',
+                'url_name': 'reportes:existencias_transferencias',
+                'roles': ['Supervisión', 'Administrador', 'Gestor de Inventario', 'Analista', 'Almacenero'],
+                'orden': 54,
+                'es_submenu': False,
+            },
 
             # ===== SECCIÓN INVENTARIO =====
             {
