@@ -31,7 +31,8 @@
                                       placeholder="Ej. 010.000.3603.00&#10;Puedes pegar varias (una por línea o separadas por coma)"
                                       required>{{ claves_sel }}</textarea>
                             <div class="form-text">
-                                Solo se incluyen lotes con <strong>existencia &gt; 0</strong>.
+                                Existencias = stock físico (<code>cantidad_disponible</code>, tras entradas − salidas)
+                                menos reservas activas en propuestas. Solo lotes con <strong>neto &gt; 0</strong>.
                             </div>
                         </div>
                         <div class="d-flex flex-wrap gap-2">

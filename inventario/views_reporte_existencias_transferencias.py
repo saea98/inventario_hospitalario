@@ -4,7 +4,11 @@ Reporte de existencias por clave en formato de transferencias.
 Columnas (mismo orden que el anexo):
 CLAVE | DESCRIPCIÓN | EXISTENCIAS | ORDEN DE SUMINISTRO | LOTE | CADUCIDAD
 
-Una fila por lote con existencia > 0 de la(s) clave(s) solicitada(s).
+EXISTENCIAS = inventario disponible neto (misma regla que inventario detallado /
+disponibilidad): ``Lote.cantidad_disponible`` (stock físico tras entradas−salidas)
+menos reservas activas en propuestas (``LoteAsignado`` con surtido=False).
+
+Una fila por lote con existencia neta > 0 de la(s) clave(s) solicitada(s).
 """
 
 from __future__ import annotations
@@ -14,7 +18,7 @@ from io import BytesIO
 from typing import Iterable, List
 
 from django.contrib import messages
-from django.db.models import Q
+from django.db.models import Q, Sum
 from django.http import HttpResponse
 from django.shortcuts import render
 from openpyxl import Workbook
@@ -23,6 +27,7 @@ from openpyxl.utils import get_column_letter
 
 from .decorators_roles import requiere_rol
 from .models import Lote, MenuItemRol
+from .views_reporte_inventario_detallado import _annotate_inventario_disponible_real
 
 HEADERS = [
     'CLAVE',
@@ -65,9 +70,18 @@ def _claves_busqueda(claves: Iterable[str]) -> List[str]:
     return list(dict.fromkeys(todas))
 
 
+def _existencia_neta(lote) -> int:
+    """Lee el neto anotado; fallback defensivo si no viene anotado."""
+    if hasattr(lote, '_inventario_disponible_neto'):
+        return max(0, int(lote._inventario_disponible_neto or 0))
+    fisico = int(lote.cantidad_disponible or 0)
+    reservado = int(getattr(lote, 'cantidad_reservada', 0) or 0)
+    return max(0, fisico - reservado)
+
+
 def obtener_lotes_con_existencia(claves: List[str]):
     """
-    Lotes con cantidad_disponible > 0 cuya clave CNIS coincide
+    Lotes con existencia neta > 0 (físico − reservas activas) cuya clave CNIS coincide
     (exacta o con/sin sufijo .00).
     """
     variantes = _claves_busqueda(claves)
@@ -78,10 +92,13 @@ def obtener_lotes_con_existencia(claves: List[str]):
     for v in variantes:
         q |= Q(producto__clave_cnis__iexact=v)
 
-    return (
+    qs = (
         Lote.objects.filter(q, cantidad_disponible__gt=0)
         .select_related('producto', 'orden_suministro')
         .order_by('producto__clave_cnis', 'fecha_caducidad', 'numero_lote')
+    )
+    return _annotate_inventario_disponible_real(qs).filter(
+        _inventario_disponible_neto__gt=0
     )
 
 
@@ -107,7 +124,7 @@ def generar_excel_existencias_transferencias(claves: List[str]) -> BytesIO:
             orden = lote.orden_suministro.numero_orden or ''
         ws.cell(row_i, 1, (prod.clave_cnis if prod else '') or '')
         ws.cell(row_i, 2, (prod.descripcion if prod else '') or '')
-        ws.cell(row_i, 3, lote.cantidad_disponible or 0)
+        ws.cell(row_i, 3, _existencia_neta(lote))
         ws.cell(row_i, 4, orden)
         ws.cell(row_i, 5, lote.numero_lote or '')
         cell_cad = ws.cell(row_i, 6, lote.fecha_caducidad)
@@ -151,7 +168,7 @@ def asegurar_menu_existencias_transferencias():
 def existencias_transferencias(request):
     """
     Formulario: indica una o varias claves CNIS y descarga Excel
-    con todos los lotes que tienen existencia.
+    con todos los lotes que tienen existencia neta (físico − reservas).
     """
     context = {
         'claves_sel': '',
@@ -181,16 +198,14 @@ def existencias_transferencias(request):
     if total_lotes == 0:
         messages.warning(
             request,
-            f'No hay lotes con existencia para la(s) clave(s): {", ".join(claves)}.',
+            f'No hay lotes con existencia disponible (neto) para la(s) clave(s): {", ".join(claves)}.',
         )
         return render(request, 'inventario/reportes/existencias_transferencias.html', context)
 
     if accion == 'vista_previa':
         preview = []
-        total_piezas = 0
         for lote in lotes_qs[:200]:
-            cant = lote.cantidad_disponible or 0
-            total_piezas += cant
+            cant = _existencia_neta(lote)
             preview.append({
                 'clave': lote.producto.clave_cnis if lote.producto else '',
                 'descripcion': (lote.producto.descripcion if lote.producto else '') or '',
@@ -203,10 +218,9 @@ def existencias_transferencias(request):
                 'lote': lote.numero_lote or '',
                 'caducidad': lote.fecha_caducidad,
             })
-        # total piezas completo (no solo preview)
-        from django.db.models import Sum
-
-        total_piezas = lotes_qs.aggregate(s=Sum('cantidad_disponible'))['s'] or 0
+        total_piezas = (
+            lotes_qs.aggregate(s=Sum('_inventario_disponible_neto'))['s'] or 0
+        )
         context.update({
             'preview': preview,
             'total_lotes': total_lotes,
@@ -215,7 +229,7 @@ def existencias_transferencias(request):
         })
         messages.success(
             request,
-            f'{total_lotes} lote(s) con existencia ({total_piezas:,} piezas). '
+            f'{total_lotes} lote(s) con existencia neta ({total_piezas:,} piezas). '
             f'Puedes descargar el Excel.',
         )
         return render(request, 'inventario/reportes/existencias_transferencias.html', context)
