@@ -117,20 +117,37 @@ def generar_excel_existencias_transferencias(claves: List[str]) -> BytesIO:
         cell.alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
 
     row_i = 2
+    total_existencias = 0
     for lote in lotes.iterator(chunk_size=500):
         prod = lote.producto
         orden = ''
         if lote.orden_suministro_id and lote.orden_suministro:
             orden = lote.orden_suministro.numero_orden or ''
+        existencia = _existencia_neta(lote)
+        total_existencias += existencia
         ws.cell(row_i, 1, (prod.clave_cnis if prod else '') or '')
         ws.cell(row_i, 2, (prod.descripcion if prod else '') or '')
-        ws.cell(row_i, 3, _existencia_neta(lote))
+        ws.cell(row_i, 3, existencia)
         ws.cell(row_i, 4, orden)
         ws.cell(row_i, 5, lote.numero_lote or '')
         cell_cad = ws.cell(row_i, 6, lote.fecha_caducidad)
         if lote.fecha_caducidad:
             cell_cad.number_format = 'DD/MM/YYYY'
         row_i += 1
+
+    # Fila de totales para facilitar revisión
+    if row_i > 2:
+        total_fill = PatternFill('solid', fgColor='D9E2F3')
+        total_font = Font(bold=True)
+        ws.cell(row_i, 1, 'TOTAL').font = total_font
+        ws.cell(row_i, 1).fill = total_fill
+        ws.cell(row_i, 2, '').fill = total_fill
+        cell_tot = ws.cell(row_i, 3, total_existencias)
+        cell_tot.font = total_font
+        cell_tot.fill = total_fill
+        cell_tot.number_format = '#,##0'
+        for c in range(4, 7):
+            ws.cell(row_i, c).fill = total_fill
 
     widths = [18, 55, 14, 45, 18, 14]
     for i, w in enumerate(widths, 1):

@@ -105,6 +105,19 @@
                     <tr><td colspan="6" class="text-muted">Sin filas.</td></tr>
                     {% endfor %}
                 </tbody>
+                {% if preview %}
+                <tfoot>
+                    <tr class="table-primary fw-bold">
+                        <td colspan="2">TOTAL EXISTENCIAS</td>
+                        <td class="text-end">{{ total_piezas|floatformat:0 }}</td>
+                        <td colspan="3" class="text-muted small">
+                            {% if preview_truncado %}
+                            (total de todos los lotes, no solo los 200 mostrados)
+                            {% endif %}
+                        </td>
+                    </tr>
+                </tfoot>
+                {% endif %}
             </table>
         </div>
     </div>
