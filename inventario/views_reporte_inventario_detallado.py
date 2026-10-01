@@ -102,6 +102,39 @@ def _cantidad_fisica_lote_obj(lote):
     return int(lote.cantidad_disponible or 0)
 
 
+ESTADO_CADUCADO = 6
+
+
+def _lote_esta_caducado(lote) -> bool:
+    """Caducado por estado o por fecha ya vencida (no solo los marcados en la semana)."""
+    if lote.estado == ESTADO_CADUCADO:
+        return True
+    fc = getattr(lote, 'fecha_caducidad', None)
+    return bool(fc and fc < date.today())
+
+
+def _aplicar_filtro_estado(lotes, filtro_estado):
+    """
+    Estado Caducado = campo estado 6 o fecha de caducidad anterior a hoy.
+    Estado Disponible excluye los ya vencidos por fecha, para no duplicarlos.
+    """
+    if not filtro_estado:
+        return lotes
+    if str(filtro_estado) == str(ESTADO_CADUCADO):
+        hoy = date.today()
+        return lotes.filter(
+            Q(estado=ESTADO_CADUCADO)
+            | Q(fecha_caducidad__isnull=False, fecha_caducidad__lt=hoy)
+        )
+    if str(filtro_estado) == '1':
+        hoy = date.today()
+        return lotes.filter(estado=filtro_estado).exclude(
+            fecha_caducidad__isnull=False,
+            fecha_caducidad__lt=hoy,
+        )
+    return lotes.filter(estado=filtro_estado)
+
+
 @login_required
 def reporte_inventario_detallado(request):
     """
@@ -160,8 +193,7 @@ def reporte_inventario_detallado(request):
     if filtro_clave:
         lotes = lotes.filter(producto__clave_cnis__icontains=filtro_clave)
     
-    if filtro_estado:
-        lotes = lotes.filter(estado=filtro_estado)
+    lotes = _aplicar_filtro_estado(lotes, filtro_estado)
     
     if filtro_lote:
         lotes = lotes.filter(numero_lote__icontains=filtro_lote)
@@ -372,8 +404,7 @@ def _obtener_lotes_filtrados(request, from_post=False):
         )
     if filtro_clave:
         lotes = lotes.filter(producto__clave_cnis__icontains=filtro_clave)
-    if filtro_estado:
-        lotes = lotes.filter(estado=filtro_estado)
+    lotes = _aplicar_filtro_estado(lotes, filtro_estado)
     if filtro_lote:
         lotes = lotes.filter(numero_lote__icontains=filtro_lote)
 
@@ -419,9 +450,12 @@ def _obtener_lotes_filtrados(request, from_post=False):
 
 def _fila_lote_a_dict(lote):
     """Convierte un lote a diccionario con todas las columnas del reporte."""
-    estado_texto = lote.get_estado_display() if lote.estado is not None else ''
-    if not estado_texto and lote.estado is not None:
-        estado_texto = str(lote.estado)
+    if _lote_esta_caducado(lote):
+        estado_texto = 'Caducado'
+    else:
+        estado_texto = lote.get_estado_display() if lote.estado is not None else ''
+        if not estado_texto and lote.estado is not None:
+            estado_texto = str(lote.estado)
     rfc_val = ''
     if getattr(lote, 'orden_suministro_id', None) and lote.orden_suministro and lote.orden_suministro.proveedor:
         rfc_val = (lote.orden_suministro.proveedor.rfc or '').strip()
