@@ -1256,10 +1256,23 @@ def reporte_claves_no_existen(request):
 # REPORTE ENTREGAS POR PEDIDO (Clave, Inventario disponible = cantidad entregada, Lote, F_CAD)
 # ============================================================================
 
+def _nombre_proveedor_lote(lote):
+    """Razón social de la orden de suministro; si no hay, el texto guardado en el lote."""
+    if not lote:
+        return '-'
+    orden = getattr(lote, 'orden_suministro', None)
+    prov = getattr(orden, 'proveedor', None) if orden else None
+    nombre = (getattr(prov, 'razon_social', None) or '').strip() if prov else ''
+    if nombre:
+        return nombre
+    texto = (getattr(lote, 'proveedor', None) or '').strip()
+    return texto or '-'
+
+
 def _obtener_filas_entregas_por_pedido(request):
     """
     LoteAsignado con surtido=True; filtros: folio_pedido, institucion, fecha_desde, fecha_hasta, clave.
-    Retorna lista de dicts: folio_pedido, institucion, fecha_entrega, clave, descripcion,
+    Retorna lista de dicts: folio_pedido, institucion, proveedor, fecha_entrega, clave, descripcion,
     inventario_disponible (cantidad entregada), lote, f_cad.
     """
     from datetime import datetime, time as dt_time
@@ -1268,7 +1281,7 @@ def _obtener_filas_entregas_por_pedido(request):
     ).select_related(
         'item_propuesta__propuesta__solicitud__institucion_solicitante',
         'item_propuesta__producto',
-        'lote_ubicacion__lote',
+        'lote_ubicacion__lote__orden_suministro__proveedor',
     ).order_by(
         'item_propuesta__propuesta__solicitud__fecha_solicitud',
         'item_propuesta__producto__clave_cnis',
@@ -1309,6 +1322,7 @@ def _obtener_filas_entregas_por_pedido(request):
         filas.append({
             'folio_pedido': (solicitud.observaciones_solicitud or '').strip() if solicitud else '-',
             'institucion': (inst.denominacion or getattr(inst, 'nombre', '') or '-') if inst else '-',
+            'proveedor': _nombre_proveedor_lote(lote),
             'fecha_entrega': la.fecha_surtimiento or (solicitud.fecha_solicitud if solicitud else None),
             'clave': (prod.clave_cnis or '-') if prod else '-',
             'descripcion': ((prod.descripcion or '')[:120]) if prod else '-',
@@ -1323,7 +1337,7 @@ def _obtener_filas_entregas_por_pedido(request):
 def reporte_entregas_por_pedido(request):
     """
     Reporte de entregas por pedido: consulta por folio de pedido, institución, fechas, clave.
-    Columnas: Folio pedido, Institución, Fecha entrega, Clave, Descripción, Inventario disponible (cantidad entregada), Lote, F_CAD.
+    Columnas: Folio pedido, Institución, Proveedor, Fecha entrega, Clave, Descripción, Inventario disponible (cantidad entregada), Lote, F_CAD.
     """
     instituciones = Institucion.objects.filter(activo=True).order_by('denominacion')
     filas = _obtener_filas_entregas_por_pedido(request)
@@ -1380,7 +1394,7 @@ def exportar_entregas_por_pedido_excel(request):
         top=Side(style='thin'), bottom=Side(style='thin'),
     )
     headers = [
-        'Folio pedido', 'Institución', 'Fecha entrega', 'Clave', 'Descripción',
+        'Folio pedido', 'Institución', 'Proveedor', 'Fecha entrega', 'Clave', 'Descripción',
         'Inventario disponible (cant. entregada)', 'Lote', 'F_CAD',
     ]
     for col, h in enumerate(headers, 1):
@@ -1393,17 +1407,18 @@ def exportar_entregas_por_pedido_excel(request):
     for row_idx, r in enumerate(filas, 2):
         ws.cell(row=row_idx, column=1).value = r.get('folio_pedido', '')
         ws.cell(row=row_idx, column=2).value = r.get('institucion', '')
+        ws.cell(row=row_idx, column=3).value = r.get('proveedor', '')
         fecha = r.get('fecha_entrega')
-        ws.cell(row=row_idx, column=3).value = fecha.strftime('%d/%m/%Y %H:%M') if fecha else ''
-        ws.cell(row=row_idx, column=4).value = r.get('clave', '')
-        ws.cell(row=row_idx, column=5).value = r.get('descripcion', '')
-        ws.cell(row=row_idx, column=6).value = r.get('inventario_disponible', 0)
-        ws.cell(row=row_idx, column=7).value = r.get('lote', '')
+        ws.cell(row=row_idx, column=4).value = fecha.strftime('%d/%m/%Y %H:%M') if fecha else ''
+        ws.cell(row=row_idx, column=5).value = r.get('clave', '')
+        ws.cell(row=row_idx, column=6).value = r.get('descripcion', '')
+        ws.cell(row=row_idx, column=7).value = r.get('inventario_disponible', 0)
+        ws.cell(row=row_idx, column=8).value = r.get('lote', '')
         f_cad = r.get('f_cad')
-        ws.cell(row=row_idx, column=8).value = f_cad.strftime('%d/%m/%Y') if f_cad else ''
-        for col in range(1, 9):
+        ws.cell(row=row_idx, column=9).value = f_cad.strftime('%d/%m/%Y') if f_cad else ''
+        for col in range(1, 10):
             ws.cell(row=row_idx, column=col).border = border
-    for letra, w in [('A', 22), ('B', 32), ('C', 18), ('D', 16), ('E', 45), ('F', 22), ('G', 14), ('H', 12)]:
+    for letra, w in [('A', 22), ('B', 32), ('C', 36), ('D', 18), ('E', 16), ('F', 45), ('G', 22), ('H', 14), ('I', 12)]:
         ws.column_dimensions[letra].width = w
     response = HttpResponse(
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'

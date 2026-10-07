@@ -67,6 +67,7 @@
                     <tr>
                         <th>Folio pedido</th>
                         <th>Institución</th>
+                        <th>Proveedor</th>
                         <th>Fecha entrega</th>
                         <th>Clave</th>
                         <th>Descripción</th>
@@ -80,6 +81,7 @@
                     <tr>
                         <td><code>{{ f.folio_pedido }}</code></td>
                         <td>{{ f.institucion }}</td>
+                        <td>{{ f.proveedor }}</td>
                         <td>{% if f.fecha_entrega %}{{ f.fecha_entrega|date:"d/m/Y H:i" }}{% else %}-{% endif %}</td>
                         <td><code>{{ f.clave }}</code></td>
                         <td><small>{{ f.descripcion }}</small></td>
@@ -89,7 +91,7 @@
                     </tr>
                     {% empty %}
                     <tr>
-                        <td colspan="8" class="text-center text-muted py-4">
+                        <td colspan="9" class="text-center text-muted py-4">
                             <i class="fas fa-inbox"></i> No hay entregas con los filtros seleccionados
                         </td>
                     </tr>
