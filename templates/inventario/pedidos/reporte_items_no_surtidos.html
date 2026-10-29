@@ -12,6 +12,13 @@
         </div>
     </div>
 
+    {% if filtro_default_aplicado %}
+    <div class="alert alert-info">
+        Sin fechas ni búsqueda puntual se muestran los <strong>últimos 30 días</strong>
+        ({{ fecha_inicio }} a {{ fecha_fin }}) para no saturar el servidor.
+    </div>
+    {% endif %}
+
     <!-- Filtros -->
     <div class="card mb-4">
         <div class="card-header bg-light">
@@ -38,6 +45,14 @@
                     </select>
                 </div>
                 <div class="col-md-2">
+                    <label for="fecha_inicio" class="form-label">Fecha inicio</label>
+                    <input type="date" class="form-control" id="fecha_inicio" name="fecha_inicio" value="{{ fecha_inicio|default:'' }}">
+                </div>
+                <div class="col-md-2">
+                    <label for="fecha_fin" class="form-label">Fecha fin</label>
+                    <input type="date" class="form-control" id="fecha_fin" name="fecha_fin" value="{{ fecha_fin|default:'' }}">
+                </div>
+                <div class="col-md-2">
                     <label for="folio" class="form-label">Folio / Pedido</label>
                     <input type="text" class="form-control" id="folio" name="folio" placeholder="Buscar folio..." value="{{ filtro_folio }}">
                 </div>
@@ -45,7 +60,7 @@
                     <label for="clave_cnis" class="form-label">Clave CNIS</label>
                     <input type="text" class="form-control" id="clave_cnis" name="clave_cnis" placeholder="Buscar clave..." value="{{ filtro_clave }}">
                 </div>
-                <div class="col-md-3 d-flex align-items-end gap-2">
+                <div class="col-md-12 d-flex align-items-end gap-2">
                     <button type="submit" class="btn btn-primary">
                         <i class="fas fa-search"></i> Filtrar
                     </button>

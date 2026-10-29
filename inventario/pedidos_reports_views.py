@@ -179,89 +179,154 @@ def _obtener_folio_pedido_para_error(error):
     return None
 
 
-def _obtener_items_no_surtidos(request):
-    """
-    Aplica filtros y construye la lista de items no surtidos.
-    Usado por reporte_items_no_surtidos y exportar_items_no_surtidos_excel.
-    """
-    from django.db.models import Sum
+_MAX_ITEMS_NO_SURTIDOS_EXCEL = 15000
+_DIAS_DEFAULT_ITEMS_NO_SURTIDOS = 30
 
-    estado_propuesta = request.GET.get('estado', '')
-    institucion_id = request.GET.get('institucion', '')
-    folio = request.GET.get('folio', '').strip()
-    clave_cnis = request.GET.get('clave_cnis', '').strip()
 
-    propuestas = PropuestaPedido.objects.filter(
-        solicitud__isnull=False
-    ).select_related(
-        'solicitud__institucion_solicitante',
-        'solicitud__almacen_destino'
-    ).prefetch_related(
-        'items__producto',
-        'items__lotes_asignados'
-    ).order_by('-fecha_generacion')
+def _subquery_cantidad_surtida_item_propuesta():
+    """Suma LoteAsignado.surtido=True del ItemPropuesta (misma regla que el reporte original)."""
+    return (
+        LoteAsignado.objects.filter(
+            item_propuesta_id=OuterRef('pk'),
+            surtido=True,
+        )
+        .values('item_propuesta_id')
+        .annotate(total=Sum('cantidad_asignada'))
+        .values('total')[:1]
+    )
+
+
+def _queryset_items_no_surtidos(request):
+    """
+    ItemPropuesta no surtidos / parciales filtrados en SQL.
+
+    Antes: cargaba TODAS las propuestas y por cada item hacía aggregate a LoteAsignado
+    (N+1), sin tope de fechas → saturaba CPU/RAM.
+
+    Ahora: subquery de surtido, filtro cantidad_surtida < cantidad_propuesta en BD,
+    ventana por defecto de 30 días sobre fecha de solicitud.
+    """
+    estado_propuesta = (request.GET.get('estado') or '').strip()
+    institucion_id = (request.GET.get('institucion') or '').strip()
+    folio = (request.GET.get('folio') or '').strip()
+    clave_cnis = (request.GET.get('clave_cnis') or '').strip()
+    fecha_inicio = (request.GET.get('fecha_inicio') or '').strip()
+    fecha_fin = (request.GET.get('fecha_fin') or '').strip()
+
+    filtro_default_aplicado = False
+
+    def _pf(v):
+        if not v:
+            return None
+        try:
+            return datetime.strptime(v.strip(), '%Y-%m-%d').date()
+        except (ValueError, AttributeError):
+            return None
+
+    fi = _pf(fecha_inicio)
+    ff = _pf(fecha_fin)
+    if not fi and not ff and not folio and not clave_cnis:
+        ff = timezone.localdate()
+        fi = ff - timedelta(days=_DIAS_DEFAULT_ITEMS_NO_SURTIDOS)
+        fecha_inicio = fi.isoformat()
+        fecha_fin = ff.isoformat()
+        filtro_default_aplicado = True
+
+    qs = (
+        ItemPropuesta.objects.filter(
+            cantidad_propuesta__gt=0,
+            propuesta__solicitud__isnull=False,
+        )
+        .select_related(
+            'propuesta',
+            'propuesta__solicitud',
+            'propuesta__solicitud__institucion_solicitante',
+            'propuesta__solicitud__almacen_destino',
+            'producto',
+        )
+        .annotate(
+            cantidad_surtida_real=Coalesce(
+                Subquery(_subquery_cantidad_surtida_item_propuesta(), output_field=IntegerField()),
+                Value(0),
+            )
+        )
+        .filter(cantidad_surtida_real__lt=F('cantidad_propuesta'))
+        .order_by('-propuesta__fecha_generacion', 'producto__clave_cnis')
+    )
 
     if estado_propuesta:
-        propuestas = propuestas.filter(estado=estado_propuesta)
-    if institucion_id:
-        propuestas = propuestas.filter(solicitud__institucion_solicitante_id=institucion_id)
+        qs = qs.filter(propuesta__estado=estado_propuesta)
+    if institucion_id.isdigit():
+        qs = qs.filter(propuesta__solicitud__institucion_solicitante_id=int(institucion_id))
     if folio:
-        propuestas = propuestas.filter(
-            Q(solicitud__folio__icontains=folio) |
-            Q(solicitud__observaciones_solicitud__icontains=folio)
+        qs = qs.filter(
+            Q(propuesta__solicitud__folio__icontains=folio)
+            | Q(propuesta__solicitud__observaciones_solicitud__icontains=folio)
         )
     if clave_cnis:
-        propuestas = propuestas.filter(items__producto__clave_cnis__icontains=clave_cnis).distinct()
+        qs = qs.filter(producto__clave_cnis__icontains=clave_cnis)
+    if fi:
+        qs = qs.filter(propuesta__solicitud__fecha_solicitud__date__gte=fi)
+    if ff:
+        qs = qs.filter(propuesta__solicitud__fecha_solicitud__date__lte=ff)
 
-    items_no_surtidos = []
-    for propuesta in propuestas:
-        solicitud = propuesta.solicitud
-        folio_pedido = (solicitud.observaciones_solicitud or '').strip() or (solicitud.folio or '')
-        institucion_nombre = solicitud.institucion_solicitante.denominacion if solicitud.institucion_solicitante else '-'
-        almacen_nombre = solicitud.almacen_destino.nombre if solicitud.almacen_destino else '-'
-        clues = solicitud.institucion_solicitante.clue if solicitud.institucion_solicitante else '-'
-        fecha_solicitud = solicitud.fecha_solicitud.strftime('%d/%m/%Y') if solicitud.fecha_solicitud else '-'
+    meta = {
+        'fecha_inicio': fecha_inicio,
+        'fecha_fin': fecha_fin,
+        'filtro_default_aplicado': filtro_default_aplicado,
+        'filtro_estado': estado_propuesta,
+        'filtro_institucion': institucion_id,
+        'filtro_folio': folio,
+        'filtro_clave': clave_cnis,
+    }
+    return qs, meta
 
-        for item in propuesta.items.all():
-            if item.cantidad_propuesta <= 0:
-                continue
-            cantidad_surtida_real = item.lotes_asignados.filter(surtido=True).aggregate(
-                total=Sum('cantidad_asignada')
-            )['total'] or 0
-            if cantidad_surtida_real < item.cantidad_propuesta:
-                cantidad_faltante = item.cantidad_propuesta - cantidad_surtida_real
-                if clave_cnis and clave_cnis.lower() not in (item.producto.clave_cnis or '').lower():
-                    continue
-                items_no_surtidos.append({
-                    'propuesta': propuesta,
-                    'item': item,
-                    'producto': item.producto,
-                    'folio_pedido': folio_pedido,
-                    'institucion': institucion_nombre,
-                    'almacen': almacen_nombre,
-                    'clues': clues,
-                    'fecha_solicitud': fecha_solicitud,
-                    'cantidad_propuesta': item.cantidad_propuesta,
-                    'cantidad_surtida': cantidad_surtida_real,
-                    'cantidad_faltante': cantidad_faltante,
-                    'estado_propuesta': propuesta.get_estado_display(),
-                })
-    return items_no_surtidos
+
+def _fila_item_no_surtido(item):
+    """Dict compatible con la plantilla / Excel del reporte."""
+    propuesta = item.propuesta
+    solicitud = propuesta.solicitud if propuesta else None
+    institucion = solicitud.institucion_solicitante if solicitud else None
+    almacen = solicitud.almacen_destino if solicitud else None
+    surtida = int(getattr(item, 'cantidad_surtida_real', 0) or 0)
+    propuesta_cant = int(item.cantidad_propuesta or 0)
+    return {
+        'propuesta': propuesta,
+        'item': item,
+        'producto': item.producto,
+        'folio_pedido': (
+            ((solicitud.observaciones_solicitud or '').strip() or (solicitud.folio or ''))
+            if solicitud else ''
+        ),
+        'institucion': institucion.denominacion if institucion else '-',
+        'almacen': almacen.nombre if almacen else '-',
+        'clues': institucion.clue if institucion else '-',
+        'fecha_solicitud': (
+            solicitud.fecha_solicitud.strftime('%d/%m/%Y')
+            if solicitud and solicitud.fecha_solicitud else '-'
+        ),
+        'cantidad_propuesta': propuesta_cant,
+        'cantidad_surtida': surtida,
+        'cantidad_faltante': max(0, propuesta_cant - surtida),
+        'estado_propuesta': propuesta.get_estado_display() if propuesta else '',
+    }
+
+
+def _obtener_items_no_surtidos(request, limit=None):
+    """Lista de dicts para Excel (con tope opcional). Preferir queryset + paginación en la vista."""
+    qs, meta = _queryset_items_no_surtidos(request)
+    if limit is not None:
+        qs = qs[:limit]
+    return [_fila_item_no_surtido(item) for item in qs], meta
 
 
 @login_required
 def reporte_items_no_surtidos(request):
     """
-    Reporte de items que no se surtieron (o se surtieron parcialmente) en las propuestas de suministro.
-    Muestra ItemPropuesta donde cantidad_surtida < cantidad_propuesta.
+    Items no surtidos o parciales: cantidad surtida (LoteAsignado surtido) < cantidad propuesta.
     """
-    items_no_surtidos = _obtener_items_no_surtidos(request)
-
-    # Instituciones para filtro
-    instituciones = Institucion.objects.filter(activo=True).order_by('denominacion')
-
-    # Paginación (25 items por página)
-    paginator = Paginator(items_no_surtidos, 25)
+    qs, meta = _queryset_items_no_surtidos(request)
+    paginator = Paginator(qs, 25)
     page = request.GET.get('page', 1)
     try:
         page_obj = paginator.page(page)
@@ -270,7 +335,10 @@ def reporte_items_no_surtidos(request):
     except EmptyPage:
         page_obj = paginator.page(paginator.num_pages)
 
-    # Query string para paginación (preservar filtros)
+    filas = [_fila_item_no_surtido(item) for item in page_obj.object_list]
+    # Reusar page_obj para controles de paginación, pero la tabla itera filas dict
+    page_obj.object_list = filas
+
     params = request.GET.copy()
     if 'page' in params:
         params.pop('page')
@@ -283,11 +351,14 @@ def reporte_items_no_surtidos(request):
         'total_items': paginator.count,
         'is_paginated': paginator.num_pages > 1,
         'query_string': query_string,
-        'instituciones': instituciones,
-        'filtro_estado': request.GET.get('estado', ''),
-        'filtro_institucion': request.GET.get('institucion', ''),
-        'filtro_folio': request.GET.get('folio', '').strip(),
-        'filtro_clave': request.GET.get('clave_cnis', '').strip(),
+        'instituciones': Institucion.objects.filter(activo=True).order_by('denominacion'),
+        'filtro_estado': meta['filtro_estado'],
+        'filtro_institucion': meta['filtro_institucion'],
+        'filtro_folio': meta['filtro_folio'],
+        'filtro_clave': meta['filtro_clave'],
+        'fecha_inicio': meta['fecha_inicio'],
+        'fecha_fin': meta['fecha_fin'],
+        'filtro_default_aplicado': meta['filtro_default_aplicado'],
         'estado_choices': PropuestaPedido.ESTADO_CHOICES,
         'page_title': 'Reporte de Items No Surtidos en Propuestas',
     }
@@ -297,7 +368,10 @@ def reporte_items_no_surtidos(request):
 @login_required
 def exportar_items_no_surtidos_excel(request):
     """Exporta el reporte de items no surtidos a Excel respetando los filtros actuales."""
-    items_no_surtidos = _obtener_items_no_surtidos(request)
+    qs, meta = _queryset_items_no_surtidos(request)
+    total = qs.count()
+    truncado = total > _MAX_ITEMS_NO_SURTIDOS_EXCEL
+    items_no_surtidos = [_fila_item_no_surtido(item) for item in qs[:_MAX_ITEMS_NO_SURTIDOS_EXCEL]]
 
     wb = openpyxl.Workbook()
     ws = wb.active
@@ -350,6 +424,12 @@ def exportar_items_no_surtidos_excel(request):
             ws.cell(row=row_idx, column=col).border = border
             ws.cell(row=row_idx, column=col).alignment = Alignment(horizontal='left', vertical='center')
 
+    if truncado:
+        ws.append([])
+        ws.append([
+            f'Se exportaron {_MAX_ITEMS_NO_SURTIDOS_EXCEL} de {total} filas. Reduce el rango de fechas.',
+        ])
+
     ws.column_dimensions['A'].width = 22
     ws.column_dimensions['B'].width = 38
     ws.column_dimensions['C'].width = 14
@@ -365,7 +445,6 @@ def exportar_items_no_surtidos_excel(request):
     response = HttpResponse(
         content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'
     )
-    from datetime import date
     fecha_str = date.today().strftime('%Y%m%d')
     response['Content-Disposition'] = f'attachment; filename="items_no_surtidos_{fecha_str}.xlsx"'
     wb.save(response)
