@@ -416,47 +416,37 @@ def bulk_crear_items_solicitud_pedido(solicitud, items_data):
 
 def obtener_resumen_errores(fecha_inicio=None, fecha_fin=None, tipo_error=None):
     """
-    Obtiene un resumen de los errores registrados en un período.
-    
-    Args:
-        fecha_inicio: Fecha de inicio (opcional)
-        fecha_fin: Fecha de fin (opcional)
-        tipo_error: Tipo de error a filtrar (opcional)
-    
-    Returns:
-        dict: Resumen con estadísticas de errores
+    Resumen de errores en un período con agregaciones (sin N counts por institución/usuario).
     """
+    from django.db.models import Count
+
     queryset = LogErrorPedido.objects.all()
-    
+
     if fecha_inicio:
         queryset = queryset.filter(fecha_error__gte=fecha_inicio)
     if fecha_fin:
         queryset = queryset.filter(fecha_error__lte=fecha_fin)
     if tipo_error:
         queryset = queryset.filter(tipo_error=tipo_error)
-    
-    # Contar errores por tipo
-    errores_por_tipo = {}
-    for tipo, _ in LogErrorPedido.TIPO_ERROR_CHOICES:
-        count = queryset.filter(tipo_error=tipo).count()
-        if count > 0:
-            errores_por_tipo[tipo] = count
-    
-    # Contar errores por institución
-    errores_por_institucion = {}
-    for institucion in Institucion.objects.all():
-        count = queryset.filter(institucion=institucion).count()
-        if count > 0:
-            errores_por_institucion[institucion.nombre] = count
-    
-    # Contar errores por usuario
-    errores_por_usuario = {}
-    for log in queryset.values('usuario__username').distinct():
-        username = log['usuario__username']
-        count = queryset.filter(usuario__username=username).count()
-        if count > 0:
-            errores_por_usuario[username] = count
-    
+
+    errores_por_tipo = {
+        row['tipo_error']: row['c']
+        for row in queryset.values('tipo_error').annotate(c=Count('id'))
+        if row['c']
+    }
+
+    errores_por_institucion = {
+        (row['institucion__denominacion'] or 'Sin institución'): row['c']
+        for row in queryset.values('institucion__denominacion').annotate(c=Count('id'))
+        if row['c']
+    }
+
+    errores_por_usuario = {
+        (row['usuario__username'] or 'Sin usuario'): row['c']
+        for row in queryset.values('usuario__username').annotate(c=Count('id'))
+        if row['c']
+    }
+
     return {
         'total_errores': queryset.count(),
         'errores_por_tipo': errores_por_tipo,
@@ -464,8 +454,8 @@ def obtener_resumen_errores(fecha_inicio=None, fecha_fin=None, tipo_error=None):
         'errores_por_usuario': errores_por_usuario,
         'claves_sin_existencia': queryset.filter(
             tipo_error='SIN_EXISTENCIA'
-        ).values_list('clave_solicitada', flat=True).distinct(),
+        ).values_list('clave_solicitada', flat=True).distinct()[:500],
         'claves_no_existen': queryset.filter(
             tipo_error='CLAVE_NO_EXISTE'
-        ).values_list('clave_solicitada', flat=True).distinct(),
+        ).values_list('clave_solicitada', flat=True).distinct()[:500],
     }

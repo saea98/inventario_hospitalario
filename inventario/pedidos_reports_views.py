@@ -11,7 +11,6 @@ from django.utils import timezone
 from django.http import HttpResponse
 from datetime import timedelta, datetime, time as dt_time, date
 from .pedidos_models import LogErrorPedido, SolicitudPedido, ItemSolicitud, PropuestaPedido, ItemPropuesta, LoteAsignado
-from .pedidos_utils import obtener_resumen_errores
 from .models import Producto, Institucion, Almacen
 import openpyxl
 from openpyxl.styles import Font, PatternFill, Alignment, Border, Side
@@ -19,83 +18,86 @@ from collections import defaultdict
 import re
 
 
+_DIAS_DEFAULT_ERRORES_PEDIDOS = 30
+_LIMITE_LISTA_ERRORES = 100
+_LIMITE_BUSQUEDA_FOLIO_ERRORES = 500
+
+
 @login_required
 def reporte_errores_pedidos(request):
     """
-    Muestra un reporte de los errores en carga masiva de pedidos.
-    Permite filtrar por fecha, tipo de error, institución, etc.
+    Errores de carga masiva de pedidos.
+
+    Antes: sin fechas cargaba todo el histórico; `obtener_resumen_errores` hacía un
+    count() por cada institución/usuario; y por cada fila resolvía el folio con
+    Producto.get + ItemSolicitud.filter (N+1) → saturaba CPU/RAM.
     """
-    # Obtener parámetros de filtro
-    fecha_inicio = request.GET.get('fecha_inicio')
-    fecha_fin = request.GET.get('fecha_fin')
-    tipo_error = request.GET.get('tipo_error')
-    institucion = request.GET.get('institucion')
-    clave_solicitada = request.GET.get('clave_solicitada')
-    filtro_pedido = request.GET.get('pedido', '').strip()
-    
-    # Base queryset
+    fecha_inicio = (request.GET.get('fecha_inicio') or '').strip()
+    fecha_fin = (request.GET.get('fecha_fin') or '').strip()
+    tipo_error = (request.GET.get('tipo_error') or '').strip()
+    institucion = (request.GET.get('institucion') or '').strip()
+    clave_solicitada = (request.GET.get('clave_solicitada') or '').strip()
+    filtro_pedido = (request.GET.get('pedido') or '').strip()
+
+    filtro_default_aplicado = False
+
+    def _pf(v):
+        if not v:
+            return None
+        try:
+            return datetime.strptime(v.strip(), '%Y-%m-%d').date()
+        except (ValueError, AttributeError):
+            return None
+
+    fi = _pf(fecha_inicio)
+    ff = _pf(fecha_fin)
+    if not fi and not ff and not filtro_pedido and not clave_solicitada:
+        ff = timezone.localdate()
+        fi = ff - timedelta(days=_DIAS_DEFAULT_ERRORES_PEDIDOS)
+        fecha_inicio = fi.isoformat()
+        fecha_fin = ff.isoformat()
+        filtro_default_aplicado = True
+
     errores = LogErrorPedido.objects.select_related(
         'usuario', 'institucion', 'almacen'
-    ).all()
-    
-    # Aplicar filtros
-    if fecha_inicio:
-        from datetime import datetime
-        fecha_inicio_dt = datetime.strptime(fecha_inicio, '%Y-%m-%d')
-        errores = errores.filter(fecha_error__gte=fecha_inicio_dt)
-    
-    if fecha_fin:
-        from datetime import datetime
-        fecha_fin_dt = datetime.strptime(fecha_fin, '%Y-%m-%d')
-        fecha_fin_dt = fecha_fin_dt.replace(hour=23, minute=59, second=59)
-        errores = errores.filter(fecha_error__lte=fecha_fin_dt)
-    
+    ).order_by('-fecha_error')
+
+    if fi:
+        errores = errores.filter(fecha_error__date__gte=fi)
+    if ff:
+        errores = errores.filter(fecha_error__date__lte=ff)
     if tipo_error:
         errores = errores.filter(tipo_error=tipo_error)
-    
-    if institucion:
-        errores = errores.filter(institucion__id=institucion)
-    
+    if institucion.isdigit():
+        errores = errores.filter(institucion_id=int(institucion))
     if clave_solicitada:
         errores = errores.filter(clave_solicitada__icontains=clave_solicitada)
-    
-    # Obtener resumen
-    resumen = obtener_resumen_errores(
-        fecha_inicio=fecha_inicio,
-        fecha_fin=fecha_fin,
-        tipo_error=tipo_error
-    )
-    
-    # Estadísticas generales
+
+    # Estadísticas con pocas consultas agregadas (sobre el mismo filtro)
     total_errores = errores.count()
-    errores_hoy = errores.filter(
-        fecha_error__date=timezone.now().date()
-    ).count()
+    hoy = timezone.localdate()
+    errores_hoy = errores.filter(fecha_error__date=hoy).count()
     errores_semana = errores.filter(
-        fecha_error__gte=timezone.now() - timedelta(days=7)
+        fecha_error__date__gte=hoy - timedelta(days=7)
     ).count()
-    
-    # Errores sin alerta
     errores_sin_alerta = errores.filter(alerta_enviada=False).count()
-    
-    # Claves más frecuentes con error
+    alertas_enviadas = errores.filter(alerta_enviada=True).count()
+
+    tipos_frecuentes = list(
+        errores.values('tipo_error').annotate(count=Count('id')).order_by('-count')
+    )
+    errores_por_tipo = {row['tipo_error']: row['count'] for row in tipos_frecuentes}
+
     claves_frecuentes = errores.values('clave_solicitada').annotate(
         count=Count('id')
     ).order_by('-count')[:10]
-    
-    # Tipos de error más frecuentes
-    tipos_frecuentes = errores.values('tipo_error').annotate(
-        count=Count('id')
-    ).order_by('-count')
-    
-    # Instituciones con más errores
+
     instituciones_frecuentes = errores.values(
-        'institucion__nombre'
+        'institucion__denominacion'
     ).annotate(
         count=Count('id')
     ).order_by('-count')[:10]
-    
-    # Usuarios con más errores
+
     usuarios_frecuentes = errores.values(
         'usuario__username'
     ).annotate(
@@ -106,23 +108,32 @@ def reporte_errores_pedidos(request):
         count=Count('id')
     ).order_by('-count')[:10]
 
-    # Obtener folio del pedido (observaciones_solicitud) para cada error
-    # Si hay filtro por pedido, procesar más registros para poder filtrar
-    limite = 500 if filtro_pedido else 100
+    # Folios en bloque (no N+1). Si filtran por pedido, miramos más filas antes de recortar.
+    limite = _LIMITE_BUSQUEDA_FOLIO_ERRORES if filtro_pedido else _LIMITE_LISTA_ERRORES
     errores_lista = list(errores[:limite])
-    errores_con_folio = []
-    for error in errores_lista:
-        folio_pedido = _obtener_folio_pedido_para_error(error)
-        folio_str = folio_pedido or '-'
-        errores_con_folio.append({'error': error, 'folio_pedido': folio_str})
-    # Aplicar filtro por pedido (folio) si está activo
+    claves = {e.clave_solicitada for e in errores_lista if e.clave_solicitada}
+    productos_por_clave = {
+        p.clave_cnis: p
+        for p in Producto.objects.filter(clave_cnis__in=claves).only('id', 'clave_cnis')
+    }
+    folios_map = _folios_pedido_bulk(errores_lista, productos_por_clave)
+
+    errores_con_folio = [
+        {'error': error, 'folio_pedido': folios_map.get(error.id) or '-'}
+        for error in errores_lista
+    ]
     if filtro_pedido:
         termino = filtro_pedido.lower()
-        errores_con_folio = [x for x in errores_con_folio if termino in (x['folio_pedido'] or '').lower()]
-    errores_con_folio = errores_con_folio[:100]
-    
-    # Instituciones para filtro
-    instituciones = Institucion.objects.filter(activo=True).order_by('denominacion')
+        errores_con_folio = [
+            x for x in errores_con_folio
+            if termino in (x['folio_pedido'] or '').lower()
+        ]
+    errores_con_folio = errores_con_folio[:_LIMITE_LISTA_ERRORES]
+
+    resumen = {
+        'total_errores': total_errores,
+        'errores_por_tipo': errores_por_tipo,
+    }
 
     context = {
         'errores': [x['error'] for x in errores_con_folio],
@@ -136,47 +147,31 @@ def reporte_errores_pedidos(request):
         'instituciones_frecuentes': instituciones_frecuentes,
         'usuarios_frecuentes': usuarios_frecuentes,
         'resumen': resumen,
-        'errores_por_tipo': resumen.get('errores_por_tipo', {}),
-        'alertas_enviadas': errores.filter(alerta_enviada=True).count(),
+        'errores_por_tipo': errores_por_tipo,
+        'alertas_enviadas': alertas_enviadas,
         'tipo_error_choices': LogErrorPedido.TIPO_ERROR_CHOICES,
-        'instituciones': instituciones,
+        'instituciones': Institucion.objects.filter(activo=True).order_by('denominacion'),
         'filtro_pedido': filtro_pedido,
         'filtro_institucion': institucion,
-        'page_title': 'Reporte de Errores en Carga Masiva de Pedidos'
+        'fecha_inicio': fecha_inicio,
+        'fecha_fin': fecha_fin,
+        'filtro_default_aplicado': filtro_default_aplicado,
+        'page_title': 'Reporte de Errores en Carga Masiva de Pedidos',
     }
-    
+
     return render(request, 'inventario/pedidos/reporte_errores_pedidos.html', context)
 
 
 def _obtener_folio_pedido_para_error(error):
     """
-    Busca la solicitud relacionada con el error y retorna el folio del pedido
-    (observaciones_solicitud). Se busca por clave+usuario+fecha.
+    Compatibilidad: resuelve un solo folio. Preferir `_folios_pedido_bulk` en reportes.
     """
-    try:
-        producto = Producto.objects.get(clave_cnis=error.clave_solicitada)
-        fecha_inicio = error.fecha_error - timedelta(hours=24)
-        fecha_fin = error.fecha_error + timedelta(hours=1)
-        items = ItemSolicitud.objects.filter(
-            producto=producto,
-            solicitud__fecha_solicitud__gte=fecha_inicio,
-            solicitud__fecha_solicitud__lte=fecha_fin
-        ).select_related('solicitud').order_by('-solicitud__fecha_solicitud')
-        if error.usuario:
-            items = items.filter(solicitud__usuario_solicitante=error.usuario)
-        item = items.first()
-        if item and item.solicitud:
-            return (item.solicitud.observaciones_solicitud or '').strip() or (item.solicitud.folio or '')
-    except Producto.DoesNotExist:
-        if error.usuario:
-            solicitud = SolicitudPedido.objects.filter(
-                usuario_solicitante=error.usuario,
-                fecha_solicitud__gte=error.fecha_error - timedelta(hours=24),
-                fecha_solicitud__lte=error.fecha_error + timedelta(hours=1)
-            ).order_by('-fecha_solicitud').first()
-            if solicitud:
-                return (solicitud.observaciones_solicitud or '').strip() or (solicitud.folio or '')
-    return None
+    productos = {}
+    if error.clave_solicitada:
+        prod = Producto.objects.filter(clave_cnis=error.clave_solicitada).only('id', 'clave_cnis').first()
+        if prod:
+            productos[prod.clave_cnis] = prod
+    return _folios_pedido_bulk([error], productos).get(error.id)
 
 
 _MAX_ITEMS_NO_SURTIDOS_EXCEL = 15000

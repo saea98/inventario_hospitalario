@@ -8,9 +8,16 @@
     <div class="row mb-4">
         <div class="col-md-12">
             <h1 class="mb-3">📊 Reporte de Errores en Carga Masiva de Pedidos</h1>
-            <p class="text-muted">Visualiza todos los errores detectados durante la carga masiva de pedidos</p>
+            <p class="text-muted">Visualiza los errores detectados durante la carga masiva de pedidos</p>
         </div>
     </div>
+
+    {% if filtro_default_aplicado %}
+    <div class="alert alert-info">
+        Sin fechas ni búsqueda puntual se muestran los <strong>últimos 30 días</strong>
+        ({{ fecha_inicio }} a {{ fecha_fin }}) para no saturar el servidor. El listado muestra hasta 100 filas.
+    </div>
+    {% endif %}
 
     <!-- Filtros -->
     <div class="card mb-4">
@@ -21,11 +28,11 @@
             <form method="get" class="row g-3">
                 <div class="col-md-2">
                     <label for="fecha_inicio" class="form-label">Fecha Inicio</label>
-                    <input type="date" class="form-control" id="fecha_inicio" name="fecha_inicio" value="{{ request.GET.fecha_inicio }}">
+                    <input type="date" class="form-control" id="fecha_inicio" name="fecha_inicio" value="{{ fecha_inicio|default:'' }}">
                 </div>
                 <div class="col-md-2">
                     <label for="fecha_fin" class="form-label">Fecha Fin</label>
-                    <input type="date" class="form-control" id="fecha_fin" name="fecha_fin" value="{{ request.GET.fecha_fin }}">
+                    <input type="date" class="form-control" id="fecha_fin" name="fecha_fin" value="{{ fecha_fin|default:'' }}">
                 </div>
                 <div class="col-md-2">
                     <label for="tipo_error" class="form-label">Tipo de Error</label>
