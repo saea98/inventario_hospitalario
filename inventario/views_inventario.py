@@ -1417,264 +1417,301 @@ def cambiar_estado_lote(request, lote_id):
 # EXPORTACIÓN PERSONALIZADA DE LOTES
 # ============================================================
 
+_MAX_FILAS_EXPORT_LOTES = 50000
+_CAMPOS_COMPLEMENTARIOS_EXPORT = {
+    'rfc_proveedor',
+    'orden_suministro__proveedor__rfc',
+    'proveedor',
+    'orden_suministro__proveedor__razon_social',
+    'partida',
+    'contrato',
+    'folio',
+    'subtotal',
+    'iva',
+    'importe_total',
+    'licitacion',
+    'pedido',
+    'remision',
+    'responsable',
+    'reviso',
+    'tipo_entrega',
+    'tipo_red',
+    'orden_suministro',
+}
+
+
 @login_required
 def exportar_lotes_personalizado(request):
     """
-    Vista para exportar lotes a Excel con campos personalizados.
-    Respeta los filtros aplicados en la lista.
+    Exporta lotes a Excel con columnas/filtros elegidos.
+
+    Antes: por cada lote consultaba ItemLlegada + LoteAsignado (N+1) y armaba
+    todo el Excel en memoria con pandas → 502 por timeout/RAM.
     """
-    if request.method == "POST":
-        try:
-            # 1️⃣ Recuperar campos seleccionados y ordenados
-            campos = request.POST.getlist("columnas")  # checkboxes seleccionados
-            orden_columnas = request.POST.get("orden_columnas", "")
-            
-            # Si hay un orden personalizado, lo respetamos
-            if orden_columnas:
-                orden = [c for c in orden_columnas.split(",") if c in campos]
-                if orden:
-                    campos = orden
+    if request.method != "POST":
+        return JsonResponse({"error": "Método no permitido"}, status=405)
 
-            if not campos:
-                return JsonResponse({"error": "No se seleccionaron columnas válidas"}, status=400)
+    try:
+        from openpyxl import Workbook
+        from .lote_utils import get_datos_complementarios_lotes_bulk
 
-            # 2️⃣ Obtener institución del usuario
-            institucion = request.user.institucion if hasattr(request.user, 'institucion') else None
-            
-            # 3️⃣ Filtro base
-            if institucion:
-                lotes = Lote.objects.filter(institucion=institucion).select_related(
-                    'producto', 'almacen', 'ubicacion', 'institucion', 'orden_suministro', 'orden_suministro__proveedor'
-                ).prefetch_related('ubicaciones_detalle__ubicacion')
-            else:
-                lotes = Lote.objects.all().select_related(
-                    'producto', 'almacen', 'ubicacion', 'institucion', 'orden_suministro', 'orden_suministro__proveedor'
-                ).prefetch_related('ubicaciones_detalle__ubicacion')
-            
-            # 4✍⃣ Aplicar filtros (si vienen en la petición)
-            filtro_institucion = request.POST.get('filtro_institucion', '')
-            filtro_estado = request.POST.get('filtro_estado', '')
-            filtro_almacen = request.POST.get('filtro_almacen', '')
-            filtro_ubicacion = request.POST.get('filtro_ubicacion', '')
-            filtro_producto = request.POST.get('filtro_producto', '')
-            filtro_caducidad = request.POST.get('filtro_caducidad', '')
-            busqueda_lote = request.POST.get('busqueda_lote', '')
-            busqueda_cnis = request.POST.get('busqueda_cnis', '')
-            busqueda_producto = request.POST.get('busqueda_producto', '')
-            filtro_partida = request.POST.get('filtro_partida', '')
-            filtro_fecha_recepcion = request.POST.get('filtro_fecha_recepcion', '')
-            filtro_fecha_recepcion_desde = request.POST.get('filtro_fecha_recepcion_desde', '').strip()
-            filtro_fecha_recepcion_hasta = request.POST.get('filtro_fecha_recepcion_hasta', '').strip()
-            filtro_con_remision = request.POST.get('filtro_con_remision', '')
-            filtro_con_orden_suministro = request.POST.get('filtro_con_orden_suministro', '')
-            filtro_fecha_cita_desde = request.POST.get('filtro_fecha_cita_desde', '').strip()
-            filtro_fecha_cita_hasta = request.POST.get('filtro_fecha_cita_hasta', '').strip()
-            
-            if filtro_institucion:
-                lotes = lotes.filter(institucion_id=int(filtro_institucion))
-            
-            if filtro_estado:
-                lotes = lotes.filter(estado=int(filtro_estado))
-            
-            if filtro_almacen:
-                lotes = lotes.filter(almacen_id=int(filtro_almacen))
-            
-            # Filtro por ubicación también respetando asignaciones en LoteUbicacion
-            if filtro_ubicacion:
-                lotes = lotes.filter(ubicaciones_detalle__ubicacion_id=int(filtro_ubicacion)).distinct()
-            
-            if filtro_producto:
-                lotes = lotes.filter(producto_id=int(filtro_producto))
-            
-            # Filtro de caducidad
-            hoy = timezone.now().date()
-            if filtro_caducidad:
-                if filtro_caducidad == 'caducados':
-                    lotes = lotes.filter(fecha_caducidad__lt=hoy)
-                elif filtro_caducidad == 'menos_30':
-                    lotes = lotes.filter(fecha_caducidad__gte=hoy, fecha_caducidad__lte=hoy + timedelta(days=30))
-                elif filtro_caducidad == 'menos_60':
-                    lotes = lotes.filter(fecha_caducidad__gte=hoy, fecha_caducidad__lte=hoy + timedelta(days=60))
-                elif filtro_caducidad == 'menos_90':
-                    lotes = lotes.filter(fecha_caducidad__gte=hoy, fecha_caducidad__lte=hoy + timedelta(days=90))
-            
-            if busqueda_lote:
-                lotes = lotes.filter(numero_lote__icontains=busqueda_lote)
-            
-            if busqueda_cnis:
-                lotes = lotes.filter(producto__clave_cnis__icontains=busqueda_cnis)
-            
-            if busqueda_producto:
-                lotes = lotes.filter(producto__descripcion__icontains=busqueda_producto)
+        campos = request.POST.getlist("columnas")
+        orden_columnas = request.POST.get("orden_columnas", "")
+        if orden_columnas:
+            orden = [c for c in orden_columnas.split(",") if c in campos]
+            if orden:
+                campos = orden
+        if not campos:
+            return JsonResponse({"error": "No se seleccionaron columnas válidas"}, status=400)
 
-            if filtro_partida:
-                lotes = lotes.filter(partida__icontains=filtro_partida)
+        institucion = request.user.institucion if hasattr(request.user, 'institucion') else None
+        lotes = Lote.objects.all()
+        if institucion:
+            lotes = lotes.filter(institucion=institucion)
 
-            # Filtro por coherencia de fecha de recepción (igual que lista_lotes)
-            if filtro_fecha_recepcion == 'coherentes':
-                lotes = lotes.filter(
-                    fecha_recepcion__gte=FECHA_RECEPCION_MIN,
-                    fecha_recepcion__lte=hoy,
-                )
-            elif filtro_fecha_recepcion == 'incoherentes':
-                lotes = lotes.filter(
-                    Q(fecha_recepcion__gt=hoy) | Q(fecha_recepcion__lt=FECHA_RECEPCION_MIN)
-                )
+        lotes = lotes.select_related(
+            'producto',
+            'almacen',
+            'ubicacion',
+            'institucion',
+            'orden_suministro',
+            'orden_suministro__proveedor',
+            'item_llegada',
+            'item_llegada__llegada',
+            'item_llegada__llegada__cita',
+            'item_llegada__llegada__proveedor',
+            'item_llegada__llegada__usuario_ubicacion',
+            'item_llegada__llegada__usuario_supervision',
+        ).prefetch_related('ubicaciones_detalle__ubicacion')
 
-            if filtro_fecha_recepcion_desde:
-                try:
-                    fd = datetime.strptime(filtro_fecha_recepcion_desde, '%Y-%m-%d').date()
-                    lotes = lotes.filter(fecha_recepcion__gte=fd)
-                except ValueError:
-                    pass
-            if filtro_fecha_recepcion_hasta:
-                try:
-                    fh = datetime.strptime(filtro_fecha_recepcion_hasta, '%Y-%m-%d').date()
-                    lotes = lotes.filter(fecha_recepcion__lte=fh)
-                except ValueError:
-                    pass
+        filtro_institucion = request.POST.get('filtro_institucion', '')
+        filtro_estado = request.POST.get('filtro_estado', '')
+        filtro_almacen = request.POST.get('filtro_almacen', '')
+        filtro_ubicacion = request.POST.get('filtro_ubicacion', '')
+        filtro_producto = request.POST.get('filtro_producto', '')
+        filtro_caducidad = request.POST.get('filtro_caducidad', '')
+        busqueda_lote = request.POST.get('busqueda_lote', '')
+        busqueda_cnis = request.POST.get('busqueda_cnis', '')
+        busqueda_producto = request.POST.get('busqueda_producto', '')
+        filtro_partida = request.POST.get('filtro_partida', '')
+        filtro_fecha_recepcion = request.POST.get('filtro_fecha_recepcion', '')
+        filtro_fecha_recepcion_desde = request.POST.get('filtro_fecha_recepcion_desde', '').strip()
+        filtro_fecha_recepcion_hasta = request.POST.get('filtro_fecha_recepcion_hasta', '').strip()
+        filtro_con_remision = request.POST.get('filtro_con_remision', '')
+        filtro_con_orden_suministro = request.POST.get('filtro_con_orden_suministro', '')
+        filtro_fecha_cita_desde = request.POST.get('filtro_fecha_cita_desde', '').strip()
+        filtro_fecha_cita_hasta = request.POST.get('filtro_fecha_cita_hasta', '').strip()
 
-            if filtro_con_remision == '1':
-                lotes = lotes.filter(remision__isnull=False).exclude(remision='')
-            if filtro_con_orden_suministro == '1':
-                lotes = lotes.filter(orden_suministro__isnull=False)
-            if filtro_fecha_cita_desde:
-                try:
-                    fd = datetime.strptime(filtro_fecha_cita_desde, '%Y-%m-%d').date()
-                    lotes = lotes.filter(item_llegada__llegada__cita__fecha_cita__date__gte=fd)
-                except ValueError:
-                    pass
-            if filtro_fecha_cita_hasta:
-                try:
-                    fh = datetime.strptime(filtro_fecha_cita_hasta, '%Y-%m-%d').date()
-                    lotes = lotes.filter(item_llegada__llegada__cita__fecha_cita__date__lte=fh)
-                except ValueError:
-                    pass
+        if filtro_institucion:
+            lotes = lotes.filter(institucion_id=int(filtro_institucion))
+        if filtro_estado:
+            lotes = lotes.filter(estado=int(filtro_estado))
+        if filtro_almacen:
+            lotes = lotes.filter(almacen_id=int(filtro_almacen))
+        if filtro_ubicacion:
+            lotes = lotes.filter(
+                ubicaciones_detalle__ubicacion_id=int(filtro_ubicacion)
+            ).distinct()
+        if filtro_producto:
+            lotes = lotes.filter(producto_id=int(filtro_producto))
 
-            # Excluir lotes sin RFC del proveedor (orden de suministro)
-            excluir_sin_rfc = request.POST.get('excluir_sin_rfc_proveedor', '')
-            if excluir_sin_rfc:
-                lotes = lotes.filter(
-                    orden_suministro__isnull=False,
-                    orden_suministro__proveedor__isnull=False,
-                    orden_suministro__proveedor__rfc__isnull=False,
-                ).exclude(orden_suministro__proveedor__rfc='')
-            
-            # 5️⃣ Procesar datos manualmente para manejar ubicaciones correctamente
-            datos_lista = []
-            estado_map = dict(Lote.ESTADOS_CHOICES)
-            # Mapeo de columnas a datos complementarios (citas, llegadas, pedidos)
-            from .lote_utils import get_datos_complementarios_lote
-            complementarios_map = {
-                'rfc_proveedor': 'rfc_proveedor',
-                'orden_suministro__proveedor__rfc': 'rfc_proveedor',
-                'proveedor': 'proveedor',
-                'orden_suministro__proveedor__razon_social': 'proveedor',
-                'partida': 'partida',
-                'contrato': 'contrato',
-                'folio': 'folio',
-                'subtotal': 'subtotal',
-                'iva': 'iva',
-                'importe_total': 'importe_total',
-                'licitacion': 'licitacion',
-                'pedido': 'pedido',
-                'remision': 'remision',
-                'responsable': 'responsable',
-                'reviso': 'reviso',
-                'tipo_entrega': 'tipo_entrega',
-                'tipo_red': 'tipo_red',
-                'orden_suministro': 'orden_suministro_numero',
-            }
-
-            reserva_por_lote = totales_reserva_activa_por_lote_ids(
-                list(lotes.values_list('id', flat=True))
+        hoy = timezone.now().date()
+        if filtro_caducidad == 'caducados':
+            lotes = lotes.filter(fecha_caducidad__lt=hoy)
+        elif filtro_caducidad == 'menos_30':
+            lotes = lotes.filter(
+                fecha_caducidad__gte=hoy, fecha_caducidad__lte=hoy + timedelta(days=30)
+            )
+        elif filtro_caducidad == 'menos_60':
+            lotes = lotes.filter(
+                fecha_caducidad__gte=hoy, fecha_caducidad__lte=hoy + timedelta(days=60)
+            )
+        elif filtro_caducidad == 'menos_90':
+            lotes = lotes.filter(
+                fecha_caducidad__gte=hoy, fecha_caducidad__lte=hoy + timedelta(days=90)
             )
 
-            def _valor_para_campo(lote, campo, comp):
-                if campo == 'cantidad_reservada':
-                    return reserva_por_lote.get(lote.id, 0)
-                if campo == 'ubicacion__codigo':
-                    return None  # se asigna en el bloque por ubi
-                if campo == 'almacen__nombre':
-                    return lote.almacen.nombre if lote.almacen else ""
-                if campo == 'producto__clave_cnis':
-                    return lote.producto.clave_cnis if lote.producto else ""
-                if campo == 'institucion__denominacion':
-                    return lote.institucion.denominacion if lote.institucion else ""
-                if campo == 'producto__descripcion':
-                    return lote.producto.descripcion if lote.producto else ""
-                if campo == 'estado':
-                    return estado_map.get(lote.estado, str(lote.estado))
-                valor = getattr(lote, campo.replace('__', '_'), None)
-                if valor is None and '__' in campo:
-                    partes = campo.split('__')
-                    obj = lote
-                    for parte in partes:
-                        obj = getattr(obj, parte, None)
-                        if obj is None:
-                            break
-                    valor = obj
-                if (valor is None or (isinstance(valor, str) and not str(valor).strip())) and campo in complementarios_map:
-                    valor = comp.get(complementarios_map[campo], valor)
-                return valor
+        if busqueda_lote:
+            lotes = lotes.filter(numero_lote__icontains=busqueda_lote)
+        if busqueda_cnis:
+            lotes = lotes.filter(producto__clave_cnis__icontains=busqueda_cnis)
+        if busqueda_producto:
+            lotes = lotes.filter(producto__descripcion__icontains=busqueda_producto)
+        if filtro_partida:
+            lotes = lotes.filter(partida__icontains=filtro_partida)
 
-            for lote in lotes.order_by('-fecha_recepcion'):
-                comp = get_datos_complementarios_lote(lote)
-                ubicaciones = lote.ubicaciones_detalle.all()
+        if filtro_fecha_recepcion == 'coherentes':
+            lotes = lotes.filter(
+                fecha_recepcion__gte=FECHA_RECEPCION_MIN,
+                fecha_recepcion__lte=hoy,
+            )
+        elif filtro_fecha_recepcion == 'incoherentes':
+            lotes = lotes.filter(
+                Q(fecha_recepcion__gt=hoy) | Q(fecha_recepcion__lt=FECHA_RECEPCION_MIN)
+            )
 
-                if ubicaciones.exists():
-                    for ubi in ubicaciones:
-                        registro = {}
-                        for campo in campos:
-                            if campo == 'ubicacion__codigo':
-                                registro[campo] = ubi.ubicacion.codigo if ubi.ubicacion else ""
-                            elif campo == 'cantidad_disponible':
-                                # En exporte por ubicación, reflejar la existencia de esa ubicación
-                                # para evitar repetir el total global del lote en cada renglón.
-                                registro[campo] = int(ubi.cantidad or 0)
-                            else:
-                                registro[campo] = _valor_para_campo(lote, campo, comp)
-                        datos_lista.append(registro)
-                else:
-                    registro = {}
+        if filtro_fecha_recepcion_desde:
+            try:
+                fd = datetime.strptime(filtro_fecha_recepcion_desde, '%Y-%m-%d').date()
+                lotes = lotes.filter(fecha_recepcion__gte=fd)
+            except ValueError:
+                pass
+        if filtro_fecha_recepcion_hasta:
+            try:
+                fh = datetime.strptime(filtro_fecha_recepcion_hasta, '%Y-%m-%d').date()
+                lotes = lotes.filter(fecha_recepcion__lte=fh)
+            except ValueError:
+                pass
+
+        if filtro_con_remision == '1':
+            lotes = lotes.filter(remision__isnull=False).exclude(remision='')
+        if filtro_con_orden_suministro == '1':
+            lotes = lotes.filter(orden_suministro__isnull=False)
+        if filtro_fecha_cita_desde:
+            try:
+                fd = datetime.strptime(filtro_fecha_cita_desde, '%Y-%m-%d').date()
+                lotes = lotes.filter(item_llegada__llegada__cita__fecha_cita__date__gte=fd)
+            except ValueError:
+                pass
+        if filtro_fecha_cita_hasta:
+            try:
+                fh = datetime.strptime(filtro_fecha_cita_hasta, '%Y-%m-%d').date()
+                lotes = lotes.filter(item_llegada__llegada__cita__fecha_cita__date__lte=fh)
+            except ValueError:
+                pass
+
+        if request.POST.get('excluir_sin_rfc_proveedor', ''):
+            lotes = lotes.filter(
+                orden_suministro__isnull=False,
+                orden_suministro__proveedor__isnull=False,
+                orden_suministro__proveedor__rfc__isnull=False,
+            ).exclude(orden_suministro__proveedor__rfc='')
+
+        lotes_list = list(lotes.order_by('-fecha_recepcion'))
+        if not lotes_list:
+            return JsonResponse({"error": "No hay datos para exportar"}, status=404)
+
+        necesita_comp = bool(set(campos) & _CAMPOS_COMPLEMENTARIOS_EXPORT)
+        complementarios_map = {
+            'rfc_proveedor': 'rfc_proveedor',
+            'orden_suministro__proveedor__rfc': 'rfc_proveedor',
+            'proveedor': 'proveedor',
+            'orden_suministro__proveedor__razon_social': 'proveedor',
+            'partida': 'partida',
+            'contrato': 'contrato',
+            'folio': 'folio',
+            'subtotal': 'subtotal',
+            'iva': 'iva',
+            'importe_total': 'importe_total',
+            'licitacion': 'licitacion',
+            'pedido': 'pedido',
+            'remision': 'remision',
+            'responsable': 'responsable',
+            'reviso': 'reviso',
+            'tipo_entrega': 'tipo_entrega',
+            'tipo_red': 'tipo_red',
+            'orden_suministro': 'orden_suministro_numero',
+        }
+        comps = get_datos_complementarios_lotes_bulk(lotes_list) if necesita_comp else {}
+
+        reserva_por_lote = {}
+        if 'cantidad_reservada' in campos:
+            reserva_por_lote = totales_reserva_activa_por_lote_ids(
+                [lote.id for lote in lotes_list]
+            )
+
+        estado_map = dict(Lote.ESTADOS_CHOICES)
+        empty_comp = {}
+
+        def _serializar(valor):
+            if isinstance(valor, Decimal):
+                return float(valor)
+            if isinstance(valor, datetime):
+                return valor.strftime("%Y-%m-%d %H:%M")
+            if isinstance(valor, date):
+                return valor.strftime("%Y-%m-%d")
+            if valor is None:
+                return ""
+            return valor
+
+        def _valor_para_campo(lote, campo, comp):
+            if campo == 'cantidad_reservada':
+                return reserva_por_lote.get(lote.id, 0)
+            if campo == 'ubicacion__codigo':
+                return None
+            if campo == 'almacen__nombre':
+                return lote.almacen.nombre if lote.almacen else ""
+            if campo == 'producto__clave_cnis':
+                return lote.producto.clave_cnis if lote.producto else ""
+            if campo == 'institucion__denominacion':
+                return lote.institucion.denominacion if lote.institucion else ""
+            if campo == 'producto__descripcion':
+                return lote.producto.descripcion if lote.producto else ""
+            if campo == 'estado':
+                return estado_map.get(lote.estado, str(lote.estado))
+            valor = getattr(lote, campo.replace('__', '_'), None)
+            if valor is None and '__' in campo:
+                obj = lote
+                for parte in campo.split('__'):
+                    obj = getattr(obj, parte, None)
+                    if obj is None:
+                        break
+                valor = obj
+            if (
+                (valor is None or (isinstance(valor, str) and not str(valor).strip()))
+                and campo in complementarios_map
+            ):
+                valor = comp.get(complementarios_map[campo], valor)
+            return valor
+
+        wb = Workbook(write_only=True)
+        ws = wb.create_sheet(title='Lotes')
+        ws.append(campos)
+
+        filas = 0
+        for lote in lotes_list:
+            comp = comps.get(lote.id, empty_comp)
+            # Prefetch: list() evita .exists() (que puede pegarle otra vez a BD)
+            ubicaciones = list(lote.ubicaciones_detalle.all())
+            if ubicaciones:
+                for ubi in ubicaciones:
+                    if filas >= _MAX_FILAS_EXPORT_LOTES:
+                        break
+                    row = []
                     for campo in campos:
                         if campo == 'ubicacion__codigo':
-                            registro[campo] = ""
+                            val = ubi.ubicacion.codigo if ubi.ubicacion else ""
+                        elif campo == 'cantidad_disponible':
+                            val = int(ubi.cantidad or 0)
                         else:
-                            registro[campo] = _valor_para_campo(lote, campo, comp)
-                    datos_lista.append(registro)
-            
-            if not datos_lista:
-                return JsonResponse({"error": "No hay datos para exportar"}, status=404)
+                            val = _valor_para_campo(lote, campo, comp)
+                        row.append(_serializar(val))
+                    ws.append(row)
+                    filas += 1
+            else:
+                if filas >= _MAX_FILAS_EXPORT_LOTES:
+                    break
+                row = []
+                for campo in campos:
+                    if campo == 'ubicacion__codigo':
+                        val = ""
+                    else:
+                        val = _valor_para_campo(lote, campo, comp)
+                    row.append(_serializar(val))
+                ws.append(row)
+                filas += 1
+            if filas >= _MAX_FILAS_EXPORT_LOTES:
+                break
 
-            # 6️⃣ Procesar campos legibles
-            for registro in datos_lista:
-                # Fechas legibles
-                for k, v in registro.items():
-                    if isinstance(v, Decimal):
-                        registro[k] = float(v)
-                    elif isinstance(v, (date, datetime)):
-                        registro[k] = v.strftime("%Y-%m-%d %H:%M") if isinstance(v, datetime) else v.strftime("%Y-%m-%d")
-                    elif v is None:
-                        registro[k] = ""
+        if filas == 0:
+            return JsonResponse({"error": "No hay datos para exportar"}, status=404)
 
-            # 7️⃣ Exportar a Excel respetando el orden de columnas
-            df = pd.DataFrame(datos_lista)
+        response = HttpResponse(
+            content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        )
+        response["Content-Disposition"] = 'attachment; filename="lotes.xlsx"'
+        wb.save(response)
+        return response
 
-            # Si hay orden definido, reordenamos las columnas
-            columnas_finales = [col for col in campos if col in df.columns]
-            df = df[columnas_finales]
-
-            # Generar Excel
-            response = HttpResponse(
-                content_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-            )
-            response["Content-Disposition"] = 'attachment; filename="lotes.xlsx"'
-            df.to_excel(response, index=False, sheet_name='Lotes')
-
-            return response
-
-        except Exception as e:
-            return JsonResponse({"error": f"Error generando el reporte: {str(e)}"}, status=500)
-
-    return JsonResponse({"error": "Método no permitido"}, status=405)
+    except Exception as e:
+        return JsonResponse({"error": f"Error generando el reporte: {str(e)}"}, status=500)
