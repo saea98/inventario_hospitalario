@@ -2394,3 +2394,7 @@ class ItemRevision(models.Model):
     
     def __str__(self):
         return f"{self.descripcion} - {self.get_resultado_display()}"
+
+
+# Consumidores de API de interoperabilidad (equipos externos)
+from .interop_models import ApiConsumidor  # noqa: E402,F401

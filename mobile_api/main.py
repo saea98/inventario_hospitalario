@@ -5,11 +5,16 @@ from mobile_api.django_setup import setup_django
 
 setup_django()
 
-from mobile_api.routers import auth_router, conteos_router
+from mobile_api.routers import auth_router, conteos_router, interop_router
 
 app = FastAPI(
-    title='Inventario Hospitalario — API móvil conteo',
-    version='1.0.0',
+    title='Inventario Hospitalario — API v1',
+    description=(
+        'API móvil de conteo e **interop** de lectura para otros equipos. '
+        'Existencias: fisico − reservas activas (LoteAsignado surtido=False). '
+        'Interop no expone lotes caducados. Auth: header `X-API-Key`.'
+    ),
+    version='1.1.0',
     docs_url='/docs',
     openapi_url='/openapi.json',
 )
@@ -24,8 +29,9 @@ app.add_middleware(
 
 app.include_router(auth_router.router)
 app.include_router(conteos_router.router)
+app.include_router(interop_router.router)
 
 
 @app.get('/health')
 def health():
-    return {'status': 'ok', 'service': 'mobile_api'}
+    return {'status': 'ok', 'service': 'mobile_api', 'interop': True}

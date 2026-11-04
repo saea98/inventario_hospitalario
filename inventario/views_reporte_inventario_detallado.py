@@ -73,28 +73,9 @@ def _annotate_inventario_disponible_real(queryset):
     − reserva activa en propuestas (suma LoteAsignado con surtido=False por lote).
     Expone _inventario_disponible_neto para ordenar y para _fila_lote_a_dict.
     """
-    la_total = (
-        LoteAsignado.objects.filter(lote_ubicacion__lote_id=OuterRef('pk'), surtido=False)
-        .order_by()
-        .values('lote_ubicacion__lote_id')
-        .annotate(t=Sum('cantidad_asignada'))
-        .values('t')[:1]
-    )
-    return (
-        queryset.annotate(
-            _sum_res=Coalesce(Subquery(la_total, output_field=IntegerField()), Value(0)),
-        )
-        .annotate(
-            _fisico_lote=Coalesce(F('cantidad_disponible'), Value(0), output_field=IntegerField()),
-        )
-        .annotate(
-            _inventario_disponible_neto=Case(
-                When(_fisico_lote__lte=F('_sum_res'), then=Value(0)),
-                default=F('_fisico_lote') - F('_sum_res'),
-                output_field=IntegerField(),
-            ),
-        )
-    )
+    from .existencia_service import annotate_existencia_neta
+
+    return annotate_existencia_neta(queryset)
 
 
 def _cantidad_fisica_lote_obj(lote):

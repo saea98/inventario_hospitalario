@@ -454,3 +454,6 @@ class MenuItemRolAdmin(admin.ModelAdmin):
 
 # Importar el admin de pedidos
 from .pedidos_admin import LogErrorPedidoAdmin
+
+# API de interoperabilidad (consumidores externos)
+from .interop_admin import ApiConsumidorAdmin  # noqa: F401
