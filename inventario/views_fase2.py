@@ -511,7 +511,18 @@ def cancelar_cita(request, pk):
         return redirect('logistica:detalle_cita', pk=pk)
 
     if request.method == 'POST':
+        razon = (request.POST.get('razon_cancelacion') or '').strip()
+        if not razon:
+            messages.error(request, 'Indica el motivo de la cancelación.')
+            tiene_llegada = LlegadaProveedor.objects.filter(cita=cita).exists()
+            return render(
+                request,
+                'inventario/citas/cancelar.html',
+                {'cita': cita, 'tiene_llegada': tiene_llegada, 'razon_cancelacion': razon},
+            )
         try:
+            from django.utils import timezone as dj_tz
+
             with transaction.atomic():
                 # Cancelar llegada de proveedor asociada (rollback lógico)
                 # Buscar por cita de forma explícita para asegurar que se actualice aunque la relación inversa falle
@@ -519,9 +530,14 @@ def cancelar_cita(request, pk):
                 if llegada and llegada.estado != 'CANCELADA':
                     llegada.estado = 'CANCELADA'
                     llegada.save(update_fields=['estado'])
-                # Cancelar la cita
+                # Cancelar la cita con trazabilidad (usuario / fecha / razón)
                 cita.estado = 'cancelada'
-                cita.save(update_fields=['estado'])
+                cita.fecha_cancelacion = dj_tz.now()
+                cita.usuario_cancelacion = request.user
+                cita.razon_cancelacion = razon
+                cita.save(update_fields=[
+                    'estado', 'fecha_cancelacion', 'usuario_cancelacion', 'razon_cancelacion',
+                ])
             # Notificación fuera del atomic para no hacer rollback por fallo de envío
             notificaciones.notificar_cita_cancelada(cita)
             messages.success(request, '✓ Cita y llegada de proveedor (si existía) canceladas correctamente.')
