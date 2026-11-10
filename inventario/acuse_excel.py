@@ -8,8 +8,15 @@ from copy import copy
 from datetime import datetime
 import os
 import textwrap
+import unicodedata
 from django.conf import settings
 from io import BytesIO
+
+
+def _clave_orden_alfabetico(texto):
+    """Orden A→Z ignorando mayúsculas/tildes (usos y costumbres del acuse)."""
+    t = unicodedata.normalize('NFKD', (texto or '').casefold())
+    return ''.join(c for c in t if not unicodedata.combining(c))
 
 
 def copiar_estilo_celda(celda_origen, celda_destino):
@@ -173,15 +180,15 @@ def generar_acuse_excel(propuesta, almacen_id=None, for_pdf=False):
     """
     Genera un archivo Excel con el acuse de entrega usando un template como base.
 
-    Cada fila del acuse proviene de un LoteAsignado con cantidad_asignada > 0. Si almacen_id
-    está definido (usuario sin perfil de administrador pero con almacén asignado en su cuenta),
-    solo se incluyen asignaciones cuya ubicación pertenece a ese almacén. Eso puede hacer que
-    el PDF/Excel muestre menos líneas que el detalle web de la propuesta (donde se listan todos
-    los ítems y lotes). Sin almacen_id, se incluyen todas las asignaciones de la propuesta.
+    Cada fila del acuse proviene de un LoteAsignado con cantidad_asignada > 0.
+    Por defecto (acuse de entrega del pedido) se incluyen todas las asignaciones,
+    igual que en la vista web. ``almacen_id`` queda solo como filtro opcional
+    por si se necesita un recorte puntual; las vistas de descarga ya no lo aplican
+    según el almacén del usuario.
 
     Args:
         propuesta: Objeto PropuestaPedido
-        almacen_id: Opcional. Filtra por lote_ubicacion__ubicacion__almacen_id.
+        almacen_id: Opcional. Si se pasa, filtra por lote_ubicacion__ubicacion__almacen_id.
         for_pdf: Si True, no altera la configuración de impresión del libro (el PDF
             se genera a partir del mismo Excel y ya luce bien en horizontal allí).
 
@@ -293,7 +300,6 @@ def generar_acuse_excel(propuesta, almacen_id=None, for_pdf=False):
         item.refresh_from_db()
         
         # Obtener lotes asignados directamente desde la base de datos (consulta fresca)
-        # Si almacen_id está definido, solo insumos del almacén del usuario (no admin)
         filtro_lotes = {
             'item_propuesta': item,
             'cantidad_asignada__gt': 0,
@@ -340,6 +346,17 @@ def generar_acuse_excel(propuesta, almacen_id=None, for_pdf=False):
                 'folio_pedido': propuesta.solicitud.observaciones_solicitud or ''  # Usar observaciones_solicitud
             })
             idx += 1
+
+    # Usos y costumbres: orden alfabético por descripción (Excel y PDF usan la misma lista)
+    items_data.sort(
+        key=lambda x: (
+            _clave_orden_alfabetico(x.get('descripcion')),
+            x.get('clave') or '',
+            x.get('lote') or '',
+        )
+    )
+    for i, it in enumerate(items_data, start=1):
+        it['idx'] = i
 
     total_piezas = sum(int(it['cantidad'] or 0) for it in items_data)
     ws['I5'].value = f'TOTAL PIEZAS ENTREGADAS: {total_piezas}'

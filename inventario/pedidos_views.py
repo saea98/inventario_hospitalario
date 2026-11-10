@@ -837,16 +837,9 @@ def detalle_propuesta(request, propuesta_id):
                 id=propuesta_id,
             )
 
-    user_almacen = getattr(request.user, 'almacen', None)
-    acuse_filtra_por_almacen = bool(
-        user_almacen and not es_administrador(request.user)
-    )
-
     context = {
         'propuesta': propuesta,
         'page_title': f"Propuesta {propuesta.solicitud.folio}",
-        'acuse_filtra_por_almacen': acuse_filtra_por_almacen,
-        'almacen_acuse_usuario': user_almacen,
     }
     return render(request, 'inventario/pedidos/detalle_propuesta.html', context)
 
